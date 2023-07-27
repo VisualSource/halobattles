@@ -27,8 +27,7 @@ export default class UnitStack extends CSS2DObject {
             ev.dataTransfer?.setData("application/json", JSON.stringify({
                 id: this.objectId,
                 type: this.groupPosition
-            }))
-
+            }));
         });
         this.container.addEventListener("drop", (ev) => {
             ev.preventDefault();

@@ -1,34 +1,64 @@
+import type { GroupType, Unit } from "server/src/object/Location";
 import useGetNode from "../../hooks/useGetNode";
+
+const Grid: React.FC<{ units: Unit[], type: "center" | "left" | "right", nodeId: string; }> = ({ nodeId, units, type }) => {
+
+    return (
+        <section className="grid grid-rows-6 grid-cols-4 overflow-y-scroll">
+            {Array.from({ length: 6 * 4 }).map((_, key) => {
+                const idx = units?.findIndex(value => value.idx === key);
+
+                if (idx === -1) {
+                    return (
+                        <div className="w-full col-span-1 row-span-1 border-2 border-gray-600 hover:bg-gray-800" key={key} onDrop={(ev) => {
+                            ev.preventDefault();
+                            const data = JSON.parse(ev.dataTransfer?.getData("application/json") ?? "null") as { id: string; type: GroupType; idx: number; } | null;
+                            if (!data) throw new Error("Faild to get transfer data.");
+                            console.log(data);
+                        }} onDragOver={(ev) => ev.preventDefault()}></div>
+                    );
+                }
+
+                const unit = units[idx];
+
+                return (
+                    <button key={key} className="w-full p-2 relative col-span-1 row-span-1 border-2 border-gray-600 hover:bg-gray-800"
+                        onDrop={(ev) => {
+                            ev.preventDefault();
+                            const data = JSON.parse(ev.dataTransfer?.getData("application/json") ?? "null") as { id: string; type: GroupType; idx: number; } | null;
+                            if (!data) throw new Error("Faild to get transfer data.");
+                            if (data.id !== data.id) return;
+                            console.log(data);
+                        }}
+                        onDragOver={(ev) => ev.preventDefault()}
+                        onDragStart={(ev) => {
+                            ev.dataTransfer?.setData("application/json", JSON.stringify({
+                                id: nodeId,
+                                type,
+                                idx: key
+                            }));
+                        }}>
+                        <img className="aspect-square h-full rounded-md select-none" src={unit.icon} alt="unit" />
+                        {unit.count > 1 ? (
+                            <div className="absolute inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 border-2 rounded-full top-0.5 right-0.5 border-gray-900">{unit.count}</div>
+                        ) : null}
+                    </button>
+                );
+            })}
+        </section>
+    );
+}
 
 const UnitManagment: React.FC = () => {
     const node = useGetNode();
 
+    if (!node) throw new Error("Failed to get node");
+
     return (
         <div className="w-full grid grid-cols-3">
-            <section className="grid grid-rows-6 grid-cols-4 overflow-y-scroll">
-                {Array.from({ length: 6 * 4 }).map((_, i) => (
-                    <div className="w-full col-span-1 row-span-1 border-2 border-gray-600 hover:bg-gray-800" key={i}></div>
-                ))}
-                {node?.units.left.map((value, key) => (
-                    <div key={key} className="bg-gray-900 h-24 w-24">{key}</div>
-                ))}
-            </section>
-            <section className="grid grid-rows-6 grid-cols-4 overflow-y-scroll">
-                {Array.from({ length: 6 * 4 }).map((_, i) => (
-                    <div className="w-full col-span-1 row-span-1 border-2 border-gray-600 hover:bg-gray-800" key={i}></div>
-                ))}
-                {node?.units.center.map((value, key) => (
-                    <div key={key} className="bg-gray-900 h-24 w-24">{key}</div>
-                ))}
-            </section>
-            <section className="grid grid-rows-6 grid-cols-4 overflow-y-scroll">
-                {Array.from({ length: 6 * 4 }).map((_, i) => (
-                    <div className="w-full col-span-1 row-span-1 border-2 border-gray-600 hover:bg-gray-800" key={i}></div>
-                ))}
-                {node?.units.right.map((value, key) => (
-                    <div key={key} className="bg-gray-900 h-24 w-24">{key}</div>
-                ))}
-            </section>
+            <Grid nodeId={node?.objectId} units={node?.units.left} type="left" />
+            <Grid nodeId={node?.objectId} units={node?.units.center} type="center" />
+            <Grid nodeId={node?.objectId} units={node?.units.right} type="right" />
         </div>
     )
 }

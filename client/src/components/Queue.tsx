@@ -1,7 +1,6 @@
 import useQueue, { useActiveQueueItem } from "../hooks/useQueue";
 import QueueEngine from "../lib/QueueEngine";
 
-
 const QueueItem: React.FC<{ queueId: string; nodeId: string, idx: number, name: string; time: number; icon: string; }> = ({ queueId, nodeId, idx, name, time, icon }) => {
     return (
         <li className="p-2 flex gap-2 items-center">
@@ -43,7 +42,7 @@ const Queue: React.FC<{ queueId: string; nodeId: string; }> = ({ nodeId, queueId
                     <div className="py-4 px-2 w-full">
                         <h1 className="text-4xl mb-2">{item.objData.name}</h1>
                         <div className="w-full rounded-sm bg-gray-900 relative h-4">
-                            <div className="bg-blue-600 text-xs font-medium text-blue-100 text-center leading-none rounded-sm h-full" style={{ width: `${(item.objData.duration - item.time) * 10}%` }}>
+                            <div className="bg-blue-600 text-xs font-medium text-blue-100 text-center leading-none rounded-sm h-full" style={{ width: `${100 - ((item.time / item.objData.duration) * 100)}%` }}>
                                 <span className="absolute text-center w-full left-0.5 h-full">{item.time}s</span>
                             </div>
                         </div>

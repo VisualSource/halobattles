@@ -1,5 +1,7 @@
 import type { UUID } from "../lib";
 
+type BuildTypes = "units" | "buildings"
+
 type Props = {
     name: string;
     owner: UUID | null;
@@ -11,7 +13,12 @@ type Props = {
     }
 }
 
-export type Unit = { id: string; count: number };
+export type Unit = {
+    icon: string;
+    id: number;
+    count: number;
+    idx: number
+};
 export type Building = { id: string; level: number; }
 
 export const Group = {
@@ -23,11 +30,28 @@ export const Group = {
 export type GroupType = typeof Group[keyof typeof Group];
 
 export default class Location {
+    public buildOptions: { [key in BuildTypes]: { allowed: number[]; current: number[] } } = {
+        units: {
+            allowed: [0],
+            current: []
+        },
+        buildings: {
+            allowed: [0],
+            current: []
+        }
+    }
     public name: string;
     public owner: UUID | null;
     public objectId: UUID;
     public units: { [key in GroupType]: Unit[] } = {
-        left: [],
+        left: [
+            {
+                count: 1,
+                icon: "https://halo.wiki.gallery/images/6/62/HW2_Blitz_Bloodfuel_Grunts.png",
+                idx: 2,
+                id: 0
+            }
+        ],
         right: [],
         center: []
     };

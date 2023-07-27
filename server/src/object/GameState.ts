@@ -3,8 +3,10 @@ import { randomUUID } from 'node:crypto';
 
 import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events';
 import type { Unit, GroupType } from './Location';
+import { buildOptions } from '../map/upgradeList';
 import type { UUID } from "../lib";
 import map from '../map/test_map';
+import units from '../map/units';
 
 type UnitTransfer = {
     expectedResolveTime: Date,
@@ -63,7 +65,10 @@ export default class GameState extends EventEmitter {
         const transfer = this.transfers.get(id as UUID);
         if (!transfer) throw new Error("No vaild transfer with given id");
 
-        if (!(((time.getSeconds() - 5) < transfer.expectedResolveTime.getSeconds()) || ((time.getSeconds() + 5) > transfer.expectedResolveTime.getSeconds()))) {
+        const expectedItem = transfer.expectedResolveTime.getSeconds();
+        const currentTime = time.getSeconds();
+
+        if (!(((currentTime - 5) < expectedItem) || ((currentTime + 5) > expectedItem))) {
             throw new Error("Transfer did not happen with allowed time frame");
         }
 
@@ -86,5 +91,42 @@ export default class GameState extends EventEmitter {
     }
     public getSelectedMap() {
         return this.map;
+    }
+    public getNode(nodeId: UUID) {
+        const node = this.map.find(value => value.objectId === nodeId);
+        if (!node) throw new Error("Failed to find node");
+        return node;
+    }
+    public getNodeBuildOptions(nodeId: UUID, owner: UUID) {
+        const node = this.getNode(nodeId);
+        if (node.owner !== owner) throw new Error("Current user can not query data for this node");
+
+        const upgrades = node.buildOptions.buildings.allowed.filter(value => !node.buildOptions.buildings.current.includes(value));
+
+        const options = [];
+        for (const item of upgrades) {
+            const data = buildOptions.get(item);
+            if (!data) continue;
+
+            const { actions, effects, ...rest } = data;
+            options.push(rest);
+        }
+
+        return options;
+    }
+    public getNodeUnitOptions(nodeId: UUID, owner: UUID) {
+        const node = this.getNode(nodeId);
+        if (node.owner !== owner) throw new Error("Current user can not query data for this node");
+
+        const upgrades = node.buildOptions.units.allowed.filter(value => !node.buildOptions.units.current.includes(value));
+
+        const options = [];
+        for (const item of upgrades) {
+            const data = units.get(item);
+            if (!data) continue;
+            options.push(data);
+        }
+
+        return options;
     }
 }
