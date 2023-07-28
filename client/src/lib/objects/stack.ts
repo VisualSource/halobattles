@@ -22,6 +22,7 @@ export default class UnitStack extends CSS2DObject {
         super(document.createElement("div"));
         this.container.classList.add("pointer-events-auto", "h-10", "w-10", "flex", "flex-column", "items-center", "justify-center", "relative", "bottom-2");
         this.container.draggable = false;
+        this.container.setAttribute("group", groupPosition);
 
         this.container.addEventListener("dragstart", ev => {
             ev.dataTransfer?.setData("application/json", JSON.stringify({

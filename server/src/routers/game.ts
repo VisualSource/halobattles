@@ -37,6 +37,27 @@ export const gameRouter = t.router({
         console.log("External Transfer");
         gameState.emit(GameEvents.TransferUnits, { ...input, owner: ctx.user });
     }),
+    internalTransfer: t.procedure.input(z.object({
+        nodeId: z.string().uuid(),
+        from: z.object({
+            group: z.enum(["left", "center", "right"]),
+            idx: z.number(),
+            id: z.number()
+        }),
+        to: z.object({
+            group: z.enum(["left", "center", "right"]),
+            idx: z.number()
+        })
+    })).mutation(({ input, ctx }) => {
+        const node = gameState.getNode(input.nodeId as UUID);
+        const result = node.moveToGroup(input.from, input.to);
+        console.log("InternalTransfer", result);
+        gameState.emit(GameEvents.UpdateLocation, {
+            type: "update-units-groups",
+            owner: ctx.user,
+            payload: result
+        } as UpdateLocationResponse);
+    }),
     onTransferUnits: t.procedure.input(z.string().uuid()).subscription(({ input }) => {
         return observable<MoveResponse>((emit) => {
             const onTransferUnits = (data: MoveRequest) => {

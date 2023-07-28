@@ -83,8 +83,8 @@ export default class Location {
         const ellipseXR = 8;
         const ellipseYR = 6;
         const center = createEllipse(ellipseXR, ellipseYR, 0, 20, this.objectId, "center");
-        const right = createEllipse(ellipseXR, ellipseYR, -15, 10, this.objectId, "right");
-        const left = createEllipse(ellipseXR, ellipseYR, 15, 10, this.objectId, "left");
+        const left = createEllipse(ellipseXR, ellipseYR, -15, 10, this.objectId, "left");
+        const right = createEllipse(ellipseXR, ellipseYR, 15, 10, this.objectId, "right");
 
         this.stacks = {
             left: left.stack,
@@ -94,11 +94,11 @@ export default class Location {
 
         this.node = createSphere(position.x, position.y, 0x0f0ff00);
         this.node.layers.enable(1);
-        this.node.add(right.ellipse, left.ellipse, center.ellipse);
+        this.node.add(left.ellipse, right.ellipse, center.ellipse,);
         this.node.userData.objectId = this.objectId;
 
         const debugLabel = new CSS2DObject(document.createElement("div"));
-        debugLabel.element.innerText = this.objectId;
+        debugLabel.element.innerText = this.name;
         debugLabel.element.classList.add("text-black");
         debugLabel.position.set(0, -20, 0)
 
@@ -119,10 +119,27 @@ export default class Location {
     }
     public setGroupUnits(group: GroupType, units: Unit[]): void {
         this.units[group] = units;
+        let stackSize = StackState.Empty;
 
-        //@TODO calc state that sould be displayed
+        switch (true) {
+            case units.length >= 1:
+                stackSize = StackState.One;
+                break;
+            case units.length >= 5:
+                stackSize = StackState.Half;
+                break;
+            case units.length >= 20:
+                stackSize = StackState.Three;
+                break;
+            case units.length >= 35:
+                stackSize = StackState.Max;
+                break;
+            default:
+                break;
+        }
 
-        this.stacks[group].setState(units.length ? StackState.Max : StackState.Empty);
-        this.stacks[group].setTopImage();
+        if (stackSize !== StackState.Empty) this.stacks[group].setTopImage();
+
+        this.stacks[group].setState(stackSize);
     }
 }

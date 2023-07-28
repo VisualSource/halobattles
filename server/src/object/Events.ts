@@ -52,4 +52,13 @@ interface UpdateLocationUnits extends UpdateLocationBase {
     }
 }
 
-export type UpdateLocationResponse = UpdateLocationGroupClear | UpdateLocationUnits | UpdateLocationOwner;
+export interface UpdateLocationUnitGroups extends UpdateLocationBase {
+    type: "update-units-groups",
+    payload: {
+        node: UUID,
+        group: GroupType,
+        units: Unit[]
+    }[]
+}
+
+export type UpdateLocationResponse = UpdateLocationGroupClear | UpdateLocationUnits | UpdateLocationOwner | UpdateLocationUnitGroups;

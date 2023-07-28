@@ -184,9 +184,18 @@ export default class Runtime extends EventTarget {
                         node.stacksMovable(userId === value.owner);
                         break;
                     }
+                    case "update-units-groups": {
+                        for (const payload of value.payload) {
+                            const node = this.locations.find(node => node.objectId === payload.node);
+                            if (!node) throw new Error("Failed to find node to update");
+                            node.setGroupUnits(payload.group, payload.units);
+                        }
+                        break;
+                    }
                     default:
                         break;
                 }
+                this.dispatchEvent(new CustomEvent("node-update"));
             },
             onError(error) {
                 console.error(error);
