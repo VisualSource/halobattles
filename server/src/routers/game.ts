@@ -103,11 +103,10 @@ export const gameRouter = t.router({
     getPlanetInfo: t.procedure.input(z.object({ name: z.string(), owner: z.string().uuid().nullable() })).query(({ input }) => {
         const data = planetInfo[input.name];
         if (!data) throw new TRPCError({ message: "Failed to find planet data.", code: "NOT_FOUND" });
+        const player = gameState.getPlayer(input.owner as UUID | null);
         return {
             planet: data,
-            owner: input.owner ? {
-                name: "Username"
-            } : null
+            owner: player
         }
     }),
     getBulidingInfo: t.procedure.input(z.number()).query(({ input }) => {

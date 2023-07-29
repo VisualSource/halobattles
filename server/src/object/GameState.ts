@@ -158,6 +158,12 @@ export default class GameState extends EventEmitter {
     public getSelectedMap() {
         return this.map;
     }
+    public getPlayer(id: UUID | null) {
+        if (!id) return null;
+        const player = this.players.find(value => value.id === id);
+        if (!player) throw new Error("Failed to find player");
+        return player;
+    }
     public setPlayerData() {
         this.map[5].owner = this.players[0].id;
         this.map[5].color = this.players[0].color;

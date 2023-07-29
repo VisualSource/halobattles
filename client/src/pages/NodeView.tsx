@@ -3,11 +3,12 @@ import { Tooltip, } from 'flowbite-react';
 import useGetNode, { useIsNodeOwner, useIsNodeContested } from "../hooks/useGetNode";
 
 const NodeView: React.FC = () => {
+    const isContested = useIsNodeContested();
     const isOwner = useIsNodeOwner();
     const matches = useMatches();
     const { id } = useParams();
     const node = useGetNode();
-    const isContested = useIsNodeContested();
+
 
     if (isContested) {
         return (
