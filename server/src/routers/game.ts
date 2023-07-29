@@ -88,7 +88,10 @@ export const gameRouter = t.router({
             }
         });
     }),
-    getMap: t.procedure.query(() => gameState.getSelectedMap()),
+    getMap: t.procedure.query(() => {
+        gameState.setPlayerData();
+        return gameState.getSelectedMap();
+    }),
     getBuildOptions: t.procedure.input(z.string().uuid()).query(({ input, ctx }) => {
         if (!ctx.user) throw new TRPCError({ message: "Invaild user", code: "UNAUTHORIZED" });
         return gameState.getNodeBuildOptions(input as UUID, ctx.user as UUID);

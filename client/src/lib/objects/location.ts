@@ -1,4 +1,4 @@
-import { CircleGeometry, EllipseCurve, Mesh, MeshBasicMaterial, Shape, ShapeGeometry, Vector3 } from "three";
+import { CircleGeometry, Color, EllipseCurve, Mesh, MeshBasicMaterial, Shape, ShapeGeometry, Vector3 } from "three";
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { GroupType, Unit, Building, LocationProps } from "server/src/object/Location";
 import UnitStack, { StackState } from "./stack";
@@ -32,7 +32,7 @@ function createEllipse(xr: number, yr: number, x: number, y: number, uuid: strin
     const shap = new Shape().setFromPoints(points);
     const ellipseGeometry = new ShapeGeometry(shap);
 
-    const mat = new MeshBasicMaterial({ color: 0x00ff00 });
+    const mat = new MeshBasicMaterial({ color: 0x262826 });
     const ellipse = new Mesh(ellipseGeometry, mat);
     ellipse.renderOrder = 101
     ellipse.position.set(x, y, 0);
@@ -48,25 +48,29 @@ function createEllipse(xr: number, yr: number, x: number, y: number, uuid: strin
 }
 
 export default class Location {
+    public contested: boolean;
     public name: string;
     public maxBuildingsSlots: number;
     public objectId: string;
     public connectsTo: string[] = [];
     public node: Mesh;
     public spies: UUID[] = [];
+    public color: number;
     public owner: string | null;
     public units: { [key in GroupType]: Unit[] }
     public buildings: Building[] = [];
     public stacks: { [key in GroupType]: UnitStack }
-    constructor({ objectId, position, connectsTo, owner, units, buildings, name, spies, maxBuildingSlots }: LocationProps) {
+    constructor({ contested, objectId, position, connectsTo, owner, units, buildings, name, spies, maxBuildingSlots, color }: LocationProps) {
         this.objectId = objectId;
         this.connectsTo = connectsTo;
         this.owner = owner;
         this.units = units;
         this.buildings = buildings;
         this.name = name;
+        this.color = color;
         this.maxBuildingsSlots = maxBuildingSlots;
         this.spies = spies;
+        this.contested = contested;
 
         const ellipseXR = 8;
         const ellipseYR = 6;
@@ -84,17 +88,21 @@ export default class Location {
         this.updateStackState("right");
         this.updateStackState("left");
 
-        this.node = createSphere(position.x, position.y, 0x0f0ff00);
+        this.node = createSphere(position.x, position.y, color);
         this.node.layers.enable(1);
         this.node.add(left.ellipse, right.ellipse, center.ellipse,);
         this.node.userData.objectId = this.objectId;
 
         const debugLabel = new CSS2DObject(document.createElement("div"));
         debugLabel.element.innerText = this.name;
-        debugLabel.element.classList.add("text-black");
+        debugLabel.element.classList.add("text-black", "font-bold");
         debugLabel.position.set(0, -20, 0)
 
         this.node.add(debugLabel);
+    }
+    public setOwner(owner: string | null, color: number): void {
+        this.owner = owner;
+        (this.node.material as THREE.MeshBasicMaterial).color = new Color(color);
     }
     public stacksMovable(value: boolean) {
         this.stacks.center.setDraggable(value);

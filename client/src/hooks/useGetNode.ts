@@ -74,6 +74,19 @@ export const useNodeBuildings = () => {
     return data;
 }
 
+export const useIsNodeContested = () => {
+    const { id } = useParams();
+    const getSnapshot = useCallback(() => {
+        if (!id) return false;
+        const instance = Runtime.getInstance();
+        const node = instance.getNode(id);
+        if (!node) return false;
+        return node.contested;
+    }, [id]);
+    const data = useSyncExternalStore(subscribe, getSnapshot);
+    return data;
+}
+
 export const useIsNodeOwner = () => {
     const { id } = useParams();
     const getSnapshot = useCallback(() => {

@@ -28,6 +28,14 @@ type UpdateLocationBase = {
     owner: UUID;
 }
 
+interface UpdateLocationContested extends UpdateLocationBase {
+    type: "set-contested-state",
+    payload: {
+        node: UUID,
+        state: boolean;
+    }
+}
+
 interface UpdateLocationGroupClear extends UpdateLocationBase {
     type: "group-clear";
     payload: {
@@ -40,6 +48,7 @@ interface UpdateLocationOwner extends UpdateLocationBase {
     type: "set-owner";
     payload: {
         node: UUID;
+        color: number;
     }
 }
 
@@ -61,4 +70,4 @@ export interface UpdateLocationUnitGroups extends UpdateLocationBase {
     }[]
 }
 
-export type UpdateLocationResponse = UpdateLocationGroupClear | UpdateLocationUnits | UpdateLocationOwner | UpdateLocationUnitGroups;
+export type UpdateLocationResponse = UpdateLocationGroupClear | UpdateLocationUnits | UpdateLocationOwner | UpdateLocationUnitGroups | UpdateLocationContested;

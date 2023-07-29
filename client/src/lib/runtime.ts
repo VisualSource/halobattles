@@ -183,7 +183,7 @@ export default class Runtime extends EventTarget {
                     case "set-owner": {
                         const node = this.locations.find(node => node.objectId === value.payload.node);
                         if (!node) throw new Error("Failed to find node to update");
-                        node.owner = value.owner;
+                        node.setOwner(value.owner, value.payload.color);
                         node.stacksMovable(userId === value.owner);
                         break;
                     }
@@ -193,6 +193,12 @@ export default class Runtime extends EventTarget {
                             if (!node) throw new Error("Failed to find node to update");
                             node.setGroupUnits(payload.group, payload.units);
                         }
+                        break;
+                    }
+                    case "set-contested-state": {
+                        const node = this.locations.find(node => node.objectId === value.payload.node);
+                        if (!node) throw new Error("Failed to find node to update");
+                        node.contested = value.payload.state;
                         break;
                     }
                     default:

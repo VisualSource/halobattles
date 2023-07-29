@@ -23,11 +23,13 @@ export const Group = {
 export type GroupType = typeof Group[keyof typeof Group];
 
 export type LocationProps = {
+    contested: boolean;
     maxBuildingSlots: number;
     buildOptions: { [key in BuildTypes]: { allowed: number[]; current: number[] } }
     spies: UUID[];
     name: string;
     owner: UUID | null;
+    color: number;
     objectId: UUID;
     units: { [key in GroupType]: Unit[] };
     buildings: Building[];
@@ -39,42 +41,40 @@ export type LocationProps = {
 }
 
 export default class Location {
-    public buildOptions: { [key in BuildTypes]: { allowed: number[]; current: number[] } } = {
-        units: {
-            allowed: [0],
-            current: []
-        },
-        buildings: {
-            allowed: [0],
-            current: []
-        }
-    }
+    public contested = false;
+    public buildOptions: { [key in BuildTypes]: { allowed: number[]; current: number[] } }
     public maxBuildingSlots: number = 6;
     public spies: UUID[] = [];
     public name: string;
+    public color: number;
     public owner: UUID | null;
     public objectId: UUID;
-    public units: { [key in GroupType]: Unit[] } = {
-        left: [
-            {
-                count: 1,
-                icon: "https://halo.wiki.gallery/images/6/62/HW2_Blitz_Bloodfuel_Grunts.png",
-                idx: 2,
-                id: 0
-            }
-        ],
-        right: [],
-        center: []
-    };
+    public units: { [key in GroupType]: Unit[] };
     public buildings: Building[] = [{ id: 0, icon: "https://halo.wiki.gallery/images/b/b0/HW_FieldArmory_Concept.jpg", level: 1, objId: "afeaferfgg" }];
     public position: { x: number; y: number };
     public connectsTo: UUID[] = [];
-    constructor({ connectsTo, objectId, owner, position, name }: PartialBy<LocationProps, "units" | "spies" | "buildings" | "buildOptions" | "maxBuildingSlots">) {
+    constructor({ connectsTo, objectId, owner, position, name, units, buildOptions, color }: PartialBy<LocationProps, "contested" | "units" | "spies" | "buildings" | "buildOptions" | "maxBuildingSlots" | "color">) {
         this.connectsTo = connectsTo;
         this.objectId = objectId;
         this.owner = owner;
         this.position = position;
         this.name = name;
+        this.color = color ?? 0xd3d3d3;
+        this.buildOptions = buildOptions ?? {
+            units: {
+                allowed: [],
+                current: []
+            },
+            buildings: {
+                allowed: [],
+                current: []
+            }
+        };
+        this.units = units ?? {
+            left: [],
+            right: [],
+            center: []
+        };
     }
     public getWeight(owner: string | null) {
         if (!owner) return 1;
