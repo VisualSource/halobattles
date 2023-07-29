@@ -1,18 +1,10 @@
-import type { UUID } from "../lib";
 import { UpdateLocationUnitGroups } from "./Events";
+import type { UUID } from "../lib";
+
+type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
 
 type BuildTypes = "units" | "buildings"
-
-type Props = {
-    name: string;
-    owner: UUID | null;
-    objectId: UUID;
-    links: UUID[];
-    position: {
-        x: number;
-        y: number;
-    }
-}
 
 export type Unit = {
     icon: string;
@@ -20,7 +12,7 @@ export type Unit = {
     count: number;
     idx: number
 };
-export type Building = { id: string; level: number; }
+export type Building = { id: number; level: number; icon: string; objId: string; }
 
 export const Group = {
     LEFT: "left",
@@ -29,6 +21,22 @@ export const Group = {
 } as const;
 
 export type GroupType = typeof Group[keyof typeof Group];
+
+export type LocationProps = {
+    maxBuildingSlots: number;
+    buildOptions: { [key in BuildTypes]: { allowed: number[]; current: number[] } }
+    spies: UUID[];
+    name: string;
+    owner: UUID | null;
+    objectId: UUID;
+    units: { [key in GroupType]: Unit[] };
+    buildings: Building[];
+    connectsTo: UUID[];
+    position: {
+        x: number;
+        y: number;
+    }
+}
 
 export default class Location {
     public buildOptions: { [key in BuildTypes]: { allowed: number[]; current: number[] } } = {
@@ -41,6 +49,8 @@ export default class Location {
             current: []
         }
     }
+    public maxBuildingSlots: number = 6;
+    public spies: UUID[] = [];
     public name: string;
     public owner: UUID | null;
     public objectId: UUID;
@@ -56,11 +66,11 @@ export default class Location {
         right: [],
         center: []
     };
-    public buildings: Building[] = [];
+    public buildings: Building[] = [{ id: 0, icon: "https://halo.wiki.gallery/images/b/b0/HW_FieldArmory_Concept.jpg", level: 1, objId: "afeaferfgg" }];
     public position: { x: number; y: number };
     public connectsTo: UUID[] = [];
-    constructor({ links, objectId, owner, position, name }: Props) {
-        this.connectsTo = links;
+    constructor({ connectsTo, objectId, owner, position, name }: PartialBy<LocationProps, "units" | "spies" | "buildings" | "buildOptions" | "maxBuildingSlots">) {
+        this.connectsTo = connectsTo;
         this.objectId = objectId;
         this.owner = owner;
         this.position = position;

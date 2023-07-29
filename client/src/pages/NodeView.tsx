@@ -1,8 +1,9 @@
 import { Link, Outlet, type To, NavLink, useParams, useMatches, generatePath } from "react-router-dom";
 import { Tooltip } from 'flowbite-react';
-import useGetNode from "../hooks/useGetNode";
+import useGetNode, { useIsNodeOwner } from "../hooks/useGetNode";
 
 const NodeView: React.FC = () => {
+    const isOwner = useIsNodeOwner();
     const matches = useMatches();
     const { id } = useParams();
     const node = useGetNode();
@@ -46,20 +47,24 @@ const NodeView: React.FC = () => {
                                 </svg>
                             </NavLink>
                         </Tooltip>
-                        <Tooltip content="Unit Queue" placement="left" arrow={false}>
-                            <NavLink className={({ isActive }) => `p-2 text-neutral-300 hover:text-white flex justify-center items-center ${isActive ? "text-blue-500 hover:text-blue-400" : ""}`} replace to={generatePath("/view/node/:id/queue-units", { id: id ?? null })}>
-                                <svg className="w-6 h-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
-                                    <path d="M6.5 9a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM8 10H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5Zm11-3h-2V5a1 1 0 0 0-2 0v2h-2a1 1 0 1 0 0 2h2v2a1 1 0 0 0 2 0V9h2a1 1 0 1 0 0-2Z" />
-                                </svg>
-                            </NavLink>
-                        </Tooltip>
-                        <Tooltip content="Building Queue" placement="left" arrow={false}>
-                            <NavLink className={({ isActive }) => `p-2 text-neutral-300 hover:text-white flex justify-center items-center ${isActive ? "text-blue-500 hover:text-blue-400" : ""}`} replace to={generatePath("/view/node/:id/queue-buildings", { id: id ?? null })}>
-                                <svg className="w-6 h-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M18 7.5h-.423l-.452-1.09.3-.3a1.5 1.5 0 0 0 0-2.121L16.01 2.575a1.5 1.5 0 0 0-2.121 0l-.3.3-1.089-.452V2A1.5 1.5 0 0 0 11 .5H9A1.5 1.5 0 0 0 7.5 2v.423l-1.09.452-.3-.3a1.5 1.5 0 0 0-2.121 0L2.576 3.99a1.5 1.5 0 0 0 0 2.121l.3.3L2.423 7.5H2A1.5 1.5 0 0 0 .5 9v2A1.5 1.5 0 0 0 2 12.5h.423l.452 1.09-.3.3a1.5 1.5 0 0 0 0 2.121l1.415 1.413a1.5 1.5 0 0 0 2.121 0l.3-.3 1.09.452V18A1.5 1.5 0 0 0 9 19.5h2a1.5 1.5 0 0 0 1.5-1.5v-.423l1.09-.452.3.3a1.5 1.5 0 0 0 2.121 0l1.415-1.414a1.5 1.5 0 0 0 0-2.121l-.3-.3.452-1.09H18a1.5 1.5 0 0 0 1.5-1.5V9A1.5 1.5 0 0 0 18 7.5Zm-8 6a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" />
-                                </svg>
-                            </NavLink>
-                        </Tooltip>
+                        {isOwner ? (
+                            <>
+                                <Tooltip content="Unit Queue" placement="left" arrow={false}>
+                                    <NavLink className={({ isActive }) => `p-2 text-neutral-300 hover:text-white flex justify-center items-center ${isActive ? "text-blue-500 hover:text-blue-400" : ""}`} replace to={generatePath("/view/node/:id/queue-units", { id: id ?? null })}>
+                                        <svg className="w-6 h-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
+                                            <path d="M6.5 9a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM8 10H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5Zm11-3h-2V5a1 1 0 0 0-2 0v2h-2a1 1 0 1 0 0 2h2v2a1 1 0 0 0 2 0V9h2a1 1 0 1 0 0-2Z" />
+                                        </svg>
+                                    </NavLink>
+                                </Tooltip>
+                                <Tooltip content="Building Queue" placement="left" arrow={false}>
+                                    <NavLink className={({ isActive }) => `p-2 text-neutral-300 hover:text-white flex justify-center items-center ${isActive ? "text-blue-500 hover:text-blue-400" : ""}`} replace to={generatePath("/view/node/:id/queue-buildings", { id: id ?? null })}>
+                                        <svg className="w-6 h-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M18 7.5h-.423l-.452-1.09.3-.3a1.5 1.5 0 0 0 0-2.121L16.01 2.575a1.5 1.5 0 0 0-2.121 0l-.3.3-1.089-.452V2A1.5 1.5 0 0 0 11 .5H9A1.5 1.5 0 0 0 7.5 2v.423l-1.09.452-.3-.3a1.5 1.5 0 0 0-2.121 0L2.576 3.99a1.5 1.5 0 0 0 0 2.121l.3.3L2.423 7.5H2A1.5 1.5 0 0 0 .5 9v2A1.5 1.5 0 0 0 2 12.5h.423l.452 1.09-.3.3a1.5 1.5 0 0 0 0 2.121l1.415 1.413a1.5 1.5 0 0 0 2.121 0l.3-.3 1.09.452V18A1.5 1.5 0 0 0 9 19.5h2a1.5 1.5 0 0 0 1.5-1.5v-.423l1.09-.452.3.3a1.5 1.5 0 0 0 2.121 0l1.415-1.414a1.5 1.5 0 0 0 0-2.121l-.3-.3.452-1.09H18a1.5 1.5 0 0 0 1.5-1.5V9A1.5 1.5 0 0 0 18 7.5Zm-8 6a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" />
+                                        </svg>
+                                    </NavLink>
+                                </Tooltip>
+                            </>
+                        ) : null}
                     </div>
                     <Outlet />
                 </div>

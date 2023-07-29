@@ -7,6 +7,8 @@ import GameState from '../object/GameState';
 import Dijkstra from '../lib/dijkstra';
 import type { UUID } from '../lib';
 import { t } from "../trpc";
+import { buildOptions } from '../map/upgradeList';
+import { planetInfo } from '../map/planet_info';
 
 const gameState = new GameState();
 
@@ -94,5 +96,28 @@ export const gameRouter = t.router({
     getUnitOptions: t.procedure.input(z.string().uuid()).query(({ input, ctx }) => {
         if (!ctx.user) throw new TRPCError({ message: "Invaild user", code: "UNAUTHORIZED" });
         return gameState.getNodeUnitOptions(input as UUID, ctx.user as UUID);
-    })
+    }),
+    getPlanetInfo: t.procedure.input(z.object({ name: z.string(), owner: z.string().uuid().nullable() })).query(({ input }) => {
+        const data = planetInfo[input.name];
+        if (!data) throw new TRPCError({ message: "Failed to find planet data.", code: "NOT_FOUND" });
+        return {
+            planet: data,
+            owner: input.owner ? {
+                name: "Username"
+            } : null
+        }
+    }),
+    getBulidingInfo: t.procedure.input(z.number()).query(({ input }) => {
+        const data = buildOptions.get(input)
+        if (!data) throw new TRPCError({ message: "No Building or tech exits with that id", code: "NOT_FOUND" });
+        return data;
+    }),
+    modifyBuilding: t.procedure.input(z.object({
+        nodeId: z.string().uuid(),
+        objId: z.string(),
+        type: z.enum(["upgrade", "delete"])
+    })).mutation(({ input, ctx }) => {
+        // @TODO
+        throw new TRPCError({ message: "Not Implemented", code: "UNPROCESSABLE_CONTENT" });
+    }),
 });

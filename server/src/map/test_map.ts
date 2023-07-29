@@ -10,7 +10,7 @@ const f = "6a92bf56-251a-48f0-b192-ce1840ef2a31"
 const map = [
     new Location({
         name: "Unnamed Planet",
-        links: [b, c],
+        connectsTo: [b, c],
         objectId: a,
         owner: "dd-dd-dd-dd",
         position: {
@@ -20,7 +20,7 @@ const map = [
     }),
     new Location({
         name: "Unnamed Planet",
-        links: [b, c],
+        connectsTo: [b, c],
         objectId: f,
         owner: null,
         position: {
@@ -30,7 +30,7 @@ const map = [
     }),
     new Location({
         name: "Unnamed Planet",
-        links: [a, f, d],
+        connectsTo: [a, f, d],
         objectId: b,
         owner: null,
         position: {
@@ -40,7 +40,7 @@ const map = [
     }),
     new Location({
         name: "Unnamed Planet",
-        links: [b, e],
+        connectsTo: [b, e],
         objectId: d,
         owner: null,
         position: {
@@ -50,7 +50,7 @@ const map = [
     }),
     new Location({
         name: "Unnamed Planet",
-        links: [d],
+        connectsTo: [d],
         objectId: e,
         owner: null,
         position: {
@@ -60,8 +60,8 @@ const map = [
     }),
 
     new Location({
-        name: "Unnamed Planet",
-        links: [a, f],
+        name: "Reach",
+        connectsTo: [a, f],
         objectId: c,
         owner: "1724ea86-18a1-465c-b91a-fce23e916aae",
         position: {

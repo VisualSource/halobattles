@@ -1,26 +1,10 @@
 import { CircleGeometry, EllipseCurve, Mesh, MeshBasicMaterial, Shape, ShapeGeometry, Vector3 } from "three";
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import type { GroupType, Unit, Building } from "server/src/object/Location";
+import type { GroupType, Unit, Building, LocationProps } from "server/src/object/Location";
 import UnitStack, { StackState } from "./stack";
+import type { UUID } from "server";
+import { user } from "../user";
 
-type UUID = `${string}-${string}-${string}-${string}`;
-
-type Props = {
-    name: string;
-    objectId: UUID;
-    position: {
-        x: number;
-        y: number;
-    };
-    owner: UUID | null;
-    units: {
-        left: Unit[];
-        center: Unit[];
-        right: Unit[];
-    };
-    buildings: Building[],
-    connectsTo: UUID[];
-}
 
 function createSphere(x: number, y: number, color = 0x00ff00) {
 
@@ -65,20 +49,24 @@ function createEllipse(xr: number, yr: number, x: number, y: number, uuid: strin
 
 export default class Location {
     public name: string;
+    public maxBuildingsSlots: number;
     public objectId: string;
     public connectsTo: string[] = [];
     public node: Mesh;
+    public spies: UUID[] = [];
     public owner: string | null;
     public units: { [key in GroupType]: Unit[] }
     public buildings: Building[] = [];
     public stacks: { [key in GroupType]: UnitStack }
-    constructor({ objectId, position, connectsTo, owner, units, buildings, name }: Props) {
+    constructor({ objectId, position, connectsTo, owner, units, buildings, name, spies, maxBuildingSlots }: LocationProps) {
         this.objectId = objectId;
         this.connectsTo = connectsTo;
         this.owner = owner;
         this.units = units;
         this.buildings = buildings;
         this.name = name;
+        this.maxBuildingsSlots = maxBuildingSlots;
+        this.spies = spies;
 
         const ellipseXR = 8;
         const ellipseYR = 6;
@@ -91,6 +79,10 @@ export default class Location {
             center: center.stack,
             right: right.stack
         }
+
+        this.updateStackState("center");
+        this.updateStackState("right");
+        this.updateStackState("left");
 
         this.node = createSphere(position.x, position.y, 0x0f0ff00);
         this.node.layers.enable(1);
@@ -109,6 +101,33 @@ export default class Location {
         this.stacks.left.setDraggable(value);
         this.stacks.right.setDraggable(value);
     }
+    public updateStackState(group: GroupType): void {
+        const stackSize = this.units[group].length;
+
+        let stackType = StackState.Empty;
+        switch (true) {
+            case stackSize >= 1:
+                stackType = StackState.One;
+                break;
+            case stackSize >= 5:
+                stackType = StackState.Half;
+                break;
+            case stackSize >= 20:
+                stackType = StackState.Three;
+                break;
+            case stackSize >= 35:
+                stackType = StackState.Max;
+                break;
+            default:
+                break;
+        }
+
+        if (stackType !== StackState.Empty) {
+            this.stacks[group].setTopImage(this.owner === user.getUser() ? this.units[group][0].icon : undefined);
+        }
+
+        this.stacks[group].setState(stackType);
+    }
 
     public get position(): Vector3 {
         return this.node.position;
@@ -119,27 +138,6 @@ export default class Location {
     }
     public setGroupUnits(group: GroupType, units: Unit[]): void {
         this.units[group] = units;
-        let stackSize = StackState.Empty;
-
-        switch (true) {
-            case units.length >= 1:
-                stackSize = StackState.One;
-                break;
-            case units.length >= 5:
-                stackSize = StackState.Half;
-                break;
-            case units.length >= 20:
-                stackSize = StackState.Three;
-                break;
-            case units.length >= 35:
-                stackSize = StackState.Max;
-                break;
-            default:
-                break;
-        }
-
-        if (stackSize !== StackState.Empty) this.stacks[group].setTopImage();
-
-        this.stacks[group].setState(stackSize);
+        this.updateStackState(group);
     }
 }

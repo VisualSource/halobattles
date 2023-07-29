@@ -1,10 +1,10 @@
 import type { GroupType } from "server/src/object/Location";
-import useGetNode, { useNodeUnitGroup } from "../../hooks/useGetNode";
+import useGetNode, { useNodeUnitGroup, useIsNodeOwner, useIsNodeSpy } from "../../hooks/useGetNode";
 import { trpc } from "../../lib/network";
 
 type TransferItem = { id: number; type: GroupType; idx: number; };
 
-const Grid: React.FC<{ type: GroupType, nodeId: string; }> = ({ nodeId, type }) => {
+const Grid: React.FC<{ type: GroupType, nodeId: string; owner: boolean, spy: boolean }> = ({ owner, spy, nodeId, type }) => {
     const units = useNodeUnitGroup(type, nodeId);
     const mutation = trpc.internalTransfer.useMutation();
 
@@ -15,7 +15,7 @@ const Grid: React.FC<{ type: GroupType, nodeId: string; }> = ({ nodeId, type }) 
 
                 if (!units || idx === undefined || idx === -1) {
                     return (
-                        <div className="w-full col-span-1 row-span-1 border-2 border-gray-600 hover:bg-gray-800" key={key} onDrop={(ev) => {
+                        <div className="w-full col-span-1 row-span-1 border-2 border-gray-600 hover:bg-gray-800" key={key} onDrop={owner ? (ev) => {
                             ev.preventDefault();
                             const data = JSON.parse(ev.dataTransfer?.getData("application/json") ?? "null") as TransferItem | null;
                             if (!data) throw new Error("Failed to get transfer data.");
@@ -35,7 +35,7 @@ const Grid: React.FC<{ type: GroupType, nodeId: string; }> = ({ nodeId, type }) 
                             });
 
 
-                        }} onDragOver={(ev) => ev.preventDefault()}></div>
+                        } : undefined} onDragOver={(ev) => ev.preventDefault()}></div>
                     );
                 }
 
@@ -43,7 +43,7 @@ const Grid: React.FC<{ type: GroupType, nodeId: string; }> = ({ nodeId, type }) 
 
                 return (
                     <button key={key} className="w-full p-2 relative col-span-1 row-span-1 border-2 border-gray-600 hover:bg-gray-800"
-                        onDrop={(ev) => {
+                        onDrop={owner ? (ev) => {
                             ev.preventDefault();
                             const data = JSON.parse(ev.dataTransfer?.getData("application/json") ?? "null") as TransferItem | null;
                             if (!data) throw new Error("Faild to get transfer data.");
@@ -61,18 +61,18 @@ const Grid: React.FC<{ type: GroupType, nodeId: string; }> = ({ nodeId, type }) 
                                     idx: key
                                 }
                             });
-                        }}
+                        } : undefined}
                         onDragOver={(ev) => ev.preventDefault()}
-                        onDragStart={(ev) => {
+                        onDragStart={owner ? (ev) => {
                             ev.dataTransfer?.setData("application/json", JSON.stringify({
                                 id: unit.id,
                                 type,
                                 idx: key
                             } as TransferItem));
-                        }}>
-                        <img className="aspect-square h-full rounded-md select-none" src={unit.icon} alt="unit" />
+                        } : undefined}>
+                        <img className="aspect-square h-full rounded-md select-none" src={(owner || spy) ? unit.icon : "/Basic_Elements_(128).jpg"} alt="unit" />
                         {unit.count > 1 ? (
-                            <div className="absolute inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 border-2 rounded-full top-0.5 right-0.5 border-gray-900">{unit.count}</div>
+                            <div className="absolute inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 border-2 rounded-full top-0.5 right-0.5 border-gray-900">{(owner || spy) ? unit.count : "?"}</div>
                         ) : null}
                     </button>
                 );
@@ -83,14 +83,16 @@ const Grid: React.FC<{ type: GroupType, nodeId: string; }> = ({ nodeId, type }) 
 
 const UnitManagment: React.FC = () => {
     const node = useGetNode();
+    const isOwner = useIsNodeOwner();
+    const isSpy = useIsNodeSpy();
 
     if (!node) throw new Error("Failed to get node");
 
     return (
         <div className="w-full grid grid-cols-3">
-            <Grid nodeId={node?.objectId} type="left" />
-            <Grid nodeId={node?.objectId} type="center" />
-            <Grid nodeId={node?.objectId} type="right" />
+            <Grid owner={isOwner} spy={isSpy} nodeId={node?.objectId} type="left" />
+            <Grid owner={isOwner} spy={isSpy} nodeId={node?.objectId} type="center" />
+            <Grid owner={isOwner} spy={isSpy} nodeId={node?.objectId} type="right" />
         </div>
     )
 }

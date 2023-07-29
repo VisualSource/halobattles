@@ -4,12 +4,12 @@ import { trpc } from "../lib/network";
 
 
 const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, queueId }) => {
-    const [options, query] = trpc.getBuildOptions.useSuspenseQuery(nodeId)
+    const [options] = trpc.getBuildOptions.useSuspenseQuery(nodeId)
 
     return (
         <section className="grid grid-cols-4 overflow-y-scroll">
             {options.map((value, i) => (
-                <Tooltip content={(
+                <Tooltip key={i} content={(
                     <div>
                         <h1 className="font-bold">{value.name}</h1>
                         <p className="text-gray-500 mb-2 max-w-xs">{value.description}</p>
@@ -22,7 +22,7 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
                         </div>
                     </div>
                 )}>
-                    <button key={i} className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" onClick={() => QueueEngine.get().addItem({
+                    <button className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" onClick={() => QueueEngine.get().addItem({
                         nodeId,
                         objData: {
                             duration: value.time,

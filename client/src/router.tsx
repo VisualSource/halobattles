@@ -25,35 +25,40 @@ export const router = createBrowserRouter([
                         index: true,
                         handle: {
                             name: "Unit Managment"
-                        }
+                        },
+                        errorElement: <ErrorPage />
                     },
                     {
                         path: "/view/node/:id/buildings",
                         element: <BuildingManagment />,
                         handle: {
                             name: "Building and tech Managment"
-                        }
+                        },
+                        errorElement: <ErrorPage />
                     },
                     {
                         path: "/view/node/:id/queue-units",
                         element: <UnitQueue />,
                         handle: {
                             name: "Unit Queue"
-                        }
+                        },
+                        errorElement: <ErrorPage />
                     },
                     {
                         path: "/view/node/:id/queue-buildings",
                         element: <BuildingQueue />,
                         handle: {
                             name: "Building Queue"
-                        }
+                        },
+                        errorElement: <ErrorPage />
                     },
                     {
                         path: "/view/node/:id/info",
                         element: <PlanetInfo />,
                         handle: {
                             name: "Planet Info"
-                        }
+                        },
+                        errorElement: <ErrorPage />
                     }
                 ]
             }

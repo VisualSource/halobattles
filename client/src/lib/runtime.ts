@@ -1,5 +1,6 @@
 import { Tween, update } from '@tweenjs/tween.js';
-import { network, userId } from "../lib/network";
+import { network } from "../lib/network";
+import { user } from '../lib/user';
 import {
     PerspectiveCamera, Scene, Color, AmbientLight, Vector2,
     Vector3,
@@ -148,6 +149,8 @@ export default class Runtime extends EventTarget {
         });
     }
     private async init() {
+        const userId = user.getUser();
+
         const subscription = network.onTransferUnits.subscribe(userId, {
             onData: (value) => {
                 console.log("move", value);
