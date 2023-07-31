@@ -1,12 +1,13 @@
+import { Worker } from "node:worker_threads";
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
-
-import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events';
-import type { Unit, GroupType } from './Location';
-import { buildOptions } from '../map/upgradeList';
-import type { UUID } from "../lib";
-import map from '../map/test_map';
-import units from '../map/units';
+import { join } from 'node:path'
+import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events.js';
+import type { Unit, GroupType } from './Location.js';
+import { buildOptions } from '../map/upgradeList.js';
+import type { UUID } from "../lib.js";
+import map from '../map/test_map.js';
+import units from '../map/units.js';
 
 type UnitTransfer = {
     expectedResolveTime: Date,
@@ -24,6 +25,14 @@ type UnitTransfer = {
 }
 
 type Factions = "UNSC" | "Banished" | "Covenant" | "Forerunner"
+export type Player = {
+    color: number;
+    name: string;
+    factions: Factions;
+    id: UUID,
+    unitcap: number;
+    creds: number;
+}
 
 const factionColors: { [key in Factions]: number } = {
     "Banished": 0xe82a00,
@@ -35,21 +44,67 @@ const factionColors: { [key in Factions]: number } = {
 export default class GameState extends EventEmitter {
     private transfers: Map<UUID, UnitTransfer> = new Map();
     private map = map;
+    public players: Player[] = [
+        {
+            creds: 10_000,
+            unitcap: 100,
+            color: factionColors["Banished"],
+            name: "VisualSource",
+            factions: "Banished",
+            id: "1724ea86-18a1-465c-b91a-fce23e916aae"
+        }
+    ];
+    public startBattle(nodeId: UUID, transferId: UUID) {
+        const node = this.map.find(value => value.objectId === nodeId);
+        if (!node) throw new Error("Failed to find node.");
 
-    public players: {
-        color: number;
-        name: string;
-        factions: Factions;
-        id: UUID
-    }[] = [
-            {
-                color: factionColors["Banished"],
-                name: "VisualSource",
-                factions: "Banished",
-                id: "1724ea86-18a1-465c-b91a-fce23e916aae"
-            }
-        ];
+        const transfer = this.transfers.get(transferId);
+        if (!transfer) throw new Error("Failed to find transfer.");
 
+        const worker = new Worker(join(__dirname, "./BattleRuntime.js"), {
+            workerData: {
+                node,
+                transfer,
+            },
+            name: `[Worker] Battle for ${nodeId}`
+        });
+
+        worker.on("message", (ev: { owner: UUID, node: UUID }) => {
+
+            const player = this.getPlayer(ev.owner);
+            if (!player) throw new Error("Unable to get player");
+
+            this.emit(GameEvents.UpdateLocation, {
+                type: "set-owner",
+                owner: player?.id,
+                payload: {
+                    node: ev.node,
+                    color: player.color,
+                }
+            } as UpdateLocationResponse);
+
+            this.emit(GameEvents.UpdateLocation, {
+                type: "set-contested-state",
+                payload: {
+                    node: ev.node,
+                    state: false
+                }
+            } as UpdateLocationResponse);
+
+            console.log(ev);
+        });
+        worker.on("error", (ev) => {
+            console.error(ev);
+            throw new Error("Battle Error");
+        });
+        worker.on("exit", (code) => {
+            console.log(code);
+        });
+        worker.on("messageerror", (ev) => {
+            console.log(ev);
+            throw new Error("Failed to parse message");
+        });
+    }
     public createTransfer(owner: string, data: MoveRequest): UUID {
 
         const node = map.find(value => value.objectId === data.from.id);
@@ -72,12 +127,13 @@ export default class GameState extends EventEmitter {
 
         node.clearGroup(data.from.group);
         this.emit(GameEvents.UpdateLocation, {
-            type: "group-clear",
+            type: "update-units-groups",
             owner: node.owner,
-            payload: {
+            payload: [{
                 node: node.objectId,
-                group: data.from.group
-            }
+                group: data.from.group,
+                units: []
+            }]
         } as UpdateLocationResponse);
 
         this.transfers.set(request.id, request);
@@ -99,7 +155,8 @@ export default class GameState extends EventEmitter {
         const node = this.map.find(value => value.objectId === transfer.dest.id);
         if (!node) throw new Error("Failed to find dest node");
 
-        if (node.owner === null) {
+        // moving units to a unowned node/ node has no defence
+        if (node.owner === null || (node.owner !== owner && node.isEmpty() && !node.hasDefence())) {
             const player = this.players.find(value => value.id === owner);
             if (!player) throw new Error("Failed to find user");
 
@@ -116,12 +173,12 @@ export default class GameState extends EventEmitter {
             node.appendUnits(transfer.dest.group, transfer.units);
             this.emit(GameEvents.UpdateLocation, {
                 owner: transfer.owner,
-                type: "update-units-group",
-                payload: {
+                type: "update-units-groups",
+                payload: [{
                     group: transfer.dest.group,
                     node: transfer.dest.id,
                     units: node.getUnitFromGroup(transfer.dest.group)
-                }
+                }]
             } as UpdateLocationResponse);
 
 
@@ -129,22 +186,24 @@ export default class GameState extends EventEmitter {
             return;
         }
 
+        // moving units to a already owned node.
         if (node.owner === owner) {
             node.appendUnits(transfer.dest.group, transfer.units);
             this.emit(GameEvents.UpdateLocation, {
                 owner: transfer.owner,
-                type: "update-units-group",
-                payload: {
+                type: "update-units-groups",
+                payload: [{
                     group: transfer.dest.group,
                     node: transfer.dest.id,
                     units: node.getUnitFromGroup(transfer.dest.group)
-                }
+                }]
             } as UpdateLocationResponse);
 
             this.transfers.delete(id as UUID);
             return;
         }
 
+        // moving units a contested node.
         this.emit(GameEvents.UpdateLocation, {
             type: "set-contested-state",
             payload: {
@@ -153,7 +212,7 @@ export default class GameState extends EventEmitter {
             }
         } as UpdateLocationResponse);
 
-        console.log("Battle would start here");
+        this.startBattle(node.objectId, id as UUID);
     }
     public getSelectedMap() {
         return this.map;
@@ -183,8 +242,7 @@ export default class GameState extends EventEmitter {
         for (const item of upgrades) {
             const data = buildOptions.get(item);
             if (!data) continue;
-
-            const { actions, effects, ...rest } = data;
+            const { on, ...rest } = data;
             options.push(rest);
         }
 

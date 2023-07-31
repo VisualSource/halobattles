@@ -1,5 +1,6 @@
-import { UpdateLocationUnitGroups } from "./Events";
-import type { UUID } from "../lib";
+import { UpdateLocationUnitGroups } from "./Events.js";
+import { buildOptions } from "../map/upgradeList.js";
+import type { UUID } from "../lib.js";
 
 type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
 type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
@@ -82,6 +83,16 @@ export default class Location {
     }
     public getUnitFromGroup(group: GroupType) {
         return structuredClone(this.units[group]);
+    }
+    public isEmpty() {
+        return !this.units.center.length && !this.units.left.length && !this.units.right.length;
+    }
+    public hasDefence() {
+        return this.buildings.some((value) => {
+            const item = buildOptions.get(value.id);
+            if (!item || item.type !== "building") return false;
+            return item.battle.attack > 0;
+        });
     }
     public moveToGroup(from: { group: GroupType, idx: number; id: number; }, to: { group: GroupType, idx: number }): UpdateLocationUnitGroups["payload"] {
         if (from.group === to.group && from.idx === to.idx) throw new Error("Can not move unit onto its self.");

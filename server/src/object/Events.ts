@@ -1,10 +1,11 @@
-import type { GroupType, Unit } from "./Location";
-import type { UUID } from "../lib"
+import type { Building, GroupType, Unit } from "./Location.js";
+import type { UUID } from "../lib.js"
 
 export const enum GameEvents {
     FinalizTransfer = "finalizTransfer",
     TransferUnits = "transferUnits",
-    UpdateLocation = "updateLocation"
+    UpdateLocation = "updateLocation",
+    UpdatePlayer = "update-player"
 }
 
 export type MoveRequest = {
@@ -36,14 +37,6 @@ interface UpdateLocationContested extends UpdateLocationBase {
     }
 }
 
-interface UpdateLocationGroupClear extends UpdateLocationBase {
-    type: "group-clear";
-    payload: {
-        node: UUID;
-        group: GroupType
-    }
-}
-
 interface UpdateLocationOwner extends UpdateLocationBase {
     type: "set-owner";
     payload: {
@@ -52,12 +45,11 @@ interface UpdateLocationOwner extends UpdateLocationBase {
     }
 }
 
-interface UpdateLocationUnits extends UpdateLocationBase {
-    type: "update-units-group",
+interface UpdateBuildings extends UpdateLocationBase {
+    type: "update-buildings",
     payload: {
         node: UUID,
-        group: GroupType,
-        units: Unit[]
+        buildings: Building[]
     }
 }
 
@@ -70,4 +62,4 @@ export interface UpdateLocationUnitGroups extends UpdateLocationBase {
     }[]
 }
 
-export type UpdateLocationResponse = UpdateLocationGroupClear | UpdateLocationUnits | UpdateLocationOwner | UpdateLocationUnitGroups | UpdateLocationContested;
+export type UpdateLocationResponse = UpdateLocationOwner | UpdateLocationUnitGroups | UpdateBuildings | UpdateLocationContested;

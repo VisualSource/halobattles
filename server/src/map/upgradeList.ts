@@ -1,31 +1,74 @@
-export type BuildingOrTech = {
-    time: number;
+interface Buildable {
     id: number;
-    icon: string;
     name: string;
-    type: "building" | "tech"
+    icon: string;
     description: string;
-    bouns: { color: "green" | "red", text: string; }[],
-    cost: number;
     maxLevel: number;
-    actions: unknown[],
-    effects: unknown[]
+    on: {
+        create?: { affects: "planet" | "player", }[]
+        destory?: { affects: "planet" | "player", }[],
+        upgrade?: { affects: "planet" | "player", }[]
+    },
+    levels: {
+        [level: number]: {
+            values: {
+                stat: string;
+                value: number;
+                color: "green" | "red",
+                text: string;
+            }[];
+            build: {
+                cost: number;
+                time: number;
+            } | null
+        }
+    }
+}
+
+interface BuildingData extends Buildable {
+    type: "building";
+    battle: {
+        health: number;
+        shealds: number;
+        attack: number;
+        hitChange: number;
+    }
+}
+
+interface TechData extends Buildable {
+    type: "tech";
 }
 
 
-export const buildOptions = new Map<number, BuildingOrTech>([
+export const buildOptions = new Map<number, BuildingData | TechData>([
     [0, {
+        id: 0,
         icon: "https://halo.wiki.gallery/images/b/b0/HW_FieldArmory_Concept.jpg",
         name: "Field Armory",
-        time: 10,
-        id: 0,
-        maxLevel: 5,
         type: "building",
         description: "The UNSC's Field Armory is a cross between a machine\fabrication shop, and a research laboratory. This is where the most advanced technology for the UNSC is created by dedicated engineers and scientists.",
-        cost: 20_000,
-        actions: [],
-        effects: [],
-        bouns: [{ color: "green", text: "+200 Unit Cap" }]
+        maxLevel: 5,
+        on: {},
+        battle: {
+            health: 100,
+            shealds: 0,
+            attack: 0,
+            hitChange: 0
+        },
+        levels: {
+            1: {
+                values: [{
+                    value: 200,
+                    stat: "unit-cap",
+                    color: "green",
+                    text: "+200 Unit Cap",
+                }],
+                build: {
+                    time: 10,
+                    cost: 20_000,
+                }
+            }
+        }
     }]
 ]);
 

@@ -27,7 +27,7 @@ const Building: React.FC<{ item: Building, isOwner: boolean, isSpy: boolean }> =
             <section className="mb-4">
                 <h2 className="mb-2 text-lg font-semibold text-white">Bouns:</h2>
                 <div className='flex flex-wrap gap-4'>
-                    {(isOwner || isSpy) ? data.bouns.map((bouns, i) => (
+                    {(isOwner || isSpy) ? data.levels[item.level].values.map((bouns, i) => (
                         <Badge key={i} color={bouns.color}>{bouns.text}</Badge>
                     )) : null}
                 </div>

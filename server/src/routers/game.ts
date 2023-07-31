@@ -2,13 +2,13 @@ import { observable } from '@trpc/server/observable';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
-import { GameEvents, MoveRequest, MoveResponse, UpdateLocationResponse } from '../object/Events';
-import GameState from '../object/GameState';
-import Dijkstra from '../lib/dijkstra';
-import type { UUID } from '../lib';
-import { t } from "../trpc";
-import { buildOptions } from '../map/upgradeList';
-import { planetInfo } from '../map/planet_info';
+import { GameEvents, MoveRequest, MoveResponse, UpdateLocationResponse } from '../object/Events.js';
+import GameState, { Player } from '../object/GameState.js';
+import Dijkstra from '../lib/dijkstra.js';
+import type { UUID } from '../lib.js';
+import { t } from "../trpc.js";
+import { buildOptions } from '../map/upgradeList.js';
+import { planetInfo } from '../map/planet_info.js';
 
 const gameState = new GameState();
 
@@ -88,6 +88,18 @@ export const gameRouter = t.router({
             }
         });
     }),
+    onPlayerUpdate: t.procedure.input(z.string().uuid()).subscription(({ input }) => {
+        return observable<Player>((emit) => {
+            const onPlayerUpdate = (data: Player) => {
+                if (input === data.id) emit.next(data);
+            }
+            gameState.on(GameEvents.UpdatePlayer, onPlayerUpdate);
+            return () => gameState.off(GameEvents.UpdatePlayer, onPlayerUpdate);
+        });
+    }),
+    getSelf: t.procedure.query(({ ctx }) => {
+        return gameState.getPlayer(ctx.user);
+    }),
     getMap: t.procedure.query(() => {
         gameState.setPlayerData();
         return gameState.getSelectedMap();
@@ -100,7 +112,9 @@ export const gameRouter = t.router({
         if (!ctx.user) throw new TRPCError({ message: "Invaild user", code: "UNAUTHORIZED" });
         return gameState.getNodeUnitOptions(input as UUID, ctx.user as UUID);
     }),
-    getPlanetInfo: t.procedure.input(z.object({ name: z.string(), owner: z.string().uuid().nullable() })).query(({ input }) => {
+    getPlanetInfo: t.procedure.input(z.object({
+        name: z.string(), owner: z.string().uuid().nullable()
+    })).query(({ input }) => {
         const data = planetInfo[input.name];
         if (!data) throw new TRPCError({ message: "Failed to find planet data.", code: "NOT_FOUND" });
         const player = gameState.getPlayer(input.owner as UUID | null);
@@ -119,6 +133,59 @@ export const gameRouter = t.router({
         objId: z.string(),
         type: z.enum(["upgrade", "delete"])
     })).mutation(({ input, ctx }) => {
+        const node = gameState.getNode(input.nodeId as UUID);
+        if (!node) throw new TRPCError({ message: "Failed to find node.", code: "NOT_FOUND" });
+        if (node.owner !== ctx.user) throw new TRPCError({ message: "Current user is not allowd to edit this node", code: "UNAUTHORIZED" });
+
+        const item = node.buildings.findIndex(value => value.objId === input.objId);
+        if (item === -1) throw new TRPCError({ message: "Failed to find item", code: "NOT_FOUND" });
+
+
+        switch (input.type) {
+            case 'upgrade': {
+                node.buildings[item].level++;
+                const data = buildOptions.get(node.buildings[item].id);
+                if (!data) throw new TRPCError({ message: "Failed to run actions on item", code: "INTERNAL_SERVER_ERROR" });
+
+                if (data.on?.create) {
+                    // handle create method
+                }
+
+                gameState.emit(GameEvents.UpdateLocation, {
+                    type: "update-buildings",
+                    payload: {
+                        node: input.nodeId,
+                        buildings: node.buildings
+                    }
+                } as UpdateLocationResponse);
+
+                break;
+            }
+            case 'delete': {
+                const removed = node.buildings.splice(item, 1);
+                const content = removed.at(0);
+                if (!content) break;
+
+                const data = buildOptions.get(content.id);
+                if (!data) throw new TRPCError({ message: "Failed to run actions on item", code: "INTERNAL_SERVER_ERROR" });
+
+                if (data.on?.destory) {
+                    // run on destory actions.
+                }
+
+                gameState.emit(GameEvents.UpdateLocation, {
+                    type: "update-buildings",
+                    payload: {
+                        node: input.nodeId,
+                        buildings: node.buildings
+                    }
+                } as UpdateLocationResponse);
+
+                break;
+            }
+        }
+
+
         // @TODO
         throw new TRPCError({ message: "Not Implemented", code: "UNPROCESSABLE_CONTENT" });
     }),

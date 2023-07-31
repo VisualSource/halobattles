@@ -1,4 +1,4 @@
-import Location from "../object/Location";
+import Location from "../object/Location.js";
 
 const a = "325fbc0e-c71f-452b-92a4-53a3205d267a";
 const b = "98484084-81d9-4d7d-b384-ebd2dff7671f";

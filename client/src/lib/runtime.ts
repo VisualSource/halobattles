@@ -28,6 +28,7 @@ import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import CameraControls from 'camera-controls';
 import Location from "../lib/objects/location";
 import QueueEngine from './QueueEngine';
+import { Player } from 'server/src/object/GameState';
 
 const subsetOfTHREE = {
     Vector2: Vector2,
@@ -107,6 +108,7 @@ export default class Runtime extends EventTarget {
     private clock = new Clock();
     private id: number;
     private locations: Location[] = [];
+    public player: Player;
     private unsubscribe: () => void;
     constructor(private container: HTMLDivElement) {
         super();
@@ -168,37 +170,27 @@ export default class Runtime extends EventTarget {
         const sub = network.onLocationUpdate.subscribe(userId, {
             onData: (value) => {
                 switch (value.type) {
-                    case "group-clear": {
-                        const node = this.locations.find(node => node.objectId === value.payload.node);
-                        if (!node) throw new Error("Failed to find node to update");
-                        node.clearGroup(value.payload.group);
-                        break;
-                    }
-                    case "update-units-group": {
-                        const node = this.locations.find(node => node.objectId === value.payload.node);
-                        if (!node) throw new Error("Failed to find node to update");
-                        node.setGroupUnits(value.payload.group, value.payload.units);
-                        break;
-                    }
                     case "set-owner": {
-                        const node = this.locations.find(node => node.objectId === value.payload.node);
-                        if (!node) throw new Error("Failed to find node to update");
+                        const node = this.getNode(value.payload.node);
                         node.setOwner(value.owner, value.payload.color);
                         node.stacksMovable(userId === value.owner);
                         break;
                     }
                     case "update-units-groups": {
                         for (const payload of value.payload) {
-                            const node = this.locations.find(node => node.objectId === payload.node);
-                            if (!node) throw new Error("Failed to find node to update");
+                            const node = this.getNode(payload.node);
                             node.setGroupUnits(payload.group, payload.units);
                         }
                         break;
                     }
                     case "set-contested-state": {
-                        const node = this.locations.find(node => node.objectId === value.payload.node);
-                        if (!node) throw new Error("Failed to find node to update");
+                        const node = this.getNode(value.payload.node);
                         node.contested = value.payload.state;
+                        break;
+                    }
+                    case "update-buildings": {
+                        const node = this.getNode(value.payload.node);
+                        node.buildings = value.payload.buildings;
                         break;
                     }
                     default:
@@ -210,6 +202,18 @@ export default class Runtime extends EventTarget {
                 console.error(error);
             }
         });
+        const playerdata = network.onPlayerUpdate.subscribe(userId, {
+            onData: (value) => {
+                this.player = value;
+                this.dispatchEvent(new CustomEvent("player-update"));
+            },
+            onError(err) {
+                console.error(err);
+            },
+        });
+        const self = await network.getSelf.query();
+        if (!self) throw new Error("Failed to get self!");
+        this.player = self;
 
         const mapdata = await network.getMap.query();
 
@@ -243,9 +247,9 @@ export default class Runtime extends EventTarget {
 
         return () => {
             subscription.unsubscribe();
+            playerdata.unsubscribe();
             sub.unsubscribe();
         }
-
     }
     private click = (ev: MouseEvent) => {
         const point = new Vector2((ev.clientX / window.innerWidth) * 2 - 1, -(ev.clientY / window.innerHeight) * 2 + 1);
@@ -285,7 +289,9 @@ export default class Runtime extends EventTarget {
         this.container.removeChild(this.htmlRenderer.domElement);
         QueueEngine.get().destory();
     }
-    public getNode(node: string) {
-        return this.locations.find(value => value.objectId === node);
+    public getNode(nodeId: string) {
+        const node = this.locations.find(value => value.objectId === nodeId);
+        if (!node) throw new Error("Failed to find node.");
+        return node;
     }
 }
