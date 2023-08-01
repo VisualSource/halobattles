@@ -38,6 +38,9 @@ class QueueEngine extends EventTarget {
         if (!QueueEngine.INSTANCE) throw new Error("Queue Engine has not been created.");
         return QueueEngine.INSTANCE;
     }
+    static enqueue(item: QueueItem) {
+        QueueEngine.get().addItem(item);
+    }
     private event = new CustomEvent("queue-update");
     private queue: Map<string, Queue> = new Map();
     private current: QueueItem[] = [];

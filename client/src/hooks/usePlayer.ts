@@ -11,12 +11,17 @@ const subscribe = (callback: () => void) => {
 
 const getUnitCapSnapshot = () => {
     const engine = Runtime.getInstance();
-    return engine.player.unitcap;
+    return engine.player?.unitcap;
 }
 
 const getCreditsSnapshot = () => {
     const engine = Runtime.getInstance();
-    return engine.player.creds;
+    return engine.player?.creds;
+}
+
+const getPlayerDataSnapshot = () => {
+    const engine = Runtime.getInstance();
+    return engine.player;
 }
 
 export const usePlayerUnitCap = () => {
@@ -25,5 +30,9 @@ export const usePlayerUnitCap = () => {
 }
 export const usePlayerCredits = () => {
     const data = useSyncExternalStore(subscribe, getCreditsSnapshot);
+    return data;
+}
+export const usePlayerData = () => {
+    const data = useSyncExternalStore(subscribe, getPlayerDataSnapshot);
     return data;
 }

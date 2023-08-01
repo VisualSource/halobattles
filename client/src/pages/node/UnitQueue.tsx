@@ -1,14 +1,14 @@
 import { useParams } from "react-router-dom";
 import { useState, Suspense } from 'react';
-import Queue from "../../components/Queue";
-import Fallback from "../../components/OptionsFallback";
 import UnitBuildOptions from "../../components/UnitOptions";
+import Fallback from "../../components/OptionsFallback";
+import Queue from "../../components/Queue";
 
 const queueIdA = "7a627f73-dbdd-4d00-86ab-2ba8b1135abc";
 const queueIdB = "54547d3f-23eb-4820-b1be-8a70607074df"
 
 const UnitQueue: React.FC = () => {
-    const [extraQueue, setExtraQueue] = useState(false);
+    const [extraQueue] = useState(false);
     const { id } = useParams();
     if (!id) throw new Error("Node id is missing");
 

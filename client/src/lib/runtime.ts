@@ -152,6 +152,20 @@ export default class Runtime extends EventTarget {
     }
     private async init() {
         const userId = user.getUser();
+        const queue = QueueEngine.get();
+
+        queue.addEventListener("item-done", (ev) => {
+            const data = (ev as CustomEvent<{ type: "unit", nodeId: string; objData: { id: number; } }>).detail;
+            if (data.type !== "unit") return;
+
+            network.buildItem.mutate({
+                nodeId: data.nodeId,
+                type: data.type,
+                objData: {
+                    id: data.objData.id
+                }
+            })
+        });
 
         const subscription = network.onTransferUnits.subscribe(userId, {
             onData: (value) => {
@@ -196,7 +210,7 @@ export default class Runtime extends EventTarget {
                     default:
                         break;
                 }
-                this.dispatchEvent(new CustomEvent("node-update"));
+                this.emit("node-update");
             },
             onError(error) {
                 console.error(error);
@@ -205,7 +219,7 @@ export default class Runtime extends EventTarget {
         const playerdata = network.onPlayerUpdate.subscribe(userId, {
             onData: (value) => {
                 this.player = value;
-                this.dispatchEvent(new CustomEvent("player-update"));
+                this.emit("player-update");
             },
             onError(err) {
                 console.error(err);
@@ -214,6 +228,8 @@ export default class Runtime extends EventTarget {
         const self = await network.getSelf.query();
         if (!self) throw new Error("Failed to get self!");
         this.player = self;
+
+        this.emit("player-update");
 
         const mapdata = await network.getMap.query();
 
@@ -250,6 +266,9 @@ export default class Runtime extends EventTarget {
             playerdata.unsubscribe();
             sub.unsubscribe();
         }
+    }
+    public emit(event: string, payload?: unknown): void {
+        this.dispatchEvent(new CustomEvent(event, { detail: payload }));
     }
     private click = (ev: MouseEvent) => {
         const point = new Vector2((ev.clientX / window.innerWidth) * 2 - 1, -(ev.clientY / window.innerHeight) * 2 + 1);

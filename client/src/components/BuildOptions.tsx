@@ -1,10 +1,14 @@
 import { Badge, Tooltip } from "flowbite-react";
+import { usePlayerCredits } from "../hooks/usePlayer";
 import QueueEngine from "../lib/QueueEngine";
 import { trpc } from "../lib/network";
 
 
+
 const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, queueId }) => {
     const [options] = trpc.getBuildOptions.useSuspenseQuery(nodeId)
+    const buy = trpc.buyItem.useMutation();
+    const playerCerdits = usePlayerCredits();
 
     return (
         <section className="grid grid-cols-4 overflow-y-scroll">
@@ -16,24 +20,37 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
                         <div><span className="font-bold">Cost:</span> {value.levels[1]?.build?.cost.toLocaleString() ?? 0}</div>
                         <div className="mb-2"><span className="font-bold">Build Time:</span> {value.levels[1]?.build?.time}</div>
                         <div className="flex flex-wrap">
-                            {value.levels[1]?.values.map(value => (
-                                <Badge size="xs" color={value.color}>{value.text}</Badge>
+                            {value.levels[1]?.values.map((value, i) => (
+                                <Badge key={i} size="xs" color={value.color}>{value.text}</Badge>
                             ))}
                         </div>
                     </div>
                 )}>
-                    <button className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" onClick={() => QueueEngine.get().addItem({
-                        nodeId,
-                        objData: {
-                            duration: value.levels[1]?.build?.time ?? 0,
-                            id: value.id,
-                            icon: value.icon,
-                            name: value.name
-                        },
-                        queueId: queueId,
-                        time: value.levels[1]?.build?.time ?? 0,
-                        type: value.type
-                    })}>
+                    <button className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" onClick={() => {
+                        if (playerCerdits < (value.levels[1]?.build?.time ?? Infinity)) return;
+                        try {
+                            buy.mutate({
+                                type: "building-tech",
+                                id: value.id,
+                                level: 1
+                            });
+
+                            QueueEngine.enqueue({
+                                nodeId,
+                                objData: {
+                                    duration: value.levels[1]?.build?.time ?? 0,
+                                    id: value.id,
+                                    icon: value.icon,
+                                    name: value.name
+                                },
+                                queueId: queueId,
+                                time: value.levels[1]?.build?.time ?? 0,
+                                type: value.type
+                            })
+                        } catch (error) {
+                            console.error(error);
+                        }
+                    }}>
                         <img className="rounded-md" src={value.icon} alt="building icon" />
                     </button>
                 </Tooltip>

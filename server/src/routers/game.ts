@@ -4,11 +4,12 @@ import { z } from 'zod';
 
 import { GameEvents, MoveRequest, MoveResponse, UpdateLocationResponse } from '../object/Events.js';
 import GameState, { Player } from '../object/GameState.js';
-import Dijkstra from '../lib/dijkstra.js';
-import type { UUID } from '../lib.js';
-import { t } from "../trpc.js";
 import { buildOptions } from '../map/upgradeList.js';
 import { planetInfo } from '../map/planet_info.js';
+import Dijkstra from '../lib/dijkstra.js';
+import type { UUID } from '../lib.js';
+import units from '../map/units.js';
+import { t } from "../trpc.js";
 
 const gameState = new GameState();
 
@@ -189,4 +190,68 @@ export const gameRouter = t.router({
         // @TODO
         throw new TRPCError({ message: "Not Implemented", code: "UNPROCESSABLE_CONTENT" });
     }),
+    buyItem: t.procedure.input(z.object({
+        type: z.enum(["unit", "building-tech"]),
+        id: z.number(),
+        level: z.number().optional()
+    })).mutation(({ input, ctx }) => {
+
+        const player = gameState.getPlayer(ctx.user);
+        if (!player) throw new TRPCError({ message: "Failed to update player.", code: "NOT_FOUND" });
+
+        switch (input.type) {
+            case 'unit': {
+                const unit = units.get(input.id);
+                if (!unit) throw new TRPCError({ message: "No unit with given id exists.", code: "NOT_FOUND" });
+                player.creds -= unit.cost;
+                break;
+            }
+            case 'building-tech': {
+                if (!input.level) throw new TRPCError({ message: "A level is required for buy a building or tech.", code: "BAD_REQUEST" });
+                const item = buildOptions.get(input.id);
+                if (!item) throw new TRPCError({ message: "No building or tech with given id exists.", code: "NOT_FOUND" });
+                player.creds -= item.levels[input.level].build?.cost ?? 0;
+                break;
+            }
+        }
+
+        gameState.emit(GameEvents.UpdatePlayer, player);
+
+    }),
+    buildItem: t.procedure.input(z.object({
+        nodeId: z.string().uuid(),
+        objData: z.object({
+            id: z.number(),
+        }),
+        type: z.enum(["unit", "building", "tech"])
+    })).mutation(({ input, ctx }) => {
+        const node = gameState.getNode(input.nodeId as UUID);
+        if (node.owner !== ctx.user) throw new TRPCError({ message: "User does not match node owner.", code: "UNAUTHORIZED" });
+
+        switch (input.type) {
+            case "unit": {
+                const unit = units.get(input.objData.id);
+                if (!unit) throw new TRPCError({ message: "Failed to find unit", code: "NOT_FOUND" });
+
+                node.addUnit("left", {
+                    count: 1,
+                    idx: 0,
+                    id: unit.id,
+                    icon: unit.icon
+                });
+
+                gameState.emit(GameEvents.UpdateLocation, {
+                    type: "update-units-groups",
+                    owner: ctx.user,
+                    payload: [{
+                        group: "left",
+                        node: node.objectId,
+                        units: node.units["left"]
+                    }]
+                } as UpdateLocationResponse);
+                break;
+            }
+        }
+
+    })
 });

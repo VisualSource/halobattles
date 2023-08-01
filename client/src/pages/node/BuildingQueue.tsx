@@ -10,7 +10,7 @@ const queueIdB = "a6b994cd-dcc6-482a-83c8-ed4fc353bcf3";
 
 
 const BuildingQueue: React.FC = () => {
-    const [extraQueue, _setExtraQueue] = useState(false);
+    const [extraQueue] = useState(false);
     const { id } = useParams();
 
     if (!id) throw new Error("Node id is missing");

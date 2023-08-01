@@ -162,6 +162,33 @@ export default class Location {
         // do some stuff to merge groups
         this.units[group] = units;
     }
+    public addUnit(group: GroupType, unit: Unit): void {
+        const idx = this.units[group].findIndex(value => value.id === unit.id);
+
+        if (idx !== -1) {
+            this.units[group][idx].count += unit.count;
+            return;
+        }
+
+        // try to place unit in open slot.
+        let placed = false;
+        let i = 0;
+        while (i < 12) {
+            const pos = this.units[group].findIndex(value => value.idx === i);
+            if (pos !== -1) continue;
+
+            placed = true;
+            this.units[group].push({
+                ...unit,
+                idx: i
+            });
+            break;
+        }
+
+        if (!placed) {
+            throw new Error("Failed to place unit with group");
+        }
+    }
     public clearGroup(group: GroupType): void {
         this.units[group] = [];
     }

@@ -1,14 +1,17 @@
-import { Badge, Tooltip } from "flowbite-react";
+import { Tooltip } from "flowbite-react";
 import QueueEngine from "../lib/QueueEngine";
 import { trpc } from "../lib/network";
+import { usePlayerCredits } from "../hooks/usePlayer";
 
 const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, queueId }) => {
-    const [options] = trpc.getUnitOptions.useSuspenseQuery(nodeId)
+    const [options] = trpc.getUnitOptions.useSuspenseQuery(nodeId);
+    const buy = trpc.buyItem.useMutation();
+    const playerCerdits = usePlayerCredits();
 
     return (
         <section className="grid grid-cols-4 overflow-y-scroll">
             {options.map((value, i) => (
-                <Tooltip content={(
+                <Tooltip key={i} content={(
                     <div>
                         <h1 className="font-bold">{value.name}</h1>
                         <p className="text-gray-500 mb-2 max-w-xs">{value.description}</p>
@@ -23,18 +26,30 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
                     </div>
                 )
                 }>
-                    <button key={i} className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" onClick={() => QueueEngine.get().addItem({
-                        nodeId,
-                        objData: {
-                            duration: value.time,
-                            id: value.id,
-                            icon: value.icon,
-                            name: value.name
-                        },
-                        queueId: queueId,
-                        time: value.time,
-                        type: value.type
-                    })}>
+                    <button key={i} className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" onClick={() => {
+                        if (playerCerdits < value.cost) return;
+                        try {
+                            buy.mutate({
+                                type: "unit",
+                                id: value.id
+                            });
+
+                            QueueEngine.enqueue({
+                                nodeId,
+                                objData: {
+                                    duration: value.time,
+                                    id: value.id,
+                                    icon: value.icon,
+                                    name: value.name
+                                },
+                                queueId: queueId,
+                                time: value.time,
+                                type: value.type
+                            })
+                        } catch (error) {
+                            console.error(error);
+                        }
+                    }}>
                         <img className="rounded-md" src={value.icon} alt="building icon" />
                     </button>
                 </Tooltip >

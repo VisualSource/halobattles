@@ -17,6 +17,15 @@
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 }
+html {
+  height: 100vh;
+}
+body {
+  height: 100%;
+}
+#root {
+  height: 100%;
+}
 
 @layer utilities {
   .grid-header-row {
