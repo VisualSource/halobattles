@@ -41,6 +41,15 @@ class QueueEngine extends EventTarget {
     static enqueue(item: QueueItem) {
         QueueEngine.get().addItem(item);
     }
+    static removeCurrent(nodeId: string, queueId: string): void {
+        QueueEngine.get().removeCurrent(nodeId, queueId);
+    }
+    static deqeueue(nodeId: string, queueId: string, idx: number): void {
+        QueueEngine.get().removeItem(nodeId, queueId, idx);
+    }
+    static swap(nodeId: string, queueId: string, idxA: number, idxB: number): void {
+        QueueEngine.get().swap(nodeId, queueId, idxA, idxB);
+    }
     private event = new CustomEvent("queue-update");
     private queue: Map<string, Queue> = new Map();
     private current: QueueItem[] = [];

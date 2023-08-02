@@ -32,6 +32,7 @@ export type Player = {
     id: UUID,
     unitcap: number;
     creds: number;
+    income: number;
 }
 
 const factionColors: { [key in Factions]: number } = {
@@ -47,6 +48,7 @@ export default class GameState extends EventEmitter {
     public players: Player[] = [
         {
             creds: 10_000,
+            income: 1_000,
             unitcap: 100,
             color: factionColors["Banished"],
             name: "VisualSource",
@@ -54,6 +56,21 @@ export default class GameState extends EventEmitter {
             id: "1724ea86-18a1-465c-b91a-fce23e916aae"
         }
     ];
+    private interval: NodeJS.Timer;
+
+    public startGame() {
+        this.interval = setInterval(() => {
+            for (const player of this.players) {
+                player.creds += player.income;
+                this.emit(GameEvents.UpdatePlayer, player);
+            }
+        }, 40_000);
+    }
+
+    public resetGame() {
+        clearInterval(this.interval);
+    }
+
     public startBattle(nodeId: UUID, transferId: UUID) {
         const node = this.map.find(value => value.objectId === nodeId);
         if (!node) throw new Error("Failed to find node.");

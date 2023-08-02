@@ -12,6 +12,7 @@ import units from '../map/units.js';
 import { t } from "../trpc.js";
 
 const gameState = new GameState();
+gameState.startGame();
 
 export const gameRouter = t.router({
     finalizTransfer: t.procedure.input(z.string().uuid()).mutation((opts) => {
@@ -99,7 +100,7 @@ export const gameRouter = t.router({
         });
     }),
     getSelf: t.procedure.query(({ ctx }) => {
-        return gameState.getPlayer(ctx.user);
+        return gameState.getPlayer(ctx.user as UUID | null);
     }),
     getMap: t.procedure.query(() => {
         gameState.setPlayerData();
@@ -196,7 +197,7 @@ export const gameRouter = t.router({
         level: z.number().optional()
     })).mutation(({ input, ctx }) => {
 
-        const player = gameState.getPlayer(ctx.user);
+        const player = gameState.getPlayer(ctx.user as UUID | null);
         if (!player) throw new TRPCError({ message: "Failed to update player.", code: "NOT_FOUND" });
 
         switch (input.type) {

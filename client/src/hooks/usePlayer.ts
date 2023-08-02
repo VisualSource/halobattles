@@ -9,6 +9,11 @@ const subscribe = (callback: () => void) => {
     }
 }
 
+const getIncomeSnapshot = () => {
+    const engine = Runtime.getInstance();
+    return engine.player?.income;
+}
+
 const getUnitCapSnapshot = () => {
     const engine = Runtime.getInstance();
     return engine.player?.unitcap;
@@ -24,6 +29,10 @@ const getPlayerDataSnapshot = () => {
     return engine.player;
 }
 
+export const usePlayerIncome = () => {
+    const data = useSyncExternalStore(subscribe, getIncomeSnapshot);
+    return data;
+}
 export const usePlayerUnitCap = () => {
     const data = useSyncExternalStore(subscribe, getUnitCapSnapshot)
     return data;

@@ -1,4 +1,5 @@
 import { Badge, Tooltip } from "flowbite-react";
+import clsx from 'clsx';
 import { usePlayerCredits } from "../hooks/usePlayer";
 import QueueEngine from "../lib/QueueEngine";
 import { trpc } from "../lib/network";
@@ -26,7 +27,7 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
                         </div>
                     </div>
                 )}>
-                    <button className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" onClick={() => {
+                    <button className={clsx(playerCerdits < (value.levels[1]?.build?.cost ?? Infinity) ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={() => {
                         if (playerCerdits < (value.levels[1]?.build?.time ?? Infinity)) return;
                         try {
                             buy.mutate({
@@ -51,14 +52,12 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
                             console.error(error);
                         }
                     }}>
-                        <img className="rounded-md" src={value.icon} alt="building icon" />
+                        <img className={clsx("rounded-md", playerCerdits < (value.levels[1]?.build?.cost ?? Infinity) ? "grayscale" : undefined)} src={value.icon} alt="building icon" />
                     </button>
                 </Tooltip>
             ))}
             {Array.from({ length: (6 * 6) - options.length }).map((_, i) => (
-                <button className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" key={i}>
-
-                </button>
+                <button className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" key={i}></button>
             ))}
         </section>
     );

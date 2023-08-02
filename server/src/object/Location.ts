@@ -159,8 +159,7 @@ export default class Location {
         }];
     }
     public appendUnits(group: GroupType, units: Unit[]): void {
-        // do some stuff to merge groups
-        this.units[group] = units;
+        for (const unit of units) this.addUnit(group, unit);
     }
     public addUnit(group: GroupType, unit: Unit): void {
         const idx = this.units[group].findIndex(value => value.id === unit.id);

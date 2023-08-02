@@ -4,9 +4,9 @@ import { WebSocketServer } from 'ws';
 import { on } from 'node:process';
 import cors from 'cors';
 
-import { createHttpContext, createWSContext } from './context';
-import { appRouter } from './appRouter';
-import { AppRouter } from './lib';
+import { createHttpContext, createWSContext } from './context.js';
+import { appRouter } from './appRouter.js';
+import { AppRouter } from './lib.js';
 
 const { server, listen } = createHTTPServer({
     router: appRouter,
@@ -31,6 +31,7 @@ wss.on("connection", (ws) => {
 on("SIGTERM", () => {
     handler.broadcastReconnectNotification();
     wss.close();
+    server.close();
 });
 
 listen(2022);

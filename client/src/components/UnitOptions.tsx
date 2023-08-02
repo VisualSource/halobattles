@@ -1,7 +1,9 @@
 import { Tooltip } from "flowbite-react";
+import clsx from 'clsx';
+import { usePlayerCredits } from "../hooks/usePlayer";
 import QueueEngine from "../lib/QueueEngine";
 import { trpc } from "../lib/network";
-import { usePlayerCredits } from "../hooks/usePlayer";
+
 
 const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, queueId }) => {
     const [options] = trpc.getUnitOptions.useSuspenseQuery(nodeId);
@@ -26,7 +28,7 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
                     </div>
                 )
                 }>
-                    <button key={i} className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" onClick={() => {
+                    <button key={i} className={clsx(playerCerdits < value.cost ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={() => {
                         if (playerCerdits < value.cost) return;
                         try {
                             buy.mutate({
@@ -50,7 +52,7 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
                             console.error(error);
                         }
                     }}>
-                        <img className="rounded-md" src={value.icon} alt="building icon" />
+                        <img className={clsx("rounded-md", playerCerdits < value.cost ? "grayscale" : undefined)} src={value.icon} alt="building icon" />
                     </button>
                 </Tooltip >
             ))}

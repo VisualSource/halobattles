@@ -5,7 +5,7 @@
   "type": "module",
   "types": "./src/lib.d.ts",
   "scripts": {
-    "dev": "vite-node ./src/index.ts",
+    "dev": "vite-node --watch ./src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -20,6 +20,6 @@
   "devDependencies": {
     "@types/cors": "^2.8.13",
     "@types/ws": "^8.5.5",
-    "vite-node": "^0.33.0"
+    "vite-node": "^0.34.1"
   }
 }
