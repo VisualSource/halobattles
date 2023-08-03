@@ -5,7 +5,7 @@
   "type": "module",
   "types": "./src/lib.d.ts",
   "scripts": {
-    "dev": "vite-node --watch ./src/index.ts",
+    "dev": "vite-node -w ./src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

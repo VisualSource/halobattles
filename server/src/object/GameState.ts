@@ -24,15 +24,22 @@ type UnitTransfer = {
     }
 }
 
-type Factions = "UNSC" | "Banished" | "Covenant" | "Forerunner"
+type Factions = "UNSC" | "Banished" | "Covenant" | "Forerunner";
+type GlobalType = `unit-${number}` | `building-${number}`;
 export type Player = {
     color: number;
     name: string;
     factions: Factions;
     id: UUID,
-    unitcap: number;
-    creds: number;
-    income: number;
+    cap: {
+        current: number;
+        max: number;
+        restrictions: { [key in GlobalType]: number }
+    }
+    credits: {
+        current: number;
+        income: number;
+    }
 }
 
 const factionColors: { [key in Factions]: number } = {
@@ -47,13 +54,19 @@ export default class GameState extends EventEmitter {
     private map = map;
     public players: Player[] = [
         {
-            creds: 10_000,
-            income: 1_000,
-            unitcap: 100,
+            credits: {
+                current: 10_000,
+                income: 1_000
+            },
+            cap: {
+                max: 100,
+                current: 1,
+                restrictions: {}
+            },
             color: factionColors["Banished"],
             name: "VisualSource",
             factions: "Banished",
-            id: "1724ea86-18a1-465c-b91a-fce23e916aae"
+            id: "1724ea86-18a1-465c-b91a-fce23e916aae",
         }
     ];
     private interval: NodeJS.Timer;
@@ -61,7 +74,7 @@ export default class GameState extends EventEmitter {
     public startGame() {
         this.interval = setInterval(() => {
             for (const player of this.players) {
-                player.creds += player.income;
+                player.credits.current += player.credits.income;
                 this.emit(GameEvents.UpdatePlayer, player);
             }
         }, 40_000);

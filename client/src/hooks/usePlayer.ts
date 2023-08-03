@@ -11,17 +11,18 @@ const subscribe = (callback: () => void) => {
 
 const getIncomeSnapshot = () => {
     const engine = Runtime.getInstance();
-    return engine.player?.income;
+    return engine.player?.credits?.income;
 }
+
 
 const getUnitCapSnapshot = () => {
     const engine = Runtime.getInstance();
-    return engine.player?.unitcap;
+    return engine.player?.cap;
 }
 
 const getCreditsSnapshot = () => {
     const engine = Runtime.getInstance();
-    return engine.player?.creds;
+    return engine.player?.credits.current;
 }
 
 const getPlayerDataSnapshot = () => {
@@ -33,8 +34,8 @@ export const usePlayerIncome = () => {
     const data = useSyncExternalStore(subscribe, getIncomeSnapshot);
     return data;
 }
-export const usePlayerUnitCap = () => {
-    const data = useSyncExternalStore(subscribe, getUnitCapSnapshot)
+export const usePlayerCap = () => {
+    const data = useSyncExternalStore(subscribe, getUnitCapSnapshot);
     return data;
 }
 export const usePlayerCredits = () => {

@@ -204,14 +204,23 @@ export const gameRouter = t.router({
             case 'unit': {
                 const unit = units.get(input.id);
                 if (!unit) throw new TRPCError({ message: "No unit with given id exists.", code: "NOT_FOUND" });
-                player.creds -= unit.cost;
+                player.credits.current -= unit.cost;
+                player.cap.current += unit.capSize;
+
+                if (unit.globalMax !== -1) {
+                    if (!player.cap.restrictions[`unit-${unit.id}`]) {
+                        player.cap.restrictions[`unit-${unit.id}`] = 0;
+                    }
+                    player.cap.restrictions[`unit-${unit.id}`]++;
+                }
+
                 break;
             }
             case 'building-tech': {
                 if (!input.level) throw new TRPCError({ message: "A level is required for buy a building or tech.", code: "BAD_REQUEST" });
                 const item = buildOptions.get(input.id);
                 if (!item) throw new TRPCError({ message: "No building or tech with given id exists.", code: "NOT_FOUND" });
-                player.creds -= item.levels[input.level].build?.cost ?? 0;
+                player.credits.current -= item.levels[input.level].build?.cost ?? 0;
                 break;
             }
         }

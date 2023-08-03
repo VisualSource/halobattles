@@ -1,7 +1,7 @@
 import { createHTTPServer } from '@trpc/server/adapters/standalone';
 import { applyWSSHandler } from '@trpc/server/adapters/ws';
 import { WebSocketServer } from 'ws';
-import { on } from 'node:process';
+import process from 'node:process';
 import cors from 'cors';
 
 import { createHttpContext, createWSContext } from './context.js';
@@ -28,7 +28,7 @@ wss.on("connection", (ws) => {
     });
 });
 
-on("SIGTERM", () => {
+process.on("SIGTERM", () => {
     handler.broadcastReconnectNotification();
     wss.close();
     server.close();

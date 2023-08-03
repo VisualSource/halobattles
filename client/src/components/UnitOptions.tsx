@@ -1,6 +1,6 @@
 import { Tooltip } from "flowbite-react";
 import clsx from 'clsx';
-import { usePlayerCredits } from "../hooks/usePlayer";
+import { usePlayerCredits, usePlayerCap } from "../hooks/usePlayer";
 import QueueEngine from "../lib/QueueEngine";
 import { trpc } from "../lib/network";
 
@@ -9,6 +9,7 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
     const [options] = trpc.getUnitOptions.useSuspenseQuery(nodeId);
     const buy = trpc.buyItem.useMutation();
     const playerCerdits = usePlayerCredits();
+    const cap = usePlayerCap();
 
     return (
         <section className="grid grid-cols-4 overflow-y-scroll">
@@ -20,6 +21,8 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
                         <div><span className="font-bold">Cost:</span> {value.cost.toLocaleString()}</div>
                         <div><span className="font-bold">Build Time:</span> {value.time}</div>
                         <div>
+                            {value.globalMax !== -1 ? <div><span className="font-bold">Max Global</span> {value.capSize}</div> : null}
+                            <div><span className="font-bold">Cap Size:</span> {value.capSize}</div>
                             <div><span className="font-bold">Damage Type:</span> {value.stats.damageType}</div>
                             <div><span className="font-bold">Health:</span> {value.stats.health}</div>
                             <div><span className="font-bold">Shealds:</span> {value.stats.shealds}</div>
@@ -28,8 +31,8 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
                     </div>
                 )
                 }>
-                    <button key={i} className={clsx(playerCerdits < value.cost ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={() => {
-                        if (playerCerdits < value.cost) return;
+                    <button key={i} className={clsx((playerCerdits < value.cost) || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax)) ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={() => {
+                        if (playerCerdits < value.cost || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax))) return;
                         try {
                             buy.mutate({
                                 type: "unit",
@@ -52,7 +55,7 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
                             console.error(error);
                         }
                     }}>
-                        <img className={clsx("rounded-md", playerCerdits < value.cost ? "grayscale" : undefined)} src={value.icon} alt="building icon" />
+                        <img className={clsx("rounded-md", (playerCerdits < value.cost) || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax)) ? "grayscale" : undefined)} src={value.icon} alt="building icon" />
                     </button>
                 </Tooltip >
             ))}
