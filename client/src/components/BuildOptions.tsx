@@ -27,11 +27,10 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
                         </div>
                     </div>
                 )}>
-                    <button className={clsx(playerCerdits < (value.levels[1]?.build?.cost ?? Infinity) ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={() => {
-                        if (playerCerdits < (value.levels[1]?.build?.time ?? Infinity)) return;
+                    <button disabled={playerCerdits < (value.levels[1]?.build?.time ?? Infinity)} className={clsx(playerCerdits < (value.levels[1]?.build?.cost ?? Infinity) ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={async () => {
                         try {
-                            buy.mutate({
-                                type: "building-tech",
+                            await buy.mutateAsync({
+                                type: value.type,
                                 id: value.id,
                                 level: 1
                             });

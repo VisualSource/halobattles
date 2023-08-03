@@ -1,17 +1,28 @@
-import { Badge, Button } from 'flowbite-react';
+import { Badge } from 'flowbite-react';
 import { useParams } from 'react-router-dom';
 import { Suspense, useState } from 'react';
-import { useNodeBuildings, useNodeMaxBuildings } from "../../hooks/useGetNode";
+import clsx from 'clsx';
+import useGetNode, { useNodeBuildings, useNodeMaxBuildings } from "../../hooks/useGetNode";
 import { useIsNodeOwner, useIsNodeSpy } from '../../hooks/useGetNode';
 import type { Building } from 'server/src/object/Location';
 import Fallback from '../../components/OptionsFallback';
 import { trpc } from '../../lib/network';
+import { usePlayerCredits } from '../../hooks/usePlayer';
+import QueueEngine from '../../lib/QueueEngine';
 
 const Building: React.FC<{ item: Building, isOwner: boolean, isSpy: boolean }> = ({ isOwner, isSpy, item }) => {
     const { id } = useParams();
     if (!id) throw new Error("No node id was set.");
     const [data] = trpc.getBulidingInfo.useSuspenseQuery(item.id);
     const mutation = trpc.modifyBuilding.useMutation();
+    const buy = trpc.buyItem.useMutation();
+    const credits = usePlayerCredits();
+    const node = useGetNode();
+
+    if (!node) throw new Error("Unable to get node");
+
+    const level = data.levels[item.level];
+    if (!level) throw new Error("Unable to get level data");
 
     return (
         <div className="col-span-1 p-2" data-obj-id={item.objId}>
@@ -27,15 +38,47 @@ const Building: React.FC<{ item: Building, isOwner: boolean, isSpy: boolean }> =
             <section className="mb-4">
                 <h2 className="mb-2 text-lg font-semibold text-white">Bouns:</h2>
                 <div className='flex flex-wrap gap-4'>
-                    {(isOwner || isSpy) ? data.levels[item.level].values.map((bouns, i) => (
+                    {(isOwner || isSpy) ? level.values.map((bouns, i) => (
                         <Badge key={i} color={bouns.color}>{bouns.text}</Badge>
                     )) : null}
                 </div>
             </section>
-            {(isOwner || isSpy) ? <div className='flex  gap-2'>
-                {(data.maxLevel === -1 || data.maxLevel === item.level) ? null : (<Button onClick={() => mutation.mutate({ type: "upgrade", objId: item.objId, nodeId: id })}>Upgrade</Button>)}
-                <Button color="red" onClick={() => mutation.mutate({ type: "delete", objId: item.objId, nodeId: id })}>Delete</Button>
-            </div> : null}
+            {isOwner ? (
+                <div className='flex  gap-2'>
+                    {(data.maxLevel === -1 || data.maxLevel === item.level) ? null : (
+                        <button disabled={credits < credits - (level.build?.cost ?? Infinity)} onClick={async () => {
+                            try {
+                                const nextLevel = item.level + 1;
+                                const nextData = data.levels[nextLevel];
+                                if (!nextData) throw new Error("Failed to get next level data");
+
+                                await buy.mutateAsync({
+                                    type: data.type,
+                                    id: item.id,
+                                    level: nextLevel,
+                                });
+
+                                QueueEngine.enqueue({
+                                    type: data.type,
+                                    nodeId: node.objectId,
+                                    queueId: node.queueIds.buildings.a,
+                                    objData: {
+                                        duration: nextData.build?.time ?? 0,
+                                        icon: data.icon,
+                                        id: data.id,
+                                        inst: item.objId,
+                                        name: `[Upgrade] ${data.name}`
+                                    },
+                                    time: nextData.build?.time ?? 0
+                                });
+                            } catch (error) {
+                                console.error(error);
+                            }
+                        }} type="button" className={clsx({ "cursor-not-allowed": credits < (level?.build?.cost ?? Infinity) }, "text-white focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-blue-800")}>Upgrade</button>
+                    )}
+                    <button onClick={() => mutation.mutate({ type: "delete", objId: item.objId, nodeId: id })} type="button" className="focus:outline-none text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900">Delete</button>
+                </div>
+            ) : null}
         </div>
     );
 }

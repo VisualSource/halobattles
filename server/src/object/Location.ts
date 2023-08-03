@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { UpdateLocationUnitGroups } from "./Events.js";
 import { buildOptions } from "../map/upgradeList.js";
 import type { UUID } from "../lib.js";
@@ -5,7 +6,7 @@ import type { UUID } from "../lib.js";
 type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
 type PartialBy<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>
 
-type BuildTypes = "units" | "buildings"
+export type BuildTypes = "units" | "buildings"
 
 export type Unit = {
     icon: string;
@@ -35,6 +36,7 @@ export type LocationProps = {
     units: { [key in GroupType]: Unit[] };
     buildings: Building[];
     connectsTo: UUID[];
+    queueIds: { [key in BuildTypes]: { a: UUID; b: UUID; } };
     position: {
         x: number;
         y: number;
@@ -45,6 +47,7 @@ export default class Location {
     public contested = false;
     public buildOptions: { [key in BuildTypes]: { allowed: number[]; current: number[] } }
     public maxBuildingSlots: number = 6;
+    public queueIds: { [key in BuildTypes]: { a: UUID; b: UUID; } };
     public spies: UUID[] = [];
     public name: string;
     public color: number;
@@ -54,13 +57,23 @@ export default class Location {
     public buildings: Building[] = [{ id: 0, icon: "https://halo.wiki.gallery/images/b/b0/HW_FieldArmory_Concept.jpg", level: 1, objId: "afeaferfgg" }];
     public position: { x: number; y: number };
     public connectsTo: UUID[] = [];
-    constructor({ connectsTo, objectId, owner, position, name, units, buildOptions, color }: PartialBy<LocationProps, "contested" | "units" | "spies" | "buildings" | "buildOptions" | "maxBuildingSlots" | "color">) {
+    constructor({ queueIds, connectsTo, objectId, owner, position, name, units, buildOptions, color }: PartialBy<LocationProps, "contested" | "units" | "spies" | "buildings" | "buildOptions" | "maxBuildingSlots" | "color" | "queueIds">) {
         this.connectsTo = connectsTo;
         this.objectId = objectId;
         this.owner = owner;
         this.position = position;
         this.name = name;
         this.color = color ?? 0xd3d3d3;
+        this.queueIds = queueIds ?? {
+            units: {
+                a: randomUUID(),
+                b: randomUUID(),
+            },
+            buildings: {
+                a: randomUUID(),
+                b: randomUUID()
+            }
+        };
         this.buildOptions = buildOptions ?? {
             units: {
                 allowed: [],

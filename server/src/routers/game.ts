@@ -1,5 +1,6 @@
 import { observable } from '@trpc/server/observable';
 import { TRPCError } from '@trpc/server';
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 
 import { GameEvents, MoveRequest, MoveResponse, UpdateLocationResponse } from '../object/Events.js';
@@ -192,7 +193,7 @@ export const gameRouter = t.router({
         throw new TRPCError({ message: "Not Implemented", code: "UNPROCESSABLE_CONTENT" });
     }),
     buyItem: t.procedure.input(z.object({
-        type: z.enum(["unit", "building-tech"]),
+        type: z.enum(["unit", "building", "tech"]),
         id: z.number(),
         level: z.number().optional()
     })).mutation(({ input, ctx }) => {
@@ -216,7 +217,8 @@ export const gameRouter = t.router({
 
                 break;
             }
-            case 'building-tech': {
+            case "building":
+            case 'tech': {
                 if (!input.level) throw new TRPCError({ message: "A level is required for buy a building or tech.", code: "BAD_REQUEST" });
                 const item = buildOptions.get(input.id);
                 if (!item) throw new TRPCError({ message: "No building or tech with given id exists.", code: "NOT_FOUND" });
@@ -232,6 +234,8 @@ export const gameRouter = t.router({
         nodeId: z.string().uuid(),
         objData: z.object({
             id: z.number(),
+            level: z.number().optional(),
+            inst: z.string().optional()
         }),
         type: z.enum(["unit", "building", "tech"])
     })).mutation(({ input, ctx }) => {
@@ -258,6 +262,38 @@ export const gameRouter = t.router({
                         node: node.objectId,
                         units: node.units["left"]
                     }]
+                } as UpdateLocationResponse);
+                break;
+            }
+            case "building":
+            case "tech": {
+                if (!input.objData.level) throw new TRPCError({ message: "A level is required for makeing a building or tech", code: "BAD_REQUEST" });
+
+                if (input.objData.inst) {
+                    const inst = node.buildings.find(value => value.objId === input.objData.inst);
+                    if (!inst) throw new TRPCError({ message: "Failed to find building/tech to upgrade", code: "NOT_FOUND" });
+                    inst.level++;
+                } else {
+                    const item = buildOptions.get(input.objData.id);
+                    if (!item) throw new TRPCError({ message: "Failed to find building/tech data", code: "NOT_FOUND" });
+
+                    node.buildOptions.buildings.current.push(item.id);
+
+                    node.buildings.push({
+                        level: input.objData.level!,
+                        id: item.id,
+                        icon: item.icon,
+                        objId: randomBytes(5).toString("hex")
+                    });
+                }
+
+                gameState.emit(GameEvents.UpdateLocation, {
+                    type: "update-buildings",
+                    owner: node.owner,
+                    payload: {
+                        buildings: node.buildings,
+                        node: node.objectId
+                    }
                 } as UpdateLocationResponse);
                 break;
             }

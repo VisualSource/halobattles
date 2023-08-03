@@ -75,6 +75,20 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
                     time: 10,
                     cost: 20_000,
                 }
+            },
+            2: {
+                values: [
+                    {
+                        value: 210,
+                        stat: "unit-cap",
+                        color: "green",
+                        text: "+210 Unit Cap",
+                    }
+                ],
+                build: {
+                    time: 10,
+                    cost: 30_000
+                }
             }
         }
     }]

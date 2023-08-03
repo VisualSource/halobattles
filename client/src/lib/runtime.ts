@@ -155,14 +155,25 @@ export default class Runtime extends EventTarget {
         const queue = QueueEngine.get();
 
         queue.addEventListener("item-done", (ev) => {
-            const data = (ev as CustomEvent<{ type: "unit", nodeId: string; objData: { id: number; } }>).detail;
-            if (data.type !== "unit") return;
+            const data = (ev as CustomEvent<{ type: "unit", nodeId: string; objData: { id: number; level?: number; inst?: string; } }>).detail;
+            if (data.type !== "unit") {
+                network.buildItem.mutate({
+                    nodeId: data.nodeId,
+                    type: data.type,
+                    objData: {
+                        id: data.objData.id,
+                        level: data.objData.level,
+                        inst: data.objData.inst
+                    }
+                });
+                return;
+            }
 
             network.buildItem.mutate({
                 nodeId: data.nodeId,
                 type: data.type,
                 objData: {
-                    id: data.objData.id
+                    id: data.objData.id,
                 }
             })
         });

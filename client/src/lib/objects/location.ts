@@ -1,6 +1,6 @@
 import { CircleGeometry, Color, EllipseCurve, Mesh, MeshBasicMaterial, Shape, ShapeGeometry, Vector3 } from "three";
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import type { GroupType, Unit, Building, LocationProps } from "server/src/object/Location";
+import type { GroupType, Unit, Building, LocationProps, BuildTypes } from "server/src/object/Location";
 import UnitStack, { StackState } from "./stack";
 import type { UUID } from "server";
 import { user } from "../user";
@@ -58,10 +58,12 @@ export default class Location {
     public color: number;
     public owner: string | null;
     public units: { [key in GroupType]: Unit[] }
+    public queueIds: { [key in BuildTypes]: { a: UUID; b: UUID; } }
     public buildings: Building[] = [];
     public stacks: { [key in GroupType]: UnitStack }
-    constructor({ contested, objectId, position, connectsTo, owner, units, buildings, name, spies, maxBuildingSlots, color }: LocationProps) {
+    constructor({ queueIds, contested, objectId, position, connectsTo, owner, units, buildings, name, spies, maxBuildingSlots, color }: LocationProps) {
         this.objectId = objectId;
+        this.queueIds = queueIds;
         this.connectsTo = connectsTo;
         this.owner = owner;
         this.units = units;

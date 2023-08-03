@@ -31,10 +31,9 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
                     </div>
                 )
                 }>
-                    <button key={i} className={clsx((playerCerdits < value.cost) || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax)) ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={() => {
-                        if (playerCerdits < value.cost || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax))) return;
+                    <button disabled={playerCerdits < value.cost || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax))} key={i} className={clsx((playerCerdits < value.cost) || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax)) ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={async () => {
                         try {
-                            buy.mutate({
+                            await buy.mutateAsync({
                                 type: "unit",
                                 id: value.id
                             });

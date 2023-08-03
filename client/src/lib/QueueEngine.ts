@@ -1,5 +1,5 @@
 
-type QueueItem = { time: number, queueId: string, nodeId: string; objData: { duration: number, name: string; icon: string; id: number; }; type: "unit" | "building" | "tech" };
+type QueueItem = { time: number, queueId: string, nodeId: string; objData: { inst?: string; duration: number, name: string; icon: string; id: number; }; type: "unit" | "building" | "tech" };
 
 class Queue {
     public list: QueueItem[] = [];
