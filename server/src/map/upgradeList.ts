@@ -17,7 +17,7 @@ interface Buildable {
     levels: {
         [level: number]: {
             values: {
-                stat: string;
+                stat: "cap.current";
                 value: number;
                 color: "green" | "red",
                 text: string;
@@ -69,7 +69,7 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
             1: {
                 values: [{
                     value: 200,
-                    stat: "unit-cap",
+                    stat: "cap.current",
                     color: "green",
                     text: "+200 Unit Cap",
                 }],
@@ -82,7 +82,7 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
                 values: [
                     {
                         value: 210,
-                        stat: "unit-cap",
+                        stat: "cap.current",
                         color: "green",
                         text: "+210 Unit Cap",
                     }

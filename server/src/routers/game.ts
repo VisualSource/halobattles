@@ -137,12 +137,12 @@ export const gameRouter = t.router({
         type: z.enum(["upgrade", "delete"])
     })).mutation(({ input, ctx }) => {
         const node = gameState.getNode(input.nodeId as UUID);
-        if (!node) throw new TRPCError({ message: "Failed to find node.", code: "NOT_FOUND" });
+        const player = gameState.getPlayer(ctx.user as UUID | null);
+        if (!node || !player) throw new TRPCError({ message: "Failed to find node.", code: "NOT_FOUND" });
         if (node.owner !== ctx.user) throw new TRPCError({ message: "Current user is not allowd to edit this node", code: "UNAUTHORIZED" });
 
         const item = node.buildings.findIndex(value => value.objId === input.objId);
         if (item === -1) throw new TRPCError({ message: "Failed to find item", code: "NOT_FOUND" });
-
 
         switch (input.type) {
             case 'upgrade': {
@@ -150,10 +150,29 @@ export const gameRouter = t.router({
                 const data = buildOptions.get(node.buildings[item].id);
                 if (!data) throw new TRPCError({ message: "Failed to run actions on item", code: "INTERNAL_SERVER_ERROR" });
 
-                if (data.on?.create) {
-                    // handle create method
+                if (node.buildings[item].level - 1 > 0) {
+                    for (const stats of data.levels[node.buildings[item].level - 1].values) {
+                        switch (stats.stat) {
+                            case "cap.current":
+                                player.cap.current -= stats.value;
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                 }
 
+                for (const stats of data.levels[node.buildings[item].level].values) {
+                    switch (stats.stat) {
+                        case "cap.current":
+                            player.cap.current += stats.value;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
+                gameState.emit(GameEvents.UpdatePlayer, player);
                 gameState.emit(GameEvents.UpdateLocation, {
                     type: "update-buildings",
                     payload: {
@@ -165,6 +184,8 @@ export const gameRouter = t.router({
                 break;
             }
             case 'delete': {
+                const buildId = node.buildOptions.buildings.current.findIndex(value => value === item);
+                node.buildOptions.buildings.current.splice(buildId, 1);
                 const removed = node.buildings.splice(item, 1);
                 const content = removed.at(0);
                 if (!content) break;
@@ -172,9 +193,17 @@ export const gameRouter = t.router({
                 const data = buildOptions.get(content.id);
                 if (!data) throw new TRPCError({ message: "Failed to run actions on item", code: "INTERNAL_SERVER_ERROR" });
 
-                if (data.on?.destory) {
-                    // run on destory actions.
+                for (const stats of data.levels[content.level].values) {
+                    switch (stats.stat) {
+                        case "cap.current":
+                            player.cap.current -= stats.value;
+                            break;
+                        default:
+                            break;
+                    }
                 }
+
+                gameState.emit(GameEvents.UpdatePlayer, player);
 
                 gameState.emit(GameEvents.UpdateLocation, {
                     type: "update-buildings",
@@ -187,10 +216,6 @@ export const gameRouter = t.router({
                 break;
             }
         }
-
-
-        // @TODO
-        throw new TRPCError({ message: "Not Implemented", code: "UNPROCESSABLE_CONTENT" });
     }),
     buyItem: t.procedure.input(z.object({
         type: z.enum(["unit", "building", "tech"]),
@@ -223,6 +248,14 @@ export const gameRouter = t.router({
                 const item = buildOptions.get(input.id);
                 if (!item) throw new TRPCError({ message: "No building or tech with given id exists.", code: "NOT_FOUND" });
                 player.credits.current -= item.levels[input.level].build?.cost ?? 0;
+
+                if (item.max.global !== -1) {
+                    if (!player.cap.restrictions[`building-${item.id}`]) {
+                        player.cap.restrictions[`building-${item.id}`] = 0;
+                    }
+                    player.cap.restrictions[`building-${item.id}`]++;
+                }
+
                 break;
             }
         }
