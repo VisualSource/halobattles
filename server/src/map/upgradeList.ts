@@ -57,7 +57,7 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
         on: {},
         max: {
             global: -1,
-            node: 2
+            node: 1
         },
         battle: {
             health: 100,

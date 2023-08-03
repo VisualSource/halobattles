@@ -1,4 +1,4 @@
-import { Badge } from 'flowbite-react';
+import { Badge, Tooltip } from 'flowbite-react';
 import { useParams } from 'react-router-dom';
 import { Suspense, useState } from 'react';
 import clsx from 'clsx';
@@ -46,35 +46,51 @@ const Building: React.FC<{ item: Building, isOwner: boolean, isSpy: boolean }> =
             {isOwner ? (
                 <div className='flex  gap-2'>
                     {(data.maxLevel === -1 || data.maxLevel === item.level) ? null : (
-                        <button disabled={credits < credits - (level.build?.cost ?? Infinity)} onClick={async () => {
-                            try {
-                                const nextLevel = item.level + 1;
-                                const nextData = data.levels[nextLevel];
-                                if (!nextData) throw new Error("Failed to get next level data");
+                        <Tooltip content={
+                            <div>
+                                <h1 className="text-lg font-bold mb-2">Upgrade to level {item.level + 1}</h1>
+                                <div className="mb-2">
+                                    <div><span className="font-bold">Cost:</span> {(data.levels[item.level + 1].build?.cost ?? Number.MAX_SAFE_INTEGER).toLocaleString()}</div>
+                                    <div><span className="font-bold">Build time:</span> {(data.levels[item.level + 1].build?.time ?? Number.MAX_SAFE_INTEGER).toLocaleString()}s</div>
+                                </div>
+                                <div className='flex flex-wrap gap-4'>
+                                    {data.levels[item.level + 1].values.map((bouns, i) => (
+                                        <Badge key={i} color={bouns.color}>{bouns.text}</Badge>
+                                    ))}
+                                </div>
 
-                                await buy.mutateAsync({
-                                    type: data.type,
-                                    id: item.id,
-                                    level: nextLevel,
-                                });
+                            </div>
+                        }>
+                            <button disabled={credits < credits - (level.build?.cost ?? Infinity)} onClick={async () => {
+                                try {
+                                    const nextLevel = item.level + 1;
+                                    const nextData = data.levels[nextLevel];
+                                    if (!nextData) throw new Error("Failed to get next level data");
 
-                                QueueEngine.enqueue({
-                                    type: data.type,
-                                    nodeId: node.objectId,
-                                    queueId: node.queueIds.buildings.a,
-                                    objData: {
-                                        duration: nextData.build?.time ?? 0,
-                                        icon: data.icon,
-                                        id: data.id,
-                                        inst: item.objId,
-                                        name: `[Upgrade] ${data.name}`
-                                    },
-                                    time: nextData.build?.time ?? 0
-                                });
-                            } catch (error) {
-                                console.error(error);
-                            }
-                        }} type="button" className={clsx({ "cursor-not-allowed": credits < (level?.build?.cost ?? Infinity) }, "text-white focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-blue-800")}>Upgrade</button>
+                                    await buy.mutateAsync({
+                                        type: data.type,
+                                        id: item.id,
+                                        level: nextLevel,
+                                    });
+
+                                    QueueEngine.enqueue({
+                                        type: data.type,
+                                        nodeId: node.objectId,
+                                        queueId: node.queueIds.buildings.a,
+                                        objData: {
+                                            duration: nextData.build?.time ?? 0,
+                                            icon: data.icon,
+                                            id: data.id,
+                                            inst: item.objId,
+                                            name: `[Upgrade] ${data.name}`
+                                        },
+                                        time: nextData.build?.time ?? 0
+                                    });
+                                } catch (error) {
+                                    console.error(error);
+                                }
+                            }} type="button" className={clsx({ "cursor-not-allowed": credits < (level?.build?.cost ?? Infinity) }, "text-white focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-blue-800")}>Upgrade</button>
+                        </Tooltip>
                     )}
                     <button onClick={() => mutation.mutate({ type: "delete", objId: item.objId, nodeId: id })} type="button" className="focus:outline-none text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900">Delete</button>
                 </div>

@@ -17,10 +17,10 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
     return (
         <section className="grid grid-cols-4 overflow-y-scroll">
             {options.map((value, i) => {
-                const canBuild = playerCerdits < (value.levels[1]?.build?.time ?? Infinity) &&
-                    (cap.restrictions[`building-${value.id}`] ?? 0) < value.max.global &&
+                const canBuild = playerCerdits > (value.levels[1]?.build?.cost ?? Infinity) &&
+                    (value.max.global !== -1 ? (cap.restrictions[`building-${value.id}`] ?? 0) < value.max.global : true) &&
                     (node.buildings.length < node.maxBuildingsSlots) &&
-                    value.max.node > node.buildings.reduce((prev, curr) => { if (curr.id === value.id) prev++; return prev; }, 0);
+                    (value.max.node !== -1 ? value.max.node > node.buildings.reduce((prev, curr) => { if (curr.id === value.id) prev++; return prev; }, 0) : true);
 
                 return (
                     <Tooltip key={i} content={(
@@ -28,15 +28,17 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
                             <h1 className="font-bold">{value.name}</h1>
                             <p className="text-gray-500 mb-2 max-w-xs">{value.description}</p>
                             <div><span className="font-bold">Cost:</span> {value.levels[1]?.build?.cost.toLocaleString() ?? 0}</div>
-                            <div className="mb-2"><span className="font-bold">Build Time:</span> {value.levels[1]?.build?.time}</div>
-                            <div className="flex flex-wrap">
+                            <div><span className="font-bold">Build Time:</span> {value.levels[1]?.build?.time}</div>
+                            {value.max.global !== -1 ? (<div><span className="font-bold">Max Global:</span> {value.max.global}</div>) : null}
+                            {value.max.node !== -1 ? (<div><span className="font-bold">Max Buildable:</span> {value.max.node}</div>) : null}
+                            <div className="flex flex-wrap my-2">
                                 {value.levels[1]?.values.map((value, i) => (
                                     <Badge key={i} size="xs" color={value.color}>{value.text}</Badge>
                                 ))}
                             </div>
                         </div>
                     )}>
-                        <button disabled={canBuild} className={clsx(canBuild ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={async () => {
+                        <button data-allowed={canBuild} disabled={!canBuild} className={clsx(!canBuild ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={async () => {
                             try {
                                 await buy.mutateAsync({
                                     type: value.type,
@@ -60,7 +62,7 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
                                 console.error(error);
                             }
                         }}>
-                            <img className={clsx("rounded-md", canBuild ? "grayscale" : undefined)} src={value.icon} alt="building icon" />
+                            <img className={clsx("rounded-md", !canBuild ? "grayscale" : undefined)} src={value.icon} alt="building icon" />
                         </button>
                     </Tooltip>
                 )

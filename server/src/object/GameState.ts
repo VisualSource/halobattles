@@ -62,7 +62,9 @@ export default class GameState extends EventEmitter {
             cap: {
                 max: 100,
                 current: 1,
-                restrictions: {}
+                restrictions: {
+                    "building-0": 1
+                }
             },
             color: factionColors["Banished"],
             name: "VisualSource",
