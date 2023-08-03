@@ -1,5 +1,5 @@
 
-type QueueItem = { time: number, queueId: string, nodeId: string; objData: { inst?: string; duration: number, name: string; icon: string; id: number; }; type: "unit" | "building" | "tech" };
+export type QueueItem = { time: number, queueId: string, nodeId: string; objData: { inst?: string; duration: number, name: string; icon: string; id: number; }; type: "unit" | "building" | "tech" };
 
 class Queue {
     public list: QueueItem[] = [];
@@ -12,9 +12,10 @@ class Queue {
         this.list = [...this.list];
         return item;
     }
-    public remove(idx: number): void {
-        this.list.splice(idx, 1);
+    public remove(idx: number) {
+        const item = this.list.splice(idx, 1);
         this.list = [...this.list];
+        return item;
     }
     public empty(): boolean {
         return this.list.length === 0;
@@ -112,15 +113,17 @@ class QueueEngine extends EventTarget {
         const id = `${nodeId}-${queueId}`;
         const queue = this.queue.get(id);
         if (!queue) throw new Error("Failed to add item to queue");
-        queue.remove(idx);
+        const item = queue.remove(idx);
         this.dispatchEvent(this.event);
+        this.dispatchEvent(new CustomEvent("drop-item", { detail: item[0] }));
     }
     public removeCurrent(nodeId: string, queueId: string): void {
         const idx = this.current.findIndex(value => value.nodeId === nodeId && value.queueId === queueId);
         if (idx === -1) return;
-        this.current.splice(idx, 1);
+        const item = this.current.splice(idx, 1);
         this.current = [...this.current];
         this.dispatchEvent(this.event);
+        this.dispatchEvent(new CustomEvent("drop-item", { detail: item[0] }));
     }
     public swap(nodeId: string, queueId: string, idxA: number, idxB: number): void {
         const id = `${nodeId}-${queueId}`;

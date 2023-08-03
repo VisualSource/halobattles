@@ -4,6 +4,7 @@ interface Buildable {
     icon: string;
     description: string;
     maxLevel: number;
+    requires: { id: number; type: "global" | "local" }[],
     max: {
         global: number;
         node: number;
@@ -52,6 +53,7 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
         type: "building",
         description: "The UNSC's Field Armory is a cross between a machine\fabrication shop, and a research laboratory. This is where the most advanced technology for the UNSC is created by dedicated engineers and scientists.",
         maxLevel: 5,
+        requires: [],
         on: {},
         max: {
             global: -1,

@@ -14,7 +14,6 @@ const getIncomeSnapshot = () => {
     return engine.player?.credits?.income;
 }
 
-
 const getUnitCapSnapshot = () => {
     const engine = Runtime.getInstance();
     return engine.player?.cap;

@@ -8,6 +8,7 @@ import { buildOptions } from '../map/upgradeList.js';
 import type { UUID } from "../lib.js";
 import map from '../map/test_map.js';
 import units from '../map/units.js';
+import factionsBuildable from "../map/faction_builds.js";
 
 type UnitTransfer = {
     expectedResolveTime: Date,
@@ -24,7 +25,7 @@ type UnitTransfer = {
     }
 }
 
-type Factions = "UNSC" | "Banished" | "Covenant" | "Forerunner";
+export type Factions = "UNSC" | "Banished" | "Covenant" | "Forerunner";
 type GlobalType = `unit-${number}` | `building-${number}`;
 export type Player = {
     color: number;
@@ -264,14 +265,25 @@ export default class GameState extends EventEmitter {
     }
     public getNodeBuildOptions(nodeId: UUID, owner: UUID) {
         const node = this.getNode(nodeId);
-        if (node.owner !== owner) throw new Error("Current user can not query data for this node");
+        const player = this.getPlayer(owner);
+        if (!node || !player) throw new Error("Failed to obtan required data.", { cause: "MISSING_NODE_OR_PLAYER_DATA" });
+        if (node.owner !== owner) throw new Error("Current user can not query data for this node", { cause: "NODE_OWNER_NOT_MATCH_REQUEST_USER" });
 
-        const upgrades = node.buildOptions.buildings.allowed.filter(value => !node.buildOptions.buildings.current.includes(value));
+        const allowedUpgrades = factionsBuildable[player.factions].buildings.filter(value => !node.buildOptions.buildings.not_allowed.includes(value));
 
         const options = [];
-        for (const item of upgrades) {
+        for (const item of allowedUpgrades) {
             const data = buildOptions.get(item);
             if (!data) continue;
+
+            const allowed = data.requires.every(requiement => {
+                if (requiement.type === "local") {
+                    return node.buildOptions.buildings.current.includes(requiement.id);
+                }
+                return player.cap.restrictions[`building-${requiement.id}`] >= 1;
+            });
+            if (!allowed) continue;
+
             const { on, ...rest } = data;
             options.push(rest);
         }
@@ -280,14 +292,26 @@ export default class GameState extends EventEmitter {
     }
     public getNodeUnitOptions(nodeId: UUID, owner: UUID) {
         const node = this.getNode(nodeId);
-        if (node.owner !== owner) throw new Error("Current user can not query data for this node");
+        const player = this.getPlayer(owner);
+        if (!node || !player) throw new Error("Failed to obtan required data.", { cause: "MISSING_NODE_OR_PLAYER_DATA" });
+        if (node.owner !== owner) throw new Error("Current user can not query data for this node", { cause: "NODE_OWNER_NOT_MATCH_REQUEST_USER" });
 
-        const upgrades = node.buildOptions.units.allowed.filter(value => !node.buildOptions.units.current.includes(value));
+        const allowedUpgrades = factionsBuildable[player.factions].units.filter(value => !node.buildOptions.units.not_allowed.includes(value));
 
         const options = [];
-        for (const item of upgrades) {
+        for (const item of allowedUpgrades) {
             const data = units.get(item);
             if (!data) continue;
+
+            const allowed = data.requires.every(requirement => {
+                if (requirement.type === "local") {
+                    return node.buildOptions.buildings.current.includes(requirement.id);
+                }
+                return player.cap.restrictions[`building-${requirement.id}`] >= 1;
+            });
+
+            if (!allowed) continue;
+
             options.push(data);
         }
 

@@ -64,11 +64,11 @@ const map = [
         connectsTo: [a, f],
         buildOptions: {
             units: {
-                allowed: [0],
+                not_allowed: [],
                 current: []
             },
             buildings: {
-                allowed: [0],
+                not_allowed: [],
                 current: []
             }
         },

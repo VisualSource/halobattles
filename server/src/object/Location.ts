@@ -27,7 +27,7 @@ export type GroupType = typeof Group[keyof typeof Group];
 export type LocationProps = {
     contested: boolean;
     maxBuildingSlots: number;
-    buildOptions: { [key in BuildTypes]: { allowed: number[]; current: number[] } }
+    buildOptions: { [key in BuildTypes]: { not_allowed: number[]; current: number[] } }
     spies: UUID[];
     name: string;
     owner: UUID | null;
@@ -45,7 +45,7 @@ export type LocationProps = {
 
 export default class Location {
     public contested = false;
-    public buildOptions: { [key in BuildTypes]: { allowed: number[]; current: number[] } }
+    public buildOptions: { [key in BuildTypes]: { not_allowed: number[]; current: number[] } }
     public maxBuildingSlots: number = 6;
     public queueIds: { [key in BuildTypes]: { a: UUID; b: UUID; } };
     public spies: UUID[] = [];
@@ -76,11 +76,11 @@ export default class Location {
         };
         this.buildOptions = buildOptions ?? {
             units: {
-                allowed: [],
+                not_allowed: [],
                 current: []
             },
             buildings: {
-                allowed: [],
+                not_allowed: [],
                 current: []
             }
         };

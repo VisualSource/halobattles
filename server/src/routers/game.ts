@@ -230,6 +230,44 @@ export const gameRouter = t.router({
         gameState.emit(GameEvents.UpdatePlayer, player);
 
     }),
+    refunedItem: t.procedure.input(z.object({
+        id: z.number(),
+        level: z.number().optional(),
+        type: z.enum(["unit", "building", "tech"])
+    })).mutation(({ input, ctx }) => {
+        const player = gameState.getPlayer(ctx.user as UUID | null);
+        if (!player) throw new TRPCError({ message: "Failed to get player.", code: "UNAUTHORIZED" });
+
+        switch (input.type) {
+            case 'unit': {
+                const unit = units.get(input.id);
+                if (!unit) throw new TRPCError({ message: "Failed to find unit with given id.", code: "NOT_FOUND" });
+                player.credits.current += Math.floor(unit.cost / 2);
+                player.cap.current -= unit.capSize;
+
+                if (unit.globalMax !== -1 && player.cap.restrictions[`unit-${unit.id}`] > 0) {
+                    player.cap.restrictions[`unit-${unit.id}`]--;
+                }
+
+                break;
+            }
+            case 'building':
+            case 'tech': {
+                if (!input.level) throw new TRPCError({ message: "Missing level from request.", code: "BAD_REQUEST" });
+
+                const item = buildOptions.get(input.id);
+                if (!item) throw new TRPCError({ message: "Failed to find building/tech with given id.", code: "NOT_FOUND" });
+
+                const stat = item.levels[input.level].build;
+                if (!stat) throw new TRPCError({ message: "Failed to get item cost.", code: "UNPROCESSABLE_CONTENT" });
+
+                player.credits.current += Math.floor(stat.cost / 2);
+                break;
+            }
+        }
+
+        gameState.emit(GameEvents.UpdatePlayer, player);
+    }),
     buildItem: t.procedure.input(z.object({
         nodeId: z.string().uuid(),
         objData: z.object({

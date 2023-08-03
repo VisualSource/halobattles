@@ -27,7 +27,7 @@ import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import CameraControls from 'camera-controls';
 import Location from "../lib/objects/location";
-import QueueEngine from './QueueEngine';
+import QueueEngine, { QueueItem } from './QueueEngine';
 import { Player } from 'server/src/object/GameState';
 
 const subsetOfTHREE = {
@@ -176,6 +176,14 @@ export default class Runtime extends EventTarget {
                     id: data.objData.id,
                 }
             })
+        });
+
+        queue.addEventListener("drop-item", (ev) => {
+            const item = (ev as CustomEvent<QueueItem>).detail;
+            network.refunedItem.mutate({
+                id: item.objData.id,
+                type: item.type,
+            });
         });
 
         const subscription = network.onTransferUnits.subscribe(userId, {
