@@ -1,3 +1,5 @@
+import { UnitType } from "./units.js";
+
 interface Buildable {
     id: number;
     name: string;
@@ -9,15 +11,10 @@ interface Buildable {
         global: number;
         node: number;
     }
-    on: {
-        create?: { affects: "planet" | "player", }[]
-        destory?: { affects: "planet" | "player", }[],
-        upgrade?: { affects: "planet" | "player", }[]
-    },
     levels: {
         [level: number]: {
             values: {
-                stat: "cap.current";
+                stat: "cap.current" | "credits.income" | "nostat";
                 value: number;
                 color: "green" | "red",
                 text: string;
@@ -33,6 +30,7 @@ interface Buildable {
 interface BuildingData extends Buildable {
     type: "building";
     battle: {
+        type: UnitType
         health: number;
         shealds: number;
         attack: number;
@@ -54,12 +52,12 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
         description: "The UNSC's Field Armory is a cross between a machine\fabrication shop, and a research laboratory. This is where the most advanced technology for the UNSC is created by dedicated engineers and scientists.",
         maxLevel: 5,
         requires: [],
-        on: {},
         max: {
             global: -1,
             node: 1
         },
         battle: {
+            type: "building",
             health: 100,
             shealds: 0,
             attack: 0,

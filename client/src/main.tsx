@@ -1,10 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react'
-import ReactDOM from 'react-dom/client'
 import { RouterProvider } from "react-router-dom";
-import './index.css';
+import ReactDOM from 'react-dom/client'
+import React from 'react'
 import { trpc, client } from './lib/network.ts';
 import { router } from './router.tsx';
+
+import './index.css';
+import 'react-toastify/dist/ReactToastify.css';
 
 const queryClient = new QueryClient();
 

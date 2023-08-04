@@ -5,7 +5,8 @@ export const enum GameEvents {
     FinalizTransfer = "finalizTransfer",
     TransferUnits = "transferUnits",
     UpdateLocation = "updateLocation",
-    UpdatePlayer = "update-player"
+    UpdatePlayer = "update-player",
+    Notify = "notify"
 }
 
 export type MoveRequest = {
@@ -37,6 +38,14 @@ interface UpdateLocationContested extends UpdateLocationBase {
     }
 }
 
+interface UpdateLocationSpies extends UpdateLocationBase {
+    type: "set-spies",
+    payload: {
+        node: UUID;
+        spies: UUID[]
+    }
+}
+
 interface UpdateLocationOwner extends UpdateLocationBase {
     type: "set-owner";
     payload: {
@@ -62,4 +71,4 @@ export interface UpdateLocationUnitGroups extends UpdateLocationBase {
     }[]
 }
 
-export type UpdateLocationResponse = UpdateLocationOwner | UpdateLocationUnitGroups | UpdateBuildings | UpdateLocationContested;
+export type UpdateLocationResponse = UpdateLocationSpies | UpdateLocationOwner | UpdateLocationUnitGroups | UpdateBuildings | UpdateLocationContested;

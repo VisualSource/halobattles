@@ -10,7 +10,7 @@ function App() {
       <div ref={container}></div>
       <Outlet />
       {isReady ? <Overlay /> : null}
-      <ToastContainer />
+      <ToastContainer theme="dark" position="bottom-right" />
     </>
   )
 }

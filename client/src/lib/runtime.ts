@@ -25,6 +25,7 @@ import {
 } from 'three';
 import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
+import { toast } from 'react-toastify';
 import CameraControls from 'camera-controls';
 import Location from "../lib/objects/location";
 import QueueEngine, { QueueItem } from './QueueEngine';
@@ -186,6 +187,26 @@ export default class Runtime extends EventTarget {
             });
         });
 
+        const notify = network.onNotify.subscribe(userId, {
+            onData(value) {
+                switch (value.type) {
+                    case 'info':
+                        toast.info(value.msg);
+                        break;
+                    case 'error':
+                        toast.error(value.msg);
+                        break;
+                    case 'warn':
+                        toast.warn(value.msg);
+                        break;
+                }
+            },
+            onError(err) {
+                console.error(err);
+                toast.error(err.message);
+            },
+        });
+
         const subscription = network.onTransferUnits.subscribe(userId, {
             onData: (value) => {
                 console.log("move", value);
@@ -197,10 +218,11 @@ export default class Runtime extends EventTarget {
                 });
             },
             onError(error) {
+                toast.error(error.message);
                 console.error(error)
             }
         });
-        const sub = network.onLocationUpdate.subscribe(userId, {
+        const locationSubscription = network.onLocationUpdate.subscribe(userId, {
             onData: (value) => {
                 switch (value.type) {
                     case "set-owner": {
@@ -226,12 +248,18 @@ export default class Runtime extends EventTarget {
                         node.buildings = value.payload.buildings;
                         break;
                     }
+                    case "set-spies": {
+                        const node = this.getNode(value.payload.node);
+                        node.spies = value.payload.spies;
+                        break;
+                    }
                     default:
                         break;
                 }
                 this.emit("node-update");
             },
             onError(error) {
+                toast.error(error.message);
                 console.error(error);
             }
         });
@@ -241,6 +269,7 @@ export default class Runtime extends EventTarget {
                 this.emit("player-update");
             },
             onError(err) {
+                toast.error(err.message);
                 console.error(err);
             },
         });
@@ -283,7 +312,8 @@ export default class Runtime extends EventTarget {
         return () => {
             subscription.unsubscribe();
             playerdata.unsubscribe();
-            sub.unsubscribe();
+            locationSubscription.unsubscribe();
+            notify.unsubscribe();
         }
     }
     public emit(event: string, payload?: unknown): void {

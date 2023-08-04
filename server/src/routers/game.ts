@@ -100,6 +100,16 @@ export const gameRouter = t.router({
             return () => gameState.off(GameEvents.UpdatePlayer, onPlayerUpdate);
         });
     }),
+    onNotify: t.procedure.input(z.string().uuid()).subscription(({ input }) => {
+        return observable<{ msg: string; to: UUID | "all", type: "info" | "warn" | "error"; }>((emit) => {
+            const onNoify = (data: { msg: string; to: UUID | "all"; type: "info" | "warn" | "error"; }) => {
+                if (data.to === "all") return emit.next(data);
+                if (data.to === input) return emit.next(data);
+            }
+            gameState.on(GameEvents.Notify, onNoify);
+            return () => gameState.off(GameEvents.Notify, onNoify);
+        });
+    }),
     getSelf: t.procedure.query(({ ctx }) => {
         return gameState.getPlayer(ctx.user as UUID | null);
     }),
@@ -156,6 +166,9 @@ export const gameRouter = t.router({
                             case "cap.current":
                                 player.cap.current -= stats.value;
                                 break;
+                            case "credits.income":
+                                player.credits.income -= stats.value;
+                                break;
                             default:
                                 break;
                         }
@@ -166,6 +179,9 @@ export const gameRouter = t.router({
                     switch (stats.stat) {
                         case "cap.current":
                             player.cap.current += stats.value;
+                            break;
+                        case "credits.income":
+                            player.credits.income += stats.value;
                             break;
                         default:
                             break;
@@ -198,13 +214,15 @@ export const gameRouter = t.router({
                         case "cap.current":
                             player.cap.current -= stats.value;
                             break;
+                        case "credits.income":
+                            player.credits.income -= stats.value;
+                            break;
                         default:
                             break;
                     }
                 }
 
                 gameState.emit(GameEvents.UpdatePlayer, player);
-
                 gameState.emit(GameEvents.UpdateLocation, {
                     type: "update-buildings",
                     payload: {

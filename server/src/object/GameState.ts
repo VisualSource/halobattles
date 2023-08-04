@@ -1,6 +1,7 @@
 import { Worker } from "node:worker_threads";
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
+import remove from 'lodash.remove';
 import { join } from 'node:path'
 import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events.js';
 import type { Unit, GroupType } from './Location.js';
@@ -10,7 +11,7 @@ import map from '../map/test_map.js';
 import units from '../map/units.js';
 import factionsBuildable from "../map/faction_builds.js";
 
-type UnitTransfer = {
+export type UnitTransfer = {
     expectedResolveTime: Date,
     owner: string;
     id: UUID;
@@ -53,6 +54,7 @@ const factionColors: { [key in Factions]: number } = {
 export default class GameState extends EventEmitter {
     private transfers: Map<UUID, UnitTransfer> = new Map();
     private map = map;
+    private spyExp: { owner: UUID; nodeId: UUID; exp: Date }[] = [];
     public players: Player[] = [
         {
             credits: {
@@ -62,9 +64,7 @@ export default class GameState extends EventEmitter {
             cap: {
                 max: 100,
                 current: 1,
-                restrictions: {
-                    "building-0": 1
-                }
+                restrictions: {}
             },
             color: factionColors["Banished"],
             name: "VisualSource",
@@ -80,6 +80,22 @@ export default class GameState extends EventEmitter {
                 player.credits.current += player.credits.income;
                 this.emit(GameEvents.UpdatePlayer, player);
             }
+            const time = new Date();
+
+            const old = remove(this.spyExp, (n) => n.exp <= time);
+            for (const item of old) {
+                const node = this.getNode(item.nodeId);
+                if (!node) continue;
+                node.spies = node.spies.filter(value => value !== item.nodeId);
+
+                this.emit(GameEvents.UpdateLocation, {
+                    type: "set-spies",
+                    payload: {
+                        node: item.nodeId,
+                        spies: node.spies
+                    }
+                } as UpdateLocationResponse);
+            }
         }, 40_000);
     }
 
@@ -93,6 +109,8 @@ export default class GameState extends EventEmitter {
 
         const transfer = this.transfers.get(transferId);
         if (!transfer) throw new Error("Failed to find transfer.");
+
+        if (node.owner) this.notify(`${node.name} is under attack!`, "warn", node.owner);
 
         const worker = new Worker(join(__dirname, "./BattleRuntime.js"), {
             workerData: {
@@ -123,8 +141,6 @@ export default class GameState extends EventEmitter {
                     state: false
                 }
             } as UpdateLocationResponse);
-
-            console.log(ev);
         });
         worker.on("error", (ev) => {
             console.error(ev);
@@ -236,6 +252,43 @@ export default class GameState extends EventEmitter {
             return;
         }
 
+        // handle spies
+        if (transfer.units.length === 1) {
+            const unit = units.get(transfer.units[0].id);
+            if (!unit) throw new Error("Failed to get unit data");
+
+            if (unit.stats.type === "scout") {
+
+                const node = this.getNode(transfer.dest.id);
+                if (!node) throw new Error("Failed to get node");
+
+                if (node.spies.includes(transfer.owner as UUID)) return;
+
+                node.spies.push(transfer.owner as UUID);
+
+                const time = new Date();
+                time.setSeconds(120);
+
+                this.spyExp.push({
+                    owner: transfer.owner as UUID,
+                    nodeId: transfer.dest.id,
+                    exp: time
+                });
+                this.deallocUnits(transfer.units, transfer.owner as UUID);
+                this.emit(GameEvents.UpdateLocation, {
+                    type: "set-spies",
+                    payload: {
+                        node: transfer.dest.id,
+                        spies: node.spies
+                    }
+                } as UpdateLocationResponse);
+
+
+                this.transfers.delete(transfer.id);
+                return;
+            }
+        }
+
         // moving units a contested node.
         this.emit(GameEvents.UpdateLocation, {
             type: "set-contested-state",
@@ -246,6 +299,23 @@ export default class GameState extends EventEmitter {
         } as UpdateLocationResponse);
 
         this.startBattle(node.objectId, id as UUID);
+    }
+    public deallocUnits(items: Unit[], owner: UUID) {
+        const player = this.getPlayer(owner);
+        if (!player) throw new Error("Failed to get player");
+
+        for (const item of items) {
+            const unit = units.get(item.id);
+            if (!unit) continue;
+
+            player.cap.current -= (unit.capSize * item.count);
+
+            if (unit.globalMax !== -1 && player.cap.restrictions[`unit-${unit.id}`]) {
+                player.cap.restrictions[`unit-${unit.id}`] -= item.count;
+            }
+        }
+
+        this.emit(GameEvents.UpdatePlayer, player);
     }
     public getSelectedMap() {
         return this.map;
@@ -286,8 +356,7 @@ export default class GameState extends EventEmitter {
             });
             if (!allowed) continue;
 
-            const { on, ...rest } = data;
-            options.push(rest);
+            options.push(data);
         }
 
         return options;
@@ -318,5 +387,8 @@ export default class GameState extends EventEmitter {
         }
 
         return options;
+    }
+    public notify(msg: string, type: "warn" | "info" | "error" = "info", to: UUID | "all" = "all"): void {
+        this.emit(GameEvents.Notify, { to, type, msg });
     }
 }
