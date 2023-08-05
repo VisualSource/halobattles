@@ -6,13 +6,13 @@
   "types": "./src/lib.d.ts",
   "scripts": {
     "dev": "vite-node -w ./src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vite-node --options.debug='true' ./tests/BattleTest.ts "
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@trpc/server": "^10.36.0",
+    "@trpc/server": "^10.37.1",
     "cors": "^2.8.5",
     "lodash.groupby": "^4.6.0",
     "lodash.remove": "^4.7.0",

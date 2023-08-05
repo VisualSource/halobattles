@@ -1,4 +1,4 @@
-import { UnitType } from "./units.js";
+import { AttackType, UnitType } from "./units.js";
 
 interface Buildable {
     id: number;
@@ -27,18 +27,19 @@ interface Buildable {
     }
 }
 
-interface BuildingData extends Buildable {
+export interface BuildingData extends Buildable {
     type: "building";
-    battle: {
+    battle: null | {
         type: UnitType
         health: number;
         shealds: number;
         attack: number;
         hitChange: number;
+        damageType: AttackType
     }
 }
 
-interface TechData extends Buildable {
+export interface TechData extends Buildable {
     type: "tech";
 }
 
@@ -61,7 +62,8 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
             health: 100,
             shealds: 0,
             attack: 0,
-            hitChange: 0
+            hitChange: 0,
+            damageType: "kinetic",
         },
         levels: {
             1: {
