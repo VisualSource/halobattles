@@ -63,7 +63,7 @@ function runtime() {
       if (unit.attack <= 0 || unit.hitChance <= 0) continue;
 
       const defenderIdx = Math.floor(Math.random() * defendingUnits.length);
-      const didHit = Math.random() * (unit.hitChance / 100);
+      const didHit = Math.random() < unit.hitChance / 100;
       if (!didHit) continue;
       defendingUnits[defenderIdx].battle(unit);
     }

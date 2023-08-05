@@ -1,13 +1,70 @@
 import { buildOptions } from "../../map/upgradeList.js";
 import units from "../../map/units.js";
+import remove from "lodash.remove";
+
+class Action {
+  constructor(type,params)
+}
+class Effect {
+  /**
+   * @type {string}
+   * @public
+   * @memberof Effect
+   */
+  id;
+  /**
+   * @type {number}
+   * @private
+   * @memberof Effect
+   */
+  exp;
+  /**
+   *
+   * @public
+   * @type {number}
+   * @memberof Effect
+   */
+  damage;
+  /**
+   * Creates an instance of Effect.
+   * @param {number} exp
+   * @param {number} damage
+   * @param {string} id
+   * @memberof Effect
+   */
+  constructor(exp, damage, id) {
+    this.exp = exp;
+    this.damage = damage;
+    this.id = id;
+  }
+  dec() {
+    this.exp--;
+  }
+  get isDone() {
+    return this.exp <= 0;
+  }
+}
 
 export default class Attackable {
+  /**
+   * in results this unit will live or not.
+   * @private
+   * @memberof Attackable
+   */
+  _survive = false;
+
   /**
    * @private
    * @type {number}
    * @memberof Attackable
    */
   id;
+  /**
+   * @private
+   * @type {number}
+   * @memberof Attackable
+   */
+  _original_count;
   /**
    * @private
    * @type {number}
@@ -88,7 +145,18 @@ export default class Attackable {
    * @memberof Attackable
    */
   _unit_type = "building";
+  /**
+   *
+   * @type {Effect[]}
+   * @memberof Attackable
+   */
   effects = [];
+  /**
+   *
+   * @type {import("../../map/units.js").BattleEvents}
+   * @memberof Attackable
+   */
+  events = {};
   /**
    * Creates an instance of Attackable.
    * @param {number} id
@@ -99,6 +167,7 @@ export default class Attackable {
   constructor(id, count, type) {
     this.id = id;
     this.count = count;
+    this._original_count = count;
     this.type = type;
 
     switch (type) {
@@ -106,15 +175,17 @@ export default class Attackable {
         const unit = units.get(this.id);
         if (!unit) throw new Error("Failed to load unit data");
 
-        this._max_health = this._current_health =
-          unit.stats.health * this.count;
-        this._max_attack = this._current_attack =
-          unit.stats.attack * this.count;
-        this._max_shealds = this._current_shealds =
-          unit.stats.shealds * this.count;
-        this._max_hit_chance = this._current_hit_chance = unit.stats.hitChange;
+        this._max_health = unit.stats.health * this.count;
+        this._current_health = unit.stats.health * this.count;
+        this._max_attack = unit.stats.attack * this.count;
+        this._current_attack = unit.stats.attack * this.count;
+        this._max_shealds = unit.stats.shealds * this.count;
+        this._current_shealds = unit.stats.shealds * this.count;
+        this._max_hit_chance = unit.stats.hitChange;
+        this._current_hit_chance = unit.stats.hitChange;
         this._damage_type = unit.stats.damageType;
         this._unit_type = unit.stats.type;
+        this.events = unit.stats.events;
 
         break;
       }
@@ -123,11 +194,14 @@ export default class Attackable {
         if (!building) throw new Error("Failed to load building/tech data.");
 
         if (building.type === "building" && building.battle) {
-          this._max_attack = this._current_attack = building.battle.attack;
-          this._max_health = this._current_health = building.battle.health;
-          this._max_shealds = this._current_shealds = building.battle.shealds;
-          this._max_hit_chance = this._current_hit_chance =
-            building.battle.hitChange;
+          this._max_attack = building.battle.attack;
+          this._current_attack = building.battle.attack;
+          this._max_health = building.battle.health;
+          this._current_health = building.battle.health;
+          this._max_shealds = building.battle.shealds;
+          this._current_shealds = building.battle.shealds;
+          this._max_hit_chance = building.battle.hitChange;
+          this._current_hit_chance = building.battle.hitChange;
           this._unit_type = building.battle.type;
           this._damage_type = building.battle.damageType;
         }
@@ -154,6 +228,50 @@ export default class Attackable {
     return this._dead;
   }
   /**
+   *
+   * @public
+   * @param {import("../../map/units.js").UnitType} value
+   * @memberof Attackable
+   * @returns {boolean}
+   */
+  isEffectiveAgainst(value) {
+    switch (value) {
+      case "scout":
+        return ["anti-vehicle"].includes(this._unit_type);
+      case "light-infantry":
+      case "infantry":
+      case "heavy-infantry":
+        return ["anti-infantry"].includes(this._unit_type);
+      case "super-heavy":
+        return ["anti-vehicle", "hevey-armor", "heavy-air"].includes(
+          this._unit_type
+        );
+      case "apc":
+      case "light-armor":
+      case "medium-armor":
+      case "hevey-armor":
+        return ["anti-vehicle"].includes(this._unit_type);
+      case "anti-building":
+        return [].includes(this._unit_type);
+      case "anti-vehicle":
+        return [].includes(this._unit_type);
+      case "light-air":
+      case "medium-air":
+      case "heavy-air":
+        return ["anti-air"].includes(this._unit_type);
+      case "anti-air":
+        return [].includes(this._unit_type);
+      case "artillery":
+        return ["anti-vehicle"].includes(this._unit_type);
+      case "anti-infantry":
+        return [].includes(this._unit_type);
+      case "building":
+      case "enplacement":
+      case "bunker":
+        return ["anti-building"].includes(this._unit_type);
+    }
+  }
+  /**
    * @public
    * @param {Attackable} attacker
    * @memberof Attackable
@@ -161,19 +279,23 @@ export default class Attackable {
   battle(attacker) {
     const shealdDamage = this._current_shealds > 0 && attacker.doesShealdDamage;
 
-    this._current_shealds -=
-      attacker.attack + attacker.attack * (shealdDamage ? 0.2 : 0);
+    const isEffective = attacker.isEffectiveAgainst(this._unit_type);
 
-    console.log("Shealds", this._current_shealds);
+    this._current_shealds -=
+      attacker.attack +
+      attacker.attack * (shealdDamage ? 0.2 : 0) +
+      attacker.attack * (isEffective ? 0.9 : 0);
+
+    //console.log("Shealds", this._current_shealds);
 
     if (this._current_shealds <= 0) {
       this._current_health +=
         this._current_shealds +
         -(attacker.attack * (attacker.doesNonShealdedDamage ? 0.2 : 0));
-      console.log("Health", this._current_health);
+      //console.log("Health", this._current_health);
       this._current_shealds = 0;
       // modify damage to reflect remaing units.
-      this.modifyHealth();
+      this.modifyStats();
     }
 
     if (this._current_health <= 0) {
@@ -181,29 +303,85 @@ export default class Attackable {
     }
 
     const eventResults = attacker.runEvent("onHit");
+
     for (const event of eventResults) {
+      if (this.effects.some((value) => value.id === event.id)) continue;
+      this.effects.push(event);
     }
   }
-  modifyHealth() {
-    const currentCount = Math.round(
-      this._current_health / (this._max_health / this.count)
+  /**
+   * @private
+   * @return {*}
+   * @memberof Attackable
+   */
+  modifyStats() {
+    if (this.count === 0) return;
+
+    this.count = Math.ceil(
+      this._current_health / (this._max_health / this._original_count)
     );
 
-    if (currentCount === 0) {
+    if (this.count === 0) {
+      this._current_attack = 0;
       return;
     }
 
-    this.count = currentCount;
-    this._current_attack -= this._max_attack / this.count;
+    if (this._current_attack > 0)
+      this._current_attack -= this._max_attack / this._original_count;
   }
   /**
    *
    * @public
-   * @param {string} event
+   * @param {"onDeath"|"onHit"} event
    * @memberof Attackable
    */
   runEvent(event) {
-    return [];
+    switch (event) {
+      case "onDeath": {
+        const event = this.events.onDeath;
+        if (!event) return [];
+
+        switch (event.type) {
+          case "spawn": {
+            return [new Action("spawn", { unit: event.unit })];
+          }
+          case "exploded": {
+            return [
+              new Action("damage", {
+                damage: event.damage,
+                range: event.range,
+              }),
+            ];
+          }
+          case "servive": {
+            const servived = Math.random() < event.chance / 100;
+            this._survive = servived;
+            return [];
+          }
+          default:
+            return [];
+        }
+      }
+      case "onHit": {
+        const event = this.events.onHit;
+        if (!event) return [];
+
+        switch (event.type) {
+          case "burn":
+          case "freeze":
+            return [new Effect(event.exp, event.damage, event.type)];
+          case "siphon":
+            const health = this._current_health + 10;
+            if (health <= this._max_health) {
+              this._current_health = health;
+            }
+          default:
+            return [];
+        }
+      }
+      default:
+        return [];
+    }
   }
   /**
    *
@@ -212,5 +390,11 @@ export default class Attackable {
    */
   runEffects() {
     if (this._dead) return;
+
+    for (const effect of this.effects) {
+      this._current_health -= effect.damage;
+      effect.dec();
+    }
+    remove(this.effects, (effect) => effect.isDone);
   }
 }
