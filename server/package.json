@@ -5,8 +5,13 @@
   "type": "module",
   "types": "./src/lib.d.ts",
   "scripts": {
-    "dev": "vite-node -w ./src/index.ts",
-    "test": "vite-node --options.debug='true' ./tests/BattleTest.ts "
+    "build": "tsc",
+    "dev:compile": "tsc --watch",
+    "dev:run": "nodemon ./dist/index.js",
+    "test:run": "nodemon --config ./nodemon.test.json",
+    "test:compile": "tsc --watch",
+    "dev": "pnpm --parallel --stream run /^dev:.*/",
+    "test": "pnpm --parallel --stream run /^test:.*/"
   },
   "keywords": [],
   "author": "",
@@ -23,7 +28,10 @@
     "@types/cors": "^2.8.13",
     "@types/lodash.groupby": "^4.6.7",
     "@types/lodash.remove": "^4.7.7",
+    "@types/mocha": "^10.0.1",
     "@types/ws": "^8.5.5",
-    "vite-node": "^0.34.1"
+    "mocha": "^10.2.0",
+    "nodemon": "^3.0.1",
+    "typescript": "^5.1.6"
   }
 }

@@ -1,0 +1,8 @@
+{
+  "exec": "pnpm mocha --node-option=experimental-network-imports",
+  "watch": ["./dist/**/*"],
+  "delay": 100,
+  "env": {
+    "NODE_ENV": "test"
+  }
+}

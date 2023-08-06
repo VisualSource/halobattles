@@ -1,0 +1,7 @@
+{
+  "watch": ["./dist/**/*.js"],
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "ignore": ["./src/**/*.ts", ".git", "node_modules/**/node_modules"]
+}

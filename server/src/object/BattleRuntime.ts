@@ -2,11 +2,10 @@ import { parentPort, workerData } from "node:worker_threads";
 import groupBy from "lodash.groupby";
 import remove from "lodash.remove";
 import Attackable from "./runtime/Attackable.js";
+import type { UnitTransfer } from "./GameState.js";
+import type Location from "./Location.js";
 
-/** @type {{ node: import("./Location.js").default, transfer: import("./GameState.js").UnitTransfer }} */
-const input = workerData;
-
-console.log(input);
+const input = workerData as { node: Location, transfer: UnitTransfer };
 
 const attackers = input.transfer.units.map(
   (value) => new Attackable(value.id, value.count, "unit")
@@ -31,12 +30,12 @@ const defenders = [
     )
     .map((value) => new Attackable(value.id, value.count, "unit")),
   ...input.node.buildings.map(
-    (value) => new Attackable(value.id, 1, "building", value.level)
+    (value) => new Attackable(value.id, 1, "building")
   ),
 ];
 
 function runtime() {
-  const results = {
+  const results: { winner: "attacker" | "defender", attacker: { dead: Attackable[] }, defender: { dead: Attackable[] } } = {
     winner: "defender",
     attacker: {
       dead: [],

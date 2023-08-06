@@ -1,4 +1,4 @@
-import Location from '../object/Location';
+import Location from '../object/Location.js';
 
 class PriorityQueue {
     private queue: { value: string, cost: number }[] = [];

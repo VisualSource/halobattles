@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { t } from "../trpc";
+import { t } from "../trpc.js";
 
 export const uiRouter = t.router({
     getUnitInfo: t.procedure.input(z.string()).query(({ input }) => {

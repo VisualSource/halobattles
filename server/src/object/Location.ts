@@ -103,7 +103,7 @@ export default class Location {
     public hasDefence() {
         return this.buildings.some((value) => {
             const item = buildOptions.get(value.id);
-            if (!item || item.type !== "building") return false;
+            if (!item || item.type !== "building" || !item?.battle) return false;
             return item.battle.attack > 0;
         });
     }
