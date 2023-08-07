@@ -1,5 +1,5 @@
 import remove from "lodash.remove";
-import units, { type AttackType, type BattleEvents, type UnitType } from "../../map/units.js";
+import units, { type AttackType, type BattleEvents, type UnitType, type EffectiveState } from "../../map/units.js";
 import { buildOptions } from "../../map/upgradeList.js";
 
 class Action {
@@ -37,6 +37,7 @@ export default class Attackable {
   private _current_attack = 0;
   private _damage_type: AttackType = "kinetic";
   private _unit_type: UnitType = "building";
+  private _effective: { [unit in UnitType]: EffectiveState }
   private effects: Effect[] = [];
   private events: BattleEvents | null = null;
   /**
@@ -62,6 +63,7 @@ export default class Attackable {
         this._max_hit_chance = unit.stats.hitChange;
         this._current_hit_chance = unit.stats.hitChange;
         this._damage_type = unit.stats.damageType;
+        this._effective = unit.stats.effective;
         this._unit_type = unit.stats.type;
         this.events = unit.stats.events;
 
@@ -82,6 +84,12 @@ export default class Attackable {
           this._current_hit_chance = building.battle.hitChange;
           this._unit_type = building.battle.type;
           this._damage_type = building.battle.damageType;
+          this._effective = {
+            air: "weak",
+            building: "weak",
+            infantry: "weak",
+            vehicle: "weak"
+          }
         }
 
         break;
@@ -90,75 +98,45 @@ export default class Attackable {
         throw new Error("Unable to process given type.");
     }
   }
-  get doesNonShealdedDamage() {
+  public get doesNonShealdedDamage() {
     return this._damage_type === "hardlight" || this._damage_type === "kinetic";
   }
-  get doesShealdDamage() {
+  public get doesShealdDamage() {
     return this._damage_type === "plasma";
   }
-  get attack() {
+  public get attack() {
     return this._current_attack;
   }
-  get hitChance() {
+  public get hitChance() {
     return this._current_hit_chance;
   }
-  get isDead() {
+  public get isDead() {
     return this._dead;
   }
-  public isEffectiveAgainst(value: UnitType) {
-    switch (value) {
-      case "scout":
-        return ["anti-vehicle"].includes(this._unit_type);
-      case "light-infantry":
-      case "infantry":
-      case "heavy-infantry":
-        return ["anti-infantry"].includes(this._unit_type);
-      case "super-heavy":
-        return ["anti-vehicle", "hevey-armor", "heavy-air"].includes(
-          this._unit_type
-        );
-      case "apc":
-      case "light-armor":
-      case "medium-armor":
-      case "hevey-armor":
-        return ["anti-vehicle"].includes(this._unit_type);
-      case "anti-building":
-        return false;
-      case "anti-vehicle":
-        return false
-      case "light-air":
-      case "medium-air":
-      case "heavy-air":
-        return ["anti-air"].includes(this._unit_type);
-      case "anti-air":
-        return false;
-      case "artillery":
-        return ["anti-vehicle"].includes(this._unit_type);
-      case "anti-infantry":
-        return false;
-      case "building":
-      case "enplacement":
-      case "bunker":
-        return ["anti-building"].includes(this._unit_type);
+  public isEffectiveAgainst(value: UnitType): number {
+    switch (this._effective[value]) {
+      case "weak":
+        return -0.5;
+      case "normal":
+        return 0;
+      case "strong":
+        return 0.5;
     }
   }
   public battle(attacker: Attackable) {
     const shealdDamage = this._current_shealds > 0 && attacker.doesShealdDamage;
 
-    const isEffective = attacker.isEffectiveAgainst(this._unit_type);
+    const effectiveStat = attacker.isEffectiveAgainst(this._unit_type);
 
     this._current_shealds -=
       attacker.attack +
       attacker.attack * (shealdDamage ? 0.2 : 0) +
-      attacker.attack * (isEffective ? 0.9 : 0);
-
-    //console.log("Shealds", this._current_shealds);
+      attacker.attack * effectiveStat;
 
     if (this._current_shealds <= 0) {
       this._current_health +=
         this._current_shealds +
         -(attacker.attack * (attacker.doesNonShealdedDamage ? 0.2 : 0));
-      //console.log("Health", this._current_health);
       this._current_shealds = 0;
       // modify damage to reflect remaing units.
       this.modifyStats();
@@ -227,7 +205,7 @@ export default class Attackable {
           case "freeze":
             return [new Effect(event.exp, event.damage, event.type)];
           case "siphon":
-            const health = this._current_health + 10;
+            const health = this._current_health + Math.floor(Math.random() * 11);
             if (health <= this._max_health) {
               this._current_health = health;
             }
@@ -247,5 +225,26 @@ export default class Attackable {
       effect.dec();
     }
     remove(this.effects, (effect) => effect.isDone);
+  }
+  public calcLostCap() {
+    if (this.type === "unit") {
+      const unit = units.get(this.id);
+      if (!unit) throw new Error("Unable to process");
+
+      const lostUnits = this._original_count - this.count;
+
+      return {
+        cap: unit.capSize * lostUnits,
+        id: this.id,
+        lost: lostUnits,
+        type: this.type
+      }
+    }
+    return {
+      cap: 0,
+      id: -1,
+      lost: 0,
+      type: this.type
+    }
   }
 }

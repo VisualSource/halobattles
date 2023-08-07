@@ -5,6 +5,8 @@ import Attackable from "./runtime/Attackable.js";
 import type { UnitTransfer } from "./GameState.js";
 import type Location from "./Location.js";
 
+type PlayerTurn = "attacker" | "defender";
+
 const input = workerData as { node: Location, transfer: UnitTransfer };
 
 const attackers = input.transfer.units.map(
@@ -35,21 +37,19 @@ const defenders = [
 ];
 
 function runtime() {
-  const results: { winner: "attacker" | "defender", attacker: { dead: Attackable[] }, defender: { dead: Attackable[] } } = {
-    winner: "defender",
-    attacker: {
-      dead: [],
-    },
-    defender: {
-      dead: [],
-    },
-  };
+  const results: { [team in PlayerTurn]: { lostCap: number; } } & { winner: PlayerTurn } = {
+    attacker: { lostCap: 0 },
+    defender: { lostCap: 0 },
+    winner: "defender"
+  }
+
+  const dead: { [team in PlayerTurn]: Attackable[] } = {
+    attacker: [],
+    defender: []
+  }
 
   let i = 0;
-  /** @type {"attacker" | "defender"} */
-  let turn = "attacker";
-
-  console.log(attackers, defenders);
+  let turn: PlayerTurn = "attacker";
 
   while (i <= 2000) {
     const attackingUnits = turn === "attacker" ? attackers : defenders;
@@ -74,7 +74,7 @@ function runtime() {
     //console.log(`TURN END: ${turn}`);
     const deadUnits = remove(defendingUnits, (unit) => unit.isDead);
     for (const unit of deadUnits) unit.runEvent("onDeath");
-    results[turn === "attacker" ? "defender" : "attacker"].dead.push(
+    dead[turn === "attacker" ? "defender" : "attacker"].push(
       ...deadUnits
     );
 
@@ -84,9 +84,25 @@ function runtime() {
     i++;
   }
 
-  if (attackers.length === 0 && defenders.length >= 1) {
+  if (attackers.length > defenders.length) {
     results.winner = "attacker";
   }
+
+
+  // calc lost units
+
+  // attackers
+
+  for (const unit of dead.attacker) {
+    const data = unit.calcLostCap();
+
+
+
+  }
+
+
+
+
 
   parentPort?.postMessage({ results });
 }

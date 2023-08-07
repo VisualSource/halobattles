@@ -35,27 +35,9 @@ export type BattleEvents = {
     onHit?: BattleEventDamageEffectBurn | BattleEventDamageEffectFreeze | BattleEventDamageEffectSiphon;
     onDeath?: BattleEventSpawn | BattleEventExploded | BattleEventServive;
 }
-export type UnitType =
-    "scout" |
-    "light-infantry" |
-    "infantry" |
-    "heavy-infantry" |
-    "super-heavy" |
-    "apc" |
-    "light-armor" |
-    "medium-armor" |
-    "anti-building" |
-    "anti-vehicle" |
-    "hevey-armor" |
-    "light-air" |
-    "medium-air" |
-    "heavy-air" |
-    "anti-air" |
-    "artillery" |
-    "anti-infantry" |
-    "building" |
-    "enplacement" |
-    "bunker"
+export type UnitType = "infantry" | "air" | "vehicle" | "building";
+export type EffectiveState = "weak" | "normal" | "strong"
+
 export type Unit = {
     icon: string;
     type: "unit",
@@ -68,6 +50,10 @@ export type Unit = {
     description: string;
     capSize: number;
     stats: {
+        isScout: boolean,
+        effective: {
+            [unit in UnitType]: EffectiveState
+        },
         attack: number;
         type: UnitType;
         damageType: AttackType;
@@ -92,6 +78,13 @@ const units = new Map<number, Unit>([
         globalMax: -1,
         description: "Bloodfuel Grunts are equipped with a form of backpack and with unidentified weaponry. These weapons are seemingly capable of 'siphoning' the health out of the target of the weapon and healing the user wielding them.",
         stats: {
+            isScout: false,
+            effective: {
+                air: "normal",
+                vehicle: "weak",
+                infantry: "normal",
+                building: "normal"
+            },
             attack: 10,
             type: "infantry",
             damageType: "plasma",
