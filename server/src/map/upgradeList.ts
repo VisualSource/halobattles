@@ -1,4 +1,4 @@
-import { AttackType, UnitType } from "./units.js";
+import type { AttackType, EffectiveState, UnitType } from "./units.js";
 
 interface Buildable {
     id: number;
@@ -35,7 +35,10 @@ export interface BuildingData extends Buildable {
         shealds: number;
         attack: number;
         hitChange: number;
-        damageType: AttackType
+        damageType: AttackType,
+        effective: {
+            [unit in UnitType]: EffectiveState
+        },
     }
 }
 
@@ -58,6 +61,12 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
             node: 1
         },
         battle: {
+            effective: {
+                "air": "normal",
+                "building": "normal",
+                "infantry": "normal",
+                "vehicle": "normal"
+            },
             type: "building",
             health: 100,
             shealds: 0,

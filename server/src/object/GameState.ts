@@ -4,12 +4,12 @@ import { randomUUID } from 'node:crypto';
 import remove from 'lodash.remove';
 import { join } from 'node:path'
 import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events.js';
+import factionsBuildable from "../map/faction_builds.js";
 import type { Unit, GroupType } from './Location.js';
 import { buildOptions } from '../map/upgradeList.js';
 import type { UUID } from "../lib.js";
 import map from '../map/test_map.js';
 import units from '../map/units.js';
-import factionsBuildable from "../map/faction_builds.js";
 
 export type UnitTransfer = {
     expectedResolveTime: Date,
@@ -257,7 +257,7 @@ export default class GameState extends EventEmitter {
             const unit = units.get(transfer.units[0].id);
             if (!unit) throw new Error("Failed to get unit data");
 
-            if (unit.stats.type === "scout") {
+            if (unit.stats.isScout) {
 
                 const node = this.getNode(transfer.dest.id);
                 if (!node) throw new Error("Failed to get node");

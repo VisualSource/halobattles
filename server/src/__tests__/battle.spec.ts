@@ -18,7 +18,7 @@ const node = new Location({
     buildings: [],
     units: {
         center: [
-            { id: 0, icon: "", count: 1, idx: 0 }
+            { id: 0, icon: "", count: 2, idx: 0 }
         ],
         left: [],
         right: []

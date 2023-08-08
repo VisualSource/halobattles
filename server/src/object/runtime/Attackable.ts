@@ -47,7 +47,7 @@ export default class Attackable {
    * @param {"unit"|"building"} type
    * @memberof Attackable
    */
-  constructor(private id: number, private count: number, private type: "unit" | "building") {
+  constructor(private id: number, private count: number, private type: "unit" | "building", private instId?: string) {
     this._original_count = count;
     switch (type) {
       case "unit": {
@@ -226,6 +226,19 @@ export default class Attackable {
     }
     remove(this.effects, (effect) => effect.isDone);
   }
+  public calcServived() {
+    if (this._current_health <= 0) {
+      return null;
+    }
+    if (this.type === "unit") {
+      const unit = units.get(this.id);
+      if (!unit) throw new Error("Unable to process");
+
+      return { id: this.id, type: this.type }
+    }
+
+    return { id: this.id, type: this.type, instId: this.instId }
+  }
   public calcLostCap() {
     if (this.type === "unit") {
       const unit = units.get(this.id);
@@ -243,8 +256,9 @@ export default class Attackable {
     return {
       cap: 0,
       id: -1,
-      lost: 0,
-      type: this.type
+      lost: this._current_health > 0 ? 0 : 1,
+      type: this.type,
+      instId: this.instId
     }
   }
 }

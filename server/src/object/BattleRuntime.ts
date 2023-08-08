@@ -1,11 +1,22 @@
 import { parentPort, workerData } from "node:worker_threads";
 import groupBy from "lodash.groupby";
 import remove from "lodash.remove";
+import process from 'node:process';
 import Attackable from "./runtime/Attackable.js";
 import type { UnitTransfer } from "./GameState.js";
 import type Location from "./Location.js";
 
 type PlayerTurn = "attacker" | "defender";
+type LostUnit = { cap: number; id: number; lost: number; type: "unit"; } | { cap: number; id: number; lost: number; type: "building"; }
+type ServivedUnit = {
+  id: number;
+  type: "unit";
+  instId?: undefined;
+} | {
+  id: number;
+  type: "building";
+  instId: string | undefined;
+};
 
 const input = workerData as { node: Location, transfer: UnitTransfer };
 
@@ -32,14 +43,14 @@ const defenders = [
     )
     .map((value) => new Attackable(value.id, value.count, "unit")),
   ...input.node.buildings.map(
-    (value) => new Attackable(value.id, 1, "building")
+    (value) => new Attackable(value.id, 1, "building", value.objId)
   ),
 ];
 
 function runtime() {
-  const results: { [team in PlayerTurn]: { lostCap: number; } } & { winner: PlayerTurn } = {
-    attacker: { lostCap: 0 },
-    defender: { lostCap: 0 },
+  const results: { [team in PlayerTurn]: { survived: ServivedUnit[], lostCap: number; lostUnits: LostUnit[] } } & { winner: PlayerTurn } = {
+    attacker: { lostCap: 0, lostUnits: [], survived: [] },
+    defender: { lostCap: 0, lostUnits: [], survived: [] },
     winner: "defender"
   }
 
@@ -88,23 +99,78 @@ function runtime() {
     results.winner = "attacker";
   }
 
+  console.log(attackers, defenders);
 
-  // calc lost units
+  for (const unit of attackers) {
+    const lost = unit.calcLostCap();
 
+    results.attacker.lostCap += lost.cap;
+    if (lost.lost > 0) results.attacker.lostUnits.push(lost);
+
+
+    const servived = unit.calcServived();
+    if (!servived) continue;
+    results.attacker.survived.push(servived);
+  }
+
+  for (const unit of defenders) {
+    const lost = unit.calcLostCap();
+
+    results.defender.lostCap += lost.cap;
+    if (lost.lost > 0) results.defender.lostUnits.push(lost);
+
+
+    const servived = unit.calcServived();
+    if (!servived) continue;
+    results.defender.survived.push(servived);
+  }
   // attackers
 
   for (const unit of dead.attacker) {
     const data = unit.calcLostCap();
-
-
-
+    results.attacker.lostCap += data.cap;
+    results.attacker.lostUnits.push(data);
+  }
+  for (const unit of dead.defender) {
+    const data = unit.calcLostCap();
+    results.defender.lostCap += data.cap;
+    results.defender.lostUnits.push(data);
   }
 
 
+  /*for (const unit of dead.attacker) {
+    const data = unit.calcLostCap();
+    results.attacker.lostCap += data.cap;
+    results.attacker.lostUnits.push(data);
+  }
 
+  for (const unit of attackers) {
+    const data = unit.calcLostCap();
+    results.attacker.lostCap += data.cap;
+    results.attacker.lostUnits.push(data);
 
+    const servived = unit.calcServived();
+    if (servived) results.attacker.survived.push(servived);
+  }
 
-  parentPort?.postMessage({ results });
+  for (const unit of dead.defender) {
+    const data = unit.calcLostCap();
+    results.defender.lostCap += data.cap;
+    results.defender.lostUnits.push(data);
+  }
+
+  for (const unit of defenders) {
+    const data = unit.calcLostCap();
+    results.defender.lostCap += data.cap;
+    results.defender.lostUnits.push(data);
+
+    const servived = unit.calcServived();
+    if (servived) results.defender.survived.push(servived);
+  }*/
+
+  parentPort?.postMessage(results);
+
+  process.exit(0);
 }
 
 runtime();
