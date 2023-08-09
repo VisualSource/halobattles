@@ -2,7 +2,7 @@ import { Worker } from "node:worker_threads";
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import remove from 'lodash.remove';
-import { join } from 'node:path'
+import { resolve } from 'node:path'
 import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events.js';
 import factionsBuildable from "../map/faction_builds.js";
 import type { BattleResult } from "./BattleRuntime.js";
@@ -65,6 +65,21 @@ export default class GameState extends EventEmitter {
             },
             cap: {
                 max: 100,
+                current: 2,
+                restrictions: {}
+            },
+            color: factionColors["Covenant"],
+            name: "SomeOtherUser",
+            factions: "Covenant",
+            id: "73806576-0e72-4675-b0d8-b0296f026d2b",
+        },
+        {
+            credits: {
+                current: 10_000,
+                income: 1_000
+            },
+            cap: {
+                max: 100,
                 current: 1,
                 restrictions: {}
             },
@@ -114,7 +129,7 @@ export default class GameState extends EventEmitter {
 
         if (node.owner) this.notify(`${node.name} is under attack!`, "warn", node.owner);
 
-        const worker = new Worker(join(__dirname, "./BattleRuntime.js"), {
+        const worker = new Worker(resolve(__dirname, "../object/BattleRuntime.js"), {
             workerData: {
                 node,
                 transfer,
@@ -123,6 +138,8 @@ export default class GameState extends EventEmitter {
         });
 
         worker.on("message", (ev: BattleResult) => {
+
+            console.log(ev);
 
             const defender = this.getPlayer(ev.defender.id);
             const attacker = this.getPlayer(ev.attacker.id);
@@ -165,7 +182,7 @@ export default class GameState extends EventEmitter {
                 }
 
                 node.resetNode();
-                node.owner = attacker.id;
+                node.setOwner(attacker.id, attacker.color);
 
                 this.emit(GameEvents.UpdateLocation, {
                     type: "set-owner",
@@ -200,6 +217,8 @@ export default class GameState extends EventEmitter {
                         node: node.objectId
                     }
                 } as UpdateLocationResponse);
+                this.notify(`We have won the battle for ${node.name}`, "info", attacker.id);
+                this.notify(`We have lost the battle for ${node.name}`, "info", defender.id);
 
                 this.transfers.delete(transfer.id);
             } else {
@@ -234,6 +253,9 @@ export default class GameState extends EventEmitter {
                         spies: [] as UUID[]
                     }
                 } as UpdateLocationResponse);
+
+                this.notify(`We have lost the battle for ${node.name}`, "info", attacker.id);
+                this.notify(`We have destoryed the enemy at ${node.name}`, "info", defender.id);
             }
 
             this.emit(GameEvents.UpdatePlayer, defender);
@@ -251,7 +273,7 @@ export default class GameState extends EventEmitter {
             throw new Error("Battle Error");
         });
         worker.on("exit", (code) => {
-            console.log(code);
+            console.log("Battle Exited With code:", code);
         });
         worker.on("messageerror", (ev) => {
             console.log(ev);
@@ -421,6 +443,30 @@ export default class GameState extends EventEmitter {
 
         this.emit(GameEvents.UpdatePlayer, player);
     }
+    /**
+     * Return a transfer to it origin
+     */
+    public returnTransferToSender(id: UUID): void {
+        const transfer = this.transfers.get(id);
+        if (!transfer) throw new Error("Failed to find transfer");
+
+        const timeToTransferInSec = 2;
+        const time = new Date();
+        time.setSeconds(time.getSeconds() + timeToTransferInSec);
+
+        transfer.expectedResolveTime = time;
+
+        const oldOrgin = transfer.origin;
+        transfer.origin = transfer.dest
+        transfer.dest = oldOrgin;
+
+        this.emit(GameEvents.TransferUnits, {
+            from: transfer.origin,
+            to: transfer.dest,
+            transferId: transfer.id
+        } as MoveRequest);
+    }
+
     public getSelectedMap() {
         return this.map;
     }
@@ -431,8 +477,14 @@ export default class GameState extends EventEmitter {
         return player;
     }
     public setPlayerData() {
-        this.map[5].owner = this.players[0].id;
-        this.map[5].color = this.players[0].color;
+
+        for (const node of this.map) {
+            if (!node.owner) continue;
+
+            const owner = this.getPlayer(node.owner);
+            if (!owner) continue;
+            node.setOwner(owner.id, owner.color);
+        }
     }
     public getNode(nodeId: UUID) {
         const node = this.map.find(value => value.objectId === nodeId);

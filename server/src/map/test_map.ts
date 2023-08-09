@@ -11,8 +11,13 @@ const map = [
     new Location({
         name: "Unnamed Planet",
         connectsTo: [b, c],
+        units: {
+            left: [],
+            center: [{ count: 2, icon: "", id: 0, idx: 0 }],
+            right: []
+        },
         objectId: a,
-        owner: "dd-dd-dd-dd",
+        owner: "73806576-0e72-4675-b0d8-b0296f026d2b",
         position: {
             x: 0,
             y: 0

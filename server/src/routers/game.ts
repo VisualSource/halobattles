@@ -68,7 +68,7 @@ export const gameRouter = t.router({
             const onTransferUnits = (data: MoveRequest) => {
                 const path = Dijkstra(gameState.getSelectedMap(), data.from.id, data.to.id, input);
 
-                const transferId = gameState.createTransfer(input, data);
+                const transferId = data?.transferId ?? gameState.createTransfer(input, data);
 
                 emit.next({
                     path,
@@ -94,6 +94,7 @@ export const gameRouter = t.router({
     onPlayerUpdate: t.procedure.input(z.string().uuid()).subscription(({ input }) => {
         return observable<Player>((emit) => {
             const onPlayerUpdate = (data: Player) => {
+                console.log("UPDATE PLAYER", data);
                 if (input === data.id) emit.next(data);
             }
             gameState.on(GameEvents.UpdatePlayer, onPlayerUpdate);

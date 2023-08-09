@@ -60,8 +60,8 @@ const defenders = [
 
 function runtime() {
   const results: BattleResult = {
-    attacker: { id: input.node.owner as UUID, lostCap: 0, lostUnits: [], survived: [] },
-    defender: { id: input.transfer.owner as UUID, lostCap: 0, lostUnits: [], survived: [] },
+    attacker: { id: input.transfer.owner as UUID, lostCap: 0, lostUnits: [], survived: [] },
+    defender: { id: input.node.owner as UUID, lostCap: 0, lostUnits: [], survived: [] },
     winner: "defender",
     node: input.node.objectId,
     attackerTransferId: input.transfer.id
