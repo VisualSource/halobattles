@@ -90,6 +90,24 @@ export default class Location {
             center: []
         };
     }
+    public resetNode() {
+        this.buildOptions.buildings.current = [];
+        this.buildOptions.units.current = [];
+
+        this.units.center = [];
+        this.units.left = [];
+        this.units.right = [];
+
+        this.buildings = [];
+
+        this.spies = [];
+
+        this.maxBuildingSlots = 6;
+
+        this.contested = false;
+
+    }
+
     public getWeight(owner: string | null) {
         if (!owner) return 1;
         return this.owner === owner ? 0 : 2;
@@ -107,6 +125,45 @@ export default class Location {
             return item.battle.attack > 0;
         });
     }
+    public removeUnitFromAny(unit: Unit) {
+
+        const value = this.removeUnit("left", unit);
+        if (value !== null && value === 0) return true;
+
+        const center = this.removeUnit("center", { ...unit, count: value ?? unit.count });
+        if (center !== null && center === 0) return true;
+
+        const right = this.removeUnit("right", { ...unit, count: center ?? unit.count });
+        if (right !== null && right === 0) return true;
+
+        return false;
+    }
+    public removeUnit(group: GroupType, unit: Unit) {
+        const idx = this.units[group].findIndex(value => value.id === unit.id);
+
+        if (idx !== -1) {
+            this.units[group][idx].count -= unit.count;
+
+            if (this.units[group][idx].count <= 0) {
+                const remaing = Math.abs(this.units[group][idx].count);
+                this.units[group].splice(idx, 1);
+                return remaing;
+            }
+
+            return 0;
+        }
+
+        return null;
+    }
+
+    public removeBuilding(instId: string) {
+        const idx = this.buildings.findIndex(value => value.objId === instId);
+
+        if (idx === -1) return;
+
+        return this.buildings.splice(idx, 1).at(0);
+    }
+
     public moveToGroup(from: { group: GroupType, idx: number; id: number; }, to: { group: GroupType, idx: number }): UpdateLocationUnitGroups["payload"] {
         if (from.group === to.group && from.idx === to.idx) throw new Error("Can not move unit onto its self.");
 

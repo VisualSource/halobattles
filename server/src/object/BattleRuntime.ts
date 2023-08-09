@@ -5,9 +5,11 @@ import process from 'node:process';
 import Attackable from "./runtime/Attackable.js";
 import type { UnitTransfer } from "./GameState.js";
 import type Location from "./Location.js";
+import type { UUID } from "../lib.js";
+
 
 type PlayerTurn = "attacker" | "defender";
-type LostUnit = { cap: number; id: number; lost: number; type: "unit"; } | { cap: number; id: number; lost: number; type: "building"; }
+type LostUnit = { cap: number; id: number; lost: number; type: "unit"; } | { instId: string | undefined; cap: number; id: number; lost: number; type: "building"; }
 type ServivedUnit = {
   id: number;
   type: "unit";
@@ -17,6 +19,15 @@ type ServivedUnit = {
   type: "building";
   instId: string | undefined;
 };
+
+export type BattleResult = {
+  [team in PlayerTurn]: {
+    id: UUID,
+    survived: ServivedUnit[],
+    lostCap: number;
+    lostUnits: LostUnit[]
+  }
+} & { winner: PlayerTurn, node: UUID; attackerTransferId: UUID }
 
 const input = workerData as { node: Location, transfer: UnitTransfer };
 
@@ -48,10 +59,12 @@ const defenders = [
 ];
 
 function runtime() {
-  const results: { [team in PlayerTurn]: { survived: ServivedUnit[], lostCap: number; lostUnits: LostUnit[] } } & { winner: PlayerTurn } = {
-    attacker: { lostCap: 0, lostUnits: [], survived: [] },
-    defender: { lostCap: 0, lostUnits: [], survived: [] },
-    winner: "defender"
+  const results: BattleResult = {
+    attacker: { id: input.node.owner as UUID, lostCap: 0, lostUnits: [], survived: [] },
+    defender: { id: input.transfer.owner as UUID, lostCap: 0, lostUnits: [], survived: [] },
+    winner: "defender",
+    node: input.node.objectId,
+    attackerTransferId: input.transfer.id
   }
 
   const dead: { [team in PlayerTurn]: Attackable[] } = {
@@ -78,11 +91,8 @@ function runtime() {
       defendingUnits[defenderIdx].battle(unit);
     }
 
-    //console.log("APPLY EFFECTS");
     for (const unit of defendingUnits) unit.runEffects();
-    //console.log("CLEANUP");
 
-    //console.log(`TURN END: ${turn}`);
     const deadUnits = remove(defendingUnits, (unit) => unit.isDead);
     for (const unit of deadUnits) unit.runEvent("onDeath");
     dead[turn === "attacker" ? "defender" : "attacker"].push(
@@ -98,8 +108,6 @@ function runtime() {
   if (attackers.length > defenders.length) {
     results.winner = "attacker";
   }
-
-  console.log(attackers, defenders);
 
   for (const unit of attackers) {
     const lost = unit.calcLostCap();
@@ -136,37 +144,6 @@ function runtime() {
     results.defender.lostCap += data.cap;
     results.defender.lostUnits.push(data);
   }
-
-
-  /*for (const unit of dead.attacker) {
-    const data = unit.calcLostCap();
-    results.attacker.lostCap += data.cap;
-    results.attacker.lostUnits.push(data);
-  }
-
-  for (const unit of attackers) {
-    const data = unit.calcLostCap();
-    results.attacker.lostCap += data.cap;
-    results.attacker.lostUnits.push(data);
-
-    const servived = unit.calcServived();
-    if (servived) results.attacker.survived.push(servived);
-  }
-
-  for (const unit of dead.defender) {
-    const data = unit.calcLostCap();
-    results.defender.lostCap += data.cap;
-    results.defender.lostUnits.push(data);
-  }
-
-  for (const unit of defenders) {
-    const data = unit.calcLostCap();
-    results.defender.lostCap += data.cap;
-    results.defender.lostUnits.push(data);
-
-    const servived = unit.calcServived();
-    if (servived) results.defender.survived.push(servived);
-  }*/
 
   parentPort?.postMessage(results);
 

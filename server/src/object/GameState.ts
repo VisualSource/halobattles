@@ -5,8 +5,10 @@ import remove from 'lodash.remove';
 import { join } from 'node:path'
 import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events.js';
 import factionsBuildable from "../map/faction_builds.js";
+import type { BattleResult } from "./BattleRuntime.js";
 import type { Unit, GroupType } from './Location.js';
 import { buildOptions } from '../map/upgradeList.js';
+import { __dirname } from "../lib/utils.js";
 import type { UUID } from "../lib.js";
 import map from '../map/test_map.js';
 import units from '../map/units.js';
@@ -120,20 +122,122 @@ export default class GameState extends EventEmitter {
             name: `[Worker] Battle for ${nodeId}`
         });
 
-        worker.on("message", (ev: { owner: UUID, node: UUID }) => {
+        worker.on("message", (ev: BattleResult) => {
 
-            const player = this.getPlayer(ev.owner);
-            if (!player) throw new Error("Unable to get player");
+            const defender = this.getPlayer(ev.defender.id);
+            const attacker = this.getPlayer(ev.attacker.id);
+            if (!attacker || !defender) throw new Error("Unable to get player");
 
-            this.emit(GameEvents.UpdateLocation, {
-                type: "set-owner",
-                owner: player?.id,
-                payload: {
-                    node: ev.node,
-                    color: player.color,
+            attacker.cap.current -= ev.attacker.lostCap;
+            defender.cap.current -= ev.defender.lostCap;
+
+            const node = this.getNode(ev.node);
+            const transfer = this.transfers.get(ev.attackerTransferId);
+            if (!transfer || !node) throw new Error("Failed to get tansfer/node");
+
+            for (const unit of ev.attacker.lostUnits) {
+                if (unit.type === "building") continue;
+                const item = transfer.units.findIndex(value => value.id === unit.id);
+                if (item === -1) continue;
+                transfer.units[item].count -= unit.lost;
+            }
+
+            remove(transfer.units, value => value.count <= 0);
+
+            this.transfers.set(transfer.id, transfer);
+
+            for (const unit of ev.defender.lostUnits) {
+                if (unit.type === "building") {
+                    if (unit.instId) {
+                        const building = node.removeBuilding(unit.instId);
+                        //remove building
+                    }
+                    continue;
                 }
-            } as UpdateLocationResponse);
+                node.removeUnitFromAny({ icon: "", count: unit.lost, id: unit.id, idx: 0 });
+            }
 
+            remove(this.spyExp, (value) => value.nodeId === node.objectId);
+
+            if (ev.winner === "attacker") {
+                for (const building of node.buildings) {
+                    // remove buildings from defender
+                }
+
+                node.resetNode();
+                node.owner = attacker.id;
+
+                this.emit(GameEvents.UpdateLocation, {
+                    type: "set-owner",
+                    owner: attacker.id,
+                    payload: {
+                        node: ev.node,
+                        color: attacker.color,
+                    }
+                } as UpdateLocationResponse);
+                this.emit(GameEvents.UpdateLocation, {
+                    type: "update-units-groups",
+                    owner: attacker.id,
+                    payload: [
+                        { group: "left", units: transfer.units, node: node.objectId },
+                        { group: "center", units: [], node: node.objectId },
+                        { group: "right", units: [], node: node.objectId }
+                    ]
+                } as UpdateLocationResponse);
+                this.emit(GameEvents.UpdateLocation, {
+                    type: "set-spies",
+                    owner: attacker.id,
+                    payload: {
+                        node: node.objectId,
+                        spies: [] as UUID[]
+                    }
+                } as UpdateLocationResponse);
+                this.emit(GameEvents.UpdateLocation, {
+                    type: "update-buildings",
+                    owner: attacker.id,
+                    payload: {
+                        buildings: [],
+                        node: node.objectId
+                    }
+                } as UpdateLocationResponse);
+
+                this.transfers.delete(transfer.id);
+            } else {
+
+                if (transfer.units.length > 1) {
+                    // return to sender
+                } else {
+                    this.transfers.delete(transfer.id);
+                }
+                this.emit(GameEvents.UpdateLocation, {
+                    type: "update-units-groups",
+                    owner: defender.id,
+                    payload: [
+                        { group: "left", units: node.units.left, node: node.objectId },
+                        { group: "center", units: node.units.center, node: node.objectId },
+                        { group: "right", units: node.units.right, node: node.objectId }
+                    ]
+                } as UpdateLocationResponse);
+                this.emit(GameEvents.UpdateLocation, {
+                    type: "update-buildings",
+                    owner: defender.id,
+                    payload: {
+                        buildings: node.buildings,
+                        node: node.objectId
+                    }
+                } as UpdateLocationResponse);
+                this.emit(GameEvents.UpdateLocation, {
+                    type: "set-spies",
+                    owner: defender.id,
+                    payload: {
+                        node: node.objectId,
+                        spies: [] as UUID[]
+                    }
+                } as UpdateLocationResponse);
+            }
+
+            this.emit(GameEvents.UpdatePlayer, defender);
+            this.emit(GameEvents.UpdatePlayer, attacker);
             this.emit(GameEvents.UpdateLocation, {
                 type: "set-contested-state",
                 payload: {
