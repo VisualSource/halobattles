@@ -44,6 +44,7 @@ export const gameRouter = t.router({
     }),
     internalTransfer: t.procedure.input(z.object({
         nodeId: z.string().uuid(),
+        moveGroup: z.boolean(),
         from: z.object({
             group: z.enum(["left", "center", "right"]),
             idx: z.number(),
@@ -55,7 +56,7 @@ export const gameRouter = t.router({
         })
     })).mutation(({ input, ctx }) => {
         const node = gameState.getNode(input.nodeId as UUID);
-        const result = node.moveToGroup(input.from, input.to);
+        const result = node.moveToGroup(input.from, input.to, input.moveGroup);
         console.log("InternalTransfer", result);
         gameState.emit(GameEvents.UpdateLocation, {
             type: "update-units-groups",

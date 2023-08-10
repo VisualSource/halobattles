@@ -102,6 +102,14 @@ export default class Location {
 
         this.node.add(debugLabel);
     }
+    public setSpies(spies: UUID[]): void {
+        this.spies = spies;
+
+        this.updateStackState("center");
+        this.updateStackState("left");
+        this.updateStackState("right");
+
+    }
     public setOwner(owner: string | null, color: number): void {
         this.owner = owner;
         (this.node.material as THREE.MeshBasicMaterial).color = new Color(color);
@@ -133,7 +141,9 @@ export default class Location {
         }
 
         if (stackType !== StackState.Empty) {
-            this.stacks[group].setTopImage(this.owner === user.getUser() ? this.units[group][0].icon : undefined);
+            const player = user.getUser();
+            const canView = this.owner === player || this.spies.includes(player as UUID);
+            this.stacks[group].setTopImage(canView ? this.units[group][0].icon : undefined);
         }
 
         this.stacks[group].setState(stackType);

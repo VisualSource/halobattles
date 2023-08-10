@@ -93,6 +93,34 @@ const units = new Map<number, Unit>([
             hitChange: 50,
             events: null
         }
+    }],
+    [1, {
+        icon: "https://halo.wiki.gallery/images/5/54/HW2_Blitz_Blue_Elites.png",
+        name: "Elite Rangers",
+        cost: 2_000,
+        time: 10,
+        type: "unit",
+        capSize: 1,
+        requires: [],
+        id: 1,
+        globalMax: -1,
+        description: "Normally deployed as an expeditionary force during limited naval engagements, it is they who choose which craft are to be boarded and which destroyed. Experts in both zero-g combat and demolitions, they have been the bane of many a ship. Rangers also perform HAZOP operations and traditional scouting roles.",
+        stats: {
+            isScout: true,
+            effective: {
+                air: "weak",
+                vehicle: "weak",
+                infantry: "strong",
+                building: "normal"
+            },
+            attack: 8,
+            type: "infantry",
+            damageType: "plasma",
+            health: 150,
+            shealds: 15,
+            hitChange: 55,
+            events: null
+        }
     }]
 ])
 

@@ -22,7 +22,8 @@ const Grid: React.FC<{ type: GroupType, nodeId: string; owner: boolean, spy: boo
                             if (data.id !== data.id) return;
 
                             mutation.mutateAsync({
-                                nodeId: nodeId,
+                                moveGroup: ev.ctrlKey,
+                                nodeId,
                                 from: {
                                     group: data.type,
                                     id: data.id,
@@ -49,8 +50,9 @@ const Grid: React.FC<{ type: GroupType, nodeId: string; owner: boolean, spy: boo
                             if (!data) throw new Error("Faild to get transfer data.");
                             if (data.id !== data.id) return;
 
-                            mutation.mutate({
+                            mutation.mutateAsync({
                                 nodeId: nodeId,
+                                moveGroup: ev.ctrlKey,
                                 from: {
                                     group: data.type,
                                     id: data.id,
@@ -70,7 +72,7 @@ const Grid: React.FC<{ type: GroupType, nodeId: string; owner: boolean, spy: boo
                                 idx: key
                             } as TransferItem));
                         } : undefined}>
-                        <img className="aspect-square h-full rounded-md select-none" src={(owner || spy) ? unit.icon : "/Basic_Elements_(128).jpg"} alt="unit" />
+                        <img className="aspect-square h-full rounded-md select-none" src={(owner || spy) ? unit.icon : "/Basic_Elements_(128).jpg"} alt={unit.id.toString()} />
                         {unit.count > 1 ? (
                             <div className="absolute inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 border-2 rounded-full top-0.5 right-0.5 border-gray-900">{(owner || spy) ? unit.count : "?"}</div>
                         ) : null}

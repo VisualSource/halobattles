@@ -169,8 +169,10 @@ export default class Location {
         return this.buildings.splice(idx, 1).at(0);
     }
 
-    public moveToGroup(from: { group: GroupType, idx: number; id: number; }, to: { group: GroupType, idx: number }): UpdateLocationUnitGroups["payload"] {
+    public moveToGroup(from: { group: GroupType, idx: number; id: number; }, to: { group: GroupType, idx: number }, moveGroups: boolean = false): UpdateLocationUnitGroups["payload"] {
         if (from.group === to.group && from.idx === to.idx) throw new Error("Can not move unit onto its self.");
+
+        const count = moveGroups ? 5 : 1;
 
         if (from.group === to.group) {
             const group = this.units[from.group].find(value => value.id === from.id);
@@ -192,12 +194,12 @@ export default class Location {
         if (target === -1) {
             this.units[to.group].push({
                 icon: this.units[from.group][origin].icon,
-                count: 1,
+                count,
                 id: this.units[from.group][origin].id,
                 idx: to.idx
             });
 
-            this.units[from.group][origin].count -= 1;
+            this.units[from.group][origin].count -= count;
 
             if (this.units[from.group][origin].count <= 0) {
                 this.units[from.group].splice(origin, 1);
@@ -216,8 +218,8 @@ export default class Location {
         }
 
 
-        this.units[to.group][target].count++;
-        this.units[from.group][origin].count -= 1;
+        this.units[to.group][target].count += count;
+        this.units[from.group][origin].count -= count;
         if (this.units[from.group][origin].count <= 0) {
             this.units[from.group].splice(origin, 1);
         }

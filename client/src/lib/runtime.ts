@@ -250,7 +250,7 @@ export default class Runtime extends EventTarget {
                     }
                     case "set-spies": {
                         const node = this.getNode(value.payload.node);
-                        node.spies = value.payload.spies;
+                        node.setSpies(value.payload.spies);
                         break;
                     }
                     default:

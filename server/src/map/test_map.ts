@@ -13,7 +13,7 @@ const map = [
         connectsTo: [b, c],
         units: {
             left: [],
-            center: [{ count: 2, icon: "", id: 0, idx: 0 }],
+            center: [{ count: 2, icon: "https://halo.wiki.gallery/images/6/62/HW2_Blitz_Bloodfuel_Grunts.png", id: 0, idx: 0 }],
             right: []
         },
         objectId: a,
@@ -67,16 +67,6 @@ const map = [
     new Location({
         name: "Reach",
         connectsTo: [a, f],
-        buildOptions: {
-            units: {
-                not_allowed: [],
-                current: []
-            },
-            buildings: {
-                not_allowed: [],
-                current: []
-            }
-        },
         units: {
             center: [],
             left: [{
