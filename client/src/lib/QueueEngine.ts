@@ -1,5 +1,5 @@
 
-export type QueueItem = { time: number, queueId: string, nodeId: string; objData: { inst?: string; duration: number, name: string; icon: string; id: number; }; type: "unit" | "building" | "tech" };
+export type QueueItem = { time: number, queueId: string, nodeId: string; objData: { level?: number, inst?: string; duration: number, name: string; icon: string; id: number; }; type: "unit" | "building" | "tech" };
 
 class Queue {
     public list: QueueItem[] = [];

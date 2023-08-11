@@ -1,13 +1,13 @@
 import { Worker } from "node:worker_threads";
 import { EventEmitter } from 'node:events';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import remove from 'lodash.remove';
 import { resolve } from 'node:path'
 import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events.js';
 import factionsBuildable from "../map/faction_builds.js";
 import type { BattleResult } from "./BattleRuntime.js";
-import type { Unit, GroupType } from './Location.js';
-import { buildOptions } from '../map/upgradeList.js';
+import type { Unit, GroupType, Building } from './Location.js';
+import { BuildingStat, buildOptions } from '../map/upgradeList.js';
 import { __dirname } from "../lib/utils.js";
 import type { UUID } from "../lib.js";
 import map from '../map/test_map.js';
@@ -75,7 +75,7 @@ export default class GameState extends EventEmitter {
         },
         {
             credits: {
-                current: 10_000,
+                current: 20_000,
                 income: 1_000
             },
             cap: {
@@ -89,7 +89,30 @@ export default class GameState extends EventEmitter {
             id: "1724ea86-18a1-465c-b91a-fce23e916aae",
         }
     ];
+    public deadPlayers: Set<UUID> = new Set();
     private interval: NodeJS.Timer;
+
+    constructor() {
+        super();
+
+        this.addListener(GameEvents.ObjectiveLose, (ev) => {
+            this.deadPlayers.add(ev.owner);
+
+            if (this.deadPlayers.size === (this.players.length - 1)) {
+
+                const winner = this.players.filter(value => !this.deadPlayers.has(value.id))
+
+                this.emit(GameEvents.GameOver, {
+                    winner: winner.at(0)?.name ?? "Every ones dead",
+                    id: winner.at(0)?.id
+                });
+
+                clearInterval(this.interval);
+            }
+
+        });
+
+    }
 
     public startGame() {
         this.interval = setInterval(() => {
@@ -165,8 +188,11 @@ export default class GameState extends EventEmitter {
 
             for (const unit of ev.defender.lostUnits) {
                 if (unit.type === "building") {
+                    console.log("REMVOE", unit)
                     if (unit.instId) {
                         const building = node.removeBuilding(unit.instId);
+                        if (!building) continue;
+                        this.deallocBuildings(building, defender.id);
                         //remove building
                     }
                     continue;
@@ -177,10 +203,7 @@ export default class GameState extends EventEmitter {
             remove(this.spyExp, (value) => value.nodeId === node.objectId);
 
             if (ev.winner === "attacker") {
-                for (const building of node.buildings) {
-                    // remove buildings from defender
-                }
-
+                this.deallocBuildings(node.buildings, defender.id);
                 node.resetNode();
                 node.setOwner(attacker.id, attacker.color);
 
@@ -426,6 +449,97 @@ export default class GameState extends EventEmitter {
 
         this.startBattle(node.objectId, id as UUID);
     }
+    public addStat(stat: BuildingStat, player: Player) {
+        switch (stat.stat) {
+            case "cap.current": {
+                player.cap.current += stat.value;
+                break;
+            }
+            case "credits.income":
+                player.credits.income += stat.value;
+                break;
+            case "cap.max": {
+                player.cap.max += stat.value;
+                break;
+            }
+            case "event": {
+                if (stat.run !== "create") break;
+                this.emit(stat.event, { owner: player.id });
+            }
+            case "nostat":
+                break;
+            default:
+                break;
+        }
+    }
+    public removeStat(stat: BuildingStat, player: Player) {
+        switch (stat.stat) {
+            case "cap.current": {
+                player.cap.current -= stat.value;
+                break;
+            }
+            case "credits.income":
+                player.credits.income -= stat.value;
+                break;
+            case "cap.max": {
+                player.cap.max -= stat.value;
+                break;
+            }
+            case "event": {
+                if (stat.run !== "destory") break;
+                this.emit(stat.event, { owner: player.id });
+            }
+            case "nostat":
+                break;
+            default:
+                break;
+        }
+    }
+    public addBuilding(id: number, nodeId: UUID) {
+        const node = this.getNode(nodeId);
+        if (!node) throw new Error("Failed to get node");
+
+        const item = buildOptions.get(id);
+        if (!item) throw new Error("Failed to get building/tech");
+
+        const building = {
+            level: 1,
+            id: item.id,
+            icon: item.icon,
+            objId: randomBytes(5).toString("hex")
+        };
+
+        node.addBuilding(building);
+        if (node.owner) this.allocBuildings([building], node.owner);
+    }
+    public allocBuildings(buildings: Building[], owner: UUID): void {
+        const player = this.getPlayer(owner);
+        if (!player) throw new Error("Failed to get player");
+        for (const building of buildings) {
+            // remove buildings from defender
+            const item = buildOptions.get(building.id);
+            if (!item) continue;
+
+            for (const stat of item.levels[building.level].values) {
+                this.addStat(stat, player);
+            }
+        }
+
+    }
+    public deallocBuildings(buildings: Building[], owner: UUID): void {
+        const player = this.getPlayer(owner);
+        if (!player) throw new Error("Failed to get player");
+        for (const building of buildings) {
+            // remove buildings from defender
+            const item = buildOptions.get(building.id);
+            if (!item) continue;
+            for (let i = 1; i <= building.level; i++) {
+                for (const stat of item.levels[i].values) {
+                    this.removeStat(stat, player);
+                }
+            }
+        }
+    }
     public deallocUnits(items: Unit[], owner: UUID) {
         const player = this.getPlayer(owner);
         if (!player) throw new Error("Failed to get player");
@@ -484,6 +598,7 @@ export default class GameState extends EventEmitter {
             const owner = this.getPlayer(node.owner);
             if (!owner) continue;
             node.setOwner(owner.id, owner.color);
+            this.addBuilding(1, node.objectId);
         }
     }
     public getNode(nodeId: UUID) {

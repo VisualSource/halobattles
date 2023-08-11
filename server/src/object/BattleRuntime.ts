@@ -76,30 +76,30 @@ function runtime() {
   let turn: PlayerTurn = "attacker";
 
   while (i <= 2000) {
-    const attackingUnits = turn === "attacker" ? attackers : defenders;
-    const defendingUnits = turn === "attacker" ? defenders : attackers;
+
+
 
     //console.log(`TURN START: ${turn} ${i}`);
     //console.log("START BATTLE");
-    for (const unit of attackingUnits) {
+    for (const unit of (turn === "attacker" ? attackers : defenders)) {
       // ignore unit if the attack is nothing or the chance to hit is 0;
       if (unit.attack <= 0 || unit.hitChance <= 0) continue;
 
-      const defenderIdx = Math.floor(Math.random() * defendingUnits.length);
+      const defenderIdx = Math.floor(Math.random() * (turn === "attacker" ? defenders : attackers).length);
       const didHit = Math.random() < unit.hitChance / 100;
       if (!didHit) continue;
-      defendingUnits[defenderIdx].battle(unit);
+      (turn === "attacker" ? defenders : attackers)[defenderIdx].battle(unit);
     }
 
-    for (const unit of defendingUnits) unit.runEffects();
+    for (const unit of (turn === "attacker" ? defenders : attackers)) unit.runEffects();
 
-    const deadUnits = remove(defendingUnits, (unit) => unit.isDead);
+    const deadUnits = remove((turn === "attacker" ? defenders : attackers), (unit) => unit.isDead);
     for (const unit of deadUnits) unit.runEvent("onDeath");
     dead[turn === "attacker" ? "defender" : "attacker"].push(
       ...deadUnits
     );
 
-    if (defendingUnits.length === 0 || attackingUnits.length === 0) break;
+    if (defenders.length === 0 || attackers.length === 0) break;
 
     turn = turn === "attacker" ? "defender" : "attacker";
     i++;

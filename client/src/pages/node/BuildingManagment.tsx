@@ -11,10 +11,11 @@ import { usePlayerCredits } from '../../hooks/usePlayer';
 import QueueEngine from '../../lib/QueueEngine';
 
 const Building: React.FC<{ item: Building, isOwner: boolean, isSpy: boolean }> = ({ isOwner, isSpy, item }) => {
+    const [loading, setLoading] = useState(false);
     const { id } = useParams();
     if (!id) throw new Error("No node id was set.");
     const [data] = trpc.getBulidingInfo.useSuspenseQuery(item.id);
-    const mutation = trpc.modifyBuilding.useMutation();
+    const mutation = trpc.deleteBuilding.useMutation();
     const buy = trpc.buyItem.useMutation();
     const credits = usePlayerCredits();
     const node = useGetNode();
@@ -81,6 +82,7 @@ const Building: React.FC<{ item: Building, isOwner: boolean, isSpy: boolean }> =
                                             duration: nextData.build?.time ?? 0,
                                             icon: data.icon,
                                             id: data.id,
+                                            level: nextLevel,
                                             inst: item.objId,
                                             name: `[Upgrade] ${data.name}`
                                         },
@@ -92,7 +94,10 @@ const Building: React.FC<{ item: Building, isOwner: boolean, isSpy: boolean }> =
                             }} type="button" className={clsx({ "cursor-not-allowed": credits < (level?.build?.cost ?? Infinity) }, "text-white focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-blue-800")}>Upgrade</button>
                         </Tooltip>
                     )}
-                    <button onClick={() => mutation.mutate({ type: "delete", objId: item.objId, nodeId: id })} type="button" className="focus:outline-none text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900">Delete</button>
+                    <button disabled={loading} onClick={() => {
+                        setLoading(true);
+                        mutation.mutateAsync({ objId: item.objId, nodeId: id }).finally(() => setLoading(false));
+                    }} type="button" className={clsx({ "cursor-not-allowed": loading }, "focus:outline-none text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900")}>Delete</button>
                 </div>
             ) : null}
         </div>

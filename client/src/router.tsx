@@ -9,6 +9,7 @@ import BuildingManagment from "./pages/node/BuildingManagment";
 import UnitQueue from "./pages/node/UnitQueue";
 import BuildingQueue from "./pages/node/BuildingQueue";
 import PlanetInfo from "./pages/node/PlanetInfo";
+import GameOver from "./pages/GameOver";
 
 export const router = createBrowserRouter([
     {
@@ -16,6 +17,10 @@ export const router = createBrowserRouter([
         element: <App />,
         errorElement: <ErrorPage />,
         children: [
+            {
+                path: "/gameover",
+                element: <GameOver />,
+            },
             {
                 path: "/view/node/:id",
                 element: <NodeView />,
@@ -65,6 +70,11 @@ export const router = createBrowserRouter([
         ]
     }
 ]);
+
+window.addEventListener("game-over", ev => {
+    const id = (ev as CustomEvent<{ winner: string; id: string; }>).detail;
+    router.navigate(`/gameover?name=${id.winner}&uuid=${id.id}`);
+});
 
 window.addEventListener("node-selected", (ev) => {
     const id = (ev as CustomEvent<{ id: string }>).detail.id;

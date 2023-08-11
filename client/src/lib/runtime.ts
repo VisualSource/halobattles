@@ -273,13 +273,25 @@ export default class Runtime extends EventTarget {
                 console.error(err);
             },
         });
+
+        const gameState = network.onGameOver.subscribe(userId, {
+            onData: (value) => {
+                window.dispatchEvent(new CustomEvent("game-over", value));
+            },
+            onError(err) {
+                toast.error(err.message);
+                console.error(err);
+            },
+        });
+
+
+        const mapdata = await network.getMap.query();
+
         const self = await network.getSelf.query();
         if (!self) throw new Error("Failed to get self!");
         this.player = self;
 
         this.emit("player-update");
-
-        const mapdata = await network.getMap.query();
 
         for (const data of mapdata) {
             const location = new Location(data);
@@ -310,6 +322,7 @@ export default class Runtime extends EventTarget {
         }
 
         return () => {
+            gameState.unsubscribe();
             subscription.unsubscribe();
             playerdata.unsubscribe();
             locationSubscription.unsubscribe();

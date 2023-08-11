@@ -1,7 +1,7 @@
 import { observable } from '@trpc/server/observable';
 import { TRPCError } from '@trpc/server';
 import { randomBytes } from 'node:crypto';
-import { z } from 'zod';
+import { object, z } from 'zod';
 
 import { GameEvents, MoveRequest, MoveResponse, UpdateLocationResponse } from '../object/Events.js';
 import GameState, { Player } from '../object/GameState.js';
@@ -102,6 +102,13 @@ export const gameRouter = t.router({
             return () => gameState.off(GameEvents.UpdatePlayer, onPlayerUpdate);
         });
     }),
+    onGameOver: t.procedure.input(z.string().uuid()).subscription(({ input }) => {
+        return observable((emit) => {
+            const onGameOver = () => emit.next(emit);
+            gameState.on(GameEvents.GameOver, onGameOver);
+            return () => gameState.off(GameEvents.GameOver, onGameOver);
+        })
+    }),
     onNotify: t.procedure.input(z.string().uuid()).subscription(({ input }) => {
         return observable<{ msg: string; to: UUID | "all", type: "info" | "warn" | "error"; }>((emit) => {
             const onNoify = (data: { msg: string; to: UUID | "all"; type: "info" | "warn" | "error"; }) => {
@@ -143,99 +150,28 @@ export const gameRouter = t.router({
         if (!data) throw new TRPCError({ message: "No Building or tech exits with that id", code: "NOT_FOUND" });
         return data;
     }),
-    modifyBuilding: t.procedure.input(z.object({
+    deleteBuilding: t.procedure.input(z.object({
         nodeId: z.string().uuid(),
         objId: z.string(),
-        type: z.enum(["upgrade", "delete"])
     })).mutation(({ input, ctx }) => {
         const node = gameState.getNode(input.nodeId as UUID);
         const player = gameState.getPlayer(ctx.user as UUID | null);
         if (!node || !player) throw new TRPCError({ message: "Failed to find node.", code: "NOT_FOUND" });
         if (node.owner !== ctx.user) throw new TRPCError({ message: "Current user is not allowd to edit this node", code: "UNAUTHORIZED" });
 
-        const item = node.buildings.findIndex(value => value.objId === input.objId);
-        if (item === -1) throw new TRPCError({ message: "Failed to find item", code: "NOT_FOUND" });
-
-        switch (input.type) {
-            case 'upgrade': {
-                node.buildings[item].level++;
-                const data = buildOptions.get(node.buildings[item].id);
-                if (!data) throw new TRPCError({ message: "Failed to run actions on item", code: "INTERNAL_SERVER_ERROR" });
-
-                if (node.buildings[item].level - 1 > 0) {
-                    for (const stats of data.levels[node.buildings[item].level - 1].values) {
-                        switch (stats.stat) {
-                            case "cap.current":
-                                player.cap.current -= stats.value;
-                                break;
-                            case "credits.income":
-                                player.credits.income -= stats.value;
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                }
-
-                for (const stats of data.levels[node.buildings[item].level].values) {
-                    switch (stats.stat) {
-                        case "cap.current":
-                            player.cap.current += stats.value;
-                            break;
-                        case "credits.income":
-                            player.credits.income += stats.value;
-                            break;
-                        default:
-                            break;
-                    }
-                }
-
-                gameState.emit(GameEvents.UpdatePlayer, player);
-                gameState.emit(GameEvents.UpdateLocation, {
-                    type: "update-buildings",
-                    payload: {
-                        node: input.nodeId,
-                        buildings: node.buildings
-                    }
-                } as UpdateLocationResponse);
-
-                break;
-            }
-            case 'delete': {
-                const buildId = node.buildOptions.buildings.current.findIndex(value => value === item);
-                node.buildOptions.buildings.current.splice(buildId, 1);
-                const removed = node.buildings.splice(item, 1);
-                const content = removed.at(0);
-                if (!content) break;
-
-                const data = buildOptions.get(content.id);
-                if (!data) throw new TRPCError({ message: "Failed to run actions on item", code: "INTERNAL_SERVER_ERROR" });
-
-                for (const stats of data.levels[content.level].values) {
-                    switch (stats.stat) {
-                        case "cap.current":
-                            player.cap.current -= stats.value;
-                            break;
-                        case "credits.income":
-                            player.credits.income -= stats.value;
-                            break;
-                        default:
-                            break;
-                    }
-                }
-
-                gameState.emit(GameEvents.UpdatePlayer, player);
-                gameState.emit(GameEvents.UpdateLocation, {
-                    type: "update-buildings",
-                    payload: {
-                        node: input.nodeId,
-                        buildings: node.buildings
-                    }
-                } as UpdateLocationResponse);
-
-                break;
-            }
+        const buildings = node.removeBuilding(input.objId);
+        if (buildings) {
+            gameState.deallocBuildings(buildings, player.id);
         }
+
+        gameState.emit(GameEvents.UpdatePlayer, player);
+        gameState.emit(GameEvents.UpdateLocation, {
+            type: "update-buildings",
+            payload: {
+                node: input.nodeId,
+                buildings: node.buildings
+            }
+        } as UpdateLocationResponse);
     }),
     buyItem: t.procedure.input(z.object({
         type: z.enum(["unit", "building", "tech"]),
@@ -358,25 +294,17 @@ export const gameRouter = t.router({
             }
             case "building":
             case "tech": {
-                if (!input.objData.level) throw new TRPCError({ message: "A level is required for makeing a building or tech", code: "BAD_REQUEST" });
-
                 if (input.objData.inst) {
                     const inst = node.buildings.find(value => value.objId === input.objData.inst);
                     if (!inst) throw new TRPCError({ message: "Failed to find building/tech to upgrade", code: "NOT_FOUND" });
                     inst.level++;
+                    gameState.allocBuildings([inst], ctx.user as UUID);
                 } else {
-                    const item = buildOptions.get(input.objData.id);
-                    if (!item) throw new TRPCError({ message: "Failed to find building/tech data", code: "NOT_FOUND" });
-
-                    node.buildOptions.buildings.current.push(item.id);
-
-                    node.buildings.push({
-                        level: input.objData.level!,
-                        id: item.id,
-                        icon: item.icon,
-                        objId: randomBytes(5).toString("hex")
-                    });
+                    gameState.addBuilding(input.objData.id, node.objectId);
                 }
+
+                const player = gameState.getPlayer(ctx.user as UUID);
+                if (player) gameState.emit(GameEvents.UpdatePlayer, player);
 
                 gameState.emit(GameEvents.UpdateLocation, {
                     type: "update-buildings",

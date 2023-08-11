@@ -54,7 +54,7 @@ export default class Location {
     public owner: UUID | null;
     public objectId: UUID;
     public units: { [key in GroupType]: Unit[] };
-    public buildings: Building[] = [{ id: 0, icon: "https://halo.wiki.gallery/images/b/b0/HW_FieldArmory_Concept.jpg", level: 1, objId: "afeaferfgg" }];
+    public buildings: Building[] = [];
     public position: { x: number; y: number };
     public connectsTo: UUID[] = [];
     constructor({ queueIds, connectsTo, objectId, owner, position, name, units, buildOptions, color }: PartialBy<LocationProps, "contested" | "units" | "spies" | "buildings" | "buildOptions" | "maxBuildingSlots" | "color" | "queueIds">) {
@@ -166,7 +166,12 @@ export default class Location {
 
         if (idx === -1) return;
 
-        return this.buildings.splice(idx, 1).at(0);
+        const items = this.buildings.splice(idx, 1);
+
+        const buildId = this.buildOptions.buildings.current.findIndex(value => value === items.at(0)?.id);
+        if (buildId) this.buildOptions.buildings.current.splice(buildId, 1);
+
+        return items;
     }
 
     public moveToGroup(from: { group: GroupType, idx: number; id: number; }, to: { group: GroupType, idx: number }, moveGroups: boolean = false): UpdateLocationUnitGroups["payload"] {
@@ -194,7 +199,7 @@ export default class Location {
         if (target === -1) {
             this.units[to.group].push({
                 icon: this.units[from.group][origin].icon,
-                count,
+                count: moveGroups ? this.units[from.group][origin].count > 5 ? this.units[from.group][origin].count - 5 : this.units[from.group][origin].count : 1,
                 id: this.units[from.group][origin].id,
                 idx: to.idx
             });
@@ -267,5 +272,9 @@ export default class Location {
     }
     public clearGroup(group: GroupType): void {
         this.units[group] = [];
+    }
+    public addBuilding(building: Building) {
+        this.buildOptions.buildings.current.push(building.id);
+        this.buildings.push(building);
     }
 }

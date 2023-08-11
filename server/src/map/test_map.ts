@@ -67,6 +67,7 @@ const map = [
     new Location({
         name: "Reach",
         connectsTo: [a, f],
+        buildings: [],
         units: {
             center: [],
             left: [{

@@ -2,11 +2,13 @@ import type { Building, GroupType, Unit } from "./Location.js";
 import type { UUID } from "../lib.js"
 
 export const enum GameEvents {
+    GameOver = "game-over",
     FinalizTransfer = "finalizTransfer",
     TransferUnits = "transferUnits",
     UpdateLocation = "updateLocation",
     UpdatePlayer = "update-player",
-    Notify = "notify"
+    Notify = "notify",
+    ObjectiveLose = "player-lose-objective"
 }
 
 export type MoveRequest = {

@@ -1,5 +1,12 @@
 import type { AttackType, EffectiveState, UnitType } from "./units.js";
 
+export type BuildingStat = {
+    stat: "cap.current" | "cap.max" | "credits.income" | "nostat"
+    value: number;
+    color: "green" | "red",
+    text: string;
+} | { stat: "event", value: number; color: "green" | "red", text: string; event: string; run: "create" | "destory" }
+
 interface Buildable {
     id: number;
     name: string;
@@ -13,12 +20,7 @@ interface Buildable {
     }
     levels: {
         [level: number]: {
-            values: {
-                stat: "cap.current" | "credits.income" | "nostat";
-                value: number;
-                color: "green" | "red",
-                text: string;
-            }[];
+            values: BuildingStat[];
             build: {
                 cost: number;
                 time: number;
@@ -78,7 +80,7 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
             1: {
                 values: [{
                     value: 200,
-                    stat: "cap.current",
+                    stat: "cap.max",
                     color: "green",
                     text: "+200 Unit Cap",
                 }],
@@ -91,7 +93,7 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
                 values: [
                     {
                         value: 210,
-                        stat: "cap.current",
+                        stat: "cap.max",
                         color: "green",
                         text: "+210 Unit Cap",
                     }
@@ -102,6 +104,63 @@ export const buildOptions = new Map<number, BuildingData | TechData>([
                 }
             }
         }
-    }]
+    }],
+    [
+        1,
+        {
+            id: 1,
+            icon: "https://halo.wiki.gallery/images/thumb/5/5e/HW2_Blitz_Bunker_Drop.jpg/1600px-HW2_Blitz_Bunker_Drop.jpg",
+            name: "Citadel",
+            type: "building",
+            description: "Defend this with your life. lose this and its all over.",
+            maxLevel: 1,
+            requires: [],
+            max: {
+                global: 1,
+                node: 1
+            },
+            battle: {
+                effective: {
+                    "air": "normal",
+                    "building": "weak",
+                    "infantry": "normal",
+                    "vehicle": "normal"
+                },
+                type: "building",
+                health: 500,
+                shealds: 0,
+                attack: 120,
+                hitChange: 60,
+                damageType: "kinetic",
+            },
+            levels: {
+                1: {
+                    values: [
+                        {
+                            value: 200,
+                            stat: "cap.max",
+                            color: "green",
+                            text: "+200 Unit Cap",
+                        },
+                        {
+                            value: 1_000,
+                            stat: "credits.income",
+                            color: "green",
+                            text: "+1,000 Income",
+                        },
+                        {
+                            value: 0,
+                            stat: "event",
+                            run: "destory",
+                            color: "red",
+                            text: "Lose on destory",
+                            event: "player-lose-objective"
+                        }
+                    ],
+                    build: null
+                }
+            }
+        }
+    ]
 ]);
 

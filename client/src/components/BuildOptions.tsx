@@ -17,7 +17,7 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
     return (
         <section className="grid grid-cols-4 overflow-y-scroll">
             {options.map((value, i) => {
-                const canBuild = playerCerdits > (value.levels[1]?.build?.cost ?? Infinity) &&
+                const canBuild = playerCerdits >= (value.levels[1]?.build?.cost ?? Infinity) &&
                     (value.max.global !== -1 ? (cap.restrictions[`building-${value.id}`] ?? 0) < value.max.global : true) &&
                     (node.buildings.length < node.maxBuildingsSlots) &&
                     (value.max.node !== -1 ? value.max.node > node.buildings.reduce((prev, curr) => { if (curr.id === value.id) prev++; return prev; }, 0) : true);
@@ -52,7 +52,8 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
                                         duration: value.levels[1]?.build?.time ?? 0,
                                         id: value.id,
                                         icon: value.icon,
-                                        name: value.name
+                                        name: value.name,
+                                        level: 1,
                                     },
                                     queueId: queueId,
                                     time: value.levels[1]?.build?.time ?? 0,
