@@ -63,7 +63,6 @@ const map = [
             y: 50
         }
     }),
-
     new Location({
         name: "Reach",
         connectsTo: [a, f],
@@ -71,10 +70,16 @@ const map = [
         units: {
             center: [],
             left: [{
-                count: 1,
+                count: 4,
                 icon: "https://halo.wiki.gallery/images/6/62/HW2_Blitz_Bloodfuel_Grunts.png",
                 idx: 2,
                 id: 0
+            },
+            {
+                count: 4,
+                icon: "https://halo.wiki.gallery/images/5/54/HW2_Blitz_Blue_Elites.png",
+                idx: 1,
+                id: 1
             }],
             right: []
         },

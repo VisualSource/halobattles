@@ -1,7 +1,7 @@
 import remove from "lodash.remove";
 import units, { type AttackType, type BattleEvents, type UnitType, type EffectiveState } from "../../map/units.js";
 import { buildOptions } from "../../map/upgradeList.js";
-
+import { log } from './logger.js';
 class Action {
   constructor(type: string, params: object) { }
 }
@@ -66,7 +66,6 @@ export default class Attackable {
         this._effective = unit.stats.effective;
         this._unit_type = unit.stats.type;
         this.events = unit.stats.events;
-
         break;
       }
       case "building": {
@@ -123,26 +122,33 @@ export default class Attackable {
         return 0.5;
     }
   }
+  public get contentId() {
+    return `${this.type}:${this.id}`;
+  }
   public battle(attacker: Attackable) {
-    const shealdDamage = this._current_shealds > 0 && attacker.doesShealdDamage;
+    const shealdDamage = Math.floor(attacker.attack * ((this._current_shealds > 0 && attacker.doesShealdDamage) ? 0.2 : 0));
 
-    const effectiveStat = attacker.isEffectiveAgainst(this._unit_type);
+    const effectiveStat = attacker.attack * attacker.isEffectiveAgainst(this._unit_type);
+    log("[BATTLE] ShealdDamge", shealdDamage, "Effective", effectiveStat, `${this.contentId} VS ${attacker.contentId}`);
 
-    this._current_shealds -=
-      attacker.attack +
-      attacker.attack * (shealdDamage ? 0.2 : 0) +
-      attacker.attack * effectiveStat;
+    this._current_shealds -= attacker.attack + shealdDamage + effectiveStat;
+
+    log("[BATTLE] Damage to shealds", this._current_shealds);
 
     if (this._current_shealds <= 0) {
       this._current_health +=
         this._current_shealds +
         -(attacker.attack * (attacker.doesNonShealdedDamage ? 0.2 : 0));
+
+      log('[BATTLE]', this._current_health);
+
       this._current_shealds = 0;
       // modify damage to reflect remaing units.
       this.modifyStats();
     }
 
     if (this._current_health <= 0) {
+      this._current_health = 0;
       this._dead = true;
     }
 
@@ -255,7 +261,7 @@ export default class Attackable {
     }
     return {
       cap: 0,
-      id: -1,
+      id: this.id,
       lost: this._current_health > 0 ? 0 : 1,
       type: this.type,
       instId: this.instId

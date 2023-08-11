@@ -112,6 +112,9 @@ export default class Location {
         this.owner = id;
         this.color = color;
     }
+    public getTransferTime(): number {
+        return 10;
+    }
 
     public getWeight(owner: string | null) {
         if (!owner) return 1;

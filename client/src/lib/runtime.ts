@@ -30,6 +30,7 @@ import CameraControls from 'camera-controls';
 import Location from "../lib/objects/location";
 import QueueEngine, { QueueItem } from './QueueEngine';
 import { Player } from 'server/src/object/GameState';
+import type { UUID } from 'server';
 
 const subsetOfTHREE = {
     Vector2: Vector2,
@@ -65,7 +66,7 @@ function createTrianagle(x: number, y: number) {
     return trianagle;
 }
 
-function modeTo(path: { position: { x: number; y: number } }[], mesh: Mesh, onComplete: () => void) {
+function modeTo(path: { id: UUID, position: { x: number; y: number }, duration: number }[], mesh: Mesh, onComplete: () => void) {
 
     mesh.position.set(path[0].position.x, path[0].position.y, 1);
 
@@ -73,7 +74,7 @@ function modeTo(path: { position: { x: number; y: number } }[], mesh: Mesh, onCo
     let chain: Tween<Vector3>;
     for (let i = 1; i < path.length; i++) {
         const current = path[i];
-        const nextTween = new Tween(mesh.position).to({ x: current.position.x, y: current.position.y }, 10000);
+        const nextTween = new Tween(mesh.position).to({ x: current.position.x, y: current.position.y }, 1000 * current.duration);
 
         if (i === (path.length - 1)) nextTween.onComplete(onComplete);
 
@@ -276,14 +277,13 @@ export default class Runtime extends EventTarget {
 
         const gameState = network.onGameOver.subscribe(userId, {
             onData: (value) => {
-                window.dispatchEvent(new CustomEvent("game-over", value));
+                window.dispatchEvent(new CustomEvent("game-over", { detail: value }));
             },
             onError(err) {
                 toast.error(err.message);
                 console.error(err);
             },
         });
-
 
         const mapdata = await network.getMap.query();
 

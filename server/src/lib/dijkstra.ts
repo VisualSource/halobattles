@@ -57,7 +57,8 @@ export default function Dijkstra(graph: Location[], start: string, end: string, 
         if (!node) throw new Error("Failed to find node");
         path.push({
             id: node.objectId,
-            position: node.position
+            position: node.position,
+            duration: node.getTransferTime()
         });
 
         u = prev[u];

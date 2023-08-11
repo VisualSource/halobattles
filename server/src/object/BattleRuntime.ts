@@ -6,7 +6,7 @@ import Attackable from "./runtime/Attackable.js";
 import type { UnitTransfer } from "./GameState.js";
 import type Location from "./Location.js";
 import type { UUID } from "../lib.js";
-
+import { log } from './runtime/logger.js';
 
 type PlayerTurn = "attacker" | "defender";
 type LostUnit = { cap: number; id: number; lost: number; type: "unit"; } | { instId: string | undefined; cap: number; id: number; lost: number; type: "building"; }
@@ -75,19 +75,23 @@ function runtime() {
   let i = 0;
   let turn: PlayerTurn = "attacker";
 
-  while (i <= 2000) {
+  while (i <= 1000) {
+    log(`[${i}:${turn}] Round Start`);
 
-
-
-    //console.log(`TURN START: ${turn} ${i}`);
-    //console.log("START BATTLE");
     for (const unit of (turn === "attacker" ? attackers : defenders)) {
       // ignore unit if the attack is nothing or the chance to hit is 0;
-      if (unit.attack <= 0 || unit.hitChance <= 0) continue;
+      if (unit.attack <= 0 || unit.hitChance <= 0) {
+        log(`[${i}:${turn}] Skip Unit: ${unit.contentId}`);
+        continue;
+      }
 
       const defenderIdx = Math.floor(Math.random() * (turn === "attacker" ? defenders : attackers).length);
       const didHit = Math.random() < unit.hitChance / 100;
-      if (!didHit) continue;
+      if (!didHit) {
+        log(`[${i}:${turn}] MISS`);
+        continue;
+      }
+      log(`[${i}:${turn}] HIT`);
       (turn === "attacker" ? defenders : attackers)[defenderIdx].battle(unit);
     }
 
@@ -99,7 +103,10 @@ function runtime() {
       ...deadUnits
     );
 
-    if (defenders.length === 0 || attackers.length === 0) break;
+    if (defenders.length === 0 || attackers.length === 0) {
+      log(`[${i}:${turn}] Gameover`);
+      break;
+    }
 
     turn = turn === "attacker" ? "defender" : "attacker";
     i++;

@@ -18,7 +18,7 @@ const node = new Location({
     buildings: [],
     units: {
         center: [
-            { id: 0, icon: "", count: 2, idx: 0 }
+            { id: 0, icon: "a", count: 123, idx: 0 } // atk 10 -> 1230
         ],
         left: [],
         right: []
@@ -38,7 +38,8 @@ const transfer: UnitTransfer = {
     },
     owner: "1-1-1-1",
     units: [
-        { id: 0, icon: "", count: 2, idx: 0 }
+        { id: 0, icon: "", count: 6, idx: 0 }, // atk 10 -> 60
+        { id: 1, icon: "", count: 7, idx: 0 } // atk 8 -> 56
     ]
 }
 
@@ -55,11 +56,22 @@ describe("BattleWorker", () => {
                 });
 
                 worker.addListener("message", (ev) => {
-                    console.log(ev);
+                    if ("type" in ev) {
+                        console.log(...ev.msg);
+                        return;
+                    }
+
+                    console.log(JSON.stringify(ev, undefined, 4));
+
+
+                    assert(ev.node === "a-a-a-a");
+                    assert(ev.attackerTransferId === "1-1-1-1");
+
                     ok(null);
                 });
 
                 worker.addListener("error", (er) => {
+                    console.log(er);
                     rej(er);
                 })
             });

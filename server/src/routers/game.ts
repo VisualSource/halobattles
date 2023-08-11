@@ -34,7 +34,7 @@ export const gameRouter = t.router({
 
         if (input.from.id === input.to.id) {
             console.log("Internal transfer");
-            const transferId = gameState.createTransfer(ctx.user, input as MoveRequest);
+            const transferId = gameState.createTransfer(ctx.user, input as MoveRequest, 0);
             gameState.finishTransfer(ctx.user, transferId);
             return;
         }
@@ -69,7 +69,7 @@ export const gameRouter = t.router({
             const onTransferUnits = (data: MoveRequest) => {
                 const path = Dijkstra(gameState.getSelectedMap(), data.from.id, data.to.id, input);
 
-                const transferId = data?.transferId ?? gameState.createTransfer(input, data);
+                const transferId = data?.transferId ?? gameState.createTransfer(input, data, Math.round(path.length / 2));
 
                 emit.next({
                     path,
@@ -104,7 +104,7 @@ export const gameRouter = t.router({
     }),
     onGameOver: t.procedure.input(z.string().uuid()).subscription(({ input }) => {
         return observable((emit) => {
-            const onGameOver = () => emit.next(emit);
+            const onGameOver = (data: { winner: string; id: UUID }) => emit.next(data);
             gameState.on(GameEvents.GameOver, onGameOver);
             return () => gameState.off(GameEvents.GameOver, onGameOver);
         })

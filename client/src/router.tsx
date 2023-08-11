@@ -1,7 +1,7 @@
 import {
     createBrowserRouter,
 } from "react-router-dom";
-import App from "./App";
+import GameRoot from "./pages/GameRoot";
 import ErrorPage from "./pages/ErrorPage";
 import NodeView from "./pages/NodeView";
 import UnitManagment from "./pages/node/UnitManagment";
@@ -10,6 +10,9 @@ import UnitQueue from "./pages/node/UnitQueue";
 import BuildingQueue from "./pages/node/BuildingQueue";
 import PlanetInfo from "./pages/node/PlanetInfo";
 import GameOver from "./pages/GameOver";
+import Lobby from "./pages/Lobby";
+import App from "./App";
+
 
 export const router = createBrowserRouter([
     {
@@ -18,52 +21,65 @@ export const router = createBrowserRouter([
         errorElement: <ErrorPage />,
         children: [
             {
-                path: "/gameover",
-                element: <GameOver />,
+                path: "/",
+                index: true,
+                element: <Lobby />,
+                errorElement: <ErrorPage />
             },
             {
-                path: "/view/node/:id",
-                element: <NodeView />,
+                path: "/game",
+                element: <GameRoot />,
+                errorElement: <ErrorPage />,
                 children: [
                     {
-                        element: <UnitManagment />,
-                        index: true,
-                        handle: {
-                            name: "Unit Managment"
-                        },
-                        errorElement: <ErrorPage />
+                        path: "/game/gameover",
+                        element: <GameOver />,
                     },
                     {
-                        path: "/view/node/:id/buildings",
-                        element: <BuildingManagment />,
-                        handle: {
-                            name: "Building and tech Managment"
-                        },
-                        errorElement: <ErrorPage />
-                    },
-                    {
-                        path: "/view/node/:id/queue-units",
-                        element: <UnitQueue />,
-                        handle: {
-                            name: "Unit Queue"
-                        },
-                        errorElement: <ErrorPage />
-                    },
-                    {
-                        path: "/view/node/:id/queue-buildings",
-                        element: <BuildingQueue />,
-                        handle: {
-                            name: "Building Queue"
-                        },
-                        errorElement: <ErrorPage />
-                    },
-                    {
-                        path: "/view/node/:id/info",
-                        element: <PlanetInfo />,
-                        handle: {
-                            name: "Planet Info"
-                        },
-                        errorElement: <ErrorPage />
+                        path: "/game/view/node/:id",
+                        element: <NodeView />,
+                        children: [
+                            {
+                                element: <UnitManagment />,
+                                index: true,
+                                handle: {
+                                    name: "Unit Managment"
+                                },
+                                errorElement: <ErrorPage />
+                            },
+                            {
+                                path: "/game/view/node/:id/buildings",
+                                element: <BuildingManagment />,
+                                handle: {
+                                    name: "Building and tech Managment"
+                                },
+                                errorElement: <ErrorPage />
+                            },
+                            {
+                                path: "/game/view/node/:id/queue-units",
+                                element: <UnitQueue />,
+                                handle: {
+                                    name: "Unit Queue"
+                                },
+                                errorElement: <ErrorPage />
+                            },
+                            {
+                                path: "/game/view/node/:id/queue-buildings",
+                                element: <BuildingQueue />,
+                                handle: {
+                                    name: "Building Queue"
+                                },
+                                errorElement: <ErrorPage />
+                            },
+                            {
+                                path: "/game/view/node/:id/info",
+                                element: <PlanetInfo />,
+                                handle: {
+                                    name: "Planet Info"
+                                },
+                                errorElement: <ErrorPage />
+                            }
+                        ]
                     }
                 ]
             }
@@ -73,10 +89,10 @@ export const router = createBrowserRouter([
 
 window.addEventListener("game-over", ev => {
     const id = (ev as CustomEvent<{ winner: string; id: string; }>).detail;
-    router.navigate(`/gameover?name=${id.winner}&uuid=${id.id}`);
+    router.navigate(`/game/gameover?name=${id.winner}&uuid=${id.id}`);
 });
 
 window.addEventListener("node-selected", (ev) => {
     const id = (ev as CustomEvent<{ id: string }>).detail.id;
-    router.navigate(`/view/node/${id}`);
+    router.navigate(`/game/view/node/${id}`);
 });

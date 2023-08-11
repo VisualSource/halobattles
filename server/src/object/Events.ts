@@ -25,7 +25,7 @@ export type MoveRequest = {
 
 export type MoveResponse = {
     transferId: UUID;
-    path: { id: UUID; position: { x: number; y: number } }[];
+    path: { id: UUID; position: { x: number; y: number }, duration: number; }[];
     owner: UUID
 }
 

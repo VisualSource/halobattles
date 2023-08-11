@@ -80,7 +80,7 @@ export default class GameState extends EventEmitter {
             },
             cap: {
                 max: 100,
-                current: 1,
+                current: 8,
                 restrictions: {}
             },
             color: factionColors["Banished"],
@@ -94,24 +94,22 @@ export default class GameState extends EventEmitter {
 
     constructor() {
         super();
-
         this.addListener(GameEvents.ObjectiveLose, (ev) => {
-            this.deadPlayers.add(ev.owner);
 
+            console.log(ev);
+            this.deadPlayers.add(ev.owner);
             if (this.deadPlayers.size === (this.players.length - 1)) {
 
-                const winner = this.players.filter(value => !this.deadPlayers.has(value.id))
+                const winner = this.players.filter(value => !this.deadPlayers.has(value.id)).at(0);
 
                 this.emit(GameEvents.GameOver, {
-                    winner: winner.at(0)?.name ?? "Every ones dead",
-                    id: winner.at(0)?.id
+                    winner: winner?.name ?? "Every ones dead",
+                    id: winner?.id
                 });
 
                 clearInterval(this.interval);
             }
-
         });
-
     }
 
     public startGame() {
@@ -160,10 +158,12 @@ export default class GameState extends EventEmitter {
             name: `[Worker] Battle for ${nodeId}`
         });
 
-        worker.on("message", (ev: BattleResult) => {
-
-            console.log(ev);
-
+        worker.on("message", (ev: BattleResult | { type: "message", msg: unknown[] }) => {
+            if ("type" in ev) {
+                console.log(...ev.msg)
+                return;
+            }
+            console.log("[BATTLE RESULTS]", JSON.stringify(ev, undefined, 2));
             const defender = this.getPlayer(ev.defender.id);
             const attacker = this.getPlayer(ev.attacker.id);
             if (!attacker || !defender) throw new Error("Unable to get player");
@@ -188,7 +188,7 @@ export default class GameState extends EventEmitter {
 
             for (const unit of ev.defender.lostUnits) {
                 if (unit.type === "building") {
-                    console.log("REMVOE", unit)
+                    console.log("REMOVE BUILDING", unit)
                     if (unit.instId) {
                         const building = node.removeBuilding(unit.instId);
                         if (!building) continue;
@@ -303,13 +303,13 @@ export default class GameState extends EventEmitter {
             throw new Error("Failed to parse message");
         });
     }
-    public createTransfer(owner: string, data: MoveRequest): UUID {
+    public createTransfer(owner: string, data: MoveRequest, jumps: number): UUID {
 
         const node = map.find(value => value.objectId === data.from.id);
         if (!node) throw new Error("Failed to create transfer request: Src node not found");
 
         // calc time to transfer units.
-        const timeToTransferInSec = 2;
+        const timeToTransferInSec = jumps * 10;
 
         const time = new Date();
         time.setSeconds(time.getSeconds() + timeToTransferInSec);
