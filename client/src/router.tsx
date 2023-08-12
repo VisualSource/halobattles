@@ -1,15 +1,15 @@
 import {
     createBrowserRouter,
 } from "react-router-dom";
-import GameRoot from "./pages/GameRoot";
+//import GameRoot from "./pages/GameRoot";
 import ErrorPage from "./pages/ErrorPage";
-import NodeView from "./pages/NodeView";
+/*import NodeView from "./pages/NodeView";
 import UnitManagment from "./pages/node/UnitManagment";
 import BuildingManagment from "./pages/node/BuildingManagment";
 import UnitQueue from "./pages/node/UnitQueue";
 import BuildingQueue from "./pages/node/BuildingQueue";
 import PlanetInfo from "./pages/node/PlanetInfo";
-import GameOver from "./pages/GameOver";
+import GameOver from "./pages/GameOver";*/
 import Lobby from "./pages/Lobby";
 import App from "./App";
 
@@ -26,7 +26,7 @@ export const router = createBrowserRouter([
                 element: <Lobby />,
                 errorElement: <ErrorPage />
             },
-            {
+            /*{
                 path: "/game",
                 element: <GameRoot />,
                 errorElement: <ErrorPage />,
@@ -82,7 +82,7 @@ export const router = createBrowserRouter([
                         ]
                     }
                 ]
-            }
+            }*/
         ]
     }
 ]);

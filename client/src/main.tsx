@@ -7,15 +7,18 @@ import { router } from './router.tsx';
 
 import './index.css';
 import 'react-toastify/dist/ReactToastify.css';
+import { ThemeProvider } from './components/theme-provider.tsx';
 
 const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <trpc.Provider client={client} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </trpc.Provider>
+    <ThemeProvider>
+      <trpc.Provider client={client} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </trpc.Provider>
+    </ThemeProvider>
   </React.StrictMode>,
 )
