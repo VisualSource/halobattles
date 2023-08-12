@@ -1,5 +1,5 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const Chat: React.FC = () => {
@@ -21,7 +21,10 @@ const Chat: React.FC = () => {
                 ev.preventDefault();
             }}>
                 <Input />
-                <Button type="submit">Send</Button>
+                <Button className={buttonVariants({
+                    variant: "default",
+                    size: "icon"
+                })} type="submit">Send</Button>
             </form>
         </section>
     );
