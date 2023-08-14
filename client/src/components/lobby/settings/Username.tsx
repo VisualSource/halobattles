@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetClose, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { trpc } from '@/lib/network';
 
 const Username: React.FC = () => {
+    const setUsername = trpc.setUsername.useMutation();
     return (
         <Sheet>
             <SheetTrigger asChild>
@@ -30,7 +32,13 @@ const Username: React.FC = () => {
                 </div>
                 <SheetFooter>
                     <SheetClose asChild>
-                        <Button type="submit">Save changes</Button>
+                        <Button type="submit" onClick={() => {
+                            try {
+                                setUsername.mutateAsync("Username");
+                            } catch (error) {
+                                console.error(error);
+                            }
+                        }}>Save changes</Button>
                     </SheetClose>
                 </SheetFooter>
             </SheetContent>

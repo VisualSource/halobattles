@@ -10,8 +10,11 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { trpc } from '@/lib/network';
 
 const Faction: React.FC = () => {
+    const setFaction = trpc.setFaction.useMutation();
+
     return (
         <Sheet>
             <SheetTrigger asChild>
@@ -45,7 +48,7 @@ const Faction: React.FC = () => {
                                         </div>
                                     </div>
                                 </SelectItem>
-                                <SelectItem value="BANISHED">
+                                <SelectItem value="Banished">
                                     <div className='flex gap-2 items-center'>
                                         <Avatar>
                                             <AvatarFallback>CN</AvatarFallback>
@@ -62,7 +65,13 @@ const Faction: React.FC = () => {
                 </div>
                 <SheetFooter>
                     <SheetClose asChild>
-                        <Button type="submit">Save changes</Button>
+                        <Button type="submit" onClick={() => {
+                            try {
+                                setFaction.mutateAsync("UNSC");
+                            } catch (error) {
+                                console.error(error);
+                            }
+                        }}>Save changes</Button>
                     </SheetClose>
                 </SheetFooter>
             </SheetContent>
