@@ -2,12 +2,26 @@ import { UserX2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TypographyMuted } from "@/components/ui/typograph";
+import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
 import Username from './settings/Username';
 import Faction from './settings/Faction';
+import type { Factions } from 'server/src/object/GameState';
 
-const Player: React.FC<{ owner: boolean, isHost: boolean }> = ({ owner, isHost }) => {
+export const PlayerFallback: React.FC = () => {
+    return (
+        <li className='bg-slate-800 flex items-center gap-4 shadow rounded-lg p-2'>
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <div className="space-y-2">
+                <Skeleton className="h-4 w-[250px]" />
+                <Skeleton className="h-4 w-[200px]" />
+            </div>
+        </li>
+    );
+}
+
+const Player: React.FC<{ owner: boolean, isHost: boolean, username: string; faction: Factions | "unknown" }> = ({ owner, isHost, username, faction }) => {
     return (
         <li className={cn("bg-slate-800 flex items-center gap-4 shadow rounded-lg p-2", { "border border-slate-500": owner })}>
             <Avatar>
@@ -15,8 +29,8 @@ const Player: React.FC<{ owner: boolean, isHost: boolean }> = ({ owner, isHost }
                 <AvatarImage src="/Basic_Elements_(128).jpg" />
             </Avatar>
             <div>
-                <h5 className="scroll-m-20 text-lg font-semibold tracking-tight">Username</h5>
-                <TypographyMuted className="text-slate-500">Faction</TypographyMuted>
+                <h5 className="scroll-m-20 text-lg font-semibold tracking-tight">{username}</h5>
+                <TypographyMuted className="text-slate-500">{faction}</TypographyMuted>
             </div>
             {owner || isHost ? (
                 <DropdownMenu>

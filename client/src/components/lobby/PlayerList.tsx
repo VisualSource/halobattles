@@ -1,9 +1,31 @@
 import { Play } from 'lucide-react';
+import { Suspense } from 'react';
 import { TypographyH3 } from "@/components/ui/typograph";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from "@/components/ui/separator";
 import { Button } from '@/components/ui/button';
 import Player from './Player';
+import { trpc } from '@/lib/network';
+import { user } from '@/lib/user';
+
+const List: React.FC = () => {
+    const [players, query] = trpc.getPlayerList.useSuspenseQuery();
+    trpc.onPlayerListUpdate.useSubscription(undefined, {
+        onData() {
+            query.refetch();
+        },
+    });
+
+    return (
+        <ul className="space-y-2">
+            {players.map((value => (
+                <Player key={value.uuid} username={value.username} faction={value.faction} isHost={value.isHost} owner={user.id === value.uuid} />
+            )))}
+        </ul>
+    );
+
+}
+
 
 const PlayerList: React.FC<{ isHost: boolean }> = ({ isHost }) => {
     return (
@@ -11,12 +33,9 @@ const PlayerList: React.FC<{ isHost: boolean }> = ({ isHost }) => {
             <TypographyH3>Players</TypographyH3>
             <Separator className="my-4" />
             <ScrollArea className="mb-2">
-                <ul className="space-y-2">
-                    <Player isHost={isHost} owner={true} />
-                    <Player isHost={isHost} owner={false} />
-                    <Player isHost={isHost} owner={false} />
-                    <Player isHost={isHost} owner={false} />
-                </ul>
+                <Suspense>
+                    <List />
+                </Suspense>
             </ScrollArea>
             <div className="mt-auto flex justify-end">
                 <Button disabled={!isHost}>

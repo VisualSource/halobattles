@@ -1,5 +1,13 @@
 /// <reference types="vite/client" />
 
+interface ImportMetaEnv {
+    readonly VITE_USE_STORE_USER_ID: "fixed" | "random" | "default"
+}
+
+interface ImportMeta {
+    readonly env: ImportMetaEnv
+}
+
 declare module "@tweenjs/tween.js" {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type UnknownProps = Record<string, any>;
