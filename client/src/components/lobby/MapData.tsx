@@ -64,8 +64,8 @@ const Settings: React.FC<{ isHost: boolean }> = ({ isHost }) => {
                                     <SelectValue placeholder="Select Map" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {maps.map(value => (
-                                        <SelectItem value={value}>{value}</SelectItem>
+                                    {maps.map((value, i) => (
+                                        <SelectItem key={i} value={value}>{value}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>

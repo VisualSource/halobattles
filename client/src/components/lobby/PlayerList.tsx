@@ -4,11 +4,22 @@ import { TypographyH3 } from "@/components/ui/typograph";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from "@/components/ui/separator";
 import { Button } from '@/components/ui/button';
-import Player from './Player';
+import Player, { PlayerFallback } from './Player';
 import { trpc } from '@/lib/network';
 import { user } from '@/lib/user';
 
-const List: React.FC = () => {
+const FallbackList: React.FC = () => {
+    return (
+        <ul className="space-y-2">
+            <PlayerFallback />
+            <PlayerFallback />
+            <PlayerFallback />
+            <PlayerFallback />
+        </ul>
+    );
+}
+
+const List: React.FC<{ isHost: boolean }> = ({ isHost }) => {
     const [players, query] = trpc.getPlayerList.useSuspenseQuery();
     trpc.onPlayerListUpdate.useSubscription(undefined, {
         onData() {
@@ -18,12 +29,11 @@ const List: React.FC = () => {
 
     return (
         <ul className="space-y-2">
-            {players.map((value => (
-                <Player key={value.uuid} username={value.username} faction={value.faction} isHost={value.isHost} owner={user.id === value.uuid} />
+            {players.map(((value) => (
+                <Player uuid={value.uuid} key={value.uuid} username={value.username} faction={value.faction} isHost={isHost} owner={user.id === value.uuid} />
             )))}
         </ul>
     );
-
 }
 
 
@@ -33,8 +43,8 @@ const PlayerList: React.FC<{ isHost: boolean }> = ({ isHost }) => {
             <TypographyH3>Players</TypographyH3>
             <Separator className="my-4" />
             <ScrollArea className="mb-2">
-                <Suspense>
-                    <List />
+                <Suspense fallback={<FallbackList />}>
+                    <List isHost={isHost} />
                 </Suspense>
             </ScrollArea>
             <div className="mt-auto flex justify-end">

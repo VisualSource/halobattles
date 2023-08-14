@@ -18,6 +18,12 @@ const players: { [key: UUID]: { isHost: boolean, uuid: UUID; username: string; f
         username: "VisualSource",
         faction: "unknown",
         isHost: true
+    },
+    "73806576-0e72-4675-b0d8-b0296f026d2b": {
+        uuid: "73806576-0e72-4675-b0d8-b0296f026d2b",
+        username: "TEST",
+        faction: "unknown",
+        isHost: false
     }
 };
 
@@ -75,8 +81,12 @@ export const uiRouter = t.router({
         });
         chatEmitter.emit("update-player-list");
     }),
-    kickPlayer: t.procedure.input(z.object({})).mutation(() => {
-
+    kickPlayer: t.procedure.input(z.string().uuid()).mutation(({ input, ctx }) => {
+        const currentUser = getUser(ctx.user);
+        if (!currentUser.isHost) throw new TRPCError({ message: "User is not host", code: "UNAUTHORIZED" });
+        if (!players[input as UUID]) throw new TRPCError({ message: "User does not exists.", code: "NOT_FOUND" });
+        delete players[input as UUID];
+        chatEmitter.emit("player-kick", input);
         chatEmitter.emit("update-player-list");
     }),
     sendMsg: t.procedure.input(z.string().min(1).max(255)).mutation(({ input, ctx }) => {
@@ -91,6 +101,13 @@ export const uiRouter = t.router({
             const onUpdate = () => emit.next();
             chatEmitter.on("update-player-list", onUpdate);
             return () => chatEmitter.off("update-player-list", onUpdate);
+        });
+    }),
+    onKick: t.procedure.subscription(() => {
+        return observable<UUID>((emit) => {
+            const onKick = (data: UUID) => emit.next(data);
+            chatEmitter.on("player-kick", onKick);
+            return () => chatEmitter.off("player-kick", onKick);
         });
     }),
     onMsg: t.procedure.subscription(() => {

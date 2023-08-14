@@ -1,13 +1,15 @@
 import { UserX2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { Factions } from 'server/src/object/GameState';
 import { TypographyMuted } from "@/components/ui/typograph";
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from '@/components/ui/button';
-import { cn } from "@/lib/utils";
 import Username from './settings/Username';
 import Faction from './settings/Faction';
-import type { Factions } from 'server/src/object/GameState';
+import { trpc } from '@/lib/network';
+import type { UUID } from 'server';
+import { cn } from "@/lib/utils";
 
 export const PlayerFallback: React.FC = () => {
     return (
@@ -21,7 +23,23 @@ export const PlayerFallback: React.FC = () => {
     );
 }
 
-const Player: React.FC<{ owner: boolean, isHost: boolean, username: string; faction: Factions | "unknown" }> = ({ owner, isHost, username, faction }) => {
+const KickPlayerOption: React.FC<{ uuid: UUID }> = ({ uuid }) => {
+    const kick = trpc.kickPlayer.useMutation();
+    return (
+        <DropdownMenuItem onClick={async () => {
+            try {
+                await kick.mutateAsync(uuid);
+            } catch (error) {
+                console.error(error);
+            }
+        }}>
+            <UserX2 className="mr-2 h-4 w-4" />
+            <span>Kick</span>
+        </DropdownMenuItem>
+    );
+}
+
+const Player: React.FC<{ owner: boolean, isHost: boolean, uuid: UUID, username: string; faction: Factions | "unknown" }> = ({ uuid, owner, isHost, username, faction }) => {
     return (
         <li className={cn("bg-slate-800 flex items-center gap-4 shadow rounded-lg p-2", { "border border-slate-500": owner })}>
             <Avatar>
@@ -49,11 +67,7 @@ const Player: React.FC<{ owner: boolean, isHost: boolean, username: string; fact
                         ) : null}
                         {owner && isHost ? (<DropdownMenuSeparator />) : null}
                         {isHost ? (
-                            <DropdownMenuItem>
-                                <UserX2 className="mr-2 h-4 w-4" />
-                                <span>Kick</span>
-                            </DropdownMenuItem>
-
+                            <KickPlayerOption uuid={uuid} />
                         ) : null}
                     </DropdownMenuContent>
                 </DropdownMenu>
