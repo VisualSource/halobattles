@@ -10,12 +10,12 @@ const BuildingQueue: React.FC = () => {
     if (!node) throw new Error("Node id is missing");
 
     return (
-        <div className="grid grid-cols-3 w-full h-full">
+        <div className="grid grid-cols-3 w-full">
             <Queue queueId={node.queueIds.buildings.a} nodeId={node.objectId} />
             {extraQueue ? (
                 <Queue queueId={node.queueIds.buildings.b} nodeId={node.objectId} />
             ) : (
-                <div className="h-full flex items-center justify-center">
+                <div className="h-full flex items-center justify-center col-span-1">
                     Build a SOMEBULDING to extend queue
                 </div>
             )}

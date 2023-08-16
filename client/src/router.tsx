@@ -12,6 +12,7 @@ import UnitManagment from "./pages/node/UnitManagment";
 import BuildingManagment from "./pages/node/BuildingManagment";
 import UnitQueue from "./pages/node/UnitQueue";
 import BuildingQueue from "./pages/node/BuildingQueue";
+import GameOver from "./pages/GameOver";
 
 
 export const router = createBrowserRouter([
@@ -36,6 +37,11 @@ export const router = createBrowserRouter([
                 element: <Game />,
                 errorElement: <ErrorPage />,
                 children: [
+                    {
+                        path: "/game/gameover",
+                        element: <GameOver />,
+                        errorElement: <ErrorPage />
+                    },
                     {
                         path: "/game/view/node/:id",
                         element: <NodeView />,

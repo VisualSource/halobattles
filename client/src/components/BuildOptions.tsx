@@ -5,7 +5,6 @@ import { trpc } from "../lib/network";
 import useGetNode from "../hooks/useGetNode";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from './ui/scroll-area';
 
 const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, queueId }) => {
     const [options] = trpc.getBuildOptions.useSuspenseQuery(nodeId)
@@ -17,7 +16,7 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
     if (!node) throw new Error("Failed to load node");
 
     return (
-        <ScrollArea className="grid grid-cols-4">
+        <div className="grid grid-cols-4 overflow-y-scroll">
             {options.map((value, i) => {
                 const canBuild = playerCerdits >= (value.levels[1]?.build?.cost ?? Infinity) &&
                     (value.max.global !== -1 ? (cap.restrictions[`building-${value.id}`] ?? 0) < value.max.global : true) &&
@@ -26,7 +25,7 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
 
                 return (
                     <HoverCard key={i}>
-                        <HoverCardContent>
+                        <HoverCardContent className="max-w-2xl w-full">
                             <h1 className="font-bold">{value.name}</h1>
                             <p className="text-gray-500 mb-2 max-w-xs">{value.description}</p>
                             <div><span className="font-bold">Cost:</span> {value.levels[1]?.build?.cost.toLocaleString() ?? 0}</div>
@@ -35,7 +34,7 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
                             {value.max.node !== -1 ? (<div><span className="font-bold">Max Buildable:</span> {value.max.node}</div>) : null}
                             <div className="flex flex-wrap my-2">
                                 {value.levels[1]?.values.map((value, i) => (
-                                    <Badge key={i} variant={value.color === "red" ? "destructive" : "secondary"}>{value.text}</Badge>
+                                    <Badge key={i} variant={value.color}>{value.text}</Badge>
                                 ))}
                             </div>
                         </HoverCardContent>
@@ -75,7 +74,7 @@ const BuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, q
             {Array.from({ length: (6 * 6) - options.length }).map((_, i) => (
                 <button className="border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square cursor-cell p-2" key={i}></button>
             ))}
-        </ScrollArea>
+        </div>
     );
 }
 

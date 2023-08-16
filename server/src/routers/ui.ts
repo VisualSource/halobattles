@@ -1,4 +1,6 @@
 import { observable } from '@trpc/server/observable';
+import { readdir } from 'node:fs/promises';
+import { resolve, basename, extname } from 'node:path';
 import { EventEmitter } from 'node:events';
 import { z } from 'zod';
 import { t } from "../trpc.js";
@@ -6,6 +8,7 @@ import type { UUID } from '../lib.js';
 import type { Factions } from '../object/GameState.js';
 import { TRPCError } from '@trpc/server';
 import GameState from '../object/GameState.js';
+import { __dirname } from '../lib/utils.js';
 
 type LobbyPlayer = { isHost: boolean, uuid: UUID; username: string; faction: Factions | "unknown" };
 type LobbyEvent = { type: "kick-event", uuid: UUID; } | { type: "start-event" } | { type: "players-not-ready" };
@@ -21,12 +24,42 @@ export class Lobby extends EventEmitter {
     public settings = {
         map: "test_map"
     }
+    private _maps_loaded = false;
+    public maps: string[] = [];
     public players: Map<UUID, LobbyPlayer> = new Map();
+    constructor() {
+        super();
+
+        this.on("player-disconnect", (ev) => {
+            this.emit("msg", {
+                msg: `A player has disconnected`,
+                id: "system-us-east-1",
+                username: "System"
+            });
+        });
+
+    }
     public getUser(user: string | null): LobbyPlayer {
         if (!user) throw new TRPCError({ message: "No user is set", code: "UNPROCESSABLE_CONTENT" });
         const userData = this.players.get(user as UUID);
         if (!userData) throw new TRPCError({ message: "Failed to find user data", code: "NOT_FOUND" });
         return userData;
+    }
+    public async getMaps(): Promise<string[]> {
+        if (!this._maps_loaded) {
+
+            const dir = await readdir(resolve(__dirname, "../../maps"), { recursive: false, withFileTypes: true });
+
+            for (const file of dir) {
+                if (!file.isFile()) continue;
+                if (extname(file.name) !== ".json") continue;
+                this.maps.push(basename(file.name, ".json"));
+            }
+
+            this._maps_loaded = true;
+        }
+
+        return this.maps;
     }
     public getPlayerList(): LobbyPlayer[] {
         return Array.from(this.players.values());
@@ -50,6 +83,8 @@ export class Lobby extends EventEmitter {
     }
     public updateSettings(settings: { map: string; }, userId: string | null) {
         if (!this.isUserHost(userId)) throw new TRPCError({ message: "User is not host", code: "UNAUTHORIZED" });
+
+        if (!this.maps.includes(settings.map)) throw new TRPCError({ message: "Invaild map name", code: "BAD_REQUEST" });
 
         this.settings = settings;
 
@@ -119,8 +154,8 @@ export const uiRouter = t.router({
 
         lobby.emit("lobby-event", { type: "start-event" } as LobbyEvent);
     }),
-    getMaps: t.procedure.query(() => {
-        return ["test_map"];
+    getMaps: t.procedure.query(async () => {
+        return await lobby.getMaps();
     }),
     setGameSettings: t.procedure.input(z.object({ map: z.string() })).mutation(({ input, ctx }) => {
         lobby.updateSettings(input, ctx.user);

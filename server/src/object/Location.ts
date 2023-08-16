@@ -51,16 +51,16 @@ export default class Location {
     public spies: UUID[] = [];
     public name: string;
     public color: number;
-    public owner: UUID | null;
+    public owner: UUID | null = null;
     public objectId: UUID;
     public units: { [key in GroupType]: Unit[] };
     public buildings: Building[] = [];
     public position: { x: number; y: number };
     public connectsTo: UUID[] = [];
-    constructor({ queueIds, connectsTo, objectId, owner, position, name, units, buildOptions, color }: PartialBy<LocationProps, "contested" | "units" | "spies" | "buildings" | "buildOptions" | "maxBuildingSlots" | "color" | "queueIds">) {
+    constructor({ queueIds, connectsTo, objectId, owner, position, name, units, buildOptions, color }: PartialBy<LocationProps, "owner" | "contested" | "units" | "spies" | "buildings" | "buildOptions" | "maxBuildingSlots" | "color" | "queueIds">) {
         this.connectsTo = connectsTo;
         this.objectId = objectId;
-        this.owner = owner;
+        this.owner = owner ?? null;
         this.position = position;
         this.name = name;
         this.color = color ?? 0xd3d3d3;

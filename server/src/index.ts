@@ -7,6 +7,7 @@ import cors from 'cors';
 import { createHttpContext, createWSContext } from './context.js';
 import { appRouter } from './appRouter.js';
 import { AppRouter } from './lib.js';
+import { Lobby } from './routers/ui.js';
 
 const { server, listen } = createHTTPServer({
     router: appRouter,
@@ -24,6 +25,7 @@ const handler = applyWSSHandler<AppRouter>({
 wss.on("connection", (ws) => {
     console.log(`➕➕ Connection (${wss.clients.size})`);
     ws.once("close", () => {
+        Lobby.get().emit("player-disconnection");
         console.log(`➖➖ Connection (${wss.clients.size})`);
     });
 });

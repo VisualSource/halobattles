@@ -10,7 +10,7 @@ const UnitQueue: React.FC = () => {
     if (!node) throw new Error("Node id is missing");
 
     return (
-        <div className="grid grid-cols-3 w-full h-full">
+        <div className="grid grid-cols-3 w-full">
             <Queue queueId={node.queueIds.units.a} nodeId={node.objectId} />
             {extraQueue ? (
                 <Queue queueId={node.queueIds.units.b} nodeId={node.objectId} />

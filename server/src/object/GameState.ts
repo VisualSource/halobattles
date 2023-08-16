@@ -1,16 +1,17 @@
+import { randomUUID, randomBytes } from 'node:crypto';
 import { Worker } from "node:worker_threads";
 import { EventEmitter } from 'node:events';
-import { randomUUID, randomBytes } from 'node:crypto';
+import { readFileSync } from "node:fs";
+import { resolve } from 'node:path';
 import remove from 'lodash.remove';
-import { resolve } from 'node:path'
 import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events.js';
+import { BuildingStat, buildOptions } from '../map/upgradeList.js';
+import type { Unit, GroupType, Building, LocationProps } from './Location.js';
 import factionsBuildable from "../map/faction_builds.js";
 import type { BattleResult } from "./BattleRuntime.js";
-import type { Unit, GroupType, Building } from './Location.js';
-import { BuildingStat, buildOptions } from '../map/upgradeList.js';
 import { __dirname } from "../lib/utils.js";
 import type { UUID } from "../lib.js";
-import map from '../map/test_map.js';
+import Location from './Location.js';
 import units from '../map/units.js';
 
 export type UnitTransfer = {
@@ -72,7 +73,7 @@ export default class GameState extends EventEmitter {
     }
 
     private transfers: Map<UUID, UnitTransfer> = new Map();
-    private map = map;
+    private map: Location[] = [];
     private spyExp: { owner: UUID; nodeId: UUID; exp: Date }[] = [];
     public players: Player[] = [
         /*{
@@ -131,7 +132,19 @@ export default class GameState extends EventEmitter {
         });
     }
 
-    private loadMap(map: string): void { }
+    private loadMap(map: string): void {
+        const mapFile = readFileSync(resolve(__dirname, `../../maps/${map}.json`), { encoding: "utf-8" });
+
+        const rawNodes = JSON.parse(mapFile) as LocationProps[];
+
+        const nodes = [];
+
+        for (const node of rawNodes) {
+            nodes.push(new Location(node))
+        }
+
+        this.map = nodes;
+    }
 
     public initGame(players: { faction: Factions, uuid: UUID; username: string; isHost: boolean }[], settings: { map: string; }) {
         this.loadMap(settings.map);
@@ -357,7 +370,7 @@ export default class GameState extends EventEmitter {
     }
     public createTransfer(owner: string, data: MoveRequest, jumps: number): UUID {
 
-        const node = map.find(value => value.objectId === data.from.id);
+        const node = this.map.find(value => value.objectId === data.from.id);
         if (!node) throw new Error("Failed to create transfer request: Src node not found");
 
         // calc time to transfer units.

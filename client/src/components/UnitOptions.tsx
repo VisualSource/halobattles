@@ -4,8 +4,6 @@ import { usePlayerCredits, usePlayerCap } from "../hooks/usePlayer";
 import QueueEngine from "../lib/QueueEngine";
 import { trpc } from "../lib/network";
 
-import { ScrollArea } from './ui/scroll-area';
-
 
 const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, queueId }) => {
     const [options] = trpc.getUnitOptions.useSuspenseQuery(nodeId);
@@ -14,10 +12,10 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
     const cap = usePlayerCap();
 
     return (
-        <ScrollArea className="grid grid-cols-4">
+        <div className="grid grid-cols-4 overflow-y-scroll">
             {options.map((value, i) => (
                 <HoverCard key={i}>
-                    <HoverCardContent>
+                    <HoverCardContent className="max-w-2xl w-full">
                         <h1 className="font-bold">{value.name}</h1>
                         <p className="text-gray-500 mb-2 max-w-xs">{value.description}</p>
                         <div><span className="font-bold">Cost:</span> {value.cost.toLocaleString()}</div>
@@ -67,7 +65,7 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
                     </button>
                 ))
             }
-        </ScrollArea>
+        </div>
     );
 }
 

@@ -48,28 +48,28 @@ const NodeView: React.FC = () => {
                         <h5 className="font-bold ml-auto">{(matches[2].handle as { name: string })?.name}</h5>
                     </div>
                 </div>
-                <div className="flex max-h-full">
-                    <div className="flex flex-col bg-gray-800 h-full gap-4 w-11 py-2">
+                <div className="flex overflow-hidden">
+                    <div className="flex flex-col bg-gray-800 w-11 py-2">
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <NavLink data-tooltip-placement="right" data-tooltip-target="tooltip-units" end replace className={({ isActive }) => cn("p-2 text-neutral-300 flex justify-center items-center hover:text-white", { "text-blue-500 hover:text-blue-400": isActive })} to={generatePath("/game/view/node/:id", { id: id ?? null })}>
-                                    <Users2 className="h-6 w-6" />
+                                <NavLink end replace className="flex justify-center items-center p-2" to={generatePath("/game/view/node/:id", { id: id ?? null })}>
+                                    {({ isActive }) => (<Users2 className={cn("h-6 w-6 stroke-neutral-300 hover:stroke-white", { "stroke-blue-500 hover:stroke-blue-400": isActive })} />)}
                                 </NavLink>
                             </TooltipTrigger>
                             <TooltipContent side="left">Units</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <NavLink className={({ isActive }) => cn("p-2 text-neutral-300 flex justify-center items-center hover:text-white", { "text-blue-500 hover:text-blue-400": isActive })} replace to={generatePath("/game/view/node/:id/buildings", { id: id ?? null })}>
-                                    <Boxes className="h-6 w-6" />
+                                <NavLink className="flex justify-center items-center p-2" replace to={generatePath("/game/view/node/:id/buildings", { id: id ?? null })}>
+                                    {({ isActive }) => (<Boxes className={cn("h-6 w-6 stroke-neutral-300 hover:stroke-white", { "stroke-blue-500 hover:stroke-blue-400": isActive })} />)}
                                 </NavLink>
                             </TooltipTrigger>
                             <TooltipContent side="left">Buildings</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <NavLink className={({ isActive }) => cn("p-2 text-neutral-300 flex justify-center items-center hover:text-white", { "text-blue-500 hover:text-blue-400": isActive })} replace to={generatePath("/game/view/node/:id/info", { id: id ?? null })}>
-                                    <Info className="h-6 w-6" />
+                                <NavLink className="flex justify-center items-center p-2" replace to={generatePath("/game/view/node/:id/info", { id: id ?? null })}>
+                                    {({ isActive }) => (<Info className={cn("h-6 w-6 stroke-neutral-300 hover:stroke-white", { "stroke-blue-500 hover:stroke-blue-400": isActive })} />)}
                                 </NavLink>
                             </TooltipTrigger>
                             <TooltipContent side="left">Info</TooltipContent>
@@ -78,16 +78,16 @@ const NodeView: React.FC = () => {
                             <>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <NavLink className={({ isActive }) => cn("p-2 text-neutral-300 flex justify-center items-center hover:text-white", { "text-blue-500 hover:text-blue-400": isActive })} replace to={generatePath("/game/view/node/:id/queue-units", { id: id ?? null })}>
-                                            <UserPlus2 className="h-6 w-6" />
+                                        <NavLink className="flex justify-center items-center p-2" replace to={generatePath("/game/view/node/:id/queue-units", { id: id ?? null })}>
+                                            {({ isActive }) => (<UserPlus2 className={cn("h-6 w-6 stroke-neutral-300 hover:stroke-white", { "stroke-blue-500 hover:stroke-blue-400": isActive })} />)}
                                         </NavLink>
                                     </TooltipTrigger>
                                     <TooltipContent side="left">Unit Queue</TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                     <TooltipTrigger>
-                                        <NavLink className={({ isActive }) => cn("p-2 text-neutral-300 flex justify-center items-center hover:text-white", { "text-blue-500 hover:text-blue-400": isActive })} replace to={generatePath("/game/view/node/:id/queue-buildings", { id: id ?? null })}>
-                                            <PackagePlus className="h-6 w-6" />
+                                        <NavLink className="flex justify-center items-center p-2" replace to={generatePath("/game/view/node/:id/queue-buildings", { id: id ?? null })}>
+                                            {({ isActive }) => (<PackagePlus className={cn("h-6 w-6 stroke-neutral-300 hover:stroke-white", { "stroke-blue-500 hover:stroke-blue-400": isActive })} />)}
                                         </NavLink>
                                     </TooltipTrigger>
                                     <TooltipContent side="left">Building Queue</TooltipContent>

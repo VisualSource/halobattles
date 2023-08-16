@@ -13,6 +13,7 @@ import {
 import { Form, FormField, FormControl, FormLabel, FormItem, FormMessage } from "@/components/ui/form";
 import { Input } from '@/components/ui/input';
 import { trpc } from '@/lib/network';
+import { toast } from 'react-toastify';
 
 const JoinLobby: React.FC = () => {
     const navigate = useNavigate();
@@ -28,8 +29,8 @@ const JoinLobby: React.FC = () => {
             const isHost = await join.mutateAsync({ username: state.username });
             navigate("/lobby", { state: { isHost } });
         } catch (error) {
-            form.setError("root", { message: (error as Error)?.message ?? "Unknown Error" });
-            console.error(error);
+            toast.error((error as Error)?.message);
+            //console.error(error);
         }
     }
 

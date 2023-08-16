@@ -2,8 +2,8 @@
 
 const Fallback: React.FC = () => {
     return (
-        <section className="h-full flex items-center justify-center">
-
+        <section className="grid grid-cols-4 overflow-y-scroll col-span-1">
+            Fallback
         </section>
     );
 }
