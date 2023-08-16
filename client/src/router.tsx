@@ -1,17 +1,17 @@
 import {
     createBrowserRouter,
 } from "react-router-dom";
-//import GameRoot from "./pages/GameRoot";
+import Game from "./pages/Game";
 import ErrorPage from "./pages/ErrorPage";
-/*import NodeView from "./pages/NodeView";
+import Lobby from "./pages/Lobby";
+import App from "./App";
+import Home from "./pages/Home";
+import NodeView from "./pages/NodeView";
+import PlanetInfo from "./pages/node/PlanetInfo";
 import UnitManagment from "./pages/node/UnitManagment";
 import BuildingManagment from "./pages/node/BuildingManagment";
 import UnitQueue from "./pages/node/UnitQueue";
 import BuildingQueue from "./pages/node/BuildingQueue";
-import PlanetInfo from "./pages/node/PlanetInfo";
-import GameOver from "./pages/GameOver";*/
-import Lobby from "./pages/Lobby";
-import App from "./App";
 
 
 export const router = createBrowserRouter([
@@ -21,19 +21,21 @@ export const router = createBrowserRouter([
         errorElement: <ErrorPage />,
         children: [
             {
+                path: "/",
+                index: true,
+                element: <Home />,
+                errorElement: <ErrorPage />
+            },
+            {
                 path: "/lobby",
                 element: <Lobby />,
                 errorElement: <ErrorPage />
             },
-            /*{
+            {
                 path: "/game",
-                element: <GameRoot />,
+                element: <Game />,
                 errorElement: <ErrorPage />,
                 children: [
-                    {
-                        path: "/game/gameover",
-                        element: <GameOver />,
-                    },
                     {
                         path: "/game/view/node/:id",
                         element: <NodeView />,
@@ -55,6 +57,14 @@ export const router = createBrowserRouter([
                                 errorElement: <ErrorPage />
                             },
                             {
+                                path: "/game/view/node/:id/info",
+                                element: <PlanetInfo />,
+                                handle: {
+                                    name: "Planet Info"
+                                },
+                                errorElement: <ErrorPage />
+                            },
+                            {
                                 path: "/game/view/node/:id/queue-units",
                                 element: <UnitQueue />,
                                 handle: {
@@ -70,18 +80,10 @@ export const router = createBrowserRouter([
                                 },
                                 errorElement: <ErrorPage />
                             },
-                            {
-                                path: "/game/view/node/:id/info",
-                                element: <PlanetInfo />,
-                                handle: {
-                                    name: "Planet Info"
-                                },
-                                errorElement: <ErrorPage />
-                            }
                         ]
                     }
                 ]
-            }*/
+            },
         ]
     }
 ]);

@@ -1,6 +1,10 @@
 import { Link, Outlet, type To, NavLink, useParams, useMatches, generatePath } from "react-router-dom";
-import { Tooltip, } from 'flowbite-react';
+import { Users2, UserPlus2, PackagePlus, Info, X, AlertCircle, Boxes, ChevronLeft } from 'lucide-react';
 import useGetNode, { useIsNodeOwner, useIsNodeContested } from "../hooks/useGetNode";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
 
 const NodeView: React.FC = () => {
     const isContested = useIsNodeContested();
@@ -9,23 +13,18 @@ const NodeView: React.FC = () => {
     const { id } = useParams();
     const node = useGetNode();
 
-
     if (isContested) {
         return (
-            <div className="absolute top-0 left-0 flex bg-gray-800 bg-opacity-50 w-full h-screen z-50 flex-col justify-center items-center">
+            <div className="absolute top-0 left-0 flex bg-gray-800 bg-opacity-50 w-full h-screen z-50 flex-col justify-center items-center dark:text-white">
                 <div id="popup-modal" tabIndex={-1} className="z-50 p-4 overflow-x-hidden overflow-y-auto md:inset-0">
                     <div className="relative w-full max-w-md max-h-full">
                         <div className="relative rounded-lg shadow bg-gray-700">
-                            <button type="button" className="absolute top-3 right-2.5 text-gray-400 bg-transparent rounded-lg text-sm w-8 h-8 ml-auto inline-flex justify-center items-center hover:bg-gray-600 hover:text-white" data-modal-hide="popup-modal">
-                                <svg className="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
-                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
-                                </svg>
+                            <Button size="icon" variant="ghost">
+                                <X className="h-3 w-3" />
                                 <span className="sr-only">Close modal</span>
-                            </button>
+                            </Button>
                             <div className="p-6 text-center">
-                                <svg className="mx-auto mb-4 w-12 h-12 text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 20">
-                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 11V6m0 8h.01M19 10a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                </svg>
+                                <AlertCircle className="mx-auto mb-4 h-8 w-8" />
                                 <h3 className="mb-5 text-lg font-normal text-gray-400">This location is contested. Please wait until the battle is finished to view this location.</h3>
                                 <Link to={-1 as To} className="focus:ring-4 focus:outline-none rounded-lg border text-sm font-medium px-5 py-2.5 focus:z-10 bg-gray-700 text-gray-300 border-gray-500 hover:text-white hover:bg-gray-600 focus:ring-gray-600">Ok</Link>
                             </div>
@@ -37,59 +36,61 @@ const NodeView: React.FC = () => {
     }
 
     return (
-        <div className="absolute top-0 left-0 flex bg-gray-800 bg-opacity-50 w-full h-full z-50 flex-col justify-center items-center">
+        <div className="absolute top-0 left-0 flex bg-gray-800 bg-opacity-50 w-full h-full z-50 flex-col justify-center items-center dark:text-white">
             <div className="h-3/4 w-3/4 bg-gray-700 rounded-md border border-gray-600 shadow grid grid-header-row">
-                <div className="p-2 border-b border-gray-600 divide-x-2 flex">
-                    <Link to={-1 as To} type="button" className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-md text-sm p-2.5 text-center inline-flex items-center mr-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-                        <svg className="w-4 h-4 text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
-                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5H1m0 0 4 4M1 5l4-4" />
-                        </svg>
+                <div className="p-2 border-b border-gray-600 divide-x-2 flex gap-2">
+                    <Link to={-1 as To} type="button" className={buttonVariants({ variant: "default", size: "icon" })}>
+                        <ChevronLeft className="h-4 w-4" />
                         <span className="sr-only">Icon description</span>
                     </Link>
                     <div className="flex items-center pl-2 w-full">
                         <h5 className="font-bold">{node?.name}</h5>
-                        <h5 className="font-bold ml-auto">{(matches[2].handle as { name: string }).name}</h5>
+                        <h5 className="font-bold ml-auto">{(matches[2].handle as { name: string })?.name}</h5>
                     </div>
                 </div>
                 <div className="flex max-h-full">
-                    <div className="flex flex-col bg-gray-800 h-full w-11">
-                        <Tooltip content="Units" placement="left" arrow={false}>
-                            <NavLink data-tooltip-placement="right" data-tooltip-target="tooltip-units" end replace className={({ isActive }) => `p-2 text-neutral-300 flex justify-center items-center hover:text-white ${isActive ? "text-blue-500 hover:text-blue-400" : ""}`} to={generatePath("/view/node/:id", { id: id ?? null })}>
-                                <svg className="w-6 h-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 19">
-                                    <path d="M14.5 0A3.987 3.987 0 0 0 11 2.1a4.977 4.977 0 0 1 3.9 5.858A3.989 3.989 0 0 0 14.5 0ZM9 13h2a4 4 0 0 1 4 4v2H5v-2a4 4 0 0 1 4-4Z" />
-                                    <path d="M5 19h10v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2ZM5 7a5.008 5.008 0 0 1 4-4.9 3.988 3.988 0 1 0-3.9 5.859A4.974 4.974 0 0 1 5 7Zm5 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm5-1h-.424a5.016 5.016 0 0 1-1.942 2.232A6.007 6.007 0 0 1 17 17h2a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5ZM5.424 9H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h2a6.007 6.007 0 0 1 4.366-5.768A5.016 5.016 0 0 1 5.424 9Z" />
-                                </svg>
-                            </NavLink>
+                    <div className="flex flex-col bg-gray-800 h-full gap-4 w-11 py-2">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <NavLink data-tooltip-placement="right" data-tooltip-target="tooltip-units" end replace className={({ isActive }) => cn("p-2 text-neutral-300 flex justify-center items-center hover:text-white", { "text-blue-500 hover:text-blue-400": isActive })} to={generatePath("/game/view/node/:id", { id: id ?? null })}>
+                                    <Users2 className="h-6 w-6" />
+                                </NavLink>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">Units</TooltipContent>
                         </Tooltip>
-                        <Tooltip content="Buildings" placement="left" arrow={false}>
-                            <NavLink className={({ isActive }) => `p-2 text-neutral-300 hover:text-white flex justify-center items-center ${isActive ? "text-blue-500 hover:text-blue-400" : ""}`} replace to={generatePath("/view/node/:id/buildings", { id: id ?? null })}>
-                                <svg className="w-6 h-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 18 18">
-                                    <path d="M17 16h-1V2a1 1 0 1 0 0-2H2a1 1 0 0 0 0 2v14H1a1 1 0 0 0 0 2h16a1 1 0 0 0 0-2ZM5 4a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4Zm0 5V8a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1Zm6 7H7v-3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3Zm2-7a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1Zm0-4a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1Z" />
-                                </svg>
-                            </NavLink>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <NavLink className={({ isActive }) => cn("p-2 text-neutral-300 flex justify-center items-center hover:text-white", { "text-blue-500 hover:text-blue-400": isActive })} replace to={generatePath("/game/view/node/:id/buildings", { id: id ?? null })}>
+                                    <Boxes className="h-6 w-6" />
+                                </NavLink>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">Buildings</TooltipContent>
                         </Tooltip>
-                        <Tooltip content="Info" placement="left" arrow={false}>
-                            <NavLink className={({ isActive }) => `p-2 text-neutral-300 flex justify-center items-center hover:text-white ${isActive ? "text-blue-500 hover:text-blue-400" : ""}`} replace to={generatePath("/view/node/:id/info", { id: id ?? null })}>
-                                <svg className="w-6 h-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM9.5 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM12 15H8a1 1 0 0 1 0-2h1v-3H8a1 1 0 0 1 0-2h2a1 1 0 0 1 1 1v4h1a1 1 0 0 1 0 2Z" />
-                                </svg>
-                            </NavLink>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <NavLink className={({ isActive }) => cn("p-2 text-neutral-300 flex justify-center items-center hover:text-white", { "text-blue-500 hover:text-blue-400": isActive })} replace to={generatePath("/game/view/node/:id/info", { id: id ?? null })}>
+                                    <Info className="h-6 w-6" />
+                                </NavLink>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">Info</TooltipContent>
                         </Tooltip>
                         {isOwner ? (
                             <>
-                                <Tooltip content="Unit Queue" placement="left" arrow={false}>
-                                    <NavLink className={({ isActive }) => `p-2 text-neutral-300 hover:text-white flex justify-center items-center ${isActive ? "text-blue-500 hover:text-blue-400" : ""}`} replace to={generatePath("/view/node/:id/queue-units", { id: id ?? null })}>
-                                        <svg className="w-6 h-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
-                                            <path d="M6.5 9a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM8 10H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5Zm11-3h-2V5a1 1 0 0 0-2 0v2h-2a1 1 0 1 0 0 2h2v2a1 1 0 0 0 2 0V9h2a1 1 0 1 0 0-2Z" />
-                                        </svg>
-                                    </NavLink>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <NavLink className={({ isActive }) => cn("p-2 text-neutral-300 flex justify-center items-center hover:text-white", { "text-blue-500 hover:text-blue-400": isActive })} replace to={generatePath("/game/view/node/:id/queue-units", { id: id ?? null })}>
+                                            <UserPlus2 className="h-6 w-6" />
+                                        </NavLink>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="left">Unit Queue</TooltipContent>
                                 </Tooltip>
-                                <Tooltip content="Building Queue" placement="left" arrow={false}>
-                                    <NavLink className={({ isActive }) => `p-2 text-neutral-300 hover:text-white flex justify-center items-center ${isActive ? "text-blue-500 hover:text-blue-400" : ""}`} replace to={generatePath("/view/node/:id/queue-buildings", { id: id ?? null })}>
-                                        <svg className="w-6 h-6" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M18 7.5h-.423l-.452-1.09.3-.3a1.5 1.5 0 0 0 0-2.121L16.01 2.575a1.5 1.5 0 0 0-2.121 0l-.3.3-1.089-.452V2A1.5 1.5 0 0 0 11 .5H9A1.5 1.5 0 0 0 7.5 2v.423l-1.09.452-.3-.3a1.5 1.5 0 0 0-2.121 0L2.576 3.99a1.5 1.5 0 0 0 0 2.121l.3.3L2.423 7.5H2A1.5 1.5 0 0 0 .5 9v2A1.5 1.5 0 0 0 2 12.5h.423l.452 1.09-.3.3a1.5 1.5 0 0 0 0 2.121l1.415 1.413a1.5 1.5 0 0 0 2.121 0l.3-.3 1.09.452V18A1.5 1.5 0 0 0 9 19.5h2a1.5 1.5 0 0 0 1.5-1.5v-.423l1.09-.452.3.3a1.5 1.5 0 0 0 2.121 0l1.415-1.414a1.5 1.5 0 0 0 0-2.121l-.3-.3.452-1.09H18a1.5 1.5 0 0 0 1.5-1.5V9A1.5 1.5 0 0 0 18 7.5Zm-8 6a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" />
-                                        </svg>
-                                    </NavLink>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <NavLink className={({ isActive }) => cn("p-2 text-neutral-300 flex justify-center items-center hover:text-white", { "text-blue-500 hover:text-blue-400": isActive })} replace to={generatePath("/game/view/node/:id/queue-buildings", { id: id ?? null })}>
+                                            <PackagePlus className="h-6 w-6" />
+                                        </NavLink>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="left">Building Queue</TooltipContent>
                                 </Tooltip>
                             </>
                         ) : null}

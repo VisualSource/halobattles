@@ -9,15 +9,10 @@ const f = "6a92bf56-251a-48f0-b192-ce1840ef2a31"
 
 const map = [
     new Location({
-        name: "Unnamed Planet",
+        name: "Doisac",
         connectsTo: [b, c],
-        units: {
-            left: [],
-            center: [{ count: 2, icon: "https://halo.wiki.gallery/images/6/62/HW2_Blitz_Bloodfuel_Grunts.png", id: 0, idx: 0 }],
-            right: []
-        },
         objectId: a,
-        owner: "73806576-0e72-4675-b0d8-b0296f026d2b",
+        owner: null,
         position: {
             x: 0,
             y: 0
@@ -34,7 +29,7 @@ const map = [
         }
     }),
     new Location({
-        name: "Unnamed Planet",
+        name: "Janjur Qom",
         connectsTo: [a, f, d],
         objectId: b,
         owner: null,
@@ -44,7 +39,7 @@ const map = [
         }
     }),
     new Location({
-        name: "Unnamed Planet",
+        name: "Earth",
         connectsTo: [b, e],
         objectId: d,
         owner: null,
@@ -66,25 +61,8 @@ const map = [
     new Location({
         name: "Reach",
         connectsTo: [a, f],
-        buildings: [],
-        units: {
-            center: [],
-            left: [{
-                count: 4,
-                icon: "https://halo.wiki.gallery/images/6/62/HW2_Blitz_Bloodfuel_Grunts.png",
-                idx: 2,
-                id: 0
-            },
-            {
-                count: 4,
-                icon: "https://halo.wiki.gallery/images/5/54/HW2_Blitz_Blue_Elites.png",
-                idx: 1,
-                id: 1
-            }],
-            right: []
-        },
         objectId: c,
-        owner: "1724ea86-18a1-465c-b91a-fce23e916aae",
+        owner: null,
         position: {
             x: -100,
             y: 0

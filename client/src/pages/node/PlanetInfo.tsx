@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Badge } from 'flowbite-react';
+import { Badge } from '@/components/ui/badge';
 import Fallback from '../../components/OptionsFallback';
 import { trpc } from '../../lib/network';
 import useGetNode, { useNodeOwnerId } from '../../hooks/useGetNode';
@@ -31,7 +31,7 @@ const Planet: React.FC = () => {
                     <h2 className="mb-2 text-lg font-semibold text-white">Bouns:</h2>
                     <div className='flex flex-wrap gap-4'>
                         {data.planet.bouns.map((item, i) => (
-                            <Badge color={item.color} key={i}>{item.text}</Badge>
+                            <Badge variant={item.color === "red" ? "destructive" : "default"} key={i}>{item.text}</Badge>
                         ))}
                     </div>
                 </section>

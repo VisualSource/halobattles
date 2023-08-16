@@ -31,6 +31,7 @@ export type UnitTransfer = {
 export type Factions = "UNSC" | "Banished" | "Covenant" | "Forerunner";
 type GlobalType = `unit-${number}` | `building-${number}`;
 export type Player = {
+    isHost: boolean;
     color: number;
     name: string;
     factions: Factions;
@@ -46,6 +47,13 @@ export type Player = {
     }
 }
 
+const factionStart: { [key in Factions]: string } = {
+    Banished: "Doisac",
+    Covenant: "Janjur Qom",
+    Forerunner: "Ghibalb",
+    UNSC: "Earth"
+}
+
 const factionColors: { [key in Factions]: number } = {
     "Banished": 0xe82a00,
     Covenant: 0x8208d8,
@@ -53,12 +61,22 @@ const factionColors: { [key in Factions]: number } = {
     UNSC: 0x1db207
 }
 
+
 export default class GameState extends EventEmitter {
+    static INSTANCE: GameState | null = null;
+    static get(): GameState {
+        if (!GameState.INSTANCE) {
+            GameState.INSTANCE = new GameState();
+        }
+        return GameState.INSTANCE;
+    }
+
     private transfers: Map<UUID, UnitTransfer> = new Map();
     private map = map;
     private spyExp: { owner: UUID; nodeId: UUID; exp: Date }[] = [];
     public players: Player[] = [
-        {
+        /*{
+            isHost: false,
             credits: {
                 current: 10_000,
                 income: 1_000
@@ -74,6 +92,7 @@ export default class GameState extends EventEmitter {
             id: "73806576-0e72-4675-b0d8-b0296f026d2b",
         },
         {
+            isHost: true,
             credits: {
                 current: 20_000,
                 income: 1_000
@@ -87,7 +106,7 @@ export default class GameState extends EventEmitter {
             name: "VisualSource",
             factions: "Banished",
             id: "1724ea86-18a1-465c-b91a-fce23e916aae",
-        }
+        }*/
     ];
     public deadPlayers: Set<UUID> = new Set();
     private interval: NodeJS.Timer;
@@ -112,7 +131,40 @@ export default class GameState extends EventEmitter {
         });
     }
 
-    public startGame() {
+    private loadMap(map: string): void { }
+
+    public initGame(players: { faction: Factions, uuid: UUID; username: string; isHost: boolean }[], settings: { map: string; }) {
+        this.loadMap(settings.map);
+
+        for (const player of players) {
+            this.players.push({
+                id: player.uuid,
+                name: player.username,
+                isHost: player.isHost,
+                color: factionColors[player.faction],
+                factions: player.faction,
+                credits: {
+                    current: 10_000,
+                    income: 1_000
+                },
+                cap: {
+                    max: 10,
+                    current: 0,
+                    restrictions: {}
+                }
+            });
+
+            const start = this.map.find(value => value.name === factionStart[player.faction]);
+            if (start) {
+                start?.setOwner(player.uuid, factionColors[player.faction]);
+                this.addBuilding(1, start.objectId);
+            }
+        }
+
+        this.startGame();
+    }
+
+    private startGame() {
         this.interval = setInterval(() => {
             for (const player of this.players) {
                 player.credits.current += player.credits.income;
@@ -589,17 +641,6 @@ export default class GameState extends EventEmitter {
         const player = this.players.find(value => value.id === id);
         if (!player) throw new Error("Failed to find player");
         return player;
-    }
-    public setPlayerData() {
-
-        for (const node of this.map) {
-            if (!node.owner) continue;
-
-            const owner = this.getPlayer(node.owner);
-            if (!owner) continue;
-            node.setOwner(owner.id, owner.color);
-            this.addBuilding(1, node.objectId);
-        }
     }
     public getNode(nodeId: UUID) {
         const node = this.map.find(value => value.objectId === nodeId);

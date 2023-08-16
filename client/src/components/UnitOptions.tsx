@@ -1,8 +1,10 @@
-import { Tooltip } from "flowbite-react";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 import clsx from 'clsx';
 import { usePlayerCredits, usePlayerCap } from "../hooks/usePlayer";
 import QueueEngine from "../lib/QueueEngine";
 import { trpc } from "../lib/network";
+
+import { ScrollArea } from './ui/scroll-area';
 
 
 const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeId, queueId }) => {
@@ -12,10 +14,10 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
     const cap = usePlayerCap();
 
     return (
-        <section className="grid grid-cols-4 overflow-y-scroll">
+        <ScrollArea className="grid grid-cols-4">
             {options.map((value, i) => (
-                <Tooltip key={i} content={(
-                    <div>
+                <HoverCard key={i}>
+                    <HoverCardContent>
                         <h1 className="font-bold">{value.name}</h1>
                         <p className="text-gray-500 mb-2 max-w-xs">{value.description}</p>
                         <div><span className="font-bold">Cost:</span> {value.cost.toLocaleString()}</div>
@@ -28,35 +30,35 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
                             <div><span className="font-bold">Shealds:</span> {value.stats.shealds}</div>
                             <div><span className="font-bold">Hit Change:</span> {value.stats.hitChange}</div>
                         </div>
-                    </div>
-                )
-                }>
-                    <button disabled={playerCerdits < value.cost || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax))} key={i} className={clsx((playerCerdits < value.cost) || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax)) ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={async () => {
-                        try {
-                            await buy.mutateAsync({
-                                type: "unit",
-                                id: value.id
-                            });
+                    </HoverCardContent>
+                    <HoverCardTrigger asChild>
+                        <button disabled={playerCerdits < value.cost || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax))} key={i} className={clsx((playerCerdits < value.cost) || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax)) ? "cursor-not-allowed bg-gray-800" : "cursor-cell", "border-2 border-gray-600 hover:bg-gray-800 rounded-sm aspect-square p-2")} onClick={async () => {
+                            try {
+                                await buy.mutateAsync({
+                                    type: "unit",
+                                    id: value.id
+                                });
 
-                            QueueEngine.enqueue({
-                                nodeId,
-                                objData: {
-                                    duration: value.time,
-                                    id: value.id,
-                                    icon: value.icon,
-                                    name: value.name
-                                },
-                                queueId: queueId,
-                                time: value.time,
-                                type: value.type
-                            })
-                        } catch (error) {
-                            console.error(error);
-                        }
-                    }}>
-                        <img className={clsx("rounded-md", (playerCerdits < value.cost) || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax)) ? "grayscale" : undefined)} src={value.icon} alt="building icon" />
-                    </button>
-                </Tooltip >
+                                QueueEngine.enqueue({
+                                    nodeId,
+                                    objData: {
+                                        duration: value.time,
+                                        id: value.id,
+                                        icon: value.icon,
+                                        name: value.name
+                                    },
+                                    queueId: queueId,
+                                    time: value.time,
+                                    type: value.type
+                                })
+                            } catch (error) {
+                                console.error(error);
+                            }
+                        }}>
+                            <img className={clsx("rounded-md", (playerCerdits < value.cost) || !(cap.max >= (cap.current + value.capSize)) || (value.globalMax !== -1 && ((cap.restrictions[`unit-${value.id}`] + 1) > value.globalMax)) ? "grayscale" : undefined)} src={value.icon} alt="building icon" />
+                        </button>
+                    </HoverCardTrigger>
+                </HoverCard>
             ))}
             {
                 Array.from({ length: (6 * 6) - options.length }).map((_, i) => (
@@ -65,7 +67,7 @@ const UnitBuildOptions: React.FC<{ nodeId: string, queueId: string }> = ({ nodeI
                     </button>
                 ))
             }
-        </section >
+        </ScrollArea>
     );
 }
 

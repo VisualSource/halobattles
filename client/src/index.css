@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    @apply h-screen;
+  }
+}
+
+@layer components {
+  .grid-header-row {
+    grid-template-rows: min-content;
+  }
+}

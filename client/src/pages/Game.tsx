@@ -1,18 +1,17 @@
-import { ToastContainer } from 'react-toastify';
 import { Outlet } from "react-router-dom";
 import useThree from "../hooks/useThree";
 import Overlay from '../components/Overlay';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
-function GameRoot() {
+function Game() {
   const { container, isReady } = useThree();
   return (
-    <>
+    <TooltipProvider>
       <div ref={container}></div>
       <Outlet />
       {isReady ? <Overlay /> : null}
-      <ToastContainer theme="dark" position="bottom-right" />
-    </>
+    </TooltipProvider>
   )
 }
 
-export default GameRoot;
+export default Game;

@@ -12,8 +12,7 @@ import type { UUID } from '../lib.js';
 import units from '../map/units.js';
 import { t } from "../trpc.js";
 
-const gameState = new GameState();
-gameState.startGame();
+const gameState = GameState.get();
 
 export const gameRouter = t.router({
     finalizTransfer: t.procedure.input(z.string().uuid()).mutation((opts) => {
@@ -123,7 +122,6 @@ export const gameRouter = t.router({
         return gameState.getPlayer(ctx.user as UUID | null);
     }),
     getMap: t.procedure.query(() => {
-        gameState.setPlayerData();
         return gameState.getSelectedMap();
     }),
     getBuildOptions: t.procedure.input(z.string().uuid()).query(({ input, ctx }) => {

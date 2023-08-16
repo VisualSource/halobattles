@@ -1,5 +1,5 @@
 import { Play } from 'lucide-react';
-import { Suspense } from 'react';
+import React, { Suspense, useState } from 'react';
 import { TypographyH3 } from "@/components/ui/typograph";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from "@/components/ui/separator";
@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import Player, { PlayerFallback } from './Player';
 import { trpc } from '@/lib/network';
 import { user } from '@/lib/user';
+import { toast } from 'react-toastify';
+import { TRPCClientError } from '@trpc/client';
 
 const FallbackList: React.FC = () => {
     return (
@@ -38,6 +40,9 @@ const List: React.FC<{ isHost: boolean }> = ({ isHost }) => {
 
 
 const PlayerList: React.FC<{ isHost: boolean }> = ({ isHost }) => {
+    const [loading, setLoading] = useState(false);
+    const startGame = trpc.startGame.useMutation();
+
     return (
         <section data-name="player-list" className="flex flex-col col-end-3 row-end-4 col-start-3 row-start-2 px-2">
             <TypographyH3>Players</TypographyH3>
@@ -48,7 +53,18 @@ const PlayerList: React.FC<{ isHost: boolean }> = ({ isHost }) => {
                 </Suspense>
             </ScrollArea>
             <div className="mt-auto flex justify-end">
-                <Button disabled={!isHost}>
+                <Button disabled={!isHost || loading} onClick={async () => {
+                    try {
+                        setLoading(true);
+                        await startGame.mutateAsync();
+                    } catch (error) {
+                        if (error instanceof TRPCClientError) {
+                            toast.error(error.message);
+                        }
+                    } finally {
+                        setLoading(false);
+                    }
+                }}>
                     <Play className="mr-2 h-4 w-4" />
                     Start
                 </Button>

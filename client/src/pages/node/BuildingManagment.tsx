@@ -1,7 +1,5 @@
-import { Badge, Tooltip } from 'flowbite-react';
 import { useParams } from 'react-router-dom';
 import { Suspense, useState } from 'react';
-import clsx from 'clsx';
 import useGetNode, { useNodeBuildings, useNodeMaxBuildings } from "../../hooks/useGetNode";
 import { useIsNodeOwner, useIsNodeSpy } from '../../hooks/useGetNode';
 import type { Building } from 'server/src/object/Location';
@@ -9,6 +7,9 @@ import Fallback from '../../components/OptionsFallback';
 import { trpc } from '../../lib/network';
 import { usePlayerCredits } from '../../hooks/usePlayer';
 import QueueEngine from '../../lib/QueueEngine';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 
 const Building: React.FC<{ item: Building, isOwner: boolean, isSpy: boolean }> = ({ isOwner, isSpy, item }) => {
     const [loading, setLoading] = useState(false);
@@ -47,8 +48,8 @@ const Building: React.FC<{ item: Building, isOwner: boolean, isSpy: boolean }> =
             {isOwner ? (
                 <div className='flex  gap-2'>
                     {(data.maxLevel === -1 || data.maxLevel === item.level) ? null : (
-                        <Tooltip content={
-                            <div>
+                        <HoverCard>
+                            <HoverCardContent>
                                 <h1 className="text-lg font-bold mb-2">Upgrade to level {item.level + 1}</h1>
                                 <div className="mb-2">
                                     <div><span className="font-bold">Cost:</span> {(data.levels[item.level + 1].build?.cost ?? Number.MAX_SAFE_INTEGER).toLocaleString()}</div>
@@ -56,48 +57,49 @@ const Building: React.FC<{ item: Building, isOwner: boolean, isSpy: boolean }> =
                                 </div>
                                 <div className='flex flex-wrap gap-4'>
                                     {data.levels[item.level + 1].values.map((bouns, i) => (
-                                        <Badge key={i} color={bouns.color}>{bouns.text}</Badge>
+                                        <Badge key={i} variant={bouns.color === "red" ? "destructive" : "secondary"} >{bouns.text}</Badge>
                                     ))}
                                 </div>
 
-                            </div>
-                        }>
-                            <button disabled={credits < credits - (level.build?.cost ?? Infinity)} onClick={async () => {
-                                try {
-                                    const nextLevel = item.level + 1;
-                                    const nextData = data.levels[nextLevel];
-                                    if (!nextData) throw new Error("Failed to get next level data");
+                            </HoverCardContent>
+                            <HoverCardTrigger>
+                                <Button variant="secondary" disabled={credits < credits - (level.build?.cost ?? Infinity)} onClick={async () => {
+                                    try {
+                                        const nextLevel = item.level + 1;
+                                        const nextData = data.levels[nextLevel];
+                                        if (!nextData) throw new Error("Failed to get next level data");
 
-                                    await buy.mutateAsync({
-                                        type: data.type,
-                                        id: item.id,
-                                        level: nextLevel,
-                                    });
-
-                                    QueueEngine.enqueue({
-                                        type: data.type,
-                                        nodeId: node.objectId,
-                                        queueId: node.queueIds.buildings.a,
-                                        objData: {
-                                            duration: nextData.build?.time ?? 0,
-                                            icon: data.icon,
-                                            id: data.id,
+                                        await buy.mutateAsync({
+                                            type: data.type,
+                                            id: item.id,
                                             level: nextLevel,
-                                            inst: item.objId,
-                                            name: `[Upgrade] ${data.name}`
-                                        },
-                                        time: nextData.build?.time ?? 0
-                                    });
-                                } catch (error) {
-                                    console.error(error);
-                                }
-                            }} type="button" className={clsx({ "cursor-not-allowed": credits < (level?.build?.cost ?? Infinity) }, "text-white focus:ring-4 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-blue-800")}>Upgrade</button>
-                        </Tooltip>
+                                        });
+
+                                        QueueEngine.enqueue({
+                                            type: data.type,
+                                            nodeId: node.objectId,
+                                            queueId: node.queueIds.buildings.a,
+                                            objData: {
+                                                duration: nextData.build?.time ?? 0,
+                                                icon: data.icon,
+                                                id: data.id,
+                                                level: nextLevel,
+                                                inst: item.objId,
+                                                name: `[Upgrade] ${data.name}`
+                                            },
+                                            time: nextData.build?.time ?? 0
+                                        });
+                                    } catch (error) {
+                                        console.error(error);
+                                    }
+                                }}>Upgrade</Button>
+                            </HoverCardTrigger>
+                        </HoverCard>
                     )}
-                    <button disabled={loading} onClick={() => {
+                    <Button variant="destructive" disabled={loading} onClick={() => {
                         setLoading(true);
                         mutation.mutateAsync({ objId: item.objId, nodeId: id }).finally(() => setLoading(false));
-                    }} type="button" className={clsx({ "cursor-not-allowed": loading }, "focus:outline-none text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 mr-2 mb-2 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900")}>Delete</button>
+                    }}>Delete</Button>
                 </div>
             ) : null}
         </div>
