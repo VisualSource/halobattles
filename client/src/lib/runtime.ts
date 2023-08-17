@@ -210,7 +210,7 @@ export default class Runtime extends EventTarget {
 
         const subscription = network.onTransferUnits.subscribe(userId, {
             onData: (value) => {
-                console.log("move", value);
+                //console.log("move", value);
                 const trianagle = createTrianagle(0, 0);
                 this.scene.add(trianagle);
                 modeTo(value.path, trianagle, () => {

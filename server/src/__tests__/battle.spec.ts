@@ -15,10 +15,10 @@ const node = new Location({
     connectsTo: [],
     objectId: "a-a-a-a",
     owner: null,
-    buildings: [],
+    buildings: [{ icon: "", id: 1, objId: "AAA", level: 1 }],
     units: {
         center: [
-            { id: 0, icon: "a", count: 123, idx: 0 } // atk 10 -> 1230
+            // atk 10 -> 1230
         ],
         left: [],
         right: []
@@ -30,6 +30,7 @@ const transfer: UnitTransfer = {
         group: "center",
         id: "1-1-1-1"
     },
+    jumps: 0,
     expectedResolveTime: new Date(),
     id: "1-1-1-1",
     origin: {
@@ -38,8 +39,8 @@ const transfer: UnitTransfer = {
     },
     owner: "1-1-1-1",
     units: [
-        { id: 0, icon: "", count: 6, idx: 0 }, // atk 10 -> 60
-        { id: 1, icon: "", count: 7, idx: 0 } // atk 8 -> 56
+        // { id: 0, icon: "", count: 6, idx: 0 }, // atk 10 -> 60
+        { id: 1, icon: "", count: 3, idx: 0 } // atk 8 -> 56
     ]
 }
 

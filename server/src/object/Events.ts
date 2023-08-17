@@ -20,7 +20,6 @@ export type MoveRequest = {
         id: UUID;
         group: GroupType
     };
-    transferId?: UUID;
 }
 
 export type MoveResponse = {

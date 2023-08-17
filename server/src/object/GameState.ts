@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events';
 import { readFileSync } from "node:fs";
 import { resolve } from 'node:path';
 import remove from 'lodash.remove';
-import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events.js';
+import { GameEvents, MoveRequest, MoveResponse, UpdateLocationResponse } from '../object/Events.js';
 import type { Unit, GroupType, Building, LocationProps } from './Location.js';
 import { BuildingStat, buildOptions } from '../map/upgradeList.js';
 import factionsBuildable from "../map/faction_builds.js";
@@ -13,12 +13,14 @@ import { __dirname } from "../lib/utils.js";
 import type { UUID } from "../lib.js";
 import Location from './Location.js';
 import units from '../map/units.js';
+import Dijkstra from '../lib/dijkstra.js';
 
 export type UnitTransfer = {
     expectedResolveTime: Date,
-    owner: string;
+    owner: UUID;
     id: UUID;
     units: Unit[];
+    jumps: number;
     origin: {
         id: UUID;
         group: GroupType
@@ -61,7 +63,6 @@ const factionColors: { [key in Factions]: number } = {
     Forerunner: 0x00b9f7,
     UNSC: 0x1db207
 }
-
 
 export default class GameState extends EventEmitter {
     static INSTANCE: GameState | null = null;
@@ -174,10 +175,6 @@ export default class GameState extends EventEmitter {
             }
         }
 
-        this.startGame();
-    }
-
-    private startGame() {
         this.interval = setInterval(() => {
             for (const player of this.players) {
                 player.credits.current += player.credits.income;
@@ -203,19 +200,43 @@ export default class GameState extends EventEmitter {
     }
 
     public resetGame() {
+        this.players = [];
+        this.map = [];
+        this.transfers = new Map();
+        this.spyExp = [];
+        this.deadPlayers = new Set();
         clearInterval(this.interval);
     }
+    public generatePath(request: MoveRequest, user: UUID, transferId?: UUID): void {
+        const path = Dijkstra(this.map, request.from.id, request.to.id, user);
 
+        const transfer = transferId ?? this.createTransfer(user, request, Math.round(path.length / 2));
+
+        this.emit(GameEvents.TransferUnits, {
+            owner: user,
+            path,
+            transferId: transfer
+        } satisfies MoveResponse);
+    }
     public startBattle(nodeId: UUID, transferId: UUID) {
         console.log("[BATTLE] START")
+        this.emit(GameEvents.UpdateLocation, {
+            type: "set-contested-state",
+            payload: {
+                node: nodeId,
+                state: true
+            }
+        } as UpdateLocationResponse);
 
-        const node = this.map.find(value => value.objectId === nodeId);
-        if (!node) throw new Error("Failed to find node.");
+        const node = this.getNode(nodeId);
 
-        const transfer = this.transfers.get(transferId);
-        if (!transfer) throw new Error("Failed to find transfer.");
+        node.contested = true;
+
+        const transfer = this.getTransfer(transferId);
 
         if (node.owner) this.notify(`${node.name} is under attack!`, "warn", node.owner);
+
+        console.log(node, transfer);
 
         const worker = new Worker(resolve(__dirname, "../object/BattleRuntime.js"), {
             workerData: {
@@ -227,7 +248,7 @@ export default class GameState extends EventEmitter {
 
         worker.on("message", (ev: BattleResult | { type: "message", msg: unknown[] }) => {
             if ("type" in ev) {
-                console.log(...ev.msg)
+                console.log(...ev.msg);
                 return;
             }
             console.log("[BATTLE RESULTS]", JSON.stringify(ev, undefined, 2));
@@ -239,8 +260,7 @@ export default class GameState extends EventEmitter {
             defender.cap.current -= ev.defender.lostCap;
 
             const node = this.getNode(ev.node);
-            const transfer = this.transfers.get(ev.attackerTransferId);
-            if (!transfer || !node) throw new Error("Failed to get tansfer/node");
+            const transfer = this.getTransfer(ev.attackerTransferId);
 
             for (const unit of ev.attacker.lostUnits) {
                 if (unit.type === "building") continue;
@@ -250,8 +270,6 @@ export default class GameState extends EventEmitter {
             }
 
             remove(transfer.units, value => value.count <= 0);
-
-            this.transfers.set(transfer.id, transfer);
 
             for (const unit of ev.defender.lostUnits) {
                 if (unit.type === "building") {
@@ -267,7 +285,7 @@ export default class GameState extends EventEmitter {
                 node.removeUnitFromAny({ icon: "", count: unit.lost, id: unit.id, idx: 0 });
             }
 
-            remove(this.spyExp, (value) => value.nodeId === node.objectId);
+            remove(this.spyExp, value => value.nodeId === node.objectId);
 
             if (ev.winner === "attacker") {
                 console.log("[BATTLE CLEANUP - ATTACKER] START");
@@ -317,15 +335,7 @@ export default class GameState extends EventEmitter {
                 this.transfers.delete(transfer.id);
             } else {
                 console.log("[BATTLE CLEANUP - DEFENDER] START");
-                if (transfer.units.length >= 1) {
-                    // return to sender
-                    console.log("[BATTLE CLEANUP] Return to sender");
-                    this.returnTransferToSender(transfer.id);
-                } else {
-                    console.log("[BATTLE CLEANUP] DELETE TRANSFER");
-                    this.transfers.delete(transfer.id);
-                }
-                console.log("[BATTLE CLEANUP] UPDATE LOCATION UPDATE UNITS GROUPS");
+                console.log("[BATTLE CLEANUP - DEFENDER] UPDATE LOCATION UPDATE UNITS GROUPS");
                 this.emit(GameEvents.UpdateLocation, {
                     type: "update-units-groups",
                     owner: defender.id,
@@ -335,7 +345,7 @@ export default class GameState extends EventEmitter {
                         { group: "right", units: node.units.right, node: node.objectId }
                     ]
                 } as UpdateLocationResponse);
-                console.log("[BATTLE CLEANUP] UPDATE LOCATION UPDATE BUILDINGS");
+                console.log("[BATTLE CLEANUP - DEFENDER] UPDATE LOCATION UPDATE BUILDINGS");
                 this.emit(GameEvents.UpdateLocation, {
                     type: "update-buildings",
                     owner: defender.id,
@@ -344,7 +354,7 @@ export default class GameState extends EventEmitter {
                         node: node.objectId
                     }
                 } as UpdateLocationResponse);
-                console.log("[BATTLE CLEANUP] UPDATE LOCATION SET SPIES");
+                console.log("[BATTLE CLEANUP - DEFENDER] UPDATE LOCATION SET SPIES");
                 this.emit(GameEvents.UpdateLocation, {
                     type: "set-spies",
                     owner: defender.id,
@@ -353,15 +363,26 @@ export default class GameState extends EventEmitter {
                         spies: [] as UUID[]
                     }
                 } as UpdateLocationResponse);
-                console.log("[BATTLE CLEANUP] NOTIFY");
+                console.log("[BATTLE CLEANUP - DEFENDER] NOTIFY");
                 this.notify(`We have lost the battle for ${node.name}`, "info", attacker.id);
                 this.notify(`We have destoryed the enemy at ${node.name}`, "info", defender.id);
+
+                if (transfer.units.length >= 1) {
+                    // return to sender
+                    console.log("[BATTLE CLEANUP] Return to sender");
+                    this.returnTransferToSender(transfer.id);
+                } else {
+                    console.log("[BATTLE CLEANUP - DEFENDER] DELETE TRANSFER");
+                    this.transfers.delete(transfer.id);
+                }
             }
 
             console.log("[BATTLE CLEANUP] UPDATE PLAYERS");
             this.emit(GameEvents.UpdatePlayer, defender);
             this.emit(GameEvents.UpdatePlayer, attacker);
             console.log("[BATTLE CLEANUP] SET CONTESTED STATE");
+
+            node.contested = false;
             this.emit(GameEvents.UpdateLocation, {
                 type: "set-contested-state",
                 payload: {
@@ -372,20 +393,19 @@ export default class GameState extends EventEmitter {
         });
         worker.on("error", (ev) => {
             console.error(ev);
-            throw new Error("Battle Error");
+            throw new Error("Battle Error", { cause: "UNKNOWN_WORKER_ERROR" });
         });
         worker.on("exit", (code) => {
             console.log("Battle Exited With code:", code);
         });
         worker.on("messageerror", (ev) => {
             console.log(ev);
-            throw new Error("Failed to parse message");
+            throw new Error("Failed to parse message", { cause: "WORKER_MESSAGE_ERROR" });
         });
     }
-    public createTransfer(owner: string, data: MoveRequest, jumps: number): UUID {
+    public createTransfer(owner: UUID, data: MoveRequest, jumps: number): UUID {
 
-        const node = this.map.find(value => value.objectId === data.from.id);
-        if (!node) throw new Error("Failed to create transfer request: Src node not found");
+        const originNode = this.getNode(data.from.id);
 
         // calc time to transfer units.
         const timeToTransferInSec = jumps * 10;
@@ -397,17 +417,18 @@ export default class GameState extends EventEmitter {
             expectedResolveTime: time,
             id: randomUUID(),
             owner,
+            jumps,
             origin: data.from,
             dest: data.to,
-            units: node.getUnitFromGroup(data.from.group)
+            units: originNode.getUnitFromGroup(data.from.group)
         }
 
-        node.clearGroup(data.from.group);
+        originNode.clearGroup(data.from.group);
         this.emit(GameEvents.UpdateLocation, {
             type: "update-units-groups",
-            owner: node.owner,
+            owner,
             payload: [{
-                node: node.objectId,
+                node: originNode.objectId,
                 group: data.from.group,
                 units: []
             }]
@@ -417,36 +438,62 @@ export default class GameState extends EventEmitter {
 
         return request.id;
     }
-    public finishTransfer(owner: string, id: string): void {
+    public finishTransfer(transferOwnerId: UUID, transferId: UUID): void {
         const time = new Date();
-        const transfer = this.transfers.get(id as UUID);
-        if (!transfer) throw new Error("No vaild transfer with given id");
+        const transfer = this.getTransfer(transferId);
+        if (transfer.owner !== transferOwnerId) throw new Error("Executer uuid does not match transfer owner uuid.", { cause: "OWNER_UUID_MISSMATCH" });
 
         const expectedItem = transfer.expectedResolveTime.getSeconds();
         const currentTime = time.getSeconds();
-
         if (!(((currentTime - 5) < expectedItem) || ((currentTime + 5) > expectedItem))) {
-            throw new Error("Transfer did not happen with allowed time frame");
+            throw new Error("Transfer did not happen with allowed time frame", { cause: "EXPIRED_TIME_FRAME" });
+        }
+        const node = this.getNode(transfer.dest.id);
+
+        if (node.contested) {
+            console.log("NODE IS CONTESTED RETURNING HOME");
+            this.returnTransferToSender(transferId);
+            return;
         }
 
-        const node = this.map.find(value => value.objectId === transfer.dest.id);
-        if (!node) throw new Error("Failed to find dest node");
-
-        // moving units to a unowned node/ node has no defence
-        if (node.owner === null || (node.owner !== owner && node.isEmpty() && !node.hasDefence())) {
-            const player = this.players.find(value => value.id === owner);
-            if (!player) throw new Error("Failed to find user");
+        /** 
+         * Handle the capture of nodes that are unowned or a node where it has no defences, 
+         * so starting a battle would be pointless.
+        */
+        if (node.owner === null || (node.owner !== transfer.owner && node.isEmpty() && !node.hasDefence())) {
+            console.log("TRANSFER FINAL OPTION 1");
+            const player = this.getPlayer(transferOwnerId);
 
             this.emit(GameEvents.UpdateLocation, {
                 type: "set-owner",
-                owner: owner,
+                owner: transferOwnerId,
                 payload: {
                     node: node.objectId,
                     color: player.color,
                 }
             } as UpdateLocationResponse);
 
+            node.appendUnits(transfer.dest.group, transfer.units);
 
+            this.emit(GameEvents.UpdateLocation, {
+                owner: transfer.owner,
+                type: "update-units-groups",
+                payload: [{
+                    group: transfer.dest.group,
+                    node: transfer.dest.id,
+                    units: node.getUnitFromGroup(transfer.dest.group)
+                }]
+            } as UpdateLocationResponse);
+
+            this.transfers.delete(transferId);
+            return;
+        }
+
+        /** 
+         * Handle a player moving units between two nodes that they own.
+        */
+        if (node.owner === transfer.owner) {
+            console.log("TRANSFER FINAL OPTION 2");
             node.appendUnits(transfer.dest.group, transfer.units);
             this.emit(GameEvents.UpdateLocation, {
                 owner: transfer.owner,
@@ -458,39 +505,31 @@ export default class GameState extends EventEmitter {
                 }]
             } as UpdateLocationResponse);
 
-
-            this.transfers.delete(id as UUID);
+            this.transfers.delete(transferId);
             return;
         }
 
-        // moving units to a already owned node.
-        if (node.owner === owner) {
-            node.appendUnits(transfer.dest.group, transfer.units);
-            this.emit(GameEvents.UpdateLocation, {
-                owner: transfer.owner,
-                type: "update-units-groups",
-                payload: [{
-                    group: transfer.dest.group,
-                    node: transfer.dest.id,
-                    units: node.getUnitFromGroup(transfer.dest.group)
-                }]
-            } as UpdateLocationResponse);
-
-            this.transfers.delete(id as UUID);
-            return;
-        }
-
-        // handle spies
+        /** 
+         * Handle when a player move a single spy unit to a enemy node.
+         *  
+         * A spy should be a single unit and have the scout tag.
+        */
         if (transfer.units.length === 1 && transfer.units[0].count === 1) {
+            console.log("TRANSFER OPTION 3 CHECK");
             const unit = units.get(transfer.units[0].id);
             if (!unit) throw new Error("Failed to get unit data");
 
             if (unit.stats.isScout) {
-                this.notify(`Scouting has started on ${node.name}`, "info", transfer.owner as UUID)
+                console.log("TRANSFER OPTION 3");
+                this.notify(`Scouting has started on ${node.name}`, "info", transfer.owner);
                 const nodeData = this.getNode(transfer.dest.id);
-                if (!nodeData) throw new Error("Failed to get node");
 
-                if (nodeData.spies.includes(transfer.owner as UUID)) return;
+                // player already has a spy on this node
+                if (nodeData.spies.includes(transfer.owner as UUID)) {
+                    this.deallocUnits(transfer.units, transfer.owner);
+                    this.transfers.delete(transfer.id);
+                    return;
+                }
 
                 nodeData.spies.push(transfer.owner as UUID);
 
@@ -517,16 +556,13 @@ export default class GameState extends EventEmitter {
             }
         }
 
-        // moving units a contested node.
-        this.emit(GameEvents.UpdateLocation, {
-            type: "set-contested-state",
-            payload: {
-                node: node.objectId,
-                state: true
-            }
-        } as UpdateLocationResponse);
-
-        this.startBattle(node.objectId, id as UUID);
+        console.log("TRANSFER FINAL OPTION 4");
+        this.startBattle(node.objectId, transferId);
+    }
+    public getTransfer(uuid: UUID) {
+        const transfer = this.transfers.get(uuid);
+        if (!transfer) throw new Error("Failed to find transfer with given uuid", { cause: "TRANSFER_NOT_FOUND" });
+        return transfer;
     }
     public addStat(stat: BuildingStat, player: Player) {
         switch (stat.stat) {
@@ -640,10 +676,9 @@ export default class GameState extends EventEmitter {
      * Return a transfer to it origin
      */
     public returnTransferToSender(id: UUID): void {
-        const transfer = this.transfers.get(id);
-        if (!transfer) throw new Error("Failed to find transfer");
+        const transfer = this.getTransfer(id);
 
-        const timeToTransferInSec = 2;
+        const timeToTransferInSec = transfer.jumps * 10;
         const time = new Date();
         time.setSeconds(time.getSeconds() + timeToTransferInSec);
 
@@ -653,25 +688,24 @@ export default class GameState extends EventEmitter {
         transfer.origin = transfer.dest
         transfer.dest = oldOrgin;
 
-        this.emit(GameEvents.TransferUnits, {
+        this.generatePath({
             from: transfer.origin,
-            to: transfer.dest,
-            transferId: transfer.id
-        } as MoveRequest);
+            to: transfer.dest
+        }, transfer.owner, transfer.id);
     }
 
     public getSelectedMap() {
         return this.map;
     }
     public getPlayer(id: UUID | null) {
-        if (!id) return null;
+        if (!id) throw new Error("User uuid is null", { cause: "NULL_USER_UUID" })
         const player = this.players.find(value => value.id === id);
-        if (!player) throw new Error("Failed to find player");
+        if (!player) throw new Error("Failed to find player", { cause: "PLAYER_NOT_FOUND" });
         return player;
     }
     public getNode(nodeId: UUID) {
         const node = this.map.find(value => value.objectId === nodeId);
-        if (!node) throw new Error("Failed to find node");
+        if (!node) throw new Error("Failed to find node with given uuid.", { cause: "NODE_NOT_FOUND" });
         return node;
     }
     public getNodeBuildOptions(nodeId: UUID, owner: UUID) {

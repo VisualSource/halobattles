@@ -14,9 +14,9 @@ import { t } from "../trpc.js";
 const gameState = GameState.get();
 
 export const gameRouter = t.router({
-    finalizTransfer: t.procedure.input(z.string().uuid()).mutation((opts) => {
-        if (!opts.ctx.user) throw new TRPCError({ message: "No user set", code: "UNAUTHORIZED" });
-        gameState.finishTransfer(opts.ctx.user, opts.input);
+    finalizTransfer: t.procedure.input(z.string().uuid()).mutation(({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ message: "No user set", code: "UNAUTHORIZED" });
+        gameState.finishTransfer(ctx.user as UUID, input as UUID);
     }),
     transferUnits: t.procedure.input(z.object({
         from: z.object({
@@ -32,13 +32,13 @@ export const gameRouter = t.router({
 
         if (input.from.id === input.to.id) {
             console.log("Internal transfer");
-            const transferId = gameState.createTransfer(ctx.user, input as MoveRequest, 0);
-            gameState.finishTransfer(ctx.user, transferId);
+            const transferId = gameState.createTransfer(ctx.user as UUID, input as MoveRequest, 0);
+            gameState.finishTransfer(ctx.user as UUID, transferId);
             return;
         }
 
         console.log("External Transfer");
-        gameState.emit(GameEvents.TransferUnits, { ...input, owner: ctx.user });
+        gameState.generatePath(input as MoveRequest, ctx.user as UUID);
     }),
     internalTransfer: t.procedure.input(z.object({
         nodeId: z.string().uuid(),
@@ -64,17 +64,7 @@ export const gameRouter = t.router({
     }),
     onTransferUnits: t.procedure.input(z.string().uuid()).subscription(({ input }) => {
         return observable<MoveResponse>((emit) => {
-            const onTransferUnits = (data: MoveRequest) => {
-                const path = Dijkstra(gameState.getSelectedMap(), data.from.id, data.to.id, input);
-
-                const transferId = data?.transferId ?? gameState.createTransfer(input, data, Math.round(path.length / 2));
-
-                emit.next({
-                    path,
-                    transferId,
-                    owner: input as UUID
-                });
-            }
+            const onTransferUnits = (data: MoveResponse) => emit.next(data);
             gameState.on(GameEvents.TransferUnits, onTransferUnits);
             return () => {
                 gameState.off(GameEvents.TransferUnits, onTransferUnits);
@@ -93,7 +83,7 @@ export const gameRouter = t.router({
     onPlayerUpdate: t.procedure.input(z.string().uuid()).subscription(({ input }) => {
         return observable<Player>((emit) => {
             const onPlayerUpdate = (data: Player) => {
-                console.log("UPDATE PLAYER", data);
+                //console.log("UPDATE PLAYER", data);
                 if (input === data.id) emit.next(data);
             }
             gameState.on(GameEvents.UpdatePlayer, onPlayerUpdate);
