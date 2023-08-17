@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from 'node:path';
 import remove from 'lodash.remove';
 import { GameEvents, MoveRequest, UpdateLocationResponse } from '../object/Events.js';
-import { BuildingStat, buildOptions } from '../map/upgradeList.js';
 import type { Unit, GroupType, Building, LocationProps } from './Location.js';
+import { BuildingStat, buildOptions } from '../map/upgradeList.js';
 import factionsBuildable from "../map/faction_builds.js";
 import type { BattleResult } from "./BattleRuntime.js";
 import { __dirname } from "../lib/utils.js";
@@ -207,6 +207,8 @@ export default class GameState extends EventEmitter {
     }
 
     public startBattle(nodeId: UUID, transferId: UUID) {
+        console.log("[BATTLE] START")
+
         const node = this.map.find(value => value.objectId === nodeId);
         if (!node) throw new Error("Failed to find node.");
 
@@ -268,10 +270,11 @@ export default class GameState extends EventEmitter {
             remove(this.spyExp, (value) => value.nodeId === node.objectId);
 
             if (ev.winner === "attacker") {
+                console.log("[BATTLE CLEANUP - ATTACKER] START");
                 this.deallocBuildings(node.buildings, defender.id);
                 node.resetNode();
                 node.setOwner(attacker.id, attacker.color);
-
+                console.log("[BATTLE CLEANUP] UPDATE LOCATION SET-OWNER");
                 this.emit(GameEvents.UpdateLocation, {
                     type: "set-owner",
                     owner: attacker.id,
@@ -280,6 +283,7 @@ export default class GameState extends EventEmitter {
                         color: attacker.color,
                     }
                 } as UpdateLocationResponse);
+                console.log("[BATTLE CLEANUP] UPDATE LOCATION UPDATE UNITS GROUPS");
                 this.emit(GameEvents.UpdateLocation, {
                     type: "update-units-groups",
                     owner: attacker.id,
@@ -289,6 +293,7 @@ export default class GameState extends EventEmitter {
                         { group: "right", units: [], node: node.objectId }
                     ]
                 } as UpdateLocationResponse);
+                console.log("[BATTLE CLEANUP] UPDATE LOCATION UPDATE SET SPIES");
                 this.emit(GameEvents.UpdateLocation, {
                     type: "set-spies",
                     owner: attacker.id,
@@ -297,6 +302,7 @@ export default class GameState extends EventEmitter {
                         spies: [] as UUID[]
                     }
                 } as UpdateLocationResponse);
+                console.log("[BATTLE CLEANUP] UPDATE LOCATION UPDATE UPDATE BUILDINGS");
                 this.emit(GameEvents.UpdateLocation, {
                     type: "update-buildings",
                     owner: attacker.id,
@@ -310,12 +316,16 @@ export default class GameState extends EventEmitter {
 
                 this.transfers.delete(transfer.id);
             } else {
-
-                if (transfer.units.length > 1) {
+                console.log("[BATTLE CLEANUP - DEFENDER] START");
+                if (transfer.units.length >= 1) {
                     // return to sender
+                    console.log("[BATTLE CLEANUP] Return to sender");
+                    this.returnTransferToSender(transfer.id);
                 } else {
+                    console.log("[BATTLE CLEANUP] DELETE TRANSFER");
                     this.transfers.delete(transfer.id);
                 }
+                console.log("[BATTLE CLEANUP] UPDATE LOCATION UPDATE UNITS GROUPS");
                 this.emit(GameEvents.UpdateLocation, {
                     type: "update-units-groups",
                     owner: defender.id,
@@ -325,6 +335,7 @@ export default class GameState extends EventEmitter {
                         { group: "right", units: node.units.right, node: node.objectId }
                     ]
                 } as UpdateLocationResponse);
+                console.log("[BATTLE CLEANUP] UPDATE LOCATION UPDATE BUILDINGS");
                 this.emit(GameEvents.UpdateLocation, {
                     type: "update-buildings",
                     owner: defender.id,
@@ -333,6 +344,7 @@ export default class GameState extends EventEmitter {
                         node: node.objectId
                     }
                 } as UpdateLocationResponse);
+                console.log("[BATTLE CLEANUP] UPDATE LOCATION SET SPIES");
                 this.emit(GameEvents.UpdateLocation, {
                     type: "set-spies",
                     owner: defender.id,
@@ -341,13 +353,15 @@ export default class GameState extends EventEmitter {
                         spies: [] as UUID[]
                     }
                 } as UpdateLocationResponse);
-
+                console.log("[BATTLE CLEANUP] NOTIFY");
                 this.notify(`We have lost the battle for ${node.name}`, "info", attacker.id);
                 this.notify(`We have destoryed the enemy at ${node.name}`, "info", defender.id);
             }
 
+            console.log("[BATTLE CLEANUP] UPDATE PLAYERS");
             this.emit(GameEvents.UpdatePlayer, defender);
             this.emit(GameEvents.UpdatePlayer, attacker);
+            console.log("[BATTLE CLEANUP] SET CONTESTED STATE");
             this.emit(GameEvents.UpdateLocation, {
                 type: "set-contested-state",
                 payload: {
@@ -467,18 +481,18 @@ export default class GameState extends EventEmitter {
         }
 
         // handle spies
-        if (transfer.units.length === 1) {
+        if (transfer.units.length === 1 && transfer.units[0].count === 1) {
             const unit = units.get(transfer.units[0].id);
             if (!unit) throw new Error("Failed to get unit data");
 
             if (unit.stats.isScout) {
+                this.notify(`Scouting has started on ${node.name}`, "info", transfer.owner as UUID)
+                const nodeData = this.getNode(transfer.dest.id);
+                if (!nodeData) throw new Error("Failed to get node");
 
-                const node = this.getNode(transfer.dest.id);
-                if (!node) throw new Error("Failed to get node");
+                if (nodeData.spies.includes(transfer.owner as UUID)) return;
 
-                if (node.spies.includes(transfer.owner as UUID)) return;
-
-                node.spies.push(transfer.owner as UUID);
+                nodeData.spies.push(transfer.owner as UUID);
 
                 const time = new Date();
                 time.setSeconds(120);
@@ -493,7 +507,7 @@ export default class GameState extends EventEmitter {
                     type: "set-spies",
                     payload: {
                         node: transfer.dest.id,
-                        spies: node.spies
+                        spies: nodeData.spies
                     }
                 } as UpdateLocationResponse);
 

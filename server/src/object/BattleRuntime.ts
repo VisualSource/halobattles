@@ -122,7 +122,6 @@ function runtime() {
     results.attacker.lostCap += lost.cap;
     if (lost.lost > 0) results.attacker.lostUnits.push(lost);
 
-
     const servived = unit.calcServived();
     if (!servived) continue;
     results.attacker.survived.push(servived);
@@ -133,7 +132,6 @@ function runtime() {
 
     results.defender.lostCap += lost.cap;
     if (lost.lost > 0) results.defender.lostUnits.push(lost);
-
 
     const servived = unit.calcServived();
     if (!servived) continue;

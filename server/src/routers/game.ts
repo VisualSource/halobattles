@@ -1,7 +1,6 @@
 import { observable } from '@trpc/server/observable';
 import { TRPCError } from '@trpc/server';
-import { randomBytes } from 'node:crypto';
-import { object, z } from 'zod';
+import { z } from 'zod';
 
 import { GameEvents, MoveRequest, MoveResponse, UpdateLocationResponse } from '../object/Events.js';
 import GameState, { Player } from '../object/GameState.js';
