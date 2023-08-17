@@ -31,6 +31,42 @@ export type BattleResult = {
 
 const input = workerData as { node: Location, transfer: UnitTransfer };
 
+/**
+ * @bug
+ * 
+ *  In the json output below the defender some how get the attackers 
+ *  units
+ * {
+server dev: . dev:run:   "attacker": {
+server dev: . dev:run:     "id": "6b36a926-7563-42b5-933e-e5705eed4254",
+server dev: . dev:run:     "lostCap": 0,
+server dev: . dev:run:     "lostUnits": [],
+server dev: . dev:run:     "survived": []
+server dev: . dev:run:   },
+server dev: . dev:run:   "defender": {
+server dev: . dev:run:     "id": "cb1b0b23-0807-4f35-9ae3-d2624f977d01",
+server dev: . dev:run:     "lostCap": 0,
+server dev: . dev:run:     "lostUnits": [],
+server dev: . dev:run:     "survived": [
+server dev: . dev:run:       {
+server dev: . dev:run:         "id": 1,
+server dev: . dev:run:         "type": "unit"
+server dev: . dev:run:       },
+server dev: . dev:run:       {
+server dev: . dev:run:         "id": 1,
+server dev: . dev:run:         "type": "building",
+server dev: . dev:run:         "instId": "e7dd968c14"
+server dev: . dev:run:       }
+server dev: . dev:run:     ]
+server dev: . dev:run:   },
+server dev: . dev:run:   "winner": "defender",
+server dev: . dev:run:   "node": "184ed098-eb9b-4910-99fe-3facdd17a0a9",
+server dev: . dev:run:   "attackerTransferId": "1530ddf9-face-4158-ac7a-ccda60ed31fc"
+server dev: . dev:run: }
+ * 
+ * 
+ * 
+ */
 const attackers = input.transfer.units.map(
   (value) => new Attackable(value.id, value.count, "unit")
 );
