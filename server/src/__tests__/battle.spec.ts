@@ -1,7 +1,8 @@
+import { Worker } from "node:worker_threads";
+import { resolve } from "node:path";
 import { describe } from 'mocha';
 import assert from 'node:assert';
-import { resolve } from "node:path";
-import { Worker } from "node:worker_threads";
+
 import type { UnitTransfer } from "../object/GameState.js";
 import Location from "../object/Location.js";
 import { __dirname } from '../lib/utils.js';
@@ -15,9 +16,11 @@ const node = new Location({
     connectsTo: [],
     objectId: "a-a-a-a",
     owner: null,
-    buildings: [{ icon: "", id: 1, objId: "AAA", level: 1 }],
+    buildings: [/*{ icon: "", id: 1, objId: "AAA", level: 1 }*/],
     units: {
         center: [
+            { icon: "", count: 100, id: 0, idx: 0 },
+            { icon: "", count: 100, id: 1, idx: 0 }
             // atk 10 -> 1230
         ],
         left: [],
@@ -40,7 +43,8 @@ const transfer: UnitTransfer = {
     owner: "1-1-1-1",
     units: [
         // { id: 0, icon: "", count: 6, idx: 0 }, // atk 10 -> 60
-        { id: 1, icon: "", count: 3, idx: 0 } // atk 8 -> 56
+        { id: 1, icon: "", count: 100, idx: 0 }, // atk 8 -> 56,
+        { id: 0, icon: "", count: 100, idx: 0 }
     ]
 }
 

@@ -37,7 +37,12 @@ export default class Attackable {
   private _current_attack = 0;
   private _damage_type: AttackType = "kinetic";
   private _unit_type: UnitType = "building";
-  private _effective: { [unit in UnitType]: EffectiveState }
+  private _effective: { [unit in UnitType]: EffectiveState } = {
+    air: "weak",
+    building: "weak",
+    infantry: "weak",
+    vehicle: "weak"
+  };
   private effects: Effect[] = [];
   private events: BattleEvents | null = null;
   /**
@@ -83,12 +88,7 @@ export default class Attackable {
           this._current_hit_chance = building.battle.hitChange;
           this._unit_type = building.battle.type;
           this._damage_type = building.battle.damageType;
-          this._effective = {
-            air: "weak",
-            building: "weak",
-            infantry: "weak",
-            vehicle: "weak"
-          }
+          this._effective = building.battle.effective;
         }
 
         break;
@@ -149,6 +149,7 @@ export default class Attackable {
 
     if (this._current_health <= 0) {
       this._current_health = 0;
+      this.count = 0;
       this._dead = true;
     }
 
@@ -161,7 +162,7 @@ export default class Attackable {
     }
   }
   private modifyStats() {
-    if (this.count === 0) return;
+    if (this.count <= 1) return;
 
     this.count = Math.ceil(
       this._current_health / (this._max_health / this._original_count)
@@ -233,15 +234,14 @@ export default class Attackable {
     remove(this.effects, (effect) => effect.isDone);
   }
   public calcServived() {
-    if (this._current_health <= 0) {
-      return null;
-    }
     if (this.type === "unit") {
       const unit = units.get(this.id);
       if (!unit) throw new Error("Unable to process");
 
-      return { id: this.id, type: this.type }
+      return { id: this.id, type: this.type, count: this.count }
     }
+
+    if (this._current_health <= 0) return null;
 
     return { id: this.id, type: this.type, instId: this.instId }
   }
