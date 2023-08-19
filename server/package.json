@@ -11,7 +11,8 @@
     "test:run": "nodemon --config ./nodemon.test.json",
     "test:compile": "tsc --watch",
     "dev": "pnpm --parallel --stream run /^dev:.*/",
-    "test": "pnpm --parallel --stream run /^test:.*/"
+    "test": "pnpm --parallel --stream run /^test:.*/",
+    "editor": "node ./editor/index.js"
   },
   "keywords": [],
   "author": "",
