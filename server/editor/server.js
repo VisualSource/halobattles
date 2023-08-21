@@ -1,8 +1,10 @@
 import { resolve, extname, basename, sep } from "node:path";
 import { createServer, STATUS_CODES } from "node:http";
+import { StringDecoder } from "node:string_decoder";
+import { createReadStream } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
-import { json, streamHtml, __getDirname } from "./utils.js";
+import { __getDirname } from "./utils.js";
 
 async function* getFiles(dir) {
   const dirents = await readdir(dir, {
@@ -21,12 +23,17 @@ async function* getFiles(dir) {
 
 /**
  *
- * @param { undefined | { port?: number, origin?: string; } } config
+ * @param { undefined | { port?: number, root?: string; } } config
  * @export
  */
 export async function initApp(config) {
   const port = config.port ?? 3000;
-  const __dirname = __getDirname(config?.origin);
+  const __dirname = __getDirname(config?.root);
+
+  const buildingFile = resolve(__dirname, "../meta/buildings.json");
+  const planetsFile = resolve(__dirname, "../meta/planets.json");
+  const unitsFile = resolve(__dirname, "../meta/units.json");
+  const mapsFolder = resolve(__dirname, "../meta/maps");
 
   /** @type {Map<string,{ type: "page" | "api", path: string; isApi: boolean }>} */
   const routes = new Map();
@@ -47,7 +54,7 @@ export async function initApp(config) {
       url = url.replace("index", "");
     }
 
-    if (url.endsWith("/")) {
+    if (url.endsWith("/") && url !== "/") {
       url = url.replace(/\/$/, "");
     }
 
@@ -57,36 +64,121 @@ export async function initApp(config) {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://localhost:${port}`);
 
+    req.parsedURL = url;
+
+    req.app = {
+      root: __dirname,
+      mapsFolder,
+      buildingFile,
+      planetsFile,
+      unitsFile,
+    };
+
+    req.body = async function () {
+      return new Promise((ok, rej) => {
+        try {
+          let body = "";
+          req.on("readable", () => {
+            let chunk;
+            while (null !== (chunk = req.read())) {
+              body += chunk;
+            }
+          });
+
+          req.on("end", () => {
+            ok(body);
+          });
+        } catch (error) {
+          rej(error);
+        }
+      });
+    };
+
+    req.form = async function () {
+      const data = await req.body();
+
+      if (req.headers["content-type"] === "application/x-www-form-urlencoded") {
+        return new URLSearchParams(data);
+      }
+
+      throw new Error(`Unable to process: ${req.headers["content-type"]}`);
+    };
+
+    res.html = function (data, status = 200) {
+      res.writeHead(status, { "Content-Type": "text/html" });
+      res.end(data);
+    };
+
+    res.json = function (data, status = 200) {
+      res.writeHead(status, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(data));
+    };
+
+    res.sendFile = function (file, status = 200) {
+      res.writeHead(status, { "Content-Type": "text/html" });
+      const stream = createReadStream(file, {
+        encoding: "utf-8",
+      });
+      stream.pipe(res);
+    };
+
+    res.redirect = function (path, status = 302) {
+      res.writeHead(status, { Location: path });
+      res.end();
+    };
+
+    console.time(`${req.method} ${url.pathname}`);
+
     if (!routes.has(url.pathname)) {
-      json({ message: STATUS_CODES[400] }, res, 400);
+      res.json(
+        {
+          message: STATUS_CODES[400],
+          details: [
+            {
+              message: "No page or api exists.",
+              meta: Array.from(routes.keys()),
+            },
+          ],
+        },
+        400
+      );
+      console.timeEnd(`${req.method} ${url.pathname}`);
       return;
     }
 
-    req.systemUrl = url;
-
     const route = routes.get(url.pathname);
 
-    console.log(req.method, url.pathname);
+    try {
+      switch (route.type) {
+        case "api": {
+          const api = await import(pathToFileURL(route.path));
 
-    switch (route.type) {
-      case "api": {
-        const api = await import(pathToFileURL(route.path));
-
-        if (!api[req.method]) {
-          json({ message: STATUS_CODES[405] }, res, 405);
-        } else {
-          await api[req.method](req, res);
+          if (!api[req.method]) {
+            res.json({ message: STATUS_CODES[405] }, 405);
+          } else {
+            await api[req.method](req, res);
+          }
+          break;
         }
-        break;
+        case "page": {
+          res.sendFile(route.path);
+          break;
+        }
+        default:
+          res.json({ message: STATUS_CODES[404] }, 404);
+          break;
       }
-      case "page": {
-        streamHtml(route.path, res);
-        break;
-      }
-      default:
-        json({ message: STATUS_CODES[404] }, res, 404);
-        break;
+    } catch (error) {
+      console.error(error);
+      res.json(
+        {
+          message: STATUS_CODES[500],
+          details: error?.message ?? "Unkown server error",
+        },
+        500
+      );
     }
+    console.timeEnd(`${req.method} ${url.pathname}`);
   });
 
   server.listen(port, () => {

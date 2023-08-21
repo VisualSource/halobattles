@@ -1,4 +1,3 @@
-import { createReadStream } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
@@ -6,33 +5,24 @@ export const __getFilename = (importMeta) =>
   fileURLToPath(importMeta ?? import.meta.url);
 export const __getDirname = (importMeta) => dirname(__getFilename(importMeta));
 
-/**
- * @param {unknown} data
- * @param {import("node:http").ServerResponse<import("node:http").IncomingMessage>} res
- */
-export const json = (data, res, status = 200) => {
-  res.writeHead(status, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(data));
-};
+export function assign(obj, prop, value) {
+  if (typeof prop === "string") prop = prop.split(".");
 
-/**
- * @param {string} data
- * @param {import("node:http").ServerResponse<import("node:http").IncomingMessage>} res
- */
-export const html = (data, res, status = 200) => {
-  res.writeHead(status, { "Content-Type": "text/html" });
-  res.end(data);
-};
+  if (prop.length > 1) {
+    const e = prop.shift();
 
-/**
- * @param {string} data
- * @param {import("node:http").ServerResponse<import("node:http").IncomingMessage>} res
- */
-export const streamHtml = (file, res, status = 200) => {
-  res.writeHead(status, { "Content-Type": "text/html" });
-  const stream = createReadStream(file, {
-    autoClose: true,
-    encoding: "utf-8",
-  });
-  stream.pipe(res);
-};
+    if (typeof obj[e] !== "object") {
+      obj[e] = {};
+    }
+    assign(obj[e], prop, value);
+    return;
+  }
+
+  obj[prop[0]] = value;
+}
+
+/** @typedef {{ root: string; mapsFolder: string, buildingFile: string, planetsFile: string, unitsFile: string; }} FilePaths */
+/** @typedef {{ app: FilePaths, parsedURL: URL, body: Promise<string>, form: Promise<URLSearchParams> }} ExtendRequest */
+/** @typedef {{ html(data: string, status?: number): void; json(data: unknown, status?: number): void; sendFile(file: string, status?: number): void; redirect(path: string, status?: number): void; }} ExtendedResponse */
+/** @typedef {import("node:http").IncomingMessage & ExtendRequest } EditorRequest */
+/** @typedef {import("node:http").ServerResponse<import("node:http").IncomingMessage> & ExtendedResponse } EditorResponse  */

@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.4"></script>
+    <title>Editor - Create Unit</title>
+  </head>
+  <body class="h-screen bg-gray-800 text-white">
+    <template id="requirement-item">
+      <tr>
+        <td class="p-2">
+          <a
+            class="text-blue-400 hover:text-blue-300 underline"
+            href="/building?search=0&search-type=id"
+            data-id="content-id"
+            >0</a
+          >
+        </td>
+        <td class="p-2" data-id="content-type"></td>
+        <td class="p-2">
+          <button
+            hx-on::before-request="removeItem(this,'requires',event)"
+            hx-delete="/api/unit/list"
+            class="px-1.5 py-0.5 bg-red-700 hover:bg-red-600 rounded-md"
+          >
+            Delete
+          </button>
+        </td>
+      </tr>
+    </template>
+    <template id="unit-event-item">
+      <tr class="divide-x">
+        <td class="p-1" data-id="trigger"></td>
+        <td class="p-1" data-id="name"></td>
+        <td class="p-1" data-id="params"></td>
+        <td class="p-1">
+          <button
+            hx-on:before-request="removeItem(this,'events-data',event)"
+            hx-delete="/api/unit/list"
+            class="px-1.5 py-1 bg-red-700 hover:bg-red-600 rounded-md"
+            type="button"
+          >
+            Delete
+          </button>
+        </td>
+      </tr>
+    </template>
+    <div class="flex flex-col items-center p-4">
+      <form id="unit" method="POST" action="/api/unit"></form>
+      <form id="requirements" hx-on:submit="handleRequirement(event)"></form>
+      <form id="events" hx-on:submit="handleAddEvent(event)"></form>
+      <input
+        class="hidden"
+        id="requires"
+        name="requires"
+        form="unit"
+        value="[]"
+        defaultValue="[]"
+      />
+      <input
+        class="hidden"
+        id="events-data"
+        name="stats.events"
+        form="unit"
+        value="[]"
+        defaultValue="[]"
+      />
+      <div class="container">
+        <h1 class="text-6xl font-bold text-center">Create Unit</h1>
+
+        <h5 class="font-semibold text-2xl mb-4 border-b-2">General</h5>
+        <section class="flex flex-col">
+          <div class="mb-2 flex flex-col">
+            <label for="name" class="mb-2 font-bold tracking-tighter"
+              >Name</label
+            >
+            <input
+              form="unit"
+              class="text-black"
+              required
+              id="name"
+              name="name"
+              type="text"
+            />
+          </div>
+
+          <div class="mb-2 flex flex-col">
+            <label
+              class="mb-2 font-bold tracking-tighter"
+              for="icon"
+              class="mb-2"
+              >Icon</label
+            >
+            <input
+              form="unit"
+              class="text-black"
+              required
+              id="icon"
+              name="icon"
+              type="url"
+            />
+          </div>
+
+          <div class="mb-2 flex flex-col">
+            <label for="description" class="mb-2 font-bold tracking-tighter"
+              >Description</label
+            >
+            <textarea
+              form="unit"
+              class="text-black"
+              name="description"
+              id="description"
+              cols="40"
+              rows="5"
+            ></textarea>
+          </div>
+        </section>
+
+        <h5 class="font-semibold text-2xl mb-4 border-b-2">Build settings</h5>
+        <section class="flex flex-col">
+          <div class="mb-2 flex flex-col">
+            <label for="cost" class="mb-2 font-bold tracking-tighter"
+              >Cost</label
+            >
+            <input
+              form="unit"
+              class="text-black"
+              required
+              id="cost"
+              name="cost"
+              type="number"
+              value="10"
+            />
+          </div>
+
+          <div class="mb-2 flex flex-col">
+            <label class="mb-2 font-bold tracking-tighter" for="time"
+              >Time</label
+            >
+            <input
+              form="unit"
+              class="text-black"
+              required
+              type="number"
+              id="time"
+              value="1"
+              name="time"
+              min="1"
+            />
+          </div>
+
+          <div class="mb-2 flex flex-col">
+            <label class="mb-2 font-bold tracking-tighter" for="capSize"
+              >Cap Size</label
+            >
+            <input
+              form="unit"
+              required
+              class="text-black"
+              type="number"
+              id="capSize"
+              name="capSize"
+              value="1"
+              min="0"
+            />
+          </div>
+
+          <div class="mb-2 flex flex-col">
+            <label class="mb-2 font-bold tracking-tighter" for="globalMax"
+              >Global Max Units</label
+            >
+            <input
+              form="unit"
+              required
+              class="text-black"
+              type="number"
+              id="globalMax"
+              name="globalMax"
+              min="-1"
+              value="-1"
+            />
+          </div>
+        </section>
+
+        <section class="mb-2">
+          <h6 class="font-semibold text-xl mb-4 border-b-2">Requires</h6>
+
+          <div class="flex items-center gap-4 mb-2">
+            <label class="flex flex-col">
+              <span class="mb-2">Type</span>
+              <select
+                name="requires.type"
+                form="requirements"
+                class="text-black p-1"
+                required
+                data-id="requires.type"
+              >
+                <option value="global">Global</option>
+                <option value="local" selected>Local</option>
+              </select>
+            </label>
+
+            <label class="flex flex-col">
+              <span class="mb-2">Item</span>
+              <select
+                required
+                hx-get="/api/building/list"
+                hx-trigger="load"
+                name="requires.id"
+                form="requirements"
+                class="text-black p-1"
+                data-id="requires.id"
+              >
+                <option disabled>Loading</option>
+              </select>
+            </label>
+
+            <button
+              form="requirements"
+              class="px-2 py-1 bg-blue-700 hover:bg-blue-600 rounded-md mt-6"
+              type="submit"
+            >
+              Add Requirement
+            </button>
+          </div>
+
+          <table class="ml-4 divide-y">
+            <thead>
+              <tr class="divide-x">
+                <th class="p-2">Item Id</th>
+                <th class="p-2">Requirement Type</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody
+              id="requirements-table"
+              hx-confirm="Are you sure?"
+              hx-target="closest tr"
+              hx-swap="outerHTML"
+            ></tbody>
+          </table>
+        </section>
+
+        <h5 class="font-semibold text-2xl mb-4 border-b-2">Battle Stats</h5>
+
+        <section class="flex flex-col">
+          <div class="mb-2">
+            <input
+              form="unit"
+              type="checkbox"
+              name="stats.isScout"
+              id="isScout"
+            />
+            <label class="mb-2 font-bold tracking-tighter" for="isScout"
+              >isScout</label
+            >
+          </div>
+          <div class="mb-2 flex flex-col">
+            <label class="mb-2 font-bold tracking-tighter" for="attack"
+              >Unit Attack</label
+            >
+            <input
+              form="unit"
+              class="text-black"
+              required
+              type="number"
+              name="stats.attack"
+              id="attack"
+              value="0"
+              min="0"
+            />
+          </div>
+          <div class="mb-2 flex flex-col">
+            <label class="mb-2 font-bold tracking-tighter" for="health"
+              >Unit Health</label
+            >
+            <input
+              form="unit"
+              class="text-black"
+              required
+              type="number"
+              name="stats.health"
+              id="health"
+              value="100"
+              min="0"
+            />
+          </div>
+          <div class="mb-2 flex flex-col">
+            <label class="mb-2 font-bold tracking-tighter" for="shealds"
+              >Unit Shealds</label
+            >
+            <input
+              form="unit"
+              class="text-black"
+              required
+              type="number"
+              name="stats.shealds"
+              id="shealds"
+              value="0"
+              min="0"
+            />
+          </div>
+          <div class="mb-2 flex flex-col">
+            <label class="mb-2 font-bold tracking-tighter" for="hitChange"
+              >Unit Hit Chance</label
+            >
+            <input
+              form="unit"
+              class="text-black"
+              required
+              type="number"
+              name="stats.hitChange"
+              id="shealds"
+              min="0"
+              value="50"
+              max="100"
+            />
+          </div>
+        </section>
+
+        <section>
+          <h6 class="font-semibold text-xl mb-4 border-b-2">Effective</h6>
+          <div class="ml-4 flex flex-col mb-2">
+            <label class="mb-2 font-bold tracking-tighter" for="effective_air"
+              >Air</label
+            >
+            <select
+              form="unit"
+              class="text-black p-1"
+              id="effective_air"
+              name="stats.effective.air"
+              required
+            >
+              <option value="weak">Weak</option>
+              <option value="normal" selected>Normal</option>
+              <option value="strong">Strong</option>
+            </select>
+          </div>
+          <div class="ml-4 flex flex-col mb-2">
+            <label
+              class="mb-2 font-bold tracking-tighter"
+              for="effective_infantry"
+              >Infantry</label
+            >
+            <select
+              form="unit"
+              class="text-black p-1"
+              id="effective_infantry"
+              name="stats.effective.infantry"
+              required
+            >
+              <option value="weak">Weak</option>
+              <option value="normal" selected>Normal</option>
+              <option value="strong">Strong</option>
+            </select>
+          </div>
+          <div class="ml-4 flex flex-col mb-2">
+            <label
+              class="mb-2 font-bold tracking-tighter"
+              for="effective_vehicle"
+              >Vehicle</label
+            >
+            <select
+              form="unit"
+              class="text-black p-1"
+              id="effective_vehicle"
+              required
+              name="stats.effective.vehicle"
+            >
+              <option value="weak">Weak</option>
+              <option selected value="normal">Normal</option>
+              <option value="strong">Strong</option>
+            </select>
+          </div>
+          <div class="ml-4 flex flex-col mb-2">
+            <label
+              class="mb-2 font-bold tracking-tighter"
+              for="effective_building"
+              >Building</label
+            >
+            <select
+              form="unit"
+              class="text-black p-1"
+              id="effective_building"
+              required
+              name="stats.effective.building"
+            >
+              <option value="weak">Weak</option>
+              <option selected value="normal">Normal</option>
+              <option value="strong">Strong</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="flex flex-col">
+          <div class="mb-2 flex flex-col">
+            <label class="mb-2 font-bold tracking-tighter" for="unit_type"
+              >Unit Type</label
+            >
+            <select
+              form="unit"
+              class="text-black p-1"
+              id="unit_type"
+              required
+              name="stats.type"
+              value="infantry"
+            >
+              <option value="infantry" selected>Infantry</option>
+              <option value="air">Air</option>
+              <option value="vehicle">Vehicle</option>
+              <option value="Building">Building</option>
+            </select>
+          </div>
+          <div class="mb-2 flex flex-col">
+            <label class="mb-2 font-bold tracking-tighter" for="damage_type"
+              >Damage Type</label
+            >
+            <select
+              form="unit"
+              class="text-black p-1"
+              id="damage_type"
+              required
+              name="stats.damageType"
+              value="kinetic"
+            >
+              <option value="kinetic" selected>Kinetic</option>
+              <option value="plasma">Plasma</option>
+              <option value="hardlight">Hardlight</option>
+              <option value="burn">Burn</option>
+              <option value="freeze">Freeze</option>
+            </select>
+          </div>
+        </section>
+
+        <div class="ml-4">
+          <h6 class="font-semibold text-xl mb-4 border-b-2">Unit Events</h6>
+
+          <div class="flex gap-4">
+            <div class="mb-2 flex flex-col">
+              <label class="mb-2 font-bold tracking-tighter" for="trigger"
+                >Event Trigger</label
+              >
+              <select
+                required
+                form="events"
+                name="event-trigger"
+                class="text-black p-1"
+              >
+                <option value="onDeath">onDeath</option>
+                <option value="onHit">onHit</option>
+              </select>
+            </div>
+
+            <div class="mb-2 flex flex-col">
+              <label class="mb-2 font-bold tracking-tighter" for=""
+                >Event Type</label
+              >
+              <select
+                required
+                form="events"
+                name="event-type"
+                hx-get="/api/unit/event"
+                value="spawn"
+                hx-target="#unit-event-params"
+                class="text-black p-1"
+              >
+                <option value="spawn">Spawn</option>
+                <option value="exploded">Exploded</option>
+                <option value="servive">Servive</option>
+                <option value="siphon">Siphon</option>
+                <option value="burn">Burn</option>
+                <option value="freeze">Freeze</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="unit-event-params">
+            <div class="mb-2 flex flex-col">
+              <label class="mb-2 font-bold tracking-tighter">Amount</label>
+              <input
+                class="text-black"
+                form="events"
+                type="number"
+                name="amount"
+                required
+                min="1"
+                value="1"
+              />
+            </div>
+            <div class="mb-2 flex flex-col">
+              <label class="mb-2 font-bold tracking-tighter">Unit</label>
+              <select
+                hx-get="/api/unit/list"
+                hx-trigger="load"
+                required
+                name="unit"
+                form="events"
+                class="text-black p-1"
+              >
+                <option disabled>Loading</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            form="events"
+            type="submit"
+            class="px-2.5 py-2 bg-blue-700 hover:bg-blue-600 rounded-md"
+          >
+            Add
+          </button>
+
+          <table class="divide-y">
+            <thead>
+              <tr class="divide-x">
+                <th class="p-1">Trigger</th>
+                <th class="p-1">Event</th>
+                <th class="p-1">Params</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody
+              id="unit-events-table"
+              hx-confirm="Are you sure?"
+              hx-target="closest tr"
+              hx-swap="outerHTML"
+            ></tbody>
+          </table>
+        </div>
+
+        <div class="flex justify-end">
+          <button
+            form="unit"
+            class="px-2.5 py-2 bg-green-700 hover:bg-green-600 rounded-md"
+            type="submit"
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+    <script>
+      /**
+       * @param {HTMLButtonElement} target
+       * @param {string} container
+       */
+      function removeItem(target, container, event) {
+        const closest = target.closest("tr");
+        const params = closest.getAttribute("hx-vals");
+        const el = JSON.parse(params);
+        updateData(container, (data) => {
+          return data.filter((item) => item.key === el.key);
+        });
+      }
+      function getTemplete(id) {
+        /** @type {HTMLTempleteElement}*/
+        const template = document.getElementById(id);
+        if (!template) throw new Error("Failed to get templete");
+        /** @type {HTMLElement} */
+        const el = template.content.cloneNode(true);
+        return el.firstElementChild;
+      }
+      function updateContainer(id, el) {
+        const container = document.getElementById(id);
+        if (!container) throw new Error("Failed to update container el");
+        container.appendChild(el);
+        htmx.process(document.body);
+      }
+      /**
+       * @param {string} id
+       * @param {(data: unknown[])=>unknown[]} cb
+       */
+      function updateData(id, cb) {
+        /** @type {HTMLInputElement} */
+        const target = document.getElementById(id);
+        if (!target) throw new Error(`Unable to get target #${id}`);
+        const data = JSON.parse(target.value ?? "[]");
+        const response = cb(data);
+        target.value = JSON.stringify(response);
+
+        return response;
+      }
+
+      function handleRequirement(ev) {
+        ev.preventDefault();
+        const data = new FormData(ev.target);
+
+        const id = data.get("requires.id");
+        const type = data.get("requires.type");
+
+        if (!id || !type) return;
+
+        const template = getTemplete("requirement-item");
+        if (!template) return;
+
+        const value = updateData("requires", (data) => {
+          data.push({ type, id: parseInt(id), key: data.length });
+          return data;
+        });
+        if (!value) throw new Error("Failed to get updated data");
+
+        template.querySelector('[data-id="content-id"]').textContent = id;
+        template.querySelector('[data-id="content-type"]').textContent = type;
+        template.setAttribute("hx-vals", `${JSON.stringify(value.at(-1))}`);
+
+        updateContainer("requirements-table", template);
+      }
+      function handleAddEvent(ev) {
+        ev.preventDefault();
+        const data = new FormData(ev.target);
+
+        const eventTrigger = data.get("event-trigger");
+        const eventType = data.get("event-type");
+
+        const params = Array.from(data.keys())
+          .filter((value) => !["event-trigger", "event-type"].includes(value))
+          .reduce((pre, curr) => {
+            const item = data.get(curr);
+            if (!item) return pre;
+            pre[curr] = item;
+            return pre;
+          }, {});
+
+        const items = updateData("events-data", (data) => {
+          data.push({
+            key: data.length,
+            event: eventType,
+            trigger: eventTrigger,
+            params,
+          });
+          return data;
+        });
+        if (!items) throw new Error("Failed to get updated data");
+        const template = getTemplete("unit-event-item");
+        if (!template) return;
+
+        const item = items.at(-1);
+
+        template.querySelector('[data-id="trigger"]').textContent =
+          item.trigger;
+        template.querySelector('[data-id="name"]').textContent = item.event;
+
+        template.querySelector('[data-id="params"]').innerHTML = Object.entries(
+          item.params
+        )
+          .map(([key, value]) => `<div><span>${key}: </span>${value}</div>`)
+          .join("");
+
+        template.setAttribute("hx-vals", `${JSON.stringify(item)}`);
+
+        updateContainer("unit-events-table", template);
+      }
+    </script>
+  </body>
+</html>
