@@ -7,5 +7,314 @@
     <script src="https://unpkg.com/htmx.org@1.9.4"></script>
     <title>Editor - Unit</title>
   </head>
-  <body class="h-screen bg-gray-800 text-white grid grid-cols-12"></body>
+  <body class="h-screen bg-gray-800 text-white flex flex-col divide-y-2">
+    <form
+      method="POST"
+      id="building"
+      action="/api/building"
+      class="hidden"
+    ></form>
+    <form
+      id="requirements"
+      hx-on:submit="AddRequirement(event)"
+      class="hidden"
+    ></form>
+    <form hx-vals="[]" id="levels-form" hx-on:submit="AddLevel(event)"></form>
+
+    <input
+      value="[]"
+      defaultValue="[]"
+      id="requires"
+      form="building"
+      name="requires"
+      class="hidden"
+    />
+    <input
+      value="{}"
+      defaultValue="{}"
+      id="levels"
+      form="building"
+      class="hidden"
+      name="levels"
+    />
+    <script>
+      function openDialog() {
+        /** @type {HTMLDialogElement} */
+        const dialog = document.getElementById("add-level");
+
+        dialog.showModal();
+      }
+      function updateTable(data, templeteEl, targetEl) {
+        /** @type {HTMLTempleteElement} */
+        const templete = document.getElementById(templeteEl);
+        if (!templete) throw new Error("Failed to get templete");
+
+        const target = document.getElementById(targetEl);
+        if (!target) throw new Error("Unable to get container el");
+
+        const content = [];
+
+        for (const item of data) {
+          const el = templete.content.cloneNode(true).firstElementChild;
+
+          el.querySelector('[data-id="content-id"]').textContent = item.id;
+          el.querySelector('[data-id="content-type"]').textContent = item.type;
+          el.setAttribute("hx-vals", `${JSON.stringify(item)}`);
+
+          content.push(el);
+        }
+
+        target.replaceChildren(...content);
+
+        htmx.process(document.body);
+      }
+
+      function removeItem(target, input, event) {
+        const req = document.getElementById(input);
+        if (!req) throw new Error("Failed to get requires list");
+        const data = JSON.parse(req.value);
+
+        const params = target.closest("tr").getAttribute("hx-vals");
+        const el = JSON.parse(params);
+
+        const next = data
+          .filter((value) => el.key !== value.key)
+          .map((value, i) => {
+            value.key = i;
+            return value;
+          });
+
+        req.value = JSON.stringify(next);
+
+        updateTable(next, "requirement-item", "requirements-table");
+      }
+
+      function AddRequirement(ev) {
+        ev.preventDefault();
+        const formData = new FormData(ev.target);
+
+        const id = formData.get("requires.id");
+        const type = formData.get("requires.type");
+
+        if (!id || !type) throw new Error("Invaild params");
+
+        const req = document.getElementById("requires");
+        if (!req) throw new Error("Failed to get requires list");
+
+        const data = JSON.parse(req.value);
+
+        data.push({ id: parseInt(id), type, key: data.length });
+
+        req.value = JSON.stringify(data);
+
+        updateTable(data, "requirement-item", "requirements-table");
+      }
+    </script>
+    <div class="flex flex-col items-center h-full">
+      <div class="container h-full">
+        <h1 class="text-6xl font-bold text-center">Create Item</h1>
+
+        <section>
+          <h5 class="font-semibold text-2xl mb-4 border-b-2">General</h5>
+
+          <div class="mb-2 flex flex-col">
+            <label for="name" class="mb-2 font-bold tracking-tighter"
+              >Name</label
+            >
+            <input
+              form="building"
+              class="text-black"
+              required
+              id="name"
+              name="name"
+              type="text"
+            />
+          </div>
+          <div class="mb-2 flex flex-col">
+            <label for="icon" class="mb-2 font-bold tracking-tighter"
+              >Icon</label
+            >
+            <input
+              form="building"
+              class="text-black"
+              required
+              id="icon"
+              name="icon"
+              type="url"
+            />
+          </div>
+
+          <div class="mb-2 flex flex-col">
+            <label for="description" class="mb-2 font-bold tracking-tighter"
+              >Description</label
+            >
+            <textarea
+              form="building"
+              class="text-black"
+              required
+              id="description"
+              name="description"
+              cols="5"
+              rows="6"
+            ></textarea>
+          </div>
+
+          <div class="mb-2 flex flex-col">
+            <label for="icon" class="mb-2 font-bold tracking-tighter"
+              >Max Global</label
+            >
+            <input
+              form="building"
+              class="text-black"
+              required
+              id="max.global"
+              name="max.global"
+              type="number"
+              min="-1"
+              value="-1"
+            />
+          </div>
+          <div class="mb-2 flex flex-col">
+            <label for="icon" class="mb-2 font-bold tracking-tighter"
+              >Max Pre Node</label
+            >
+            <input
+              form="building"
+              class="text-black"
+              required
+              id="max.node"
+              name="max.node"
+              type="number"
+              min="-1"
+              value="-1"
+            />
+          </div>
+        </section>
+
+        <section class="mb-2">
+          <h6 class="font-semibold text-xl mb-4 border-b-2">Requires</h6>
+
+          <div class="flex items-center gap-4 mb-2">
+            <label class="flex flex-col">
+              <span class="mb-2">Type</span>
+              <select
+                name="requires.type"
+                form="requirements"
+                class="text-black p-1"
+                required
+                data-id="requires.type"
+              >
+                <option value="global">Global</option>
+                <option value="local" selected>Local</option>
+              </select>
+            </label>
+
+            <label class="flex flex-col">
+              <span class="mb-2">Item</span>
+              <select
+                required
+                hx-get="/api/building/list"
+                hx-trigger="load"
+                name="requires.id"
+                form="requirements"
+                class="text-black p-1"
+                data-id="requires.id"
+              >
+                <option disabled>Loading</option>
+              </select>
+            </label>
+
+            <button
+              form="requirements"
+              class="px-2 py-1 bg-blue-700 hover:bg-blue-600 rounded-md mt-6"
+              type="submit"
+            >
+              Add Requirement
+            </button>
+          </div>
+
+          <table class="ml-4 divide-y">
+            <thead>
+              <tr class="divide-x">
+                <th class="p-2">Item Id</th>
+                <th class="p-2">Requirement Type</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody
+              id="requirements-table"
+              hx-confirm="Are you sure?"
+              hx-target="closest tr"
+              hx-swap="outerHTML"
+            ></tbody>
+          </table>
+        </section>
+
+        <section>
+          <h6 class="font-semibold text-xl mb-4 border-b-2">Levels</h6>
+
+          <button
+            hx-on:click="openDialog()"
+            class="px-2.5 py-2 bg-green-700 hover:bg-green-600 rounded-md"
+          >
+            Add level
+          </button>
+
+          <table class="ml-4 divide-y">
+            <thead>
+              <tr class="divide-x">
+                <th class="p-2">Cost</th>
+                <th class="p-2">Time</th>
+                <th class="p-2">Effects</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody
+              id="levels-table"
+              hx-confirm="Are you sure?"
+              hx-target="closest tr"
+              hx-swap="outerHTML"
+            ></tbody>
+          </table>
+        </section>
+
+        <div class="flex justify-end">
+          <button
+            form="building"
+            class="px-2.5 py-2 bg-green-700 hover:bg-green-600 rounded-md"
+            type="submit"
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+    <dialog id="add-level" class="backdrop-blur-sm bg-gray-500 bg-opacity-75">
+      <form>
+        <button>Add</button>
+      </form>
+    </dialog>
+    <template id="requirement-item">
+      <tr>
+        <td class="p-2">
+          <a
+            class="text-blue-400 hover:text-blue-300 underline"
+            href="/building?search=0&search-type=id"
+            data-id="content-id"
+            >0</a
+          >
+        </td>
+        <td class="p-2" data-id="content-type"></td>
+        <td class="p-2">
+          <button
+            hx-on::before-request="removeItem(this,'requires',event)"
+            hx-delete="/api/unit/list"
+            class="px-1.5 py-0.5 bg-red-700 hover:bg-red-600 rounded-md"
+          >
+            Delete
+          </button>
+        </td>
+      </tr>
+    </template>
+  </body>
 </html>

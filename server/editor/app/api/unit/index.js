@@ -13,6 +13,14 @@ export async function GET(req, res) {
     await readFile(req.app.unitsFile, { encoding: "utf-8" })
   );
 
+  const id = req.parsedURL.searchParams.get("id");
+
+  if (id) {
+    const idInt = parseInt(id);
+    const value = units.find((value) => value[0] === idInt);
+    return res.json(value[1]);
+  }
+
   const html = units
     .map(
       ([idx, unit]) =>
@@ -281,4 +289,43 @@ export async function DELETE(req, res) {
 
   await writeFile(req.app.unitsFile, JSON.stringify(items));
   res.end();
+}
+
+/**
+ * @export
+ * @param {import("../../../utils").EditorRequest} req
+ * @param {import("../../../utils").EditorResponse} res
+ */
+export async function PUT(req, res) {
+  const body = await req.form();
+
+  /** @type {[number,import("../../../../src/map/units").Unit][]} */
+  const units = JSON.parse(
+    await readFile(req.app.unitsFile, { encoding: "utf-8" })
+  );
+
+  const params = unitSchema.safeParse(Object.fromEntries(body.entries()));
+
+  if (params.error) {
+    console.error(params.error);
+    return res.end();
+  }
+
+  const content = Object.entries(params.data).reduce(
+    (pre, [key, value]) => {
+      assign(pre, key, value);
+      return pre;
+    },
+    { type: "unit" }
+  );
+
+  const idx = units.findIndex((value) => value[0] === content.id);
+
+  if (idx) return res.end();
+
+  units[idx][1] = content;
+
+  await writeFile(req.app.unitsFile, JSON.stringify(units));
+
+  res.redirect("/unit");
 }
