@@ -8,7 +8,7 @@
     <title>Editor - Tech/Building</title>
   </head>
   <body class="h-screen bg-gray-800 text-white flex flex-col divide-y-2">
-    <div class="flex p-2 items-center fixed w-full bg-gray-800">
+    <div class="flex p-2 items-center w-full bg-gray-800">
       <a
         href="/"
         class="mr-4 bg-blue-700 hover:bg-blue-600 px-2 py-0.5 rounded-md"
@@ -29,5 +29,36 @@
         >Create</a
       >
     </div>
+    <table
+      class="px-2"
+      hx-get="/api/building"
+      hx-trigger="load"
+      hx-target="#table"
+    >
+      <thead>
+        <tr class="divide-x">
+          <th>Id</th>
+          <th>Type</th>
+          <th>Name</th>
+          <th>Icon</th>
+          <th>Description</th>
+          <th>Max Global</th>
+          <th>Max Node</th>
+          <th>Max Level</th>
+          <th>Requires</th>
+          <th>Levels</th>
+          <th>Battle</th>
+          <th></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody
+        hx-confirm="Are you sure?"
+        hx-target="closest tr"
+        hx-swap="outerHTML swap:1s"
+        class="overflow-y-scroll divide-y"
+        id="table"
+      ></tbody>
+    </table>
   </body>
 </html>
