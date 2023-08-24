@@ -101,6 +101,12 @@ export default class GameState extends EventEmitter {
 
     constructor() {
         super();
+
+        this.addListener("player-disconnect", () => {
+            this.notify("A Player has disconnected", "info", "all");
+        });
+
+
         this.addListener(GameEvents.ObjectiveLose, (ev) => {
 
             this.deadPlayers.add(ev.owner);

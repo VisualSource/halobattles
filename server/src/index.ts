@@ -8,6 +8,7 @@ import { createHttpContext, createWSContext } from './context.js';
 import { appRouter } from './appRouter.js';
 import { AppRouter } from './lib.js';
 import { Lobby } from './routers/ui.js';
+import GameState from './object/GameState.js';
 
 const { server, listen } = createHTTPServer({
     router: appRouter,
@@ -26,6 +27,7 @@ wss.on("connection", (ws) => {
     console.log(`➕➕ Connection (${wss.clients.size})`);
     ws.once("close", () => {
         Lobby.get().emit("player-disconnection");
+        GameState.get().emit("player-disconnect");
         console.log(`➖➖ Connection (${wss.clients.size})`);
     });
 });
