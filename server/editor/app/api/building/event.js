@@ -4,7 +4,7 @@
  * @param {import("../../../utils").EditorResponse} res
  */
 export async function GET(req, res) {
-  const type = req.parsedURL.searchParams.get("levels.values.stat.type");
+  const type = req.parsedURL.searchParams.get("levels.values.stat.stat");
   const build = req.parsedURL.searchParams.get("levels.build");
 
   if (build) {

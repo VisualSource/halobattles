@@ -134,6 +134,7 @@ export async function GET(req, res) {
 }
 
 const unitSchema = z.object({
+  id: z.coerce.number().optional(),
   name: z.string().transform((value) => value.trim()),
   icon: z
     .string()
@@ -183,11 +184,9 @@ const unitSchema = z.object({
   capSize: z.coerce.number().min(0),
   globalMax: z.coerce.number().min(-1),
   "stats.isScout": z
-    .string()
-    .optional()
-    .transform((value) => value === "true")
-    .pipe(z.boolean())
-    .default("false"),
+    .enum(["on", "off"])
+    .transform((value) => value === "on")
+    .default("off"),
   "stats.attack": z.coerce.number().min(0),
   "stats.health": z.coerce.number().min(0),
   "stats.shealds": z.coerce.number().min(),
@@ -229,6 +228,8 @@ const unitSchema = z.object({
 export async function POST(req, res) {
   /** @type {URLSearchParams} */
   const data = await req.form();
+
+  console.log(data);
 
   /** @type {[number,import("../../../../src/map/units").Unit][]} */
   const units = JSON.parse(
@@ -299,6 +300,8 @@ export async function DELETE(req, res) {
 export async function PUT(req, res) {
   const body = await req.form();
 
+  console.log(body);
+
   /** @type {[number,import("../../../../src/map/units").Unit][]} */
   const units = JSON.parse(
     await readFile(req.app.unitsFile, { encoding: "utf-8" })
@@ -308,7 +311,8 @@ export async function PUT(req, res) {
 
   if (params.error) {
     console.error(params.error);
-    return res.end();
+    res.writeHead(400);
+    return res.end(params.error.errors[0]?.message ?? "Unknown error");
   }
 
   const content = Object.entries(params.data).reduce(
@@ -319,13 +323,19 @@ export async function PUT(req, res) {
     { type: "unit" }
   );
 
+  console.log(content, params.data);
+
   const idx = units.findIndex((value) => value[0] === content.id);
 
-  if (idx) return res.end();
+  if (idx === -1) {
+    console.error("Failed to update content");
+    res.writeHead(404);
+    return res.end("Failed to find unit to update");
+  }
 
   units[idx][1] = content;
 
   await writeFile(req.app.unitsFile, JSON.stringify(units));
 
-  res.redirect("/unit");
+  res.end();
 }

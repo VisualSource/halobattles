@@ -1,5 +1,5 @@
 import type { AttackType, EffectiveState, UnitType } from "./units.js";
-import ItemJson from '../../meta/buildings.json' assert { type: "json" };
+import ItemJson from "../data/buildings.json" assert { type: "json" };
 
 export type BuildingStat = {
     stat: "cap.current" | "cap.max" | "credits.income" | "nostat"

@@ -30,12 +30,12 @@ export async function initApp(config) {
   const port = config.port ?? 3000;
   const __dirname = __getDirname(config?.root);
 
-  const buildingFile = resolve(__dirname, "../meta/buildings.json");
-  const planetsFile = resolve(__dirname, "../meta/planets.json");
-  const unitsFile = resolve(__dirname, "../meta/units.json");
+  const buildingFile = resolve(__dirname, "../src/data/buildings.json");
+  const planetsFile = resolve(__dirname, "../src/data/planets.json");
+  const unitsFile = resolve(__dirname, "../src/data/units.json");
   const mapsFolder = resolve(__dirname, "../meta/maps");
 
-  /** @type {Map<string,{ type: "page" | "api", path: string; isApi: boolean }>} */
+  /** @type {Map<string,{ type: "page" | "api" | "file", path: string; isApi: boolean }>} */
   const routes = new Map();
 
   for await (const file of getFiles(resolve(__dirname, "./app"))) {
@@ -44,6 +44,7 @@ export async function initApp(config) {
 
     const path = file.split("app")[1].split(sep);
 
+    const isFile = path[1] === "public";
     const isApi = path[1] === "api";
 
     /**
@@ -54,11 +55,26 @@ export async function initApp(config) {
       url = url.replace("index", "");
     }
 
+    if (isFile) {
+      routes.set(`${url}${ext}`, {
+        type: "file",
+        url: `${url}${ext}`,
+        isApi,
+        path: file,
+      });
+      continue;
+    }
+
     if (url.endsWith("/") && url !== "/") {
       url = url.replace(/\/$/, "");
     }
 
-    routes.set(url, { type: isApi ? "api" : "page", url, isApi, path: file });
+    routes.set(url, {
+      type: isApi ? "api" : isFile ? "file" : "page",
+      url,
+      isApi,
+      path: file,
+    });
   }
 
   const server = createServer(async (req, res) => {
@@ -115,7 +131,10 @@ export async function initApp(config) {
     };
 
     res.sendFile = function (file, status = 200) {
-      res.writeHead(status, { "Content-Type": "text/html" });
+      const type = extname(file);
+      res.writeHead(status, {
+        "Content-Type": `text/${type.replace(".", "")}`,
+      });
       const stream = createReadStream(file, {
         encoding: "utf-8",
       });
@@ -150,6 +169,10 @@ export async function initApp(config) {
 
     try {
       switch (route.type) {
+        case "file": {
+          res.sendFile(route.path);
+          break;
+        }
         case "api": {
           const api = await import(pathToFileURL(route.path));
 

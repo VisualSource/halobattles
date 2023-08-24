@@ -8,7 +8,7 @@
     <title>Editor - Unit</title>
   </head>
   <body class="h-screen bg-gray-800 text-white flex flex-col divide-y-2">
-    <div class="flex p-2 items-center fixed w-full bg-gray-800">
+    <div class="flex p-2 items-center w-full bg-gray-800">
       <a
         href="/"
         class="mr-4 bg-blue-700 hover:bg-blue-600 px-2 py-0.5 rounded-md"
@@ -18,10 +18,20 @@
       <h1 class="text-2xl font-bold mr-4">Units</h1>
 
       <input
-        class="text-black rounded-sm"
+        hx-include="#by"
+        hx-post="/api/unit/search"
+        class="text-black rounded-sm mr-2"
+        name="search"
         type="search"
+        hx-trigger="keyup changed delay:500ms, search"
+        hx-indicator=".htmx-indicator"
+        hx-target="#unit-table"
         placeholder="Begin typing to search units..."
       />
+      <select id="by" name="search-by" class="text-black p-0.5">
+        <option value="faction">Faction</option>
+        <option selected value="name">Name</option>
+      </select>
 
       <a
         href="/unit/create"
@@ -30,9 +40,9 @@
       >
     </div>
 
-    <div class="px-2 mt-12">
+    <div class="px-2 mt-12 flex flex-col">
       <table
-        class="divide-y w-full"
+        class="divide-y w-full h-full"
         hx-get="/api/unit"
         hx-trigger="load"
         hx-target="#unit-table"
@@ -66,7 +76,7 @@
           hx-confirm="Are you sure?"
           hx-target="closest tr"
           hx-swap="outerHTML swap:1s"
-          class="divide-y"
+          class="divide-y overflow-y-scroll"
         ></tbody>
       </table>
     </div>

@@ -5,7 +5,780 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.4"></script>
-    <title>Editor - Unit</title>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <title>Editor - Building</title>
   </head>
-  <body class="h-screen bg-gray-800 text-white grid grid-cols-12"></body>
+  <body class="h-screen bg-gray-800 text-white flex flex-col">
+    <form
+      id="building"
+      hx-put="/api/building"
+      hx-trigger="submit"
+      hx-on::after-request="onSubmited(event)"
+      class="hidden"
+    ></form>
+    <input id="id" name="id" form="building" class="hidden" />
+    <script defer>
+      document.body.addEventListener("htmx:configRequest", function (evt) {
+        if (evt.detail.path === "/api/building") {
+          const search = new URLSearchParams(window.location.search);
+          evt.detail.parameters["id"] = search.get("id");
+        }
+      });
+
+      function onSubmited(event) {
+        if (event.detail.successful) {
+          return (window.location.href = "/building");
+        }
+        /** @type {XMLHttpRequest}*/
+        const response = event.detail.xhr;
+        alert(response.responseText);
+      }
+
+      function walk(obj, key) {
+        for (const [objKey, objValue] of Object.entries(obj)) {
+          if (["type", "maxLevel"].includes(objKey)) continue;
+          if (objKey === "levels") {
+            window.dispatchEvent(
+              new CustomEvent("set-levels", {
+                detail: Object.values(objValue),
+              })
+            );
+            continue;
+          }
+          if (objKey === "requires") {
+            window.dispatchEvent(
+              new CustomEvent("set-required", { detail: objValue })
+            );
+            continue;
+          }
+
+          if (typeof objValue === "object") {
+            walk(objValue, [key, objKey].filter(Boolean).join("."));
+            continue;
+          }
+
+          const elId = [key, objKey].filter(Boolean).join(".");
+
+          const el = document.getElementById(elId);
+          if (!el) throw new Error(`Failed to get target (${elId})`);
+          el.value = objValue;
+        }
+      }
+
+      function loadItem() {
+        const el = JSON.parse(document.getElementById("og-data").innerText);
+        walk(el, "");
+      }
+
+      function deleteStatItem(data, levelIdx, statIdx) {
+        const level = data.levels.at(levelIdx);
+        if (!level) return;
+        level.values.splice(statIdx, 1);
+      }
+      /** @param {unknown[]} levels */
+      function transfromLevels(levels) {
+        const elms = levels.reduce((pre, cur, idx) => {
+          pre[idx + 1] = cur;
+          return pre;
+        }, {});
+
+        return JSON.stringify(elms);
+      }
+
+      function addStat(data, event) {
+        const content = new FormData(event.target);
+
+        console.log(content);
+
+        const idx = parseInt(content.get("levels.key")?.toString());
+        if (!Number.isInteger(idx)) throw new Error("Unable to add");
+
+        const type = content.get("levels.values.stat.stat");
+        const color = content.get("levels.values.stat.color");
+        const text = content.get("levels.values.stat.text");
+        const value = content.get("levels.values.stat.value");
+
+        const stat = { stat: type, color, text, value: parseInt(value) };
+
+        const eventName = content.get("levels.values.stat.event");
+        const trigger = content.get("levels.values.stat.run");
+
+        if (eventName && trigger) {
+          stat.run = trigger;
+          stat.event = eventName;
+        }
+
+        data.levels[idx].values.push(stat);
+      }
+
+      function addLevel(data, event) {
+        const content = new FormData(event.target);
+
+        const canBuild = content.get("levels.build") === "yes";
+
+        const time =
+          parseInt(content.get("levels.build.cost")?.toString()) ?? 1;
+        const cost =
+          parseInt(content.get("levels.build.time")?.toString()) ?? 1;
+
+        const build = canBuild ? { time, cost } : null;
+
+        data.levels.push({ build, values: [] });
+
+        event.target.reset();
+      }
+
+      function addReqire(data, event) {
+        const formData = new FormData(event.target);
+
+        const id = formData.get("requires.id");
+        const type = formData.get("requires.type");
+
+        if (!id || !type) throw new Error("Failed to add require");
+
+        data.requires.push({ id: parseInt(id), type });
+      }
+    </script>
+    <code
+      class="hidden"
+      hx-trigger="load"
+      hx-get="/api/building"
+      hx-on::after-request="loadItem()"
+      id="og-data"
+    ></code>
+    <div class="flex flex-col items-center h-full">
+      <div class="container h-full">
+        <h1 class="text-6xl font-bold text-center">Update Item</h1>
+
+        <section>
+          <h5 class="font-semibold text-2xl mb-4 border-b-2">General</h5>
+
+          <div class="mb-2 flex flex-col">
+            <label for="name" class="mb-2 font-bold tracking-tighter"
+              >Name</label
+            >
+            <input
+              form="building"
+              class="text-black"
+              required
+              id="name"
+              name="name"
+              type="text"
+            />
+          </div>
+          <div class="mb-2 flex flex-col">
+            <label for="icon" class="mb-2 font-bold tracking-tighter"
+              >Icon</label
+            >
+            <input
+              form="building"
+              class="text-black"
+              required
+              id="icon"
+              name="icon"
+              type="url"
+            />
+          </div>
+
+          <div class="mb-2 flex flex-col">
+            <label for="description" class="mb-2 font-bold tracking-tighter"
+              >Description</label
+            >
+            <textarea
+              form="building"
+              class="text-black"
+              required
+              id="description"
+              name="description"
+              cols="5"
+              rows="6"
+            ></textarea>
+          </div>
+
+          <div class="mb-2 flex flex-col">
+            <label for="max.global" class="mb-2 font-bold tracking-tighter"
+              >Max Global</label
+            >
+            <input
+              form="building"
+              class="text-black"
+              required
+              id="max.global"
+              name="max.global"
+              type="number"
+              min="-1"
+              value="-1"
+            />
+          </div>
+          <div class="mb-2 flex flex-col">
+            <label for="max.node" class="mb-2 font-bold tracking-tighter"
+              >Max Pre Node</label
+            >
+            <input
+              form="building"
+              class="text-black"
+              required
+              id="max.node"
+              name="max.node"
+              type="number"
+              min="-1"
+              value="-1"
+            />
+          </div>
+        </section>
+
+        <section
+          class="mb-2"
+          x-data="{ requires: [] }"
+          @set-required.window="requires=$event.detail"
+        >
+          <h6 class="font-semibold text-xl mb-4 border-b-2">Requires</h6>
+          <form
+            @submit.prevent="addReqire($data,event)"
+            id="requirements"
+            class="hidden"
+          ></form>
+          <input
+            :value="JSON.stringify(requires)"
+            defaultValue="[]"
+            id="requires"
+            form="building"
+            name="requires"
+            class="hidden"
+          />
+          <div class="flex items-center gap-4 mb-2">
+            <label class="flex flex-col">
+              <span class="mb-2">Type</span>
+              <select
+                name="requires.type"
+                form="requirements"
+                class="text-black p-1"
+                required
+                data-id="requires.type"
+              >
+                <option value="global">Global</option>
+                <option value="local" selected>Local</option>
+              </select>
+            </label>
+
+            <label class="flex flex-col">
+              <span class="mb-2">Item</span>
+              <select
+                required
+                hx-get="/api/building/list"
+                hx-trigger="load"
+                name="requires.id"
+                form="requirements"
+                class="text-black p-1"
+                data-id="requires.id"
+              >
+                <option disabled>Loading</option>
+              </select>
+            </label>
+
+            <button
+              form="requirements"
+              class="px-2 py-1 bg-blue-700 hover:bg-blue-600 rounded-md mt-6"
+              type="submit"
+            >
+              Add Requirement
+            </button>
+          </div>
+
+          <table class="ml-4 divide-y">
+            <thead>
+              <tr class="divide-x">
+                <th class="p-2">Item Id</th>
+                <th class="p-2">Requirement Type</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(req,i) in requires">
+                <tr>
+                  <td class="p-2">
+                    <a
+                      class="text-blue-400 hover:text-blue-300 underline"
+                      :href="`/building?search=0&search-type=${req.id}`"
+                      data-id="content-id"
+                      x-text="req.id"
+                    ></a>
+                  </td>
+                  <td class="p-2" x-text="req.type"></td>
+                  <td class="p-2">
+                    <button
+                      @click="requires.splice(i,1)"
+                      class="px-1.5 py-0.5 bg-red-700 hover:bg-red-600 rounded-md"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </section>
+
+        <section
+          x-data="{ levels: [] }"
+          @set-levels.window="levels=$event.detail"
+          class="mb-2"
+        >
+          <input
+            class="hidden"
+            :value="transfromLevels(levels)"
+            name="levels"
+            form="building"
+            defaultValues="{}"
+          />
+          <form
+            @submit.prevent="addStat($data,event)"
+            id="levels.stat.values"
+          ></form>
+          <h6 class="font-semibold text-xl mb-4 border-b-2">Levels</h6>
+
+          <div class="mb-2">
+            <label class="flex flex-col">
+              <span class="mb-2">Stat</span>
+              <select
+                hx-get="/api/building/event"
+                hx-target="#event-params"
+                name="levels.values.stat.stat"
+                form="levels.stat.values"
+                class="text-black p-1"
+                required
+              >
+                <option value="cap.current">Current cap</option>
+                <option value="cap.max">Max Unit Cap</option>
+                <option value="credits.income">Income</option>
+                <option value="nostat" selected>No Stat</option>
+                <option value="event">Event</option>
+              </select>
+            </label>
+
+            <div id="event-params">
+              <label class="flex flex-col">
+                <span class="mb-2">Color</span>
+                <select
+                  name="levels.values.stat.color"
+                  form="levels.stat.values"
+                  class="text-black p-1"
+                  required
+                >
+                  <option value="green" selected>Green</option>
+                  <option value="red" selected>Red</option>
+                </select>
+              </label>
+
+              <div class="mb-2 flex flex-col">
+                <label for="name" class="mb-2 font-bold tracking-tighter"
+                  >Label</label
+                >
+                <input
+                  form="levels.stat.values"
+                  class="text-black"
+                  required
+                  name="levels.values.stat.text"
+                  type="text"
+                  placeholder="Short description of item"
+                />
+              </div>
+
+              <div class="mb-2 flex flex-col">
+                <label for="name" class="mb-2 font-bold tracking-tighter"
+                  >Stat Value</label
+                >
+                <input
+                  form="levels.stat.values"
+                  class="text-black"
+                  required
+                  name="levels.values.stat.value"
+                  type="number"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
+
+          <label class="flex flex-col mb-2">
+            <span class="mb-2">Add To Level</span>
+            <select
+              name="levels.key"
+              form="levels.stat.values"
+              class="text-black p-1"
+              required
+            >
+              <template x-for="(_,index) in levels">
+                <option :value="index" x-text="index"></option>
+              </template>
+            </select>
+          </label>
+          <button
+            form="levels.stat.values"
+            type="submit"
+            class="px-2.5 py-2 bg-green-700 hover:bg-green-600 rounded-md"
+          >
+            Add Level Stat
+          </button>
+
+          <form
+            id="levels.level"
+            @submit.prevent="addLevel($data,event)"
+          ></form>
+
+          <label class="flex flex-col">
+            <span class="mb-2">Has build requirements</span>
+            <select
+              hx-get="/api/building/event"
+              hx-target="#build-params"
+              name="levels.build"
+              form="levels.level"
+              class="text-black p-1"
+              required
+            >
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </label>
+
+          <div id="build-params">
+            <div class="mb-2 flex flex-col">
+              <label for="name" class="mb-2 font-bold tracking-tighter"
+                >Cost</label
+              >
+              <input
+                form="levels.level"
+                class="text-black"
+                required
+                name="levels.build.cost"
+                type="number"
+                placeholder="0"
+                min="0"
+              />
+            </div>
+            <div class="mb-2 flex flex-col">
+              <label for="name" class="mb-2 font-bold tracking-tighter"
+                >Time</label
+              >
+              <input
+                form="levels.level"
+                class="text-black"
+                required
+                name="levels.build.time"
+                type="number"
+                min="1"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <button
+              form="levels.level"
+              type="submit"
+              class="px-2.5 py-2 bg-green-700 hover:bg-green-600 rounded-md"
+            >
+              Add level
+            </button>
+          </div>
+
+          <table class="ml-4 divide-y w-full">
+            <thead>
+              <tr class="divide-x">
+                <th class="p-2">Cost</th>
+                <th class="p-2">Time</th>
+                <th class="p-2">Effects</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody
+              id="levels-table"
+              hx-confirm="Are you sure?"
+              hx-target="closest tr"
+              hx-swap="outerHTML"
+            >
+              <template x-for="(level, levelIdx) in levels">
+                <tr class="divide-x">
+                  <td
+                    class="text-center"
+                    x-text="level.build?.cost?.toLocaleString() ?? 'Not Set'"
+                  ></td>
+                  <td
+                    class="text-center"
+                    x-text="level.build?.time?.toLocaleString() ?? 'Not Set'"
+                  ></td>
+                  <td>
+                    <table class="w-full">
+                      <thead>
+                        <tr>
+                          <th class="p-1">Stat</th>
+                          <th class="p-1">Value</th>
+                          <th class="p-1">Color</th>
+                          <th class="p-1">Text</th>
+                          <th class="p-1">event</th>
+                          <th class="p-1">run</th>
+                          <th class="p-1"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="(value,statIdx) in level.values">
+                          <tr class="divide-x">
+                            <td
+                              x-text="value.stat"
+                              class="p-1 text-center"
+                            ></td>
+                            <td
+                              x-text="value.value.toLocaleString()"
+                              class="p-1 text-center"
+                            ></td>
+                            <td
+                              x-text="value.color"
+                              class="p-1 text-center"
+                            ></td>
+                            <td
+                              x-text="value.text"
+                              class="p-1 text-center"
+                            ></td>
+                            <td
+                              x-text="value.event ?? 'No Event'"
+                              class="p-1 text-center"
+                            ></td>
+                            <td
+                              x-text="value.run ?? 'No Trigger'"
+                              class="p-1 text-center"
+                            ></td>
+                            <td class="p-1 text-center">
+                              <button
+                                @click="deleteStatItem($data,levelIdx,statIdx)"
+                                class="underline hover:text-red-500"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </td>
+                  <td class="text-center">
+                    <button
+                      @click="levels.splice(levelIdx,1)"
+                      class="px-1.5 py-0.5 bg-red-700 hover:bg-red-600 rounded-md"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </section>
+
+        <section>
+          <label class="flex flex-col">
+            <span class="mb-2">Item Type</span>
+            <select
+              form="building"
+              hx-target="#building-stats"
+              hx-get="/api/building/type"
+              name="type"
+              class="text-black p-1"
+              required
+            >
+              <option value="tech">Tech</option>
+              <option value="building-no" selected>
+                Building With Default
+              </option>
+              <option value="building" selected>Building</option>
+            </select>
+          </label>
+
+          <div id="building-stats">
+            <select
+              form="building"
+              class="hidden"
+              id="battle.type"
+              required
+              name="battle.type"
+              value="Building"
+            >
+              <option value="building" selected>Building</option>
+            </select>
+
+            <div class="mb-2 flex flex-col">
+              <label
+                class="mb-2 font-bold tracking-tighter"
+                for="battle.damageType"
+                >Damage Type</label
+              >
+              <select
+                form="building"
+                class="text-black p-1"
+                id="battle.damageType"
+                required
+                name="battle.damageType"
+                value="kinetic"
+              >
+                <option value="kinetic" selected>Kinetic</option>
+                <option value="plasma">Plasma</option>
+                <option value="hardlight">Hardlight</option>
+                <option value="burn">Burn</option>
+                <option value="freeze">Freeze</option>
+              </select>
+            </div>
+            <h6 class="font-semibold text-xl mb-4 border-b-2">Effective</h6>
+            <div class="ml-4 flex flex-col mb-2">
+              <label
+                class="mb-2 font-bold tracking-tighter"
+                for="battle.effective.air"
+                >Air</label
+              >
+              <select
+                form="building"
+                class="text-black p-1"
+                id="battle.effective.air"
+                name="battle.effective.air"
+                required
+              >
+                <option value="weak">Weak</option>
+                <option value="normal" selected>Normal</option>
+                <option value="strong">Strong</option>
+              </select>
+            </div>
+            <div class="ml-4 flex flex-col mb-2">
+              <label
+                class="mb-2 font-bold tracking-tighter"
+                for="battle.effective.infantry"
+                >Infantry</label
+              >
+              <select
+                form="building"
+                class="text-black p-1"
+                id="battle.effective.infantry"
+                name="battle.effective.infantry"
+                required
+              >
+                <option value="weak">Weak</option>
+                <option value="normal" selected>Normal</option>
+                <option value="strong">Strong</option>
+              </select>
+            </div>
+            <div class="ml-4 flex flex-col mb-2">
+              <label
+                class="mb-2 font-bold tracking-tighter"
+                for="battle.effective.vehicle"
+                >Vehicle</label
+              >
+              <select
+                form="building"
+                class="text-black p-1"
+                id="battle.effective.vehicle"
+                required
+                name="battle.effective.vehicle"
+              >
+                <option value="weak">Weak</option>
+                <option selected value="normal">Normal</option>
+                <option value="strong">Strong</option>
+              </select>
+            </div>
+            <div class="ml-4 flex flex-col mb-2">
+              <label
+                class="mb-2 font-bold tracking-tighter"
+                for="battle.effective.building"
+                >Building</label
+              >
+              <select
+                form="building"
+                class="text-black p-1"
+                id="battle.effective.building"
+                required
+                name="battle.effective.building"
+              >
+                <option value="weak">Weak</option>
+                <option selected value="normal">Normal</option>
+                <option value="strong">Strong</option>
+              </select>
+            </div>
+            <div class="mb-2 flex flex-col">
+              <label class="mb-2 font-bold tracking-tighter" for="battle.attack"
+                >Building Attack</label
+              >
+              <input
+                form="building"
+                class="text-black"
+                required
+                type="number"
+                name="battle.attack"
+                id="battle.attack"
+                value="0"
+                min="0"
+              />
+            </div>
+            <div class="mb-2 flex flex-col">
+              <label class="mb-2 font-bold tracking-tighter" for="battle.health"
+                >Building Health</label
+              >
+              <input
+                form="building"
+                class="text-black"
+                required
+                type="number"
+                name="battle.health"
+                id="battle.health"
+                value="100"
+                min="0"
+              />
+            </div>
+            <div class="mb-2 flex flex-col">
+              <label
+                class="mb-2 font-bold tracking-tighter"
+                for="battle.shealds"
+                >Building Shealds</label
+              >
+              <input
+                form="building"
+                class="text-black"
+                required
+                type="number"
+                name="battle.shealds"
+                id="battle.shealds"
+                value="0"
+                min="0"
+              />
+            </div>
+            <div class="mb-2 flex flex-col">
+              <label
+                class="mb-2 font-bold tracking-tighter"
+                for="battle.hitChange"
+                >Building Hit Chance</label
+              >
+              <input
+                form="building"
+                class="text-black"
+                required
+                type="number"
+                name="battle.hitChange"
+                id="battle.hitChange"
+                min="0"
+                value="0"
+              />
+            </div>
+          </div>
+        </section>
+
+        <div class="flex justify-end mb-4">
+          <button
+            form="building"
+            class="px-2.5 py-2 bg-green-700 hover:bg-green-600 rounded-md"
+            type="submit"
+          >
+            Update
+          </button>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>

@@ -1,5 +1,5 @@
 export type AttackType = "plasma" | "kinetic" | "hardlight" | "burn" | "freeze";
-import unitsJson from '../../meta/units.json' assert { type: "json" };
+import unitsJson from "../data/units.json" assert { type: "json" };
 
 type BattleEventSpawn = {
     type: "spawn",
@@ -65,13 +65,6 @@ export type Unit = {
         events: BattleEvents | null
     }
 }
-
-/**
- *  UNSC:      Marine,               OSDT,               UNSC Sniper,               Cyclops,            Warthog,                     Wolverine,      Scorpion,        Grizzly,            Hornet,
- * Banished:   Grunts,               Heavy Grunts ,      Jump Pack Brutes,          Jiralhanae Warlord, Chopper,                     Reaver,         Wraith,          Ironclad Wraith,    Banshee
- * Covenant:   Grunts                Elite Enforcers     Elite Rangers              Hunters,            Ghost                        AA Wraith,      Wraith,          Ironclad Wraith,    Banshee
- * Forrunners: Prometheans Soliders, Prometheans Knight, Promethean Sniper Soldier, Protector Sentinel, Trove Protector Sentinels. , Super Sentinel  Enforcer sential,Retriever Sentinel, Sentienal Swarm
- */
 
 const units = new Map<number, Unit>(unitsJson as [number, Unit][]);
 

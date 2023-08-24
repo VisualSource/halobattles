@@ -7,7 +7,7 @@ import remove from 'lodash.remove';
 import { GameEvents, MoveRequest, MoveResponse, UpdateLocationResponse } from '../object/Events.js';
 import type { Unit, GroupType, Building, LocationProps } from './Location.js';
 import { BuildingStat, buildOptions } from '../map/upgradeList.js';
-import factionsBuildable from "../map/faction_builds.js";
+import factionsBuildable, { factionColors, factionStart } from "../map/faction_builds.js";
 import type { BattleResult } from "./BattleRuntime.js";
 import { __dirname } from "../lib/utils.js";
 import type { UUID } from "../lib.js";
@@ -48,20 +48,6 @@ export type Player = {
         current: number;
         income: number;
     }
-}
-
-const factionStart: { [key in Factions]: string } = {
-    Banished: "Doisac",
-    Covenant: "Janjur Qom",
-    Forerunner: "Ghibalb",
-    UNSC: "Earth"
-}
-
-const factionColors: { [key in Factions]: number } = {
-    "Banished": 0xe82a00,
-    Covenant: 0x8208d8,
-    Forerunner: 0x00b9f7,
-    UNSC: 0x1db207
 }
 
 export default class GameState extends EventEmitter {
@@ -117,7 +103,6 @@ export default class GameState extends EventEmitter {
         super();
         this.addListener(GameEvents.ObjectiveLose, (ev) => {
 
-            console.log(ev);
             this.deadPlayers.add(ev.owner);
             if (this.deadPlayers.size === (this.players.length - 1)) {
 
@@ -158,8 +143,8 @@ export default class GameState extends EventEmitter {
                 color: factionColors[player.faction],
                 factions: player.faction,
                 credits: {
-                    current: 10_000,
-                    income: 1_000
+                    current: 5000,
+                    income: 100
                 },
                 cap: {
                     max: 10,

@@ -128,19 +128,29 @@ export async function GET(req, res) {
     await readFile(req.app.buildingFile, { encoding: "utf-8" })
   );
 
+  const id = req.parsedURL.searchParams.get("id");
+
+  if (id) {
+    const itemId = parseInt(id);
+    const item = items.find((value) => value[0] === itemId);
+    return res.json(item[1]);
+  }
+
   const html = items
     .map(
       ([idx, value]) => /*html*/ `
-    <tr class="divide-x">
-      <td class="text-center">${value.id}</td>
-      <td class="text-center">${value.type}</td>
-      <td class="text-center">${value.name}</td>
-      <td class="text-center">
+    <tr class="divide-x text-sm">
+      <td class="text-center text-sm">${value.id}</td>
+      <td class="text-center text-sm">${value.type}</td>
+      <td class="text-center text-sm">${value.name}</td>
+      <td class="text-center text-sm">
         <div class="flex items-center justify-center">
           <img class="h-10 w-10" src="${value.icon}" alt="${value.name}" />
         </div>
       </td>
-      <td class="text-center">${value.description}</td>
+      <td class="text-center text-ellipsis whitespace-nowrap max-w-[120px] overflow-hidden">${
+        value.description
+      }</td>
       <td class="text-center">${value.max.global}</td>
       <td class="text-center">${value.max.node}</td>
       <td class="text-center">${value.maxLevel}</td>
@@ -195,6 +205,7 @@ export async function GET(req, res) {
 }
 
 const schema = z.object({
+  id: z.coerce.number().optional(),
   name: z.string(),
   icon: z.string().url(),
   description: z.string(),
@@ -238,6 +249,48 @@ const schema = z.object({
   "battle.shealds": z.coerce.number().optional(),
   "battle.hitChange": z.coerce.number().optional(),
 });
+
+/**
+ * @export
+ * @param {import("../../../utils").EditorRequest} req
+ * @param {import("../../../utils").EditorResponse} res
+ */
+export async function PUT(req, res) {
+  /** @type {URLSearchParams} */
+  const body = await req.form();
+  const result = schema.safeParse(Object.fromEntries(body.entries()));
+
+  if (result.error) {
+    console.log(result.error);
+    res.writeHead(400);
+    return res.end(result.error.errors[0].message);
+  }
+  /** @type {[number,import("../../../../src/map/upgradeList").Item][]} */
+  const items = JSON.parse(
+    await readFile(req.app.buildingFile, { encoding: "utf-8" })
+  );
+
+  const content = Object.entries(result.data).reduce((pre, [key, value]) => {
+    assign(pre, key, value);
+    return pre;
+  }, {});
+
+  content.maxLevel = Object.keys(content.levels).length;
+
+  const idx = items.findIndex((value) => value[0] === content.id);
+
+  if (idx === -1) {
+    res.writeHead(404);
+    return res.end("Failed to find item");
+  }
+
+  items[idx][1] = content;
+
+  await writeFile(req.app.buildingFile, JSON.stringify(items));
+
+  res.writeHead(200);
+  return res.end();
+}
 
 /**
  * @export

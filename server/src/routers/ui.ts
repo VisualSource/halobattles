@@ -8,7 +8,7 @@ import type { UUID } from '../lib.js';
 import type { Factions } from '../object/GameState.js';
 import { TRPCError } from '@trpc/server';
 import GameState from '../object/GameState.js';
-import { __dirname } from '../lib/utils.js';
+import { __getDirname } from '../lib/utils.js';
 
 type LobbyPlayer = { isHost: boolean, uuid: UUID; username: string; faction: Factions | "unknown" };
 type LobbyEvent = { type: "kick-event", uuid: UUID; } | { type: "start-event" } | { type: "players-not-ready" };
@@ -47,9 +47,7 @@ export class Lobby extends EventEmitter {
     }
     public async getMaps(): Promise<string[]> {
         if (!this._maps_loaded) {
-
-            const dir = await readdir(resolve(__dirname, "../../maps"), { recursive: false, withFileTypes: true });
-
+            const dir = await readdir(resolve(__getDirname(import.meta.url), "../../maps"), { recursive: false, withFileTypes: true });
             for (const file of dir) {
                 if (!file.isFile()) continue;
                 if (extname(file.name) !== ".json") continue;
@@ -145,12 +143,17 @@ export const uiRouter = t.router({
             throw new TRPCError({ message: "One or more player has not selected a faction", code: "CONFLICT" });
         }
 
-        GameState.get().initGame(list as {
-            isHost: boolean;
-            uuid: UUID;
-            username: string;
-            faction: Factions;
-        }[], lobby.settings);
+        try {
+            GameState.get().initGame(list as {
+                isHost: boolean;
+                uuid: UUID;
+                username: string;
+                faction: Factions;
+            }[], lobby.settings);
+        } catch (error) {
+            console.error(error);
+            throw new TRPCError({ message: "Failed to init game", code: "UNPROCESSABLE_CONTENT" });
+        }
 
         lobby.emit("lobby-event", { type: "start-event" } as LobbyEvent);
     }),

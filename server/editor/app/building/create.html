@@ -9,7 +9,7 @@
       defer
       src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
     ></script>
-    <title>Editor - Unit</title>
+    <title>Editor - Building</title>
   </head>
   <body class="h-screen bg-gray-800 text-white flex flex-col divide-y-2">
     <form
@@ -27,7 +27,7 @@
       /** @param {unknown[]} levels */
       function transfromLevels(levels) {
         const elms = levels.reduce((pre, cur, idx) => {
-          pre[idx] = cur;
+          pre[idx + 1] = cur;
           return pre;
         }, {});
 
@@ -42,12 +42,12 @@
         const idx = parseInt(content.get("levels.key")?.toString());
         if (!Number.isInteger(idx)) throw new Error("Unable to add");
 
-        const type = content.get("levels.values.stat.type");
+        const type = content.get("levels.values.stat.stat");
         const color = content.get("levels.values.stat.color");
         const text = content.get("levels.values.stat.text");
         const value = content.get("levels.values.stat.value");
 
-        const stat = { type, color, text, value: parseInt(value) };
+        const stat = { stat: type, color, text, value: parseInt(value) };
 
         const eventName = content.get("levels.values.stat.event");
         const trigger = content.get("levels.values.stat.run");
@@ -277,7 +277,7 @@
               <select
                 hx-get="/api/building/event"
                 hx-target="#event-params"
-                name="levels.values.stat.type"
+                name="levels.values.stat.stat"
                 form="levels.stat.values"
                 class="text-black p-1"
                 required

@@ -5,81 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.4"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
     <title>Editor - Edit Unit</title>
   </head>
   <body class="h-screen bg-gray-800 text-white">
+    <code id="form-submited" class="hidden"></code>
     <code
-      hx-on::after-request="updateForm(event)"
+      hx-on::after-request="loadForm(event)"
       hx-get="/api/unit"
       hx-trigger="load"
       id="unit-data"
       class="hidden"
     ></code>
-    <template id="requirement-item">
-      <tr>
-        <td class="p-2">
-          <a
-            class="text-blue-400 hover:text-blue-300 underline"
-            href="/building?search=0&search-type=id"
-            data-id="content-id"
-            >0</a
-          >
-        </td>
-        <td class="p-2" data-id="content-type"></td>
-        <td class="p-2">
-          <button
-            hx-on::before-request="removeItem(this,'requires',event)"
-            hx-delete="/api/unit/list"
-            class="px-1.5 py-0.5 bg-red-700 hover:bg-red-600 rounded-md"
-          >
-            Delete
-          </button>
-        </td>
-      </tr>
-    </template>
-    <template id="unit-event-item">
-      <tr class="divide-x">
-        <td class="p-1" data-id="trigger"></td>
-        <td class="p-1" data-id="name"></td>
-        <td class="p-1" data-id="params"></td>
-        <td class="p-1">
-          <button
-            hx-on:before-request="removeItem(this,'events-data',event)"
-            hx-delete="/api/unit/list"
-            class="px-1.5 py-1 bg-red-700 hover:bg-red-600 rounded-md"
-            type="button"
-          >
-            Delete
-          </button>
-        </td>
-      </tr>
-    </template>
     <div class="flex flex-col items-center p-4">
-      <input name="id" id="unit-id" class="hidden" />
       <form
         id="unit"
         hx-put="/api/unit"
-        hx-include="#unit-id"
+        hx-target="#form-submited"
         hx-trigger="submit"
+        hx-on::after-request="onSubmited(event)"
       ></form>
-      <form id="requirements" hx-on:submit="handleRequirement(event)"></form>
-      <form id="events" hx-on:submit="handleAddEvent(event)"></form>
-      <input
-        class="hidden"
-        id="requires"
-        name="requires"
-        form="unit"
-        value="[]"
-        defaultValue="[]"
-      />
-      <input
-        class="hidden"
-        id="events-data"
-        name="stats.events"
-        form="unit"
-        value="[]"
-        defaultValue="[]"
-      />
+      <input form="unit" name="id" id="id" class="hidden" />
       <div class="container">
         <h1 class="text-6xl font-bold text-center">Create Unit</h1>
 
@@ -99,22 +48,28 @@
             />
           </div>
 
-          <div class="mb-2 flex flex-col">
-            <label
-              class="mb-2 font-bold tracking-tighter"
-              for="icon"
-              class="mb-2"
-              >Icon</label
-            >
-            <input
-              form="unit"
-              class="text-black"
-              required
-              id="icon"
-              name="icon"
-              type="url"
-            />
-          </div>
+          <section @set-icon.window="icon=$event.detail" x-data="{ icon: '' }">
+            <div>
+              <img alt="unit-icon" :src="icon" class="h-28 2-28" />
+            </div>
+            <div class="mb-2 flex flex-col">
+              <label
+                class="mb-2 font-bold tracking-tighter"
+                for="icon"
+                class="mb-2"
+                >Icon</label
+              >
+              <input
+                x-model="icon"
+                form="unit"
+                class="text-black"
+                required
+                id="icon"
+                name="icon"
+                type="url"
+              />
+            </div>
+          </section>
 
           <div class="mb-2 flex flex-col">
             <label for="description" class="mb-2 font-bold tracking-tighter"
@@ -197,7 +152,24 @@
           </div>
         </section>
 
-        <section class="mb-2">
+        <!--Requires-->
+        <section
+          @set-requires.window="requires=$event.detail"
+          class="mb-2"
+          x-data="{ requires: [] }"
+        >
+          <form
+            @submit.prevent="addRequired($data,event)"
+            id="requirements"
+            class="hidden"
+          ></form>
+          <input
+            :value="JSON.stringify(requires)"
+            class="hidden"
+            id="requires"
+            name="requires"
+            form="unit"
+          />
           <h6 class="font-semibold text-xl mb-4 border-b-2">Requires</h6>
 
           <div class="flex items-center gap-4 mb-2">
@@ -247,17 +219,35 @@
                 <th></th>
               </tr>
             </thead>
-            <tbody
-              id="requirements-table"
-              hx-confirm="Are you sure?"
-              hx-target="closest tr"
-              hx-swap="outerHTML"
-            ></tbody>
+            <tbody>
+              <template x-for="(requirement,i) in requires">
+                <tr>
+                  <td class="p-2">
+                    <a
+                      x-text="requirement.id"
+                      class="text-blue-400 hover:text-blue-300 underline"
+                      :href="`/building?search=${requirement.id}&search-type=id`"
+                      data-id="content-id"
+                    ></a>
+                  </td>
+                  <td class="p-2" x-text="requirement.type"></td>
+                  <td class="p-2">
+                    <button
+                      @click="requires.splice(i,1)"
+                      class="px-1.5 py-0.5 bg-red-700 hover:bg-red-600 rounded-md"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
           </table>
         </section>
 
         <h5 class="font-semibold text-2xl mb-4 border-b-2">Battle Stats</h5>
 
+        <!--General Battle Stats-->
         <section class="flex flex-col">
           <div class="mb-2">
             <input
@@ -333,6 +323,7 @@
           </div>
         </section>
 
+        <!-- Effecitve Config -->
         <section>
           <h6 class="font-semibold text-xl mb-4 border-b-2">Effective</h6>
           <div class="ml-4 flex flex-col mb-2">
@@ -409,6 +400,7 @@
           </div>
         </section>
 
+        <!-- Battle Type & Damage Type -->
         <section class="flex flex-col">
           <div class="mb-2 flex flex-col">
             <label class="mb-2 font-bold tracking-tighter" for="stats.type"
@@ -451,7 +443,19 @@
           </div>
         </section>
 
-        <div class="ml-4">
+        <section
+          @set-events.window="events=$event.detail"
+          x-data="{ events: [] }"
+          class="ml-4"
+        >
+          <form id="events" @submit.prevent="addEvent($data,event)"></form>
+          <input
+            class="hidden"
+            id="events-data"
+            name="stats.events"
+            form="unit"
+            :value="JSON.stringify(events)"
+          />
           <h6 class="font-semibold text-xl mb-4 border-b-2">Unit Events</h6>
 
           <div class="flex gap-4">
@@ -538,14 +542,45 @@
                 <th></th>
               </tr>
             </thead>
-            <tbody
-              id="unit-events-table"
-              hx-confirm="Are you sure?"
-              hx-target="closest tr"
-              hx-swap="outerHTML"
-            ></tbody>
+            <tbody>
+              <template x-for="(event,i) in events">
+                <tr class="divide-x">
+                  <td class="p-1" x-text="event.trigger"></td>
+                  <td class="p-1" x-text="event.name"></td>
+                  <td class="p-1">
+                    <table>
+                      <thead>
+                        <tr class="divide-x">
+                          <template x-for="param in Object.keys(event.params)">
+                            <th x-text="param"></th>
+                          </template>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr class="divide-x">
+                          <template
+                            x-for="value in Object.values(event.params)"
+                          >
+                            <td x-text="value"></td>
+                          </template>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                  <td class="p-1">
+                    <button
+                      @click="events.splice(i,1)"
+                      class="px-1.5 py-1 bg-red-700 hover:bg-red-600 rounded-md"
+                      type="button"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
           </table>
-        </div>
+        </section>
 
         <div class="flex justify-end">
           <button
@@ -553,7 +588,7 @@
             class="px-2.5 py-2 bg-green-700 hover:bg-green-600 rounded-md"
             type="submit"
           >
-            Create
+            Update
           </button>
         </div>
       </div>
@@ -565,6 +600,17 @@
           evt.detail.parameters["id"] = search.get("id");
         }
       });
+
+      function onSubmited(event) {
+        if (event.detail.successful) {
+          window.location.href = "/unit";
+          return;
+        }
+
+        /** @type {XMLHttpRequest}*/
+        const response = event.detail.xhr;
+        alert(response.responseText);
+      }
 
       function setFormInputValue(target, value) {
         /** @type {HTMLInputElement} */
@@ -579,153 +625,92 @@
         el.value = value;
       }
 
-      function updateForm(ev) {
-        const source = document.getElementById("unit-data");
-        if (!source) throw new Error("Unable to get unit data");
+      function loadForm(event) {
+        const unit = JSON.parse(event.target.innerText);
 
-        const data = JSON.parse(source.innerText);
+        const ignore = ["type", "requires"];
 
-        for (const key of Object.keys(data)) {
-          try {
-            setFormInputValue(key, data[key]);
-          } catch (error) {}
-        }
-
-        for (const requirement of data.requires) {
-          const item = new FormData();
-          item.set("requires.id", requirement.id);
-          item.set("requires.type", requirement.type);
-          handleRequirement({ preventDefault() {} }, item);
-        }
-
-        if (data.stats.events) {
-          for (const [trigger, events] of Object.entries(data.stats.events)) {
-            for (const event of events) {
-              const item = new FormData();
-
-              item.set("event-trigger", trigger);
-              item.set("event-type", event.type);
-
-              for (const [key, value] of Object.entries(event)) {
-                if (key === "type") continue;
-                item.set(key, value);
+        for (const [key, value] of Object.entries(unit)) {
+          if (ignore.includes(key)) continue;
+          if (typeof value === "object") {
+            // stats
+            for (const [statKey, statValue] of Object.entries(value)) {
+              if (statKey === "events") continue;
+              if (statKey === "effective") {
+                for (const [effectiveKey, effectiveValue] of Object.entries(
+                  statValue
+                )) {
+                  console.log(
+                    "SET",
+                    `${key}.${statKey}.${effectiveKey}`,
+                    effectiveValue
+                  );
+                  setFormInputValue(
+                    `${key}.${statKey}.${effectiveKey}`,
+                    effectiveValue
+                  );
+                }
+                continue;
               }
-
-              handleAddEvent({ preventDefault() {} }, item);
+              console.log("SET", `${key}.${statKey}`, statValue);
+              setFormInputValue(`${key}.${statKey}`, statValue);
             }
+            continue;
           }
+          console.log("SET", key, value);
+          setFormInputValue(key, value);
+        }
+
+        window.dispatchEvent(
+          new CustomEvent("set-item", { detail: unit.icon })
+        );
+        window.dispatchEvent(
+          new CustomEvent("set-requires", { detail: unit.requires })
+        );
+
+        if (unit.stats.events) {
+          window.dispatchEvent(
+            new CustomEvent("set-events", {
+              detail: [
+                ...units.stats.events?.onHit?.map(({ type, ...rest }) => ({
+                  trigger: "onHit",
+                  name: type,
+                  params: { ...rest },
+                })),
+                ...units.stats.events?.onDeath?.map(({ type, ...rest }) => ({
+                  trigger: "onDeath",
+                  name: type,
+                  params: { ...rest },
+                })),
+              ],
+            })
+          );
         }
       }
 
-      /**
-       * @param {HTMLButtonElement} target
-       * @param {string} container
-       */
-      function removeItem(target, container, event) {
-        const closest = target.closest("tr");
-        const params = closest.getAttribute("hx-vals");
-        const el = JSON.parse(params);
-        updateData(container, (data) => {
-          return data.filter((item) => item.key === el.key);
-        });
-      }
-      function getTemplete(id) {
-        /** @type {HTMLTempleteElement}*/
-        const template = document.getElementById(id);
-        if (!template) throw new Error("Failed to get templete");
-        /** @type {HTMLElement} */
-        const el = template.content.cloneNode(true);
-        return el.firstElementChild;
-      }
-      function updateContainer(id, el) {
-        const container = document.getElementById(id);
-        if (!container) throw new Error("Failed to update container el");
-        container.appendChild(el);
-        htmx.process(document.body);
-      }
-      /**
-       * @param {string} id
-       * @param {(data: unknown[])=>unknown[]} cb
-       */
-      function updateData(id, cb) {
-        /** @type {HTMLInputElement} */
-        const target = document.getElementById(id);
-        if (!target) throw new Error(`Unable to get target #${id}`);
-        const data = JSON.parse(target.value ?? "[]");
-        const response = cb(data);
-        target.value = JSON.stringify(response);
-
-        return response;
-      }
-
-      function handleRequirement(ev, inputData) {
-        ev.preventDefault();
-        const data = inputData ?? new FormData(ev.target);
-
-        const id = data.get("requires.id");
-        const type = data.get("requires.type");
-
+      function addRequired(data, event) {
+        const params = new FormData(event.target);
+        const id = params.get("requires.id");
+        const type = params.get("requires.type");
         if (!id || !type) return;
-
-        const template = getTemplete("requirement-item");
-        if (!template) return;
-
-        const value = updateData("requires", (data) => {
-          data.push({ type, id: parseInt(id), key: data.length });
-          return data;
-        });
-        if (!value) throw new Error("Failed to get updated data");
-
-        template.querySelector('[data-id="content-id"]').textContent = id;
-        template.querySelector('[data-id="content-type"]').textContent = type;
-        template.setAttribute("hx-vals", `${JSON.stringify(value.at(-1))}`);
-
-        updateContainer("requirements-table", template);
+        data.requires.push({ type, id: parseInt(id) });
       }
-      function handleAddEvent(ev, inputData) {
-        ev.preventDefault();
-        const data = inputData ?? new FormData(ev.target);
+      function addEvent(data, event) {
+        const ctx = new FormData(event.target);
 
-        const eventTrigger = data.get("event-trigger");
-        const eventType = data.get("event-type");
+        const eventTrigger = ctx.get("event-trigger");
+        const eventType = ctx.get("event-type");
 
-        const params = Array.from(data.keys())
+        const params = Array.from(ctx.keys())
           .filter((value) => !["event-trigger", "event-type"].includes(value))
           .reduce((pre, curr) => {
-            const item = data.get(curr);
+            const item = ctx.get(curr);
             if (!item) return pre;
             pre[curr] = item;
             return pre;
           }, {});
 
-        const items = updateData("events-data", (data) => {
-          data.push({
-            key: data.length,
-            event: eventType,
-            trigger: eventTrigger,
-            params,
-          });
-          return data;
-        });
-        if (!items) throw new Error("Failed to get updated data");
-        const template = getTemplete("unit-event-item");
-        if (!template) return;
-
-        const item = items.at(-1);
-
-        template.querySelector('[data-id="trigger"]').textContent =
-          item.trigger;
-        template.querySelector('[data-id="name"]').textContent = item.event;
-
-        template.querySelector('[data-id="params"]').innerHTML = Object.entries(
-          item.params
-        )
-          .map(([key, value]) => `<div><span>${key}: </span>${value}</div>`)
-          .join("");
-
-        template.setAttribute("hx-vals", `${JSON.stringify(item)}`);
-
-        updateContainer("unit-events-table", template);
+        data.events.push({ name: eventType, trigger: eventTrigger, params });
       }
     </script>
   </body>
