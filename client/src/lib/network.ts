@@ -1,39 +1,20 @@
 import {
-    createWSClient,
-    httpLink,
-    splitLink,
-    wsLink,
-    createTRPCProxyClient
+    createTRPCProxyClient, createWSClient, wsLink
 } from '@trpc/client';
-import { createTRPCReact } from '@trpc/react-query';
-import { AppRouter } from 'server';
-import { user } from './user';
+import { createTRPCReact } from "@trpc/react-query";
+import type { AppRouter } from "../../../server/src/index";
 
-const wsClient = createWSClient({
-    url: "ws://localhost:2022",
-});
 
-const data = {
+export const link = {
     links: [
-        splitLink({
-            condition(op) {
-                return op.type === "subscription";
-            },
-            true: wsLink({
-                client: wsClient
-            }),
-            false: httpLink({
-                url: "http://localhost:2022",
-                headers() {
-                    return {
-                        Authorization: user.getUser()
-                    }
-                }
+        wsLink({
+            client: createWSClient({
+                url: "ws://localhost:8000/trpc",
             })
         })
     ]
-};
+}
 
-export const trpc = createTRPCReact<AppRouter>();
-export const network = createTRPCProxyClient<AppRouter>(data);
-export const client = trpc.createClient(data);
+export const client = createTRPCProxyClient<AppRouter>(link);
+export const trpcClient = createTRPCReact<AppRouter>();
+export const trpc = trpcClient.createClient(link);

@@ -1,41 +1,74 @@
-import { createHTTPServer } from '@trpc/server/adapters/standalone';
-import { applyWSSHandler } from '@trpc/server/adapters/ws';
-import { WebSocketServer } from 'ws';
+import { type inferAsyncReturnType, initTRPC } from '@trpc/server';
+import { App } from 'uWebSockets.js';
+import { object, z } from 'zod';
+import { EventEmitter } from 'node:events';
 import process from 'node:process';
 import cors from 'cors';
+import { observable } from '@trpc/server/observable';
+import { createUWebSocketsHandler, applyWSHandler } from './lib/trpc-uwebsockets/index.js';
 
-import { createHttpContext, createWSContext } from './context.js';
-import { appRouter } from './appRouter.js';
-import { AppRouter } from './lib.js';
-import { Lobby } from './routers/ui.js';
-import GameState from './object/GameState.js';
+const global_event = new EventEmitter();
 
-const { server, listen } = createHTTPServer({
-    router: appRouter,
-    middleware: cors(),
-    createContext: createHttpContext
+const createContext = async () => {
+    return {}
+}
+
+type Context = inferAsyncReturnType<typeof createContext>;
+
+const t = initTRPC.context<Context>().create();
+
+const router = t.router({
+    onAdd: t.procedure.subscription(() => {
+        return observable<{ id: string; text: string; }>((emit) => {
+            const onAdd = (data: { id: string; text: string; }) => {
+                emit.next(data);
+            }
+
+            global_event.on("add", onAdd);
+
+            return () => global_event.off("add", onAdd);
+        });
+    }),
+    add: t.procedure.input(z.object({ id: z.string(), text: z.string().min(1) })).mutation(async opts => {
+        const post = { ...opts.input };
+
+        global_event.emit("add", post);
+
+        return post;
+    })
 });
 
-const wss = new WebSocketServer({ server });
-const handler = applyWSSHandler<AppRouter>({
-    wss,
-    router: appRouter,
-    createContext: createWSContext
+export type AppRouter = typeof router;
+
+const app = App();
+
+createUWebSocketsHandler(app, "/trpc", {
+    router,
+    createContext,
+    middleware(req, res, next) {
+        cors({})(req, {
+            end: () => res.end(undefined, true),
+            setHeader: (key: string, value: string) => res.writeHeader(key, value),
+        }, next)
+    },
 });
 
-wss.on("connection", (ws) => {
-    console.log(`➕➕ Connection (${wss.clients.size})`);
-    ws.once("close", () => {
-        Lobby.get().emit("player-disconnection");
-        GameState.get().emit("player-disconnect");
-        console.log(`➖➖ Connection (${wss.clients.size})`);
-    });
+const handler = applyWSHandler(app, "/trpc", {
+    router,
+    createContext
+})
+
+app.any("/*", res => {
+    res.writeStatus("404 NOT FOUND");
+    res.end();
+});
+
+app.listen("0.0.0.0", 8000, () => {
+    console.log("Server listening on http://localhost:8000");
 });
 
 process.on("SIGTERM", () => {
+    console.log("SIGTREM");
     handler.broadcastReconnectNotification();
-    wss.close();
-    server.close();
+    app.close();
 });
-
-listen(2022);

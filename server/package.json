@@ -1,9 +1,8 @@
 {
-  "name": "server",
+  "name": "halobattles-server",
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "types": "./src/lib.d.ts",
   "scripts": {
     "build": "tsc",
     "dev:compile": "tsc --watch",
@@ -22,6 +21,7 @@
     "cors": "^2.8.5",
     "lodash.groupby": "^4.6.0",
     "lodash.remove": "^4.7.0",
+    "uWebSockets.js": "uNetworking/uWebSockets.js#v20.33.0",
     "ws": "^8.13.0",
     "zod": "^3.21.4"
   },
@@ -33,6 +33,6 @@
     "@types/ws": "^8.5.5",
     "mocha": "^10.2.0",
     "nodemon": "^3.0.1",
-    "typescript": "^5.1.6"
+    "typescript": "^5.3.2"
   }
 }

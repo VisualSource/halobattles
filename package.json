@@ -7,6 +7,10 @@
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r --filter='./*' run build"
   },
+  "workspaces": [
+    "halobattles-server",
+    "halobattles-client"
+  ],
   "keywords": [],
   "author": "",
   "license": "ISC"
