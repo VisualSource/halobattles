@@ -1,42 +1,9 @@
-import { type inferAsyncReturnType, initTRPC } from '@trpc/server';
 import { App } from 'uWebSockets.js';
-import { object, z } from 'zod';
-import { EventEmitter } from 'node:events';
 import process from 'node:process';
 import cors from 'cors';
-import { observable } from '@trpc/server/observable';
+import { renderTrpcPanel } from "trpc-panel";
 import { createUWebSocketsHandler, applyWSHandler } from './lib/trpc-uwebsockets/index.js';
-
-const global_event = new EventEmitter();
-
-const createContext = async () => {
-    return {}
-}
-
-type Context = inferAsyncReturnType<typeof createContext>;
-
-const t = initTRPC.context<Context>().create();
-
-const router = t.router({
-    onAdd: t.procedure.subscription(() => {
-        return observable<{ id: string; text: string; }>((emit) => {
-            const onAdd = (data: { id: string; text: string; }) => {
-                emit.next(data);
-            }
-
-            global_event.on("add", onAdd);
-
-            return () => global_event.off("add", onAdd);
-        });
-    }),
-    add: t.procedure.input(z.object({ id: z.string(), text: z.string().min(1) })).mutation(async opts => {
-        const post = { ...opts.input };
-
-        global_event.emit("add", post);
-
-        return post;
-    })
-});
+import { router, createContext } from './router.js';
 
 export type AppRouter = typeof router;
 
@@ -61,6 +28,10 @@ const handler = applyWSHandler(app, "/trpc", {
 app.any("/*", res => {
     res.writeStatus("404 NOT FOUND");
     res.end();
+});
+
+app.get("/debug/panel", (res, _) => {
+    res.end(renderTrpcPanel(router, { url: "http://localhost:8000/trpc" }))
 });
 
 app.listen("0.0.0.0", 8000, () => {

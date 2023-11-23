@@ -1,17 +1,26 @@
 import { Outlet } from "react-router-dom";
-import useThree from "../hooks/useThree";
-import Overlay from '../components/Overlay';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useEffect, useRef } from "react";
+import Engine from "@/lib/engine";
 
-function Game() {
-  const { container, isReady } = useThree();
+const Game: React.FC = () => {
+  const container = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+
+    if (container.current) Engine.Create(container.current)
+
+    return () => {
+      Engine.Destory();
+    }
+  }, []);
+
   return (
     <TooltipProvider>
-      <div ref={container}></div>
       <Outlet />
-      {isReady ? <Overlay /> : null}
+      <div ref={container}></div>
     </TooltipProvider>
-  )
+  );
 }
 
 export default Game;

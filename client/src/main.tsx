@@ -7,7 +7,7 @@ import React from 'react';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { ThemeProvider } from './components/theme-provider.tsx';
-import { trpc, trpcClient } from './lib/network.ts';
+import { trpc, trpcClient } from './lib/trpc.ts';
 import { router } from './router.tsx';
 
 import './index.css';

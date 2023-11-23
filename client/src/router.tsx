@@ -1,24 +1,14 @@
 import {
+    Outlet,
     createBrowserRouter,
 } from "react-router-dom";
-//import Game from "./pages/Game";
-import ErrorPage from "./pages/ErrorPage";
-//import Lobby from "./pages/Lobby";
-import App from "./App";
-import Home from "./pages/Home";
-//import NodeView from "./pages/NodeView";
-//import PlanetInfo from "./pages/node/PlanetInfo";
-////import UnitManagment from "./pages/node/UnitManagment";
-//import BuildingManagment from "./pages/node/BuildingManagment";
-//import UnitQueue from "./pages/node/UnitQueue";
-//import BuildingQueue from "./pages/node/BuildingQueue";
-//import GameOver from "./pages/GameOver";
-
+import ErrorPage from "@page/ErrorPage";
+import Home from "@page/Home";
 
 export const router = createBrowserRouter([
     {
         path: "/",
-        element: <App />,
+        element: <Outlet />,
         errorElement: <ErrorPage />,
         children: [
             {
@@ -27,6 +17,11 @@ export const router = createBrowserRouter([
                 element: <Home />,
                 errorElement: <ErrorPage />
             },
+            {
+                path: "/game",
+                element: <></>,
+                errorElement: <ErrorPage />
+            }
             /*{
                 path: "/lobby",
                 element: <Lobby />,
@@ -94,7 +89,7 @@ export const router = createBrowserRouter([
     }
 ]);
 
-window.addEventListener("game-over", ev => {
+/*window.addEventListener("game-over", ev => {
     const id = (ev as CustomEvent<{ winner: string; id: string; }>).detail;
     router.navigate(`/game/gameover?name=${id.winner}&uuid=${id.id}`);
 });
@@ -102,4 +97,4 @@ window.addEventListener("game-over", ev => {
 window.addEventListener("node-selected", (ev) => {
     const id = (ev as CustomEvent<{ id: string }>).detail.id;
     router.navigate(`/game/view/node/${id}`);
-});
+});*/
