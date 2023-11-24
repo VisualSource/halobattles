@@ -4,6 +4,7 @@ import {
 } from "react-router-dom";
 import ErrorPage from "@page/ErrorPage";
 import Home from "@page/Home";
+import Game from '@page/Game';
 
 export const router = createBrowserRouter([
     {
@@ -19,7 +20,7 @@ export const router = createBrowserRouter([
             },
             {
                 path: "/game",
-                element: <></>,
+                element: <Game />,
                 errorElement: <ErrorPage />
             }
             /*{

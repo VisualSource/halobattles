@@ -1,7 +1,7 @@
 import { App } from 'uWebSockets.js';
 import process from 'node:process';
 import cors from 'cors';
-import { renderTrpcPanel } from "trpc-panel";
+//import { renderTrpcPanel } from "trpc-panel";
 import { createUWebSocketsHandler, applyWSHandler } from './lib/trpc-uwebsockets/index.js';
 import { router, createContext } from './router.js';
 
@@ -30,9 +30,9 @@ app.any("/*", res => {
     res.end();
 });
 
-app.get("/debug/panel", (res, _) => {
+/*app.get("/debug/panel", (res, _) => {
     res.end(renderTrpcPanel(router, { url: "http://localhost:8000/trpc" }))
-});
+});*/
 
 app.listen("0.0.0.0", 8000, () => {
     console.log("Server listening on http://localhost:8000");
