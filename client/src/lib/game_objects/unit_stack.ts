@@ -1,0 +1,129 @@
+import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+
+export const enum UnitStackState {
+    Empty,
+    One,
+    Half,
+    Three,
+    Full,
+}
+
+export default class UnitStack extends CSS2DObject {
+    private container = document.createElement("div");
+    private state: UnitStackState = UnitStackState.Empty;
+    private level1: HTMLDivElement;
+    private level2: HTMLDivElement;
+    private level3: HTMLDivElement;
+    private level4: HTMLDivElement;
+    private top: HTMLImageElement;
+
+    constructor() {
+        super(document.createElement("div"));
+        this.name = "unit-stack";
+        this.container.classList.add("pointer-events-auto", "h-10", "w-10", "flex", "flex-column", "items-center", "justify-center", "relative", "bottom-2");
+        this.container.draggable = false;
+        this.element.appendChild(this.container);
+
+        this.level1 = this.createItem("top-2", "z-40");
+        this.level2 = this.createItem("top-4", "z-30", "hidden");
+        this.level3 = this.createItem("top-6", "z-20", "hidden");
+        this.level4 = this.createItem("top-8", "hidden");
+        this.top = this.createTop(undefined, "hidden");
+
+        this.container.appendChild(this.top);
+        this.container.appendChild(this.level1);
+        this.container.appendChild(this.level2);
+        this.container.appendChild(this.level3);
+        this.container.appendChild(this.level4);
+    }
+
+    public setIcon(icon: string): void {
+        this.top.src = icon;
+    }
+
+    public set draggable(value: boolean) {
+        this.container.draggable = value;
+    }
+
+    public get draggable(): boolean {
+        return this.container.draggable;
+    }
+
+    public getState(): UnitStackState {
+        return this.state;
+    }
+
+    public setState(value: UnitStackState): void {
+        if (this.state === value) return;
+
+        this.state = value;
+
+        switch (this.state) {
+            case UnitStackState.Empty: {
+                this.container.classList.add("bottom-2");
+                this.container.classList.remove("bottom-4", "bottom-6", "bottom-8", "bottom-10");
+
+                this.level2.classList.add("hidden");
+                this.level3.classList.add("hidden");
+                this.level4.classList.add("hidden");
+                this.top.classList.add("hidden");
+                break;
+            }
+            case UnitStackState.One: {
+                this.container.classList.add("bottom-4");
+                this.container.classList.remove("bottom-2", "bottom-6", "bottom-8", "bottom-10");
+
+                this.level2.classList.add("hidden");
+                this.level3.classList.add("hidden");
+                this.level4.classList.add("hidden");
+                this.top.classList.remove("hidden");
+                break;
+            }
+            case UnitStackState.Half: {
+                this.container.classList.add("bottom-6");
+                this.container.classList.remove("bottom-2", "bottom-4", "bottom-8", "bottom-10");
+
+                this.level2.classList.remove("hidden");
+                this.level3.classList.add("hidden");
+                this.level4.classList.add("hidden");
+                this.top.classList.remove("hidden");
+                break;
+            }
+            case UnitStackState.Three: {
+                this.container.classList.add("bottom-8");
+                this.container.classList.remove("bottom-2", "bottom-4", "bottom-6", "bottom-10");
+
+                this.level2.classList.remove("hidden");
+                this.level3.classList.remove("hidden");
+                this.level4.classList.add("hidden");
+                this.top.classList.remove("hidden");
+                break;
+            }
+            case UnitStackState.Full: {
+                this.container.classList.add("bottom-10");
+                this.container.classList.remove("bottom-2", "bottom-4", "bottom-6", "bottom-8");
+
+                this.level2.classList.remove("hidden");
+                this.level3.classList.remove("hidden");
+                this.level4.classList.remove("hidden");
+                this.top.classList.remove("hidden");
+                break;
+            }
+        }
+
+    }
+
+
+    private createItem(...className: string[]): HTMLDivElement {
+        const level = document.createElement("div");
+        level.classList.add("h-10", "w-10", "rounded-full", "shadow-lg", "bg-black", "absolute", "border-2", "border-gray-600", ...className);
+        return level;
+    }
+
+    private createTop(icon: string = "/Basic_Elements_(128).jpg", ...className: string[]): HTMLImageElement {
+        const image = document.createElement("img");
+        image.classList.add("pointer-events-none", "h-10", "w-10", "rounded-full", "shadow-lg", "absolute", "z-50", ...className);
+        image.src = icon;
+        return image;
+    }
+}

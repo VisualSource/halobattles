@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useEffect, useRef } from "react";
 import Engine from "@/lib/engine";
+import DebugMenu from "@/components/DebugMenu";
 
 const Game: React.FC = () => {
   const container = useRef<HTMLDivElement>(null);
@@ -19,6 +20,7 @@ const Game: React.FC = () => {
     <TooltipProvider>
       <Outlet />
       <div ref={container}></div>
+      <DebugMenu />
     </TooltipProvider>
   );
 }

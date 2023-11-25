@@ -21,7 +21,8 @@ export const router = createBrowserRouter([
             {
                 path: "/game",
                 element: <Game />,
-                errorElement: <ErrorPage />
+                errorElement: <ErrorPage />,
+                children: []
             }
             /*{
                 path: "/lobby",
