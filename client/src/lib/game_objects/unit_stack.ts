@@ -1,11 +1,11 @@
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 
-export const enum UnitStackState {
-    Empty,
-    One,
-    Half,
-    Three,
-    Full,
+export enum UnitStackState {
+    Empty = "Empty",
+    One = "One",
+    Half = "Half",
+    Three = "Three",
+    Full = "Full",
 }
 
 export default class UnitStack extends CSS2DObject {
@@ -35,10 +35,18 @@ export default class UnitStack extends CSS2DObject {
         this.container.appendChild(this.level2);
         this.container.appendChild(this.level3);
         this.container.appendChild(this.level4);
+
+        this.addEventListener("removed", () => {
+            console.log("Remove Stackes")
+        });
     }
 
     public setIcon(icon: string): void {
         this.top.src = icon;
+    }
+
+    public getIcon(): string {
+        return this.top.src;
     }
 
     public set draggable(value: boolean) {

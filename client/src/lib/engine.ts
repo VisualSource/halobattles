@@ -1,22 +1,19 @@
-import { Mesh, MeshBasicMaterial, Shape, EllipseCurve, CircleGeometry, Clock, Color, Vector2, Vector3, Vector4, Quaternion, Matrix4, Spherical, Sphere, Box3, Raycaster, MathUtils, PerspectiveCamera, Scene, ShapeGeometry, type Object3DEventMap, type Object3D } from 'three';
+import { Mesh, MeshBasicMaterial, Shape, EllipseCurve, CircleGeometry, Clock, Color, Vector2, Vector3, Vector4, Quaternion, Matrix4, Spherical, Sphere, Box3, Raycaster, MathUtils, PerspectiveCamera, Scene, ShapeGeometry, BufferGeometry, Float32BufferAttribute, LineBasicMaterial, LineBasicMaterialParameters, Line } from 'three';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
 import CameraControls from "camera-controls";
 import UnitStack from './game_objects/unit_stack';
 
-const Node = (color: Color, position: { x: number; y: number }, radis: { x: number; y: number }) => {
+export const Node = (color: number, position: { x: number; y: number }, radis: { x: number; y: number }) => {
     const sphere = new CircleGeometry(20, 50);
 
-    const materal = new MeshBasicMaterial({ color });
+    const materal = new MeshBasicMaterial({ color: new Color(color) });
     const mesh = new Mesh(sphere, materal);
 
     mesh.position.set(position.x, position.y, 0);
     mesh.layers.enable(1);
     mesh.renderOrder = 100;
     mesh.name = "Node";
-    mesh.userData = {
-        id: crypto.randomUUID()
-    }
 
     let x = -15;
     let y = 10;
@@ -33,6 +30,10 @@ const Node = (color: Color, position: { x: number; y: number }, radis: { x: numb
         ellipse.position.set(x, y, 0);
         ellipse.add(new UnitStack());
 
+        ellipse.addEventListener("removed", () => {
+            ellipse.children.at(0)?.dispatchEvent({ type: "removed" });
+        });
+
         mesh.add(ellipse);
 
         x += 15;
@@ -43,11 +44,29 @@ const Node = (color: Color, position: { x: number; y: number }, radis: { x: numb
     label.element.innerText = "Name";
     label.element.classList.add("text-white", "font-bold");
     label.position.set(0, -20, 0);
-    label.name = "name-label"
+    label.name = "name-label";
 
     mesh.add(label);
 
+    mesh.addEventListener("removed", () => {
+        for (const child of mesh.children) child.dispatchEvent({ type: "removed" });
+    })
+
     return mesh;
+}
+
+export const Lane = (from: { x: number; y: number, z: number }, to: { x: number, y: number, z: number }, style: LineBasicMaterialParameters) => {
+    const vertices = [from.x, from.y, from.z, to.x, to.y, to.z];
+
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+
+    const material = new LineBasicMaterial(style);
+    const line = new Line(geometry, material);
+
+    line.renderOrder = 0;
+
+    return line;
 }
 
 const subset = {
@@ -103,22 +122,47 @@ export default class Engine {
         this.camera.position.z = 500;
         this.controls = new CameraControls(this.camera, this.renderer.domElement as never as HTMLDivElement);
         this.controls.distance = 300;
+        this.controls.infinityDolly = false;
+        this.controls.minDistance = 100;
+        this.controls.maxDistance = 300;
+        this.controls.mouseButtons.left = CameraControls.ACTION.TRUCK;
 
         window.addEventListener("resize", this.resize);
 
-        const node = Node(new Color(0x0033ff), { x: 0, y: 0 }, { x: 8, y: 6 });
+        const node = Node(0x0033ff, { x: 0, y: 0 }, { x: 8, y: 6 });
 
         this.scene.add(node);
 
         this.eventLoop();
     }
 
+    public saveState() {
+        return this.scene.toJSON();
+    }
+
     public getObject(uuid: string) {
         return this.scene.getObjectByProperty("uuid", uuid);
     }
 
-    public addToScene(...object: Object3D<Object3DEventMap>[]) {
-        this.scene.add(...object);
+    public unproject(x: number, y: number) {
+        let vec = new Vector3(x, y, 0.5);
+
+        vec = vec.unproject(this.camera);
+
+        const dir = vec.sub(this.camera.position).normalize();
+
+        return this.camera.position.clone().add(dir.multiplyScalar((0 - this.camera.position.z) / dir.z));
+    }
+
+    public addNode({ color, x, y, name = "Node" }: { color: number, x: number, y: number, name: string }) {
+
+        const node = Node(color, { x, y }, { x: 8, y: 6 });
+
+        (node.children.at(3) as CSS2DObject).element.innerText = name;
+
+        this.scene.add(node);
+
+        return node.uuid;
     }
 
     private resize = () => {
