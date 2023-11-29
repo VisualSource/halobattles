@@ -4,6 +4,11 @@ import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
 import CameraControls from "camera-controls";
 import UnitStack from './game_objects/unit_stack';
 
+export type MapData = {
+    nodes: { uuid: string; position: { x: number; y: number; z: number }; color: string; label: string; }[],
+    linkes: { uuid: string; nodes: string[], type: LaneType }[]
+}
+
 export class Node extends Mesh {
 
     constructor(color: number, position: { x: number; y: number; }, radis: { x: number; y: number } = { x: 8, y: 6 }) {
@@ -74,11 +79,14 @@ export class Node extends Mesh {
 
 }
 
-
+export enum LaneType {
+    Fast = "Fast",
+    Slow = "Slow"
+}
 export class Lane extends Line {
-    public fromUUID: string;
-    public toUUID: string;
-    constructor(from: { x: number; y: number, z: number; uuid: string; }, to: { x: number, y: number, z: number; uuid: string; }, style: LineBasicMaterialParameters) {
+    public nodes: string[] = []
+    public laneType: LaneType;
+    constructor({ from, to, nodes, type }: { type: LaneType, from: Vector3, to: Vector3, nodes: string[] }, style: LineBasicMaterialParameters) {
         const vertices = [from.x, from.y, from.z, to.x, to.y, to.z];
         const geometry = new BufferGeometry();
         geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
@@ -90,12 +98,16 @@ export class Lane extends Line {
         this.renderOrder = 0;
         this.name = "Lane";
 
-        this.fromUUID = from.uuid;
-        this.toUUID = to.uuid;
+        this.laneType = type;
+        this.nodes = nodes;
     }
 
     public isLane(from: string, to: string): boolean {
-        return (this.fromUUID === from || this.toUUID === from) && (this.toUUID === to || this.fromUUID === to);
+        return this.nodes.includes(from) && this.nodes.includes(to);
+    }
+
+    public isLaneWithType(from: string, to: string, type: LaneType): boolean {
+        return this.isLane(from, to) && this.laneType === type;
     }
 }
 
@@ -162,15 +174,11 @@ export default class Engine {
 
         window.addEventListener("resize", this.resize);
 
-        const node = new Node(0x0033ff, { x: 0, y: 0 }, { x: 8, y: 6 });
-
-        this.scene.add(node);
-
         this.eventLoop();
     }
 
     public saveState() {
-        const data: { nodes: { uuid: string; position: unknown; color: string; label: string; }[], linkes: { uuid: string; to: string; from: string; }[] } = {
+        const data: MapData = {
             nodes: [],
             linkes: []
         }
@@ -187,9 +195,9 @@ export default class Engine {
             if (child.name === "Lane") {
                 data.linkes.push({
                     uuid: child.uuid,
-                    from: (child as Lane).fromUUID,
-                    to: (child as Lane).toUUID
-                })
+                    nodes: (child as Lane).nodes,
+                    type: (child as Lane).laneType
+                });
             }
         }
 
@@ -216,28 +224,54 @@ export default class Engine {
         return this.camera.position.clone().add(dir.multiplyScalar((0 - this.camera.position.z) / dir.z));
     }
 
-    public addNode({ color, x, y, name = "Node" }: { color: number, x: number, y: number, name: string }) {
+    public addNode({ color, x, y, name = "Node" }: { color: number, x: number, y: number, name: string }, uuid?: string) {
 
         const node = new Node(color, { x, y }, { x: 8, y: 6 });
 
         node.label = name;
+
+        if (uuid) {
+            node.uuid = uuid;
+        }
 
         this.scene.add(node);
 
         return node.uuid;
     }
 
-    public addLane(from: string, to: string) {
+    public addLane({ type = LaneType.Slow, nodes }: { type?: LaneType; nodes: string[] }, uuid?: string) {
+        if (nodes.length !== 2) throw new Error("Failed less then 2 nodes.");
 
-        const fromObj = this.scene.getObjectByProperty("uuid", from);
-        const toObj = this.scene.getObjectByProperty("uuid", to);
+        const nodeA = this.scene.getObjectByProperty("uuid", nodes[0]);
+        const nodeB = this.scene.getObjectByProperty("uuid", nodes[1]);
 
-        if (!fromObj || !toObj) throw new Error("Failed to find objects");
+        if (!nodeA || !nodeB) throw new Error("Failed to find objects");
 
-        const lane = new Lane({ ...fromObj.position, uuid: fromObj.uuid }, { ...toObj.position, uuid: toObj.uuid }, { linewidth: 2, color: new Color(0xff3401) });
+        const lane = new Lane({
+            from: nodeA.position,
+            to: nodeB.position,
+            nodes: [nodeA.uuid, nodeB.uuid],
+            type
+        }, {
+            linewidth: type === LaneType.Slow ? 2 : 4,
+            color: new Color(0xff3401)
+        });
+
+        if (uuid) lane.uuid = uuid;
 
         this.scene.add(lane);
 
+    }
+
+    public loadState(map: MapData): void {
+
+        for (const a of map.nodes) {
+            this.addNode({ color: new Color(a.color).getHex(), name: a.label, x: a.position.x, y: a.position.y }, a.uuid);
+        }
+
+        for (const b of map.linkes) {
+            this.addLane({ type: b.type, nodes: b.nodes }, b.uuid);
+        }
     }
 
     private resize = () => {

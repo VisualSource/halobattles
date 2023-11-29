@@ -39,6 +39,17 @@ export default class UnitStack extends CSS2DObject {
         this.addEventListener("removed", () => {
             console.log("Remove Stackes")
         });
+
+        this.container.addEventListener("drop", (ev) => {
+            ev.preventDefault();
+            const data = ev.dataTransfer?.getData("transfer/id");
+            if (!data) throw new Error("Failed to get transfer id");
+
+        });
+        this.container.addEventListener("dragstart", (ev) => {
+            ev.dataTransfer?.setData("transfer/id", `${this.parent?.parent?.uuid}`);
+        });
+        this.container.addEventListener("dragover", ev => ev.preventDefault());
     }
 
     public setIcon(icon: string): void {

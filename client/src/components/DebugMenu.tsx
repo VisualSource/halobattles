@@ -1,19 +1,21 @@
-import Engine, { Node, Lane } from "@/lib/engine";
-import UnitStack, { UnitStackState } from "@/lib/game_objects/unit_stack";
+import { Cable, ChevronDown, ChevronUp, Globe, Package, PackageX, RefreshCcw, Save } from "lucide-react";
 import { useEffect, useState, } from "react";
 import { createPortal } from 'react-dom';
 import { type Mesh } from "three";
+
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader } from "./ui/alert-dialog";
+import { ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenu, ContextMenuShortcut } from "./ui/context-menu";
 import { Select, SelectContent, SelectTrigger, SelectLabel, SelectGroup, SelectItem, SelectValue } from "./ui/select";
-import { Input } from "./ui/input";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "./ui/dialog";
+import UnitStack, { UnitStackState } from "@/lib/game_objects/unit_stack";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import Engine, { Node, Lane, LaneType } from "@/lib/engine";
+import { Separator } from "./ui/separator";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
+import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Cable, ChevronDown, ChevronUp, Globe, Package, Save } from "lucide-react";
-import { Separator } from "./ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "./ui/dialog";
-import { ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenu, ContextMenuShortcut } from "./ui/context-menu";
-import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader } from "./ui/alert-dialog";
+import { randInt } from "three/src/math/MathUtils.js";
 
 type ContextProps = { x: number; y: number; worldX: number; worldY: number; };
 
@@ -46,6 +48,7 @@ const ContextMenuContainer: React.FC<ContextProps> = (props) => {
 const LinkDialog = () => {
     const [alertOpen, setAlertOpen] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
+    const [laneType, setLaneType] = useState<LaneType>(LaneType.Slow);
     const [fromValue, setFromValue] = useState<string>();
     const [toValue, setToValue] = useState<string>();
     return (
@@ -92,7 +95,7 @@ const LinkDialog = () => {
                         return;
                     }
 
-                    engine.addLane(fromValue, toValue);
+                    engine.addLane(fromValue, toValue, laneType);
 
                     setIsOpen(false);
                 }}>
@@ -104,11 +107,10 @@ const LinkDialog = () => {
                         </SelectTrigger>
                         <SelectContent>
                             {Engine.Get().scene.children.map(a => (
-                                <SelectItem value={a.uuid} key={a.uuid}>
+                                a.name !== "Lane" ? <SelectItem value={a.uuid} key={a.uuid}>
                                     <div className="text-left">{(a as Node).label}</div>
                                     <div>{a.uuid}</div>
-                                </SelectItem>
-                            ))}
+                                </SelectItem> : null))}
                         </SelectContent>
                     </Select>
 
@@ -119,11 +121,25 @@ const LinkDialog = () => {
                         </SelectTrigger>
                         <SelectContent>
                             {Engine.Get().scene.children.map(a => (
-                                <SelectItem value={a.uuid} key={a.uuid}>
+                                a.name !== "Lane" ? <SelectItem value={a.uuid} key={a.uuid}>
                                     <div className="text-left">{(a as Node).label}</div>
                                     <div>{a.uuid}</div>
+                                </SelectItem> : null))}
+                        </SelectContent>
+                    </Select>
+
+                    <Label>Lane Type</Label>
+                    <Select defaultValue={LaneType.Slow} onValueChange={e => setLaneType(e as LaneType)}>
+                        <SelectTrigger >
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {Object.entries(LaneType).map(([key, l], i) => (
+                                <SelectItem value={l} key={i}>
+                                    {key}
                                 </SelectItem>
                             ))}
+
                         </SelectContent>
                     </Select>
 
@@ -135,11 +151,11 @@ const LinkDialog = () => {
 }
 
 const DebugMenu: React.FC = () => {
+    const [refresh, setRefrest] = useState(0);
     const [contextLoction, setContextLocation] = useState<ContextProps | null>(null);
     const [showContext, setShowContext] = useState(false);
     const [show, setShow] = useState(true);
     const [selection, setSelection] = useState<Mesh | null>(null);
-
 
     useEffect(() => {
         const onContextMenu = (ev: MouseEvent) => {
@@ -180,7 +196,6 @@ const DebugMenu: React.FC = () => {
         }
     }, []);
 
-
     return (
         <div className="absolute top-0 left-0 w-64 bg-zinc-600 text-zinc-50 z-50">
             <header className="bg-zinc-800 flex flex-col mb-1">
@@ -210,15 +225,23 @@ const DebugMenu: React.FC = () => {
 
                             }}><Save /> <span>Save</span></Button>
                             <LinkDialog />
+                            <Button size="sm" onClick={() => setRefrest(randInt(0, Number.MAX_SAFE_INTEGER))}>
+                                <RefreshCcw />
+                            </Button>
                         </div>
                         <Separator />
-                        <ul className="p-1 divide-y-2">
+                        <ul className="p-1 divide-y-2" key={refresh}>
                             {Engine.Exists() ? Engine.Get().scene.children.map((item, i) => (
-                                <li key={i} className="p-1">
+                                <li key={i} className="p-1 flex">
                                     <button className="text-xs flex flex-col justify-start text-left" onClick={() => Engine.Get().lookAt(item.position.x, item.position.y)}>
                                         <div className="font-bold">{(item as Node).label ?? item.name}</div>
                                         <div>{item.uuid}</div>
                                     </button>
+                                    <div className="flex justify-center px-1 text-red-600 hover:text-red-700">
+                                        <button onClick={() => item.removeFromParent()}>
+                                            <PackageX size={20} />
+                                        </button>
+                                    </div>
                                 </li>
                             )) : null}
                         </ul>
@@ -227,14 +250,6 @@ const DebugMenu: React.FC = () => {
                         <div className="p-1">
 
                             {selection ? (<div key={selection.uuid} className="flex flex-col gap-1">
-                                <div>
-                                    <Button variant="destructive" size="sm" onClick={() => {
-                                        selection.removeFromParent();
-                                        setSelection(null);
-                                        setShow(false);
-                                    }}>Delete Node</Button>
-                                </div>
-
                                 <h1 className="text-sm font-mono">
                                     ID: <code>{selection.uuid}</code>
                                 </h1>
