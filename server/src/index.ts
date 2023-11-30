@@ -3,7 +3,8 @@ import process from 'node:process';
 import cors from 'cors';
 //import { renderTrpcPanel } from "trpc-panel";
 import { createUWebSocketsHandler, applyWSHandler } from './lib/trpc-uwebsockets/index.js';
-import { router, createContext } from './router.js';
+import { createContext } from './lib/context.js';
+import { router } from './router.js';
 
 export type AppRouter = typeof router;
 

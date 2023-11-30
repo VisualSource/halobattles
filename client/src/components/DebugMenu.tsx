@@ -1,4 +1,5 @@
 import { Cable, ChevronDown, ChevronUp, Globe, Package, PackageX, RefreshCcw, Save } from "lucide-react";
+import { randInt } from "three/src/math/MathUtils.js";
 import { useEffect, useState, } from "react";
 import { createPortal } from 'react-dom';
 import { type Mesh } from "three";
@@ -9,13 +10,14 @@ import { Select, SelectContent, SelectTrigger, SelectLabel, SelectGroup, SelectI
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "./ui/dialog";
 import UnitStack, { UnitStackState } from "@/lib/game_objects/unit_stack";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import Engine, { Node, Lane, LaneType } from "@/lib/engine";
+import Lane, { LaneType } from "@/lib/game_objects/lane";
+import type Node from "@/lib/game_objects/node";
 import { Separator } from "./ui/separator";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { randInt } from "three/src/math/MathUtils.js";
+import Engine from "@/lib/engine";
 
 type ContextProps = { x: number; y: number; worldX: number; worldY: number; };
 
@@ -82,7 +84,7 @@ const LinkDialog = () => {
 
                     const engine = Engine.Get();
 
-                    const exists = engine.scene.children.some(value => {
+                    const exists = engine.children.some(value => {
                         if (value.name === "Lane") {
                             return (value as Lane).isLane(fromValue, toValue);
                         } else {
@@ -95,7 +97,7 @@ const LinkDialog = () => {
                         return;
                     }
 
-                    engine.addLane(fromValue, toValue, laneType);
+                    engine.addLane({ nodes: [fromValue, toValue], type: laneType });
 
                     setIsOpen(false);
                 }}>
@@ -106,7 +108,7 @@ const LinkDialog = () => {
                             <SelectValue id="from-node" />
                         </SelectTrigger>
                         <SelectContent>
-                            {Engine.Get().scene.children.map(a => (
+                            {Engine.Get().children.map(a => (
                                 a.name !== "Lane" ? <SelectItem value={a.uuid} key={a.uuid}>
                                     <div className="text-left">{(a as Node).label}</div>
                                     <div>{a.uuid}</div>
@@ -120,7 +122,7 @@ const LinkDialog = () => {
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            {Engine.Get().scene.children.map(a => (
+                            {Engine.Get().children.map(a => (
                                 a.name !== "Lane" ? <SelectItem value={a.uuid} key={a.uuid}>
                                     <div className="text-left">{(a as Node).label}</div>
                                     <div>{a.uuid}</div>
@@ -231,7 +233,7 @@ const DebugMenu: React.FC = () => {
                         </div>
                         <Separator />
                         <ul className="p-1 divide-y-2" key={refresh}>
-                            {Engine.Exists() ? Engine.Get().scene.children.map((item, i) => (
+                            {Engine.Exists() ? Engine.Get().children.map((item, i) => (
                                 <li key={i} className="p-1 flex">
                                     <button className="text-xs flex flex-col justify-start text-left" onClick={() => Engine.Get().lookAt(item.position.x, item.position.y)}>
                                         <div className="font-bold">{(item as Node).label ?? item.name}</div>

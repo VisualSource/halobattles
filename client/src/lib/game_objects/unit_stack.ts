@@ -1,4 +1,5 @@
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { client } from "../trpc";
 
 export enum UnitStackState {
     Empty = "Empty",
@@ -16,12 +17,13 @@ export default class UnitStack extends CSS2DObject {
     private level3: HTMLDivElement;
     private level4: HTMLDivElement;
     private top: HTMLImageElement;
+    public index = 0;
 
     constructor() {
         super(document.createElement("div"));
         this.name = "unit-stack";
         this.container.classList.add("pointer-events-auto", "h-10", "w-10", "flex", "flex-column", "items-center", "justify-center", "relative", "bottom-2");
-        this.container.draggable = false;
+        this.container.draggable = true;
         this.element.appendChild(this.container);
 
         this.level1 = this.createItem("top-2", "z-40");
@@ -36,18 +38,14 @@ export default class UnitStack extends CSS2DObject {
         this.container.appendChild(this.level3);
         this.container.appendChild(this.level4);
 
-        this.addEventListener("removed", () => {
-            console.log("Remove Stackes")
-        });
-
         this.container.addEventListener("drop", (ev) => {
             ev.preventDefault();
             const data = ev.dataTransfer?.getData("transfer/id");
             if (!data) throw new Error("Failed to get transfer id");
-
+            client.moveGroup.mutate({ from: data, to: `${this.parent?.parent?.uuid};${this.index}` });
         });
         this.container.addEventListener("dragstart", (ev) => {
-            ev.dataTransfer?.setData("transfer/id", `${this.parent?.parent?.uuid}`);
+            ev.dataTransfer?.setData("transfer/id", `${this.parent?.parent?.uuid};${this.index}`);
         });
         this.container.addEventListener("dragover", ev => ev.preventDefault());
     }
@@ -129,9 +127,7 @@ export default class UnitStack extends CSS2DObject {
                 break;
             }
         }
-
     }
-
 
     private createItem(...className: string[]): HTMLDivElement {
         const level = document.createElement("div");
@@ -139,7 +135,7 @@ export default class UnitStack extends CSS2DObject {
         return level;
     }
 
-    private createTop(icon: string = "/Basic_Elements_(128).jpg", ...className: string[]): HTMLImageElement {
+    private createTop(icon: string = "/question.jpg", ...className: string[]): HTMLImageElement {
         const image = document.createElement("img");
         image.classList.add("pointer-events-none", "h-10", "w-10", "rounded-full", "shadow-lg", "absolute", "z-50", ...className);
         image.src = icon;

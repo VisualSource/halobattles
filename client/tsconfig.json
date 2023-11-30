@@ -25,7 +25,8 @@
       "@page/*": ["./src/pages/*"],
       "@lib/*": ["./src/lib/*"],
       "@component/*": ["./src/components/*"],
-      "@hook/*": ["./src/hooks/*"]
+      "@hook/*": ["./src/hooks/*"],
+      "@server/*": ["../../../server/src"]
     }
   },
   "include": ["src"],

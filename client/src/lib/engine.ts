@@ -1,114 +1,14 @@
-import { Mesh, MeshBasicMaterial, Shape, EllipseCurve, CircleGeometry, Clock, Color, Vector2, Vector3, Vector4, Quaternion, Matrix4, Spherical, Sphere, Box3, Raycaster, MathUtils, PerspectiveCamera, Scene, ShapeGeometry, BufferGeometry, Float32BufferAttribute, LineBasicMaterial, LineBasicMaterialParameters, Line } from 'three';
-import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
+import { Clock, Color, Vector2, Vector3, Vector4, Quaternion, Matrix4, Spherical, Sphere, Box3, Raycaster, MathUtils, PerspectiveCamera, Scene } from 'three';
+import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
 import CameraControls from "camera-controls";
-import UnitStack from './game_objects/unit_stack';
+
+import Lane, { LaneType } from './game_objects/lane';
+import Node from './game_objects/node';
 
 export type MapData = {
     nodes: { uuid: string; position: { x: number; y: number; z: number }; color: string; label: string; }[],
     linkes: { uuid: string; nodes: string[], type: LaneType }[]
-}
-
-export class Node extends Mesh {
-
-    constructor(color: number, position: { x: number; y: number; }, radis: { x: number; y: number } = { x: 8, y: 6 }) {
-        const sphere = new CircleGeometry(20, 50);
-        const materal = new MeshBasicMaterial({ color: new Color(color) });
-        super(sphere, materal);
-
-        this.position.set(position.x, position.y, 0);
-        this.layers.enable(1);
-        this.renderOrder = 100;
-        this.name = "Node";
-
-        let x = -15;
-        let y = 10;
-        for (let i = 0; i < 3; i++) {
-            const curve = new EllipseCurve(0, 0, radis.x, radis.y, 0, 2 * Math.PI, false, 0);
-
-            const shape = new Shape().setFromPoints(curve.getPoints(50));
-            const ellipseGeomerty = new ShapeGeometry(shape);
-
-            const materal = new MeshBasicMaterial({ color: 0x262826 });
-            const ellipse = new Mesh(ellipseGeomerty, materal);
-            ellipse.name = `node-ellipse-${i}`;
-            ellipse.renderOrder = 101;
-            ellipse.position.set(x, y, 0);
-            ellipse.add(new UnitStack());
-
-            ellipse.addEventListener("removed", () => {
-                ellipse.children.at(0)?.dispatchEvent({ type: "removed" });
-            });
-
-            this.add(ellipse);
-
-            x += 15;
-            y = i % 2 == 0 ? 20 : 10;
-        }
-
-        const label = new CSS2DObject(document.createElement("div"));
-        label.element.innerText = "Name";
-        label.element.classList.add("text-white", "font-bold");
-        label.position.set(0, -20, 0);
-        label.name = "name-label";
-
-        this.add(label);
-
-        this.addEventListener("removed", () => { for (const child of this.children) child.dispatchEvent({ type: "removed" }) });
-    }
-
-    public get label(): string | undefined {
-        return (this.children.at(3) as CSS2DObject | undefined)?.element.innerText;
-    }
-
-    public set label(value: string) {
-        const label = this.children.at(3) as CSS2DObject | undefined;
-        if (!label) throw new Error("Failed to get label");
-
-        label.element.innerText = value;
-    }
-
-    public get color(): string {
-        return "#" + (this.material as MeshBasicMaterial).color.getHexString()
-    }
-
-    public set color(value: string) {
-        (this.material as MeshBasicMaterial).color.set(new Color(value));
-    }
-
-
-}
-
-export enum LaneType {
-    Fast = "Fast",
-    Slow = "Slow"
-}
-export class Lane extends Line {
-    public nodes: string[] = []
-    public laneType: LaneType;
-    constructor({ from, to, nodes, type }: { type: LaneType, from: Vector3, to: Vector3, nodes: string[] }, style: LineBasicMaterialParameters) {
-        const vertices = [from.x, from.y, from.z, to.x, to.y, to.z];
-        const geometry = new BufferGeometry();
-        geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
-
-        const material = new LineBasicMaterial(style);
-
-        super(geometry, material);
-
-        this.renderOrder = 0;
-        this.name = "Lane";
-
-        this.laneType = type;
-        this.nodes = nodes;
-    }
-
-    public isLane(from: string, to: string): boolean {
-        return this.nodes.includes(from) && this.nodes.includes(to);
-    }
-
-    public isLaneWithType(from: string, to: string, type: LaneType): boolean {
-        return this.isLane(from, to) && this.laneType === type;
-    }
 }
 
 const subset = {
@@ -141,13 +41,15 @@ export default class Engine {
         Engine.INSTANCE?.destory();
         Engine.INSTANCE = null;
     }
+    private camera: PerspectiveCamera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 10000);
     private raycaster: Raycaster = new Raycaster();
-    private renderer: SVGRenderer;
+    private scene: Scene = new Scene();
+
     private clock = new Clock();
+    private renderer: SVGRenderer;
     private overlay: CSS2DRenderer;
     private controls: CameraControls;
-    private camera: PerspectiveCamera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 10000);
-    public scene: Scene = new Scene();
+
     private renderId: number;
     constructor(private container: HTMLDivElement) {
         CameraControls.install({ THREE: subset });
@@ -261,6 +163,10 @@ export default class Engine {
 
         this.scene.add(lane);
 
+    }
+
+    public get children() {
+        return this.scene.children;
     }
 
     public loadState(map: MapData): void {
