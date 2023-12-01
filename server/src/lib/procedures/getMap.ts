@@ -32,6 +32,16 @@ const getMap = t.procedure.query(({ ctx, input }) => {
                 },
                 "color": "#99c936",
                 "label": "Haverst"
+            },
+            {
+                "uuid": "5c1537ae-9c6c-4240-b515-6be7988f967d",
+                "position": {
+                    "x": 109.66223132182344,
+                    "y": 180.6881540537398,
+                    "z": 0
+                },
+                "color": "#b74867",
+                "label": "Rather"
             }
         ],
         "linkes": [
@@ -58,6 +68,14 @@ const getMap = t.procedure.query(({ ctx, input }) => {
                     "28c409a2-4a3a-4e24-8dd7-9275dc668e33"
                 ],
                 "type": "Fast"
+            },
+            {
+                "uuid": "2fea5f78-44eb-498b-9fe1-1e0a675410e2",
+                "nodes": [
+                    "2e27644b-7277-4679-9245-c5c74378dd10",
+                    "5c1537ae-9c6c-4240-b515-6be7988f967d"
+                ],
+                "type": "Slow"
             }
         ]
     };

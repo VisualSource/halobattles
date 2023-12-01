@@ -1,7 +1,6 @@
 import type { UUID } from 'node:crypto';
-import type { Team } from './enums.js';
 import type { MoveGroupResponse } from '../procedures/moveGroup.js';
-export type HTMLHex = `x0${number | string}${number | string}${number | string}${number | string}${number | string}${number | string}`;
+import type { Team } from './enums.js';
 
 export interface Json<T> {
     AsJson(): T
@@ -15,6 +14,7 @@ export type Events = {
     updatePlayer: {}
     startGame: {}
     endGame: {}
+    transfer: { path: { x: number; y: number, duration: number }[] }
 }
 
 export type EventName = keyof Events;

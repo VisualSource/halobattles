@@ -28,6 +28,7 @@ export type MoveGroupResponse = {
 
 const moveGroup = procedure.input(schema).mutation(({ ctx, input }) => {
 
+
     ctx.send("moveGroup", { uuid: input.to, group: input.toGroup, state: "full" });
 });
 

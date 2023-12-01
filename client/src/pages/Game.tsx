@@ -9,7 +9,7 @@ import Node from "@/lib/game_objects/node";
 import { UnitStackState } from "@/lib/game_objects/unit_stack";
 
 const Game: React.FC = () => {
-  const [debug, setDebug] = useState(false);
+  const [debug, setDebug] = useState(true);
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
