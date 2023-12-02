@@ -7,7 +7,7 @@ export enum LaneType {
 export default class Lane extends Line {
     public nodes: string[] = []
     public laneType: LaneType;
-    constructor({ from, to, nodes, type }: { type: LaneType, from: Vector3, to: Vector3, nodes: string[] }, style: LineBasicMaterialParameters) {
+    constructor({ from, to, nodes, type }: { type: string, from: Vector3, to: Vector3, nodes: string[] }, style: LineBasicMaterialParameters) {
         const vertices = [from.x, from.y, from.z, to.x, to.y, to.z];
         const geometry = new BufferGeometry();
         geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
@@ -19,7 +19,7 @@ export default class Lane extends Line {
         this.renderOrder = 0;
         this.name = "Lane";
 
-        this.laneType = type;
+        this.laneType = type as LaneType;
         this.nodes = nodes;
     }
 

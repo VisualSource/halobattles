@@ -14,7 +14,16 @@ export type Events = {
     updatePlayer: {}
     startGame: {}
     endGame: {}
-    transfer: { path: { x: number; y: number, duration: number }[] }
+    transfer: {
+        path: {
+            position: {
+                x: number;
+                y: number;
+            }; duration: number
+        }[],
+        node: string;
+        group: number;
+    }
 }
 
 export type EventName = keyof Events;

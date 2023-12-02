@@ -1,11 +1,17 @@
 import groupby from 'lodash.groupby';
 import PriorityQueue from './priority_queue.js';
 
-function getWeight(user: string, node_uuid: string): number {
-    return 1;
-}
-
-export default function Dijkstra(data: { uuid: string; position: { x: number; y: number } }[], graph: { uuid: string; nodes: string[]; type: string }[], start: string, end: string, user: string) {
+export default function Dijkstra(graph: {
+    nodes: {
+        uuid: string;
+        position: { x: number; y: number; }
+    }[],
+    linkes: {
+        uuid: string,
+        nodes: string[];
+        type: string;
+    }[]
+}, { start, end, user }: { start: string; end: string; user: string }, getWeight: (user: string, node: string, linkType: string) => number) {
 
     const dist: Record<string, number> = {
         [start]: 0
@@ -19,15 +25,13 @@ export default function Dijkstra(data: { uuid: string; position: { x: number; y:
         const n = queue.extractMin();
         if (n.value === end) break;
 
-        const nodes = groupby(graph, e => e.nodes.includes(n.value))["true"] ?? [];
-
-        console.log(nodes);
+        const nodes = groupby(graph.linkes, e => e.nodes.includes(n.value))["true"] ?? [];
 
         for (const node of nodes) {
             const next_node_uuid = node.nodes.find(value => value !== n.value);
             if (!next_node_uuid) throw new Error("Failed to get next node uuid");
 
-            const alt = (dist[next_node_uuid] ?? 0) + getWeight(user, next_node_uuid) + node.type === "Fast" ? 2 : 4;
+            const alt = (dist[next_node_uuid] ?? 0) + getWeight(user, next_node_uuid, node.type);
 
             if (alt < (dist[next_node_uuid] ?? Number.MAX_SAFE_INTEGER)) {
                 dist[next_node_uuid] = alt;
@@ -40,21 +44,27 @@ export default function Dijkstra(data: { uuid: string; position: { x: number; y:
     const path = [];
     if (!(prev[end] || end === start)) throw new Error("Path is not reachable");
 
+    let exec_time = 0;
     let u: string | undefined = end;
     while (u) {
-        const node = data.find(value => value.uuid === u);
+        const node = graph.nodes.find(value => value.uuid === u);
         if (!node) throw new Error("Failed to get node data");
 
         path.push({
             uuid: node.uuid,
             position: node.position,
-            duration: dist[node.uuid]
+            duration: dist[node.uuid] ?? 0
         });
+
+        exec_time += dist[node.uuid] ?? 0;
 
         u = prev[u];
     }
 
     path.reverse();
 
-    return path;
+    return {
+        path,
+        exec_time
+    };
 }

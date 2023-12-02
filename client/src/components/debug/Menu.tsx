@@ -1,158 +1,23 @@
-import { Cable, ChevronDown, ChevronUp, Globe, Package, PackageX, RefreshCcw, Save } from "lucide-react";
-import { randInt } from "three/src/math/MathUtils.js";
-import { useEffect, useState, } from "react";
-import { createPortal } from 'react-dom';
-import { type Mesh } from "three";
+import { ChevronDown, ChevronUp, Globe, Package, PackageX, RefreshCcw, Save } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Mesh, MathUtils } from "three";
 
-import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader } from "./ui/alert-dialog";
-import { ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenu, ContextMenuShortcut } from "./ui/context-menu";
-import { Select, SelectContent, SelectTrigger, SelectLabel, SelectGroup, SelectItem, SelectValue } from "./ui/select";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui/tabs";
+import { Separator } from "@ui/separator";
+import { Switch } from "@ui/switch";
+import { Button } from "@ui/button";
+import { Label } from "@ui/label";
+import { Input } from "@ui/input";
+
+import ContextContainer, { type ContextProps } from "./ContextContainer";
 import UnitStack, { UnitStackState } from "@/lib/game_objects/unit_stack";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import Lane, { LaneType } from "@/lib/game_objects/lane";
-import type Node from "@/lib/game_objects/node";
-import { Separator } from "./ui/separator";
-import { Button } from "./ui/button";
-import { Switch } from "./ui/switch";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import Node from "@/lib/game_objects/node";
+import LinkDialog from "./NodeLinkDialog";
 import Engine from "@/lib/engine";
 
-type ContextProps = { x: number; y: number; worldX: number; worldY: number; };
-
-const ContextMenuContainer: React.FC<ContextProps> = (props) => {
-    return (
-
-        <ContextMenu>
-            <ContextMenuTrigger></ContextMenuTrigger>
-
-            <ContextMenuContent className="absolute w-64" style={{ top: `${props.y}px`, left: `${props.x}px` }}>
-                <ContextMenuItem inset onClick={(ev) => {
-                    ev.preventDefault();
-                    const engine = Engine.Get();
-
-                    const pos = engine.unproject(props.worldX, props.worldY);
-
-                    engine.addNode({ x: pos.x, y: pos.y, name: "New World", color: 0x00ffed });
-
-                }}>
-                    Create Node
-                    <ContextMenuShortcut>Ctrl + n</ContextMenuShortcut>
-                </ContextMenuItem>
-            </ContextMenuContent>
-
-        </ContextMenu>
-
-    );
-}
-
-const LinkDialog = () => {
-    const [alertOpen, setAlertOpen] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
-    const [laneType, setLaneType] = useState<LaneType>(LaneType.Slow);
-    const [fromValue, setFromValue] = useState<string>();
-    const [toValue, setToValue] = useState<string>();
-    return (
-        <Dialog open={isOpen} onOpenChange={(v) => setIsOpen(v)}>
-            <AlertDialog onOpenChange={(v) => setAlertOpen(v)} open={alertOpen}>
-                <AlertDialogContent className="text-white">
-                    <AlertDialogHeader>Link Warning.</AlertDialogHeader>
-                    <AlertDialogDescription>Link Aready exists for nodes {fromValue} to {toValue}.</AlertDialogDescription>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Ok</AlertDialogCancel>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-
-            </AlertDialog>
-
-
-            <DialogTrigger asChild>
-                <Button size="sm" className="flex gap-1">
-                    <Cable /> <span>Link</span>
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="text-white">
-                <DialogTitle>Create Link</DialogTitle>
-
-                <form className="flex flex-col gap-2" onSubmit={(ev) => {
-                    ev.preventDefault();
-
-                    if ((!fromValue || !toValue) || fromValue === toValue) {
-                        return;
-                    }
-
-                    const engine = Engine.Get();
-
-                    const exists = engine.children.some(value => {
-                        if (value.name === "Lane") {
-                            return (value as Lane).isLane(fromValue, toValue);
-                        } else {
-                            return false;
-                        }
-                    });
-
-                    if (exists) {
-                        setAlertOpen(true);
-                        return;
-                    }
-
-                    engine.addLane({ nodes: [fromValue, toValue], type: laneType });
-
-                    setIsOpen(false);
-                }}>
-
-                    <Label>From</Label>
-                    <Select onValueChange={e => setFromValue(e)}>
-                        <SelectTrigger >
-                            <SelectValue id="from-node" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Engine.Get().children.map(a => (
-                                a.name !== "Lane" ? <SelectItem value={a.uuid} key={a.uuid}>
-                                    <div className="text-left">{(a as Node).label}</div>
-                                    <div>{a.uuid}</div>
-                                </SelectItem> : null))}
-                        </SelectContent>
-                    </Select>
-
-                    <Label>To</Label>
-                    <Select onValueChange={e => setToValue(e)}>
-                        <SelectTrigger>
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Engine.Get().children.map(a => (
-                                a.name !== "Lane" ? <SelectItem value={a.uuid} key={a.uuid}>
-                                    <div className="text-left">{(a as Node).label}</div>
-                                    <div>{a.uuid}</div>
-                                </SelectItem> : null))}
-                        </SelectContent>
-                    </Select>
-
-                    <Label>Lane Type</Label>
-                    <Select defaultValue={LaneType.Slow} onValueChange={e => setLaneType(e as LaneType)}>
-                        <SelectTrigger >
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Object.entries(LaneType).map(([key, l], i) => (
-                                <SelectItem value={l} key={i}>
-                                    {key}
-                                </SelectItem>
-                            ))}
-
-                        </SelectContent>
-                    </Select>
-
-                    <Button type="submit" className="mt-4">Create</Button>
-                </form>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-const DebugMenu: React.FC = () => {
+const Menu: React.FC = () => {
     const [refresh, setRefrest] = useState(0);
     const [contextLoction, setContextLocation] = useState<ContextProps | null>(null);
     const [showContext, setShowContext] = useState(false);
@@ -227,7 +92,7 @@ const DebugMenu: React.FC = () => {
 
                             }}><Save /> <span>Save</span></Button>
                             <LinkDialog />
-                            <Button size="sm" onClick={() => setRefrest(randInt(0, Number.MAX_SAFE_INTEGER))}>
+                            <Button size="sm" onClick={() => setRefrest(MathUtils.randInt(0, Number.MAX_SAFE_INTEGER))}>
                                 <RefreshCcw />
                             </Button>
                         </div>
@@ -331,9 +196,9 @@ const DebugMenu: React.FC = () => {
             ) : null}
 
 
-            {showContext && contextLoction ? createPortal(<ContextMenuContainer {...contextLoction} />, document.body) : null}
+            {showContext && contextLoction ? createPortal(<ContextContainer {...contextLoction} />, document.body) : null}
         </div>
     )
 }
 
-export default DebugMenu;
+export default Menu;

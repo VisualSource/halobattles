@@ -1,14 +1,14 @@
-import { Clock, Color, Vector2, Vector3, Vector4, Quaternion, Matrix4, Spherical, Sphere, Box3, Raycaster, MathUtils, PerspectiveCamera, Scene } from 'three';
+import { Clock, Color, Vector2, Vector3, Vector4, Quaternion, Matrix4, Spherical, Sphere, Box3, Raycaster, MathUtils, PerspectiveCamera, Scene, Object3D, Object3DEventMap } from 'three';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
+import { update as tweenUpdate } from "@tweenjs/tween.js";
 import CameraControls from "camera-controls";
-
 import Lane, { LaneType } from './game_objects/lane';
 import Node from './game_objects/node';
 
 export type MapData = {
     nodes: { uuid: string; position: { x: number; y: number; z: number }; color: string; label: string; }[],
-    linkes: { uuid: string; nodes: string[], type: LaneType }[]
+    linkes: { uuid: string; nodes: string[], type: string }[]
 }
 
 const subset = {
@@ -29,7 +29,10 @@ export default class Engine {
         return !!Engine.INSTANCE
     }
     static INSTANCE: Engine | null = null;
-    static Create(container: HTMLDivElement): Engine {
+    static Create(): Engine {
+        const container = document.getElementById("game-container") as HTMLDivElement | null;
+        if (!container) throw new Error("No container with id of 'game-container' exists in dom.");
+        console.info("Engine created");
         Engine.INSTANCE = new Engine(container);
         return Engine.INSTANCE;
     }
@@ -49,7 +52,7 @@ export default class Engine {
     private renderer: SVGRenderer;
     private overlay: CSS2DRenderer;
     private controls: CameraControls;
-
+    private isDirty = true;
     private renderId: number;
     constructor(private container: HTMLDivElement) {
         CameraControls.install({ THREE: subset });
@@ -63,7 +66,7 @@ export default class Engine {
 
         this.renderer = new SVGRenderer();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.domElement.addEventListener("click", this.onClick);
+        this.renderer.domElement.addEventListener("click", this.onClick, { passive: true });
         container.appendChild(this.renderer.domElement);
 
         this.camera.position.z = 500;
@@ -112,8 +115,14 @@ export default class Engine {
 
     }
 
-    public getObject(uuid: string) {
-        return this.scene.getObjectByProperty("uuid", uuid);
+    public addObject(obj: Object3D<Object3DEventMap>) {
+        this.scene.add(obj);
+
+        this.isDirty = true;
+    }
+
+    public getObject<T = Node>(uuid: string) {
+        return this.scene.getObjectByProperty("uuid", uuid) as T;
     }
 
     public unproject(x: number, y: number) {
@@ -138,10 +147,12 @@ export default class Engine {
 
         this.scene.add(node);
 
+        this.isDirty = true;
+
         return node.uuid;
     }
 
-    public addLane({ type = LaneType.Slow, nodes }: { type?: LaneType; nodes: string[] }, uuid?: string) {
+    public addLane({ type = LaneType.Slow, nodes }: { type?: string; nodes: string[] }, uuid?: string) {
         if (nodes.length !== 2) throw new Error("Failed less then 2 nodes.");
 
         const nodeA = this.scene.getObjectByProperty("uuid", nodes[0]);
@@ -163,6 +174,8 @@ export default class Engine {
 
         this.scene.add(lane);
 
+
+        this.isDirty = true;
     }
 
     public get children() {
@@ -171,6 +184,9 @@ export default class Engine {
 
     public loadState(map: MapData): void {
 
+        this.scene.remove(...this.scene.children);
+
+
         for (const a of map.nodes) {
             this.addNode({ color: new Color(a.color).getHex(), name: a.label, x: a.position.x, y: a.position.y }, a.uuid);
         }
@@ -178,6 +194,8 @@ export default class Engine {
         for (const b of map.linkes) {
             this.addLane({ type: b.type, nodes: b.nodes }, b.uuid);
         }
+
+        this.isDirty = true;
     }
 
     private resize = () => {
@@ -201,6 +219,10 @@ export default class Engine {
         window.dispatchEvent(new CustomEvent("event::selection", { detail: { id: obj.object.uuid } }));
     }
 
+    public makeDirty() {
+        this.isDirty = true;
+    }
+
     public destory() {
         this.container.removeChild(this.renderer.domElement);
         this.container.removeChild(this.overlay.domElement);
@@ -211,9 +233,16 @@ export default class Engine {
 
     private eventLoop = () => {
         const delta = this.clock.getDelta();
-        this.controls.update(delta);
-        this.renderer.render(this.scene, this.camera);
-        this.overlay.render(this.scene, this.camera);
+        const update = this.controls.update(delta);
+
+        if (this.isDirty || update) {
+            this.renderer.render(this.scene, this.camera);
+            this.overlay.render(this.scene, this.camera);
+
+            this.isDirty = false;
+        }
+        tweenUpdate();
+
         this.renderId = requestAnimationFrame(this.eventLoop);
     }
 }

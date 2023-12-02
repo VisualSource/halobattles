@@ -81,22 +81,28 @@ const mapData = {
     ]
 };
 
+function getWeight(user: string, node: string, type: string): number {
+    return 1;
+}
+
 describe("Dijstra", () => {
 
 
     it("test if path is correct", () => {
 
         const result = Dijkstra(
-            mapData.nodes,
-            mapData.linkes,
-            "bc8b6b77-908b-4f30-b477-f17bbeceba83",
-            "5c1537ae-9c6c-4240-b515-6be7988f967d",
-            "user_uuid"
+            mapData,
+            {
+                start: "bc8b6b77-908b-4f30-b477-f17bbeceba83",
+                end: "5c1537ae-9c6c-4240-b515-6be7988f967d",
+                user: "user_uuid"
+            },
+            getWeight
         );
 
         console.log(result);
 
-        assert(result.length != 0);
+        assert(result.length === 3);
     });
 
 });

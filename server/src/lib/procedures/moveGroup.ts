@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { procedure } from '../context.js';
+import Dijkstra from '../dijkstra.js';
 
 const schema = z.object({ from: z.string(), to: z.string() }).transform((args) => {
     const [fromUuid, fromGroup] = args.from.split(";");
@@ -28,8 +29,11 @@ export type MoveGroupResponse = {
 
 const moveGroup = procedure.input(schema).mutation(({ ctx, input }) => {
 
+    const { path, exec_time } = Dijkstra(ctx.mapData, { start: input.from, end: input.to, user: "", }, ctx.getWeight);
 
-    ctx.send("moveGroup", { uuid: input.to, group: input.toGroup, state: "full" });
+    ctx.send("transfer", { path, node: input.from, group: input.fromGroup });
+
+    ctx.startTransfer({ time: exec_time, to: input.to, toGroup: input.toGroup });
 });
 
 export default moveGroup;
