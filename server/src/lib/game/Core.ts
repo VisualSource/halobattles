@@ -89,7 +89,7 @@ export default class Core extends EventEmitter {
     }
 
     public startTransfer({ time, toGroup, to }: { time: number; to: string; toGroup: number }) {
-        const ms = time * 1000 + 3000;
+        const ms = time * 1000 + 2000;
         if (ms >= 2147483647) throw new Error("Max time.");
 
         setTimeout(() => {
@@ -99,7 +99,7 @@ export default class Core extends EventEmitter {
 
     public getWeight = (user: string, node: string, laneType: string): number => {
 
-        return 1;
+        return laneType === "Fast" ? 2 : 4;
     }
 
     public send<T extends EventName>(event: T, data: Events[T]) {

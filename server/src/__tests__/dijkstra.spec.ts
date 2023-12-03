@@ -102,7 +102,7 @@ describe("Dijstra", () => {
 
         console.log(result);
 
-        assert(result.length === 3);
+        assert(result.path.length === 3);
     });
 
 });
