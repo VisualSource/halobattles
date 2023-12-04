@@ -1,6 +1,5 @@
-import 'dotenv/config';
+import "./lib/env.js";
 import { App } from 'uWebSockets.js';
-import { parse } from 'node:path';
 
 import process from 'node:process';
 import cors from 'cors';
@@ -15,12 +14,6 @@ import logout from './lib/routes/logout.js';
 import { AsyncResponse } from './lib/http_utils.js';
 
 export type AppRouter = typeof router;
-
-
-
-if (!process.env.STEAM_API_KEY) {
-    throw new Error("Missing Steam api key");
-}
 
 const app = App();
 
@@ -46,7 +39,7 @@ app.get("/login", (res, req) => AsyncResponse(res, req, steam_login));
 app.get("/auth/steam/cb", (res, req) => AsyncResponse(res, req, steam_callback));
 app.any("/*", res => {
     res.writeStatus("404 NOT FOUND");
-    res.end();
+    res.end("Not Found");
 });
 
 /*app.get("/debug/panel", (res, _) => {

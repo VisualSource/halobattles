@@ -5,6 +5,7 @@ import {
 import ErrorPage from "@page/ErrorPage";
 import Home from "@page/Home";
 import Game from '@page/Game';
+import GameUIRoot from "./components/game/Root";
 
 export const router = createBrowserRouter([
     {
@@ -22,7 +23,20 @@ export const router = createBrowserRouter([
                 path: "/game",
                 element: <Game />,
                 errorElement: <ErrorPage />,
-                children: []
+                children: [
+                    {
+                        index: true,
+                        element: <GameUIRoot />
+                    },
+                    {
+                        path: "/game/tech",
+                        element: <>Tech</>,
+                    },
+                    {
+                        path: "/game/:node",
+                        element: <>Node</>
+                    }
+                ]
             }
             /*{
                 path: "/lobby",

@@ -1,22 +1,23 @@
-import { jwtVerify } from 'jose';
-import { RequestKey, getCookies, db } from "../http_utils.js";
+import type { HttpRequest } from 'uWebSockets.js';
+import { HttpError, USER_DATABASE, isAuthorized } from "../http_utils.js";
 
-const steam_profile = async (req: RequestKey): Promise<Response> => {
-    const cookies = getCookies(req);
+
+const steam_profile = async (req: HttpRequest): Promise<Response> => {
     try {
-        const { payload } = await jwtVerify(cookies["session"] as string, req.private_key);
+        const userid = await isAuthorized(req, "/", false);
 
-        const result = await new Promise((ok, rej) => {
-            db.get("SELECT * FROM users where id = ?", [payload.id], (err, row) => {
-                if (err) return rej(err);
-                ok(row);
-            });
-        });
+        const user = USER_DATABASE.get(userid);
 
-        return Response.json(result);
+        if (!user) throw new Error("No data was returned");
+
+        return Response.json(user);
     } catch (error) {
         console.error(error);
-        return Response.json({ status: "Error", message: "Failed to get user profile" });
+        if (error instanceof HttpError) {
+            return Response.json({ status: error.status.code, statusText: error.status.text, message: error.message }, { status: error.status.code });
+        }
+
+        return Response.json({ status: 500, statusText: "Internal Server Error", message: "Failed to get user profile" }, { status: 500 });
     }
 }
 

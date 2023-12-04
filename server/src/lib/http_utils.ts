@@ -1,26 +1,27 @@
 import type { HttpRequest, HttpResponse } from "uWebSockets.js";
-import sqlite3 from 'sqlite3';
-import { type KeyLike, importPKCS8 } from 'jose';
+import { importPKCS8, jwtVerify } from 'jose';
 
-export type RequestKey = HttpRequest & { private_key: KeyLike };
+export const PRIVATE_KEY = await importPKCS8(process.env.PRIVATE_KEY, process.env.SIGNING_ALG);
+export const USER_DATABASE = new Map<string, {
+    steamid: string;
+    profileurl: string;
+    avatar: {
+        full: string;
+        default: string;
+        medium: string;
+        hash: string;
+    },
+    personaname: string
+}>();
 
-const private_key = await importPKCS8(process.env.PRIVATE_KEY, process.env.SIGNING_ALG);
-export const db = new sqlite3.Database("./user.db");
-db.serialize(() => {
-    db.run("CREATE TABLE IF NOT EXISTS user (id TEXT PRIMARY KEY, profileurl TEXT, avatar TEXT, avatarfull TEXT, avatarmedium TEXT, avatarhash TEXT, username TEXT);");
-});
-
-
-export async function AsyncResponse(res: HttpResponse, req: HttpRequest, handler: (req: RequestKey) => Promise<Response>): Promise<void> {
+export async function AsyncResponse(res: HttpResponse, req: HttpRequest, handler: (req: HttpRequest) => Promise<Response>): Promise<void> {
     res.onAborted(() => {
         res.aborted = true;
     });
 
-    (req as RequestKey).private_key = private_key;
+    const result = await handler(req);
 
-    const result = await handler(req as RequestKey);
-
-    const body = result.bodyUsed ? await result.text() : null;
+    const body = result.body ? await result.text() : null;
 
     if (!res.aborted) {
         res.cork(() => {
@@ -37,9 +38,13 @@ export async function AsyncResponse(res: HttpResponse, req: HttpRequest, handler
 
 export class HttpError<T extends keyof typeof HTTP_STATUS> extends Error {
     public status: typeof HTTP_STATUS[T];
-    constructor(msg: string, status: T) {
+    constructor(msg: string, status: T, public redirect: string = "/error", private withQuery: boolean = true) {
         super(msg);
         this.status = HTTP_STATUS[status];
+    }
+
+    public getRedirectPath(): string {
+        return `${this.redirect}${this.withQuery ? `?status=${encodeURIComponent(`${this.status.code} ${this.status.text}`)}&reason=${encodeURIComponent(this.message)}` : ""}`;
     }
 }
 
@@ -61,14 +66,32 @@ export const getQuery = (req: HttpRequest) => {
     return Object.fromEntries(new URLSearchParams(req.getQuery()).entries());
 }
 
+
+export const isAuthorized = async (req: HttpRequest, redirect: string = "/error", errorWithQuery: boolean = true): Promise<string> => {
+    const cookies = getCookies(req);
+
+    if (!cookies["session"]) throw new HttpError("No session was found", "UNAUTHORIZED", redirect, errorWithQuery);
+
+    const { payload } = await jwtVerify(cookies["session"] as string, PRIVATE_KEY).catch((e) => {
+        console.error(e);
+        throw new HttpError("Failed to validate session", "UNAUTHORIZED", redirect, errorWithQuery);
+    });
+
+    if (!payload.id || typeof payload.id !== "string") {
+        throw new HttpError("Missing user id in session.", "INTERNAL_ERROR", redirect, errorWithQuery);
+    }
+
+    return payload.id;
+}
+
 export const HTTP_STATUS = {
-    OK: "200 OK",
-    BAD_REQUEST: "200 BAD REQUEST",
-    UNAUTHORIZED: "401 UNAUTHORIZED",
-    FORBIDDEN: "403 FORBIDDEN",
-    NOT_FOUND: "404 NOT FOUND",
-    MOVED_PERMANETLY: "301 Moved Permanently",
-    TEMPORARY_REDIRECT: "307 Temporary Redirect",
-    PERMANENT_REDIRECT: "308 Permanent Redirect",
-    INTERNAL_ERROR: "500 Internal Server Error"
+    OK: { text: "Ok", code: 200 },
+    BAD_REQUEST: { text: "Bad Request", code: 400 },
+    UNAUTHORIZED: { text: "Unauthorized", code: 401 },
+    FORBIDDEN: { text: "Forbidden", code: 403, },
+    NOT_FOUND: { text: "Not Found", code: 404 },
+    MOVED_PERMANETLY: { text: "Moved Permanently", code: 301 },
+    TEMPORARY_REDIRECT: { text: "Temporary Redirect", code: 307 },
+    PERMANENT_REDIRECT: { text: "Permanent Redirect", code: 308 },
+    INTERNAL_ERROR: { text: "Internal Server Error", code: 500 }
 } as const;

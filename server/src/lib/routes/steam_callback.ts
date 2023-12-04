@@ -1,6 +1,8 @@
+import type { HttpRequest } from 'uWebSockets.js';
 import { parse } from 'node:path';
 import { SignJWT } from 'jose';
-import { HttpError, RequestKey, db } from "../http_utils.js";
+import { HttpError, PRIVATE_KEY, USER_DATABASE } from "../http_utils.js";
+
 
 export type SteamProfile = {
     response: {
@@ -32,7 +34,7 @@ export type SteamProfile = {
 https://cindr.org/how-to-make-a-login-with-steam-button-with-php-oauth-open/
 https://github.com/uNetworking/uWebSockets.js/blob/master/examples/AsyncFunction.js
 */
-const steam_callback = async (req: RequestKey): Promise<Response> => {
+const steam_callback = async (req: HttpRequest): Promise<Response> => {
     try {
         const query = new URLSearchParams(req.getQuery());
         query.set("openid.mode", "check_authentication");
@@ -48,14 +50,12 @@ const steam_callback = async (req: RequestKey): Promise<Response> => {
             body: query
         });
 
-        if (!request.ok) {
-            return Response.redirect(`${process.env.PUBLIC_URL}/error?status=500&reason=${encodeURIComponent("Failed to validate user.")}`, 308);
-        }
+        if (!request.ok) throw new HttpError("Failed to validate user.", "INTERNAL_ERROR");
 
         const validation = await request.text();
 
         if (!validation.includes("is_valid:true")) {
-            return Response.redirect(`${process.env.PUBLIC_URL}/error?status=401&reason=${encodeURIComponent("Unauthorized")}`, 308);
+            throw new HttpError("Invaild user login", "UNAUTHORIZED");
         }
 
         const steam_id = parse(claimed_id.replace("https://", "file://")).name;
@@ -67,35 +67,48 @@ const steam_callback = async (req: RequestKey): Promise<Response> => {
         const profile_request = await fetch(`https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?${profile_query.toString()}`);
 
         if (!profile_request.ok) {
-            return Response.redirect(`${process.env.PUBLIC_URL}/error?status=500&reason=${encodeURIComponent("Failed to get user profile.")}`, 308);
+            throw new HttpError("Failed to fetch user profile.", "INTERNAL_ERROR");
         }
 
         const profile = await profile_request.json() as SteamProfile;
 
         const user = profile.response.players.at(0);
 
-        if (!user) return Response.redirect(`${process.env.PUBLIC_URL}/error?status=500&reason=${encodeURIComponent("Failed to get user profile.")}`, 308);
+        if (!user) throw new HttpError("Failed to fetch user profile", "INTERNAL_ERROR");
 
         const jwt = await new SignJWT({ type: "steam", id: user.steamid })
             .setProtectedHeader({ alg: process.env.SIGNING_ALG })
-            .setExpirationTime("5d").sign(req.private_key);
+            .setExpirationTime("5d").sign(PRIVATE_KEY);
+
+
+        const five_days = 120 * 60 * 60;
 
         const response = new Response(undefined, {
             headers: {
                 "Location": `${process.env.PUBLIC_URL}/`,
-                "Set-Cookie": `session=${jwt}; path=/; SameSite=Strict; Secure`
+                "Set-Cookie": `session=${jwt}; path=/; SameSite=Strict; Secure; expires=${new Date(Date.now() + five_days * 1000).toUTCString()}`
             },
             status: 308
         });
 
-        db.serialize(() => {
-            const stmt = db.prepare("INSERT INTO user VALUES (?,?,?,?,?,?,?)");
-            stmt.run([user.steamid, user.profileurl, user.avatar, user.avatarfull, user.avatarmedium, user.avatarhash, user.personaname]);
-            stmt.finalize();
+        USER_DATABASE.set(user.steamid, {
+            steamid: user.steamid,
+            profileurl: user.profileurl,
+            avatar: {
+                default: user.avatar,
+                full: user.avatarfull,
+                medium: user.avatarmedium,
+                hash: user.avatarhash,
+            },
+            personaname: user.personaname
         });
 
         return response;
     } catch (error) {
+        if (error instanceof HttpError) {
+            return Response.redirect(`${process.env.PUBLIC_URL}${error.getRedirectPath()}`, 308);
+        }
+
         return Response.redirect(`${process.env.PUBLIC_URL}/error?status=500&reason=${encodeURIComponent("Interal Server Error")}`, 308);
     }
 }

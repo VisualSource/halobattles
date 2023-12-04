@@ -10,7 +10,6 @@ const steam_login = async (req: HttpRequest) => {
     query.append('openid.identity', 'http://specs.openid.net/auth/2.0/identifier_select');
     query.append('openid.claimed_id', 'http://specs.openid.net/auth/2.0/identifier_select');
 
-
     return Response.redirect(`https://steamcommunity.com/openid/login?${query.toString()}`, 308);
 }
 
