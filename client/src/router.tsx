@@ -5,7 +5,7 @@ import {
 import ErrorPage from "@page/ErrorPage";
 import Home from "@page/Home";
 import Game from '@page/Game';
-import GameUIRoot from "./components/game/Root";
+import NodeView from "./components/game/NodeView";
 
 export const router = createBrowserRouter([
     {
@@ -25,82 +25,15 @@ export const router = createBrowserRouter([
                 errorElement: <ErrorPage />,
                 children: [
                     {
-                        index: true,
-                        element: <GameUIRoot />
-                    },
-                    {
                         path: "/game/tech",
                         element: <>Tech</>,
                     },
                     {
-                        path: "/game/:node",
-                        element: <>Node</>
+                        path: "/game/node/:node",
+                        element: <NodeView />
                     }
                 ]
             }
-            /*{
-                path: "/lobby",
-                element: <Lobby />,
-                errorElement: <ErrorPage />
-            },
-            {
-                path: "/game",
-                element: <Game />,
-                errorElement: <ErrorPage />,
-                children: [
-                    {
-                        path: "/game/gameover",
-                        element: <GameOver />,
-                        errorElement: <ErrorPage />
-                    },
-                    {
-                        path: "/game/view/node/:id",
-                        element: <NodeView />,
-                        children: [
-                            {
-                                element: <UnitManagment />,
-                                index: true,
-                                handle: {
-                                    name: "Unit Managment"
-                                },
-                                errorElement: <ErrorPage />
-                            },
-                            {
-                                path: "/game/view/node/:id/buildings",
-                                element: <BuildingManagment />,
-                                handle: {
-                                    name: "Building and tech Managment"
-                                },
-                                errorElement: <ErrorPage />
-                            },
-                            {
-                                path: "/game/view/node/:id/info",
-                                element: <PlanetInfo />,
-                                handle: {
-                                    name: "Planet Info"
-                                },
-                                errorElement: <ErrorPage />
-                            },
-                            {
-                                path: "/game/view/node/:id/queue-units",
-                                element: <UnitQueue />,
-                                handle: {
-                                    name: "Unit Queue"
-                                },
-                                errorElement: <ErrorPage />
-                            },
-                            {
-                                path: "/game/view/node/:id/queue-buildings",
-                                element: <BuildingQueue />,
-                                handle: {
-                                    name: "Building Queue"
-                                },
-                                errorElement: <ErrorPage />
-                            },
-                        ]
-                    }
-                ]
-            },*/
         ]
     }
 ]);

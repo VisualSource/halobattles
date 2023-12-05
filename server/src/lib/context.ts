@@ -5,7 +5,7 @@ import Core from './game/Core.js';
 
 const global = new Core();
 
-export const createContext = async () => { return global };
+export const createContext = async () => { return global; };
 
 export type Context = inferAsyncReturnType<typeof createContext>;
 

@@ -1,7 +1,23 @@
 import { Atom, FlaskConical, PoundSterling, User2, Users2 } from "lucide-react";
-import { Link } from 'react-router-dom';
+import { useEffect } from "react";
+import { Link, useNavigate } from 'react-router-dom';
 
 const GameUIRoot: React.FC = () => {
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const handler = (ev: Event) => {
+            const { id } = (ev as CustomEvent<{ id: string }>).detail;
+            navigate(`/game/node/${id}`);
+        }
+
+        window.addEventListener("event::selection", handler);
+
+        return () => {
+            window.removeEventListener("event::selection", handler);
+        }
+    }, [navigate]);
+
     return (
         <>
             <div className="absolute top-12 left-0 w-8 h-2/3 bg-zinc-700 text-white z-50">

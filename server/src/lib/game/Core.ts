@@ -1,10 +1,9 @@
 import { EventEmitter } from 'node:events';
-import type { UUID } from 'node:crypto';
 import type { EventName, Events } from './types.js';
 import Player from "./Player.js";
 
 export default class Core extends EventEmitter {
-    public players: Map<UUID, Player> = new Map();
+    public players: Map<string, Player> = new Map();
     public inPlay: boolean = false;
     public mapData = {
         "nodes": [

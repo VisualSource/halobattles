@@ -3,11 +3,12 @@ import { Outlet } from "react-router-dom";
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { GameProvider } from "@/hooks/GameProvider";
+import GameUIRoot from "@/components/game/Root";
 
 const DebugMenu = lazy(() => import("@/components/debug/Menu"));
 
 const Game: React.FC = () => {
-  const [debug, setDebug] = useState(true);
+  const [debug, setDebug] = useState(false);
 
   useEffect(() => {
     const openDebugMenu = (ev: KeyboardEvent) => {
@@ -26,7 +27,15 @@ const Game: React.FC = () => {
     <TooltipProvider>
       <div id="game-container"></div>
       <GameProvider>
-        {debug ? <Suspense fallback={<></>}><DebugMenu /></Suspense> : <Outlet />}
+        {debug ? (
+          <Suspense fallback={<></>}>
+            <DebugMenu />
+          </Suspense>) : (
+          <>
+            <GameUIRoot />
+            <Outlet />
+          </>
+        )}
       </GameProvider>
     </TooltipProvider>
   );
