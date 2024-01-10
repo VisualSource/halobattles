@@ -1,6 +1,8 @@
-import { Atom, FlaskConical, PoundSterling, User2, Users2 } from "lucide-react";
+import { Atom, Menu, PoundSterling, User2, Users2 } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
 import { useEffect } from "react";
-import { Link, useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Button } from "../ui/button";
 
 const GameUIRoot: React.FC = () => {
     const navigate = useNavigate();
@@ -20,26 +22,41 @@ const GameUIRoot: React.FC = () => {
 
     return (
         <>
-            <div className="absolute top-12 left-0 w-8 h-2/3 bg-zinc-700 text-white z-50">
-                <Link to="/game/tech" replace>
-                    <FlaskConical />
-                </Link>
-            </div>
-            <div className="absolute top-0 left-0 w-full bg-zinc-700 h-12 flex gap-1 z-50">
-                <div id="player-icon" className="relative p-2 rounded-xl">
+            <div className="absolute top-0 left-0 w-full bg-zinc-700 h-16 flex gap-1 z-50 items-center justify-between px-5">
+                <div className="flex items-center gap-2">
+                    <div id="player-icon" className="relative p-2 rounded-xl">
+                        <div className="h-12 w-12">
+                            <img className="object-cover rounded-md" src="https://avatars.steamstatic.com/af1cf9cf15be50bc6eda5a5c35bb1698bbf77ecd_medium.jpg" alt="palyername" />
+                        </div>
+                    </div>
 
-                    <div className="h-12 w-12">
-                        <img className="object-cover" src="https://avatars.steamstatic.com/af1cf9cf15be50bc6eda5a5c35bb1698bbf77ecd_medium.jpg" alt="palyername" />
+                    <div className="flex flex-col text-white gap-1">
+                        <div className="flex items-center gap-1 bg-zinc-800 pl-0.5 pr-2 py-1"><Atom className="h-4" /> <span className="text-sm text-gray-400">1000</span></div>
+                        <div className="flex items-center gap-1 bg-zinc-800 pl-0.5 pr-2 py-1"><PoundSterling className="h-4" /> <span className="text-sm text-gray-400">1000</span></div>
+                    </div>
+                    <div className="flex flex-col text-white gap-1">
+                        <div className="flex items-center gap-1 bg-zinc-800 pl-0.5 pr-2 py-1"><Users2 className="h-4" /> <span className="text-sm text-gray-400">100/100</span></div>
+                        <div className="flex items-center gap-1 bg-zinc-800 pl-0.5 pr-2 py-1"><User2 className="h-4" /> <span className="text-sm text-gray-400">2/2</span></div>
                     </div>
 
                 </div>
-                <div className="flex flex-col text-white gap-1">
-                    <div className="flex items-center gap-1 bg-zinc-800 p-0.5"><Atom className="h-4" /> <span className="text-sm">1000</span></div>
-                    <div className="flex items-center gap-1 bg-zinc-800 p-0.5"><PoundSterling className="h-4" /> <span className="text-sm">1000</span></div>
-                </div>
-                <div className="flex flex-col text-white gap-1">
-                    <div className="flex items-center gap-1 bg-zinc-800 p-0.5"><Users2 className="h-4" /> <span className="text-sm">100/100</span></div>
-                    <div className="flex items-center gap-1 bg-zinc-800 p-0.5"><User2 className="h-4" /> <span className="text-sm">2/2</span></div>
+                <div className="flex items-center justify-center text-white">
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <Menu />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="text-white">
+                            <DialogHeader>
+                                <DialogTitle>Settings</DialogTitle>
+                            </DialogHeader>
+                            <div className="container space-y-4">
+                                <Button className="w-full" variant="secondary">Exit</Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
                 </div>
             </div>
         </>

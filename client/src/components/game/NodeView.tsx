@@ -1,8 +1,10 @@
 import { Globe, Users2, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import Grid from "./Grid";
 
 const NodeView: React.FC = () => {
+
     return (
         <div className="absolute top-0 left-0 flex h-full w-full bg-zinc-600 bg-opacity-20 z-[1000] justify-center items-center">
             <div className="bg-zinc-600 flex flex-col h-2/3 w-4/6">
@@ -29,81 +31,18 @@ const NodeView: React.FC = () => {
                         </TabsContent>
                         <TabsContent value="armay" className="h-full">
                             <div className="h-full grid grid-cols-3 grid-rows-1 gap-2 p-1">
-                                <section className="grid grid-cols-4 grid-rows-6 gap-1">
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                </section>
-                                <section className="grid grid-cols-4 grid-rows-6 gap-1">
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                </section>
-                                <section className="grid grid-cols-4 grid-rows-6 gap-1">
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                    <div className="bg-zinc-900 col-span-1"></div>
-                                </section>
+                                <Grid />
+                                <Grid />
+                                <Grid />
                             </div>
                         </TabsContent>
                     </main>
-                    <footer>
-                        <TabsList>
-                            <TabsTrigger value="node">
+                    <footer className="bg-slate-800">
+                        <TabsList className="rounded-none">
+                            <TabsTrigger value="node" title="world">
                                 <Globe />
                             </TabsTrigger>
-                            <TabsTrigger value="armay">
+                            <TabsTrigger value="armay" title="units">
                                 <Users2 />
                             </TabsTrigger>
                         </TabsList>

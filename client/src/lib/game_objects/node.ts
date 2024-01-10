@@ -41,9 +41,19 @@ export default class Node extends Mesh {
             y = i % 2 == 0 ? 20 : 10;
         }
 
-        const label = new CSS2DObject(document.createElement("div"));
-        label.element.innerText = "Name";
-        label.element.classList.add("text-white", "font-bold");
+        const labelContainer = document.createElement("div");
+        labelContainer.classList.add("flex", "items-center", "gap-2")
+        const img = document.createElement("img");
+        img.src = "https://avatars.steamstatic.com/af1cf9cf15be50bc6eda5a5c35bb1698bbf77ecd_medium.jpg";
+        img.classList.add("rounded-md", "h-6", "w-6");
+        labelContainer.appendChild(img);
+
+        const text = document.createElement("span");
+        text.innerText = "Name";
+        text.classList.add("text-white", "font-bold", "text-white");
+        labelContainer.appendChild(text);
+
+        const label = new CSS2DObject(labelContainer);
         label.position.set(0, -20, 0);
         label.name = "name-label";
 
@@ -69,7 +79,8 @@ export default class Node extends Mesh {
         const label = this.children.at(3) as CSS2DObject | undefined;
         if (!label) throw new Error("Failed to get label");
 
-        label.element.innerText = value;
+        const child = label.element.lastElementChild;
+        if (child) child.textContent = value;
     }
 
     public get color(): string {

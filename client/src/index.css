@@ -2,11 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Geist Sans";
+  src: url("/font/GeistVariableVF.woff2") format("woff2"),
+    url("/font/GeistVariableVF.tff") format("truetype");
+}
+
 @layer base {
   html,
   body,
   #root {
     @apply h-screen;
+    font-family: "Geist Sans";
   }
 }
 

@@ -22,7 +22,7 @@ export default class UnitStack extends CSS2DObject {
     constructor() {
         super(document.createElement("div"));
         this.name = "unit-stack";
-        this.container.classList.add("pointer-events-auto", "h-10", "w-10", "flex", "flex-column", "items-center", "justify-center", "relative", "bottom-2");
+        this.container.classList.add("z-10", "pointer-events-auto", "h-10", "w-10", "flex", "flex-column", "items-center", "justify-center", "relative", "bottom-2");
         this.container.draggable = true;
         this.element.appendChild(this.container);
 
