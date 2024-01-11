@@ -1,5 +1,6 @@
 import type { Json } from './types.js';
 import { Team } from './enums.js';
+import type { User } from '../context.js';
 
 type PlayerJson = {
     team: Team,
@@ -9,9 +10,8 @@ type PlayerJson = {
 }
 
 export default class Player implements Json<PlayerJson> {
-    constructor(public id: string, public name: string, public team: Team, public color: string) { }
-    public icon: String;
-    public display_name: string;
+    constructor(public user: User, public team: Team, public color: string) { }
+
     public credits: number = 0;
     public energy: number = 0;
     public units: number = 0;
@@ -21,9 +21,9 @@ export default class Player implements Json<PlayerJson> {
     asJson(): PlayerJson {
         return {
             team: this.team,
-            id: this.id,
+            id: this.user.steamid,
             color: this.color,
-            name: this.name
+            name: this.user.displayname
         }
     }
 }

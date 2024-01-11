@@ -1,7 +1,9 @@
 import { EventEmitter } from 'node:events';
-import type { EventName, Events } from './types.js';
-import Player from "./Player.js";
 import type { UpdateGroupSchema } from '../procedures/updateGroups.js';
+import type { EventName, Events } from './types.js';
+import type { User } from '../context.js';
+import { Team } from './enums.js';
+import Player from "./Player.js";
 import Planet from './Planet.js';
 
 export default class Core extends EventEmitter {
@@ -88,6 +90,13 @@ export default class Core extends EventEmitter {
     constructor() {
         super({ captureRejections: true });
     }
+    public getPlanet(nodeId: string) {
+        return this.mapData.nodes.find(value => value.uuid === nodeId);
+    }
+
+    public addPlayer(user: User, team: Team, color: string) {
+        this.players.set(user.steamid, new Player(user, team, color))
+    }
 
     public startTransfer({ time, toGroup, to }: { time: number; to: string; toGroup: number }) {
         const ms = time * 1000 + 2000;
@@ -99,9 +108,6 @@ export default class Core extends EventEmitter {
     }
 
     public updateNodeInternalGroup({ node, group_1, group_2, group_3 }: UpdateGroupSchema) {
-
-
-
 
     }
 

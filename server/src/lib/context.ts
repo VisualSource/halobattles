@@ -1,11 +1,15 @@
 import { type inferAsyncReturnType, initTRPC, TRPCError } from '@trpc/server';
+import type { Database } from 'sqlite3';
+import { jwtVerify } from 'jose';
+
 import { observable } from '@trpc/server/observable';
 import { EventName, Events } from './game/types.js';
-import Core from './game/Core.js';
 import { PRIVATE_KEY } from './http_utils.js';
-import { jwtVerify } from 'jose';
-import type { Database } from 'sqlite3';
-const global = new Core();
+import Core from './game/Core.js';
+
+export const global = new Core();
+
+export type User = { steamid: string; profile: string; avatar_full: string; avatar_medium: string; displayname: string; };
 
 export const createContext = async (opts: unknown, db: Database) => {
     const cookie = (opts as { req: { headers: { cookie: string; } } })?.req?.headers?.cookie;
@@ -14,9 +18,10 @@ export const createContext = async (opts: unknown, db: Database) => {
         const session = cookies.find(value => value.startsWith("session"))?.replace("session=", "");
         if (!session) throw new TRPCError({ message: "Failed to get user session", code: "FORBIDDEN" });
         const { payload } = await jwtVerify(decodeURIComponent(session), PRIVATE_KEY);
-        const user = await new Promise((ok, reject) => db.get(`SELECT * FROM users WHERE steamid = ?`, payload.id, (err, row) => {
+        const user = await new Promise<User>((ok, reject) => db.get(`SELECT * FROM users WHERE steamid = ?`, payload.id, (err, row) => {
             if (err) return reject(err);
-            ok(row);
+            if (!row) return reject();
+            ok(row as User);
         }));
         return { user, global };
     }

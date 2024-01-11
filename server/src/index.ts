@@ -5,20 +5,33 @@ import process from 'node:process';
 import cors from 'cors';
 //import { renderTrpcPanel } from "trpc-panel";
 import { createUWebSocketsHandler, applyWSHandler } from './lib/trpc-uwebsockets/index.js';
-import { createContext } from './lib/context.js';
-import { router } from './router.js';
-import steam_login from './lib/routes/steam_login.js';
 import steam_callback from './lib/routes/steam_callback.js';
 import steam_profile from './lib/routes/steam_profile.js';
-import logout from './lib/routes/logout.js';
+import { User, createContext } from './lib/context.js';
+import steam_login from './lib/routes/steam_login.js';
 import { AsyncResponse } from './lib/http_utils.js';
+import logout from './lib/routes/logout.js';
 import { createDb } from "./lib/sqlite.js";
+import { router } from './router.js';
+
+import { global } from './lib/context.js';
+import { Team } from "./lib/game/enums.js";
 
 export type AppRouter = typeof router;
 
 const app = App();
 
 const db = await createDb("../../db/game.db");
+
+if (process.env.NODE_ENV === "development") {
+    db.get("SELECT * FROM users;", (err, row) => {
+        if (err) {
+            console.error(err);
+            return;
+        }
+        global.addPlayer(row as User, Team.UNSC, "#ffffff");
+    });
+}
 
 createUWebSocketsHandler(app, "/trpc", {
     router,

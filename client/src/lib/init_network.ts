@@ -22,6 +22,11 @@ export default function handle_network(engine: Engine | undefined) {
         engine.loadState(value);
     }).catch(handleError);
 
+
+    client.getPlayerState.query(undefined, { signal: controller.signal }).then((v) => {
+        console.log(v);
+    }).catch(handleError);
+
     const onTransfer = client.onTransfer.subscribe(undefined, {
         onData({ path, group, node }) {
             engine.getObject(node).getStack(group).setState(UnitStackState.Empty);
