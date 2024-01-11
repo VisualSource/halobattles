@@ -2,6 +2,7 @@
   "include": ["src/**/*"],
   "exclude": ["meta/**/*", "src/old/**/*"],
   "compilerOptions": {
+    "composite": true,
     /* Visit https://aka.ms/tsconfig.json to read more about this file */
     "strictPropertyInitialization": false,
 
@@ -12,6 +13,10 @@
     "module": "NodeNext" /* Specify what module code is generated. */,
     "rootDir": "./src",
     "moduleResolution": "NodeNext",
+    "paths": {
+      "#procedure/*": ["./src/lib/procedures/*"],
+      "#lib/*": ["./src/lib/*"]
+    },
     "baseUrl": "./" /* Specify the base directory to resolve non-relative module names. */,
     // "paths": {},                                      /* Specify a set of entries that re-map imports to additional lookup locations. */
     // "rootDirs": [],                                   /* Allow multiple folders to be treated as one when resolving modules. */

@@ -3,10 +3,11 @@ import {
     createBrowserRouter,
     Route,
 } from "react-router-dom";
+import NodeView from "./components/game/NodeView";
 import ErrorPage from "@page/ErrorPage";
+import Lobby from "@page/Lobby";
 import Home from "@page/Home";
 import Game from '@page/Game';
-import NodeView from "./components/game/NodeView";
 
 export const router = createBrowserRouter(
     createRoutesFromElements(
@@ -15,5 +16,6 @@ export const router = createBrowserRouter(
             <Route path="game" element={<Game />}>
                 <Route path="node/:node" element={<NodeView />} />
             </Route>
+            <Route path="lobby" element={<Lobby />} />
         </Route>
     ));

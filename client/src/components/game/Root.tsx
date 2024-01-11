@@ -1,10 +1,13 @@
 import { Atom, Menu, PoundSterling, User2, Users2 } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Button } from "../ui/button";
 
+
 const GameUIRoot: React.FC = () => {
+    const [isLoading, setIsLoading] = useState(true);
+
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -12,17 +15,30 @@ const GameUIRoot: React.FC = () => {
             const { id } = (ev as CustomEvent<{ id: string }>).detail;
             navigate(`/game/node/${id}`);
         }
+        const loadingState = (ev: Event) => {
+            const state = (ev as CustomEvent<boolean>).detail;
+            setIsLoading(state);
+        }
+
+        window.addEventListener("event::loading-state", loadingState);
 
         window.addEventListener("event::selection", handler);
 
         return () => {
             window.removeEventListener("event::selection", handler);
+            window.removeEventListener("event::loading-state", loadingState);
         }
     }, [navigate]);
 
     return (
         <>
-            <div className="absolute top-0 left-0 w-full bg-zinc-700 h-16 flex gap-1 z-50 items-center justify-between px-5">
+            {isLoading ? (
+                <div className="absolute z-50 top-0 left-0 w-full h-full bg-zinc-800">
+                    <h1>Loading Game</h1>
+
+                </div>
+            ) : null}
+            <div className="absolute top-0 left-0 w-full bg-zinc-700 h-16 flex gap-1 z-[49] items-center justify-between px-5">
                 <div className="flex items-center gap-2">
                     <div id="player-icon" className="relative p-2 rounded-xl">
                         <div className="h-12 w-12">

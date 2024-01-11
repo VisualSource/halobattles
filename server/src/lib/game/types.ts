@@ -9,7 +9,7 @@ export interface Json<T> {
 export type Events = {
     moveGroup: MoveGroupResponse,
     moveUnit: {},
-    addPlayer: { color: number; uuid: UUID, team: Team, name: string; }[],
+    addPlayer: {},
     internal_unit_order: {},
     removePlayer: {}
     updatePlayer: {}

@@ -1,8 +1,7 @@
 import {
     createTRPCProxyClient, createWSClient, wsLink
 } from '@trpc/client';
-//import { createTRPCReact } from "@trpc/react-query";
-import type { AppRouter } from "../../../server/src/index";
+import type { AppRouter } from "halobattles-server/src/index";
 
 
 export const link = {
@@ -16,5 +15,3 @@ export const link = {
 }
 
 export const client = createTRPCProxyClient<AppRouter>(link);
-//export const trpcClient = createTRPCReact<AppRouter>();
-//export const trpc = trpcClient.createClient(link);

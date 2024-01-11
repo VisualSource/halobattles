@@ -90,14 +90,30 @@ export default class Core extends EventEmitter {
     constructor() {
         super({ captureRejections: true });
     }
-    public getPlanet(nodeId: string) {
-        return this.mapData.nodes.find(value => value.uuid === nodeId);
-    }
+
+    /** 
+     * Lobby Functions 
+    */
 
     public addPlayer(user: User, team: Team, color: string) {
         this.players.set(user.steamid, new Player(user, team, color))
     }
 
+    public removePlayer(steamId: string) {
+        this.players.delete(steamId);
+    }
+
+    public updatePlayer(steamId: string, color: string | undefined, team: Team | undefined) {
+
+    }
+
+    /** 
+     * Game Functions
+    */
+
+    public getPlanet(nodeId: string) {
+        return this.mapData.nodes.find(value => value.uuid === nodeId);
+    }
     public startTransfer({ time, toGroup, to }: { time: number; to: string; toGroup: number }) {
         const ms = time * 1000 + 2000;
         if (ms >= 2147483647) throw new Error("Max time.");
@@ -115,6 +131,10 @@ export default class Core extends EventEmitter {
 
         return laneType === "Fast" ? 2 : 4;
     }
+
+    /** 
+     * Internal Functions
+    */
 
     public send<T extends EventName>(event: T, data: Events[T]) {
         this.emit(event, data);

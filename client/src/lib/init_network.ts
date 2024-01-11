@@ -8,24 +8,35 @@ import type { AppRouter } from "../../../server/src";
 import { client } from '@/lib/trpc';
 import Engine from "./engine";
 
-const handleError = (e: unknown) => {
-    if ((e as TRPCClientError<AppRouter>).cause?.name === "ObservableAbortError") return;
-    console.error(e);
-}
-
 export default function handle_network(engine: Engine | undefined) {
     const controller = new AbortController();
 
     if (!engine) return;
 
-    client.getMap.query(undefined, { signal: controller.signal }).then(value => {
-        engine.loadState(value);
-    }).catch(handleError);
+    const init = async () => {
+        try {
+            const player_profiles = await client.getPlayers.query(undefined, { signal: controller.signal });
 
+            console.log(player_profiles);
 
-    client.getPlayerState.query(undefined, { signal: controller.signal }).then((v) => {
-        console.log(v);
-    }).catch(handleError);
+            const map = await client.getMap.query(undefined, { signal: controller.signal });
+            engine.loadState(map);
+
+            const player_state = await client.getPlayerState.query(undefined, { signal: controller.signal });
+
+            console.log(player_state);
+            // notify server client is ready.
+
+            setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("event::loading-state", { detail: false }));
+            }, 5000);
+        } catch (error) {
+            if ((error as TRPCClientError<AppRouter>).cause?.name === "ObservableAbortError") return;
+            console.error(error);
+        }
+    }
+
+    init();
 
     const onTransfer = client.onTransfer.subscribe(undefined, {
         onData({ path, group, node }) {
