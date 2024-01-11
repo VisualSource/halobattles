@@ -12,14 +12,17 @@ import steam_callback from './lib/routes/steam_callback.js';
 import steam_profile from './lib/routes/steam_profile.js';
 import logout from './lib/routes/logout.js';
 import { AsyncResponse } from './lib/http_utils.js';
+import { createDb } from "./lib/sqlite.js";
 
 export type AppRouter = typeof router;
 
 const app = App();
 
+const db = await createDb("../../db/game.db");
+
 createUWebSocketsHandler(app, "/trpc", {
     router,
-    createContext,
+    createContext: (opts) => createContext(opts, db),
     middleware(req, res, next) {
         cors({})(req, {
             end: () => res.end(undefined, true),
@@ -30,13 +33,13 @@ createUWebSocketsHandler(app, "/trpc", {
 
 const handler = applyWSHandler(app, "/trpc", {
     router,
-    createContext
+    createContext: (opts) => createContext(opts, db)
 });
 
-app.get("/logout", (res, req) => AsyncResponse(res, req, logout));
-app.get("/profile", (res, req) => AsyncResponse(res, req, steam_profile));
-app.get("/login", (res, req) => AsyncResponse(res, req, steam_login));
-app.get("/auth/steam/cb", (res, req) => AsyncResponse(res, req, steam_callback));
+app.get("/logout", (res, req) => AsyncResponse(res, req, db, logout));
+app.get("/profile", (res, req) => AsyncResponse(res, req, db, steam_profile));
+app.get("/login", (res, req) => AsyncResponse(res, req, db, steam_login));
+app.get("/auth/steam/cb", (res, req) => AsyncResponse(res, req, db, steam_callback));
 app.any("/*", res => {
     res.writeStatus("404 NOT FOUND");
     res.end("Not Found");

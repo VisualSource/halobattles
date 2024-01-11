@@ -1,7 +1,8 @@
 import type { HttpRequest } from 'uWebSockets.js';
 import { parse } from 'node:path';
 import { SignJWT } from 'jose';
-import { HttpError, PRIVATE_KEY, USER_DATABASE } from "../http_utils.js";
+import { HttpError, PRIVATE_KEY } from "../http_utils.js";
+import { type Database } from 'sqlite3';
 
 
 export type SteamProfile = {
@@ -30,11 +31,27 @@ export type SteamProfile = {
     }
 }
 
+const getResponse = async (steamId: string) => {
+    const jwt = await new SignJWT({ type: "steam", id: steamId })
+        .setProtectedHeader({ alg: process.env.SIGNING_ALG })
+        .setExpirationTime("5d").sign(PRIVATE_KEY);
+
+    const five_days = 120 * 60 * 60;
+
+    return new Response(undefined, {
+        headers: {
+            "Location": `${process.env.PUBLIC_URL}/`,
+            "Set-Cookie": `session=${jwt}; path=/; SameSite=Strict; Secure; expires=${new Date(Date.now() + five_days * 1000).toUTCString()}`
+        },
+        status: 308
+    });
+}
+
 /*
 https://cindr.org/how-to-make-a-login-with-steam-button-with-php-oauth-open/
 https://github.com/uNetworking/uWebSockets.js/blob/master/examples/AsyncFunction.js
 */
-const steam_callback = async (req: HttpRequest): Promise<Response> => {
+const steam_callback = async (req: HttpRequest, db: Database): Promise<Response> => {
     try {
         const query = new URLSearchParams(req.getQuery());
         query.set("openid.mode", "check_authentication");
@@ -57,8 +74,19 @@ const steam_callback = async (req: HttpRequest): Promise<Response> => {
         if (!validation.includes("is_valid:true")) {
             throw new HttpError("Invaild user login", "UNAUTHORIZED");
         }
-
+        // 
         const steam_id = parse(claimed_id.replace("https://", "file://")).name;
+
+        const userdata = await new Promise<null | { steamid: string }>((ok, reject) => {
+            db.get(`SELECT * FROM users WHERE steamid = ${steam_id}`, (err, row) => {
+                if (err) return reject(err);
+                ok(row as null | { steamid: string });
+            });
+        });
+
+        if (userdata) {
+            return getResponse(userdata.steamid);
+        }
 
         const profile_query = new URLSearchParams();
         profile_query.set("key", process.env.STEAM_API_KEY);
@@ -76,34 +104,18 @@ const steam_callback = async (req: HttpRequest): Promise<Response> => {
 
         if (!user) throw new HttpError("Failed to fetch user profile", "INTERNAL_ERROR");
 
-        const jwt = await new SignJWT({ type: "steam", id: user.steamid })
-            .setProtectedHeader({ alg: process.env.SIGNING_ALG })
-            .setExpirationTime("5d").sign(PRIVATE_KEY);
-
-
-        const five_days = 120 * 60 * 60;
-
-        const response = new Response(undefined, {
-            headers: {
-                "Location": `${process.env.PUBLIC_URL}/`,
-                "Set-Cookie": `session=${jwt}; path=/; SameSite=Strict; Secure; expires=${new Date(Date.now() + five_days * 1000).toUTCString()}`
-            },
-            status: 308
+        await new Promise<void>((ok, reject) => {
+            const stmt = db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)');
+            stmt.run([user.steamid, user.profileurl, user.avatarfull, user.avatar, user.avatarmedium, user.personaname], (err) => {
+                if (err) reject(err);
+            });
+            stmt.finalize((err) => {
+                if (err) reject(err);
+            });
+            ok();
         });
 
-        USER_DATABASE.set(user.steamid, {
-            steamid: user.steamid,
-            profileurl: user.profileurl,
-            avatar: {
-                default: user.avatar,
-                full: user.avatarfull,
-                medium: user.avatarmedium,
-                hash: user.avatarhash,
-            },
-            personaname: user.personaname
-        });
-
-        return response;
+        return getResponse(user.steamid);
     } catch (error) {
         if (error instanceof HttpError) {
             return Response.redirect(`${process.env.PUBLIC_URL}${error.getRedirectPath()}`, 308);

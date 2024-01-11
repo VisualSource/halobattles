@@ -10,13 +10,15 @@ type PlayerJson = {
 
 export default class Player implements Json<PlayerJson> {
     constructor(public id: string, public name: string, public team: Team, public color: string) { }
+    public icon: String;
+    public display_name: string;
     public credits: number = 0;
     public energy: number = 0;
     public units: number = 0;
     public unit_cap: number = 10;
     public leaders: number = 0;
     public leader_cap: number = 1;
-    AsJson(): PlayerJson {
+    asJson(): PlayerJson {
         return {
             team: this.team,
             id: this.id,

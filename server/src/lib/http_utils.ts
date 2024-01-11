@@ -1,5 +1,6 @@
 import type { HttpRequest, HttpResponse } from "uWebSockets.js";
 import { importPKCS8, jwtVerify } from 'jose';
+import type { Database } from "sqlite3";
 
 export const PRIVATE_KEY = await importPKCS8(process.env.PRIVATE_KEY, process.env.SIGNING_ALG);
 export const USER_DATABASE = new Map<string, {
@@ -14,12 +15,12 @@ export const USER_DATABASE = new Map<string, {
     personaname: string
 }>();
 
-export async function AsyncResponse(res: HttpResponse, req: HttpRequest, handler: (req: HttpRequest) => Promise<Response>): Promise<void> {
+export async function AsyncResponse(res: HttpResponse, req: HttpRequest, db: Database, handler: (req: HttpRequest, db: Database) => Promise<Response>): Promise<void> {
     res.onAborted(() => {
         res.aborted = true;
     });
 
-    const result = await handler(req);
+    const result = await handler(req, db);
 
     const body = result.body ? await result.text() : null;
 

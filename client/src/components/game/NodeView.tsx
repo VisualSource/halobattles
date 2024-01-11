@@ -1,9 +1,10 @@
 import { Globe, Users2, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import Grid from "./Grid";
 
 const NodeView: React.FC = () => {
+    const { node } = useParams();
 
     return (
         <div className="absolute top-0 left-0 flex h-full w-full bg-zinc-600 bg-opacity-20 z-[1000] justify-center items-center">
@@ -31,9 +32,9 @@ const NodeView: React.FC = () => {
                         </TabsContent>
                         <TabsContent value="armay" className="h-full">
                             <div className="h-full grid grid-cols-3 grid-rows-1 gap-2 p-1">
-                                <Grid />
-                                <Grid />
-                                <Grid />
+                                <Grid nodeId={node as string} groupId={1} />
+                                <Grid nodeId={node as string} groupId={2} />
+                                <Grid nodeId={node as string} groupId={3} />
                             </div>
                         </TabsContent>
                     </main>

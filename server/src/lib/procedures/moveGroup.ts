@@ -29,11 +29,11 @@ export type MoveGroupResponse = {
 
 const moveGroup = procedure.input(schema).mutation(({ ctx, input }) => {
 
-    const { path, exec_time } = Dijkstra(ctx.mapData, { start: input.from, end: input.to, user: "", }, ctx.getWeight);
+    const { path, exec_time } = Dijkstra(ctx.global.mapData, { start: input.from, end: input.to, user: "", }, ctx.global.getWeight);
 
-    ctx.send("transfer", { path, node: input.from, group: input.fromGroup });
+    ctx.global.send("transfer", { path, node: input.from, group: input.fromGroup });
 
-    ctx.startTransfer({ time: exec_time, to: input.to, toGroup: input.toGroup });
+    ctx.global.startTransfer({ time: exec_time, to: input.to, toGroup: input.toGroup });
 });
 
 export default moveGroup;

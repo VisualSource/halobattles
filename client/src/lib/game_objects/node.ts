@@ -42,10 +42,9 @@ export default class Node extends Mesh {
         }
 
         const labelContainer = document.createElement("div");
-        labelContainer.classList.add("flex", "items-center", "gap-2")
+        labelContainer.classList.add("flex", "items-center", "gap-2");
         const img = document.createElement("img");
-        img.src = "https://avatars.steamstatic.com/af1cf9cf15be50bc6eda5a5c35bb1698bbf77ecd_medium.jpg";
-        img.classList.add("rounded-md", "h-6", "w-6");
+        img.classList.add("rounded-md", "h-6", "w-6", "hidden");
         labelContainer.appendChild(img);
 
         const text = document.createElement("span");
@@ -59,6 +58,8 @@ export default class Node extends Mesh {
 
         this.add(label);
 
+        this.icon = "https://avatars.steamstatic.com/af1cf9cf15be50bc6eda5a5c35bb1698bbf77ecd_medium.jpg";
+
         this.addEventListener("removed", () => { for (const child of this.children) child.dispatchEvent({ type: "removed" }) });
     }
 
@@ -71,8 +72,29 @@ export default class Node extends Mesh {
         return stack;
     }
 
-    public get label(): string | undefined {
-        return (this.children.at(3) as CSS2DObject | undefined)?.element.innerText;
+    public get icon(): string | undefined {
+        const child = (this.children.at(3) as CSS2DObject | undefined)?.element;
+        if (!child) return;
+        const el = child.firstElementChild as HTMLImageElement | null;
+        if (!el) return;
+        return el.src;
+    }
+
+    public set icon(value: string | undefined) {
+        const child = (this.children.at(3) as CSS2DObject | undefined)?.element;
+        const el = child?.firstElementChild as HTMLImageElement | null;
+        if (!el) return;
+
+        if (!value) {
+            el.classList.add("hidden");
+        } else {
+            el.src = value;
+            el.classList.remove("hidden");
+        }
+    }
+
+    public get label(): string | undefined | null {
+        return (this.children.at(3) as CSS2DObject | undefined)?.element.lastElementChild?.textContent;
     }
 
     public set label(value: string) {

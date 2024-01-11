@@ -1,13 +1,15 @@
 import { EventEmitter } from 'node:events';
 import type { EventName, Events } from './types.js';
 import Player from "./Player.js";
+import type { UpdateGroupSchema } from '../procedures/updateGroups.js';
+import Planet from './Planet.js';
 
 export default class Core extends EventEmitter {
     public players: Map<string, Player> = new Map();
     public inPlay: boolean = false;
     public mapData = {
         "nodes": [
-            {
+            new Planet({
                 "uuid": "28c409a2-4a3a-4e24-8dd7-9275dc668e33",
                 "position": {
                     "x": 0,
@@ -16,8 +18,8 @@ export default class Core extends EventEmitter {
                 },
                 "color": "#0033ff",
                 "label": "Name"
-            },
-            {
+            }),
+            new Planet({
                 "uuid": "bc8b6b77-908b-4f30-b477-f17bbeceba83",
                 "position": {
                     "x": -131.872,
@@ -26,8 +28,8 @@ export default class Core extends EventEmitter {
                 },
                 "color": "#00ffed",
                 "label": "New World"
-            },
-            {
+            }),
+            new Planet({
                 "uuid": "2e27644b-7277-4679-9245-c5c74378dd10",
                 "position": {
                     "x": -43.032,
@@ -36,8 +38,8 @@ export default class Core extends EventEmitter {
                 },
                 "color": "#99c936",
                 "label": "Haverst"
-            },
-            {
+            }),
+            new Planet({
                 "uuid": "5c1537ae-9c6c-4240-b515-6be7988f967d",
                 "position": {
                     "x": 109.66223132182344,
@@ -46,7 +48,7 @@ export default class Core extends EventEmitter {
                 },
                 "color": "#b74867",
                 "label": "Rather"
-            }
+            })
         ],
         "linkes": [
             {
@@ -94,6 +96,13 @@ export default class Core extends EventEmitter {
         setTimeout(() => {
             this.send("moveGroup", { group: toGroup, uuid: to, state: "Half" });
         }, ms);
+    }
+
+    public updateNodeInternalGroup({ node, group_1, group_2, group_3 }: UpdateGroupSchema) {
+
+
+
+
     }
 
     public getWeight = (user: string, node: string, laneType: string): number => {

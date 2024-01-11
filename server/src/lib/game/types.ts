@@ -3,13 +3,14 @@ import type { MoveGroupResponse } from '../procedures/moveGroup.js';
 import type { Team } from './enums.js';
 
 export interface Json<T> {
-    AsJson(): T
+    asJson(): T
 }
 
 export type Events = {
     moveGroup: MoveGroupResponse,
     moveUnit: {},
     addPlayer: { color: number; uuid: UUID, team: Team, name: string; }[],
+    internal_unit_order: {},
     removePlayer: {}
     updatePlayer: {}
     startGame: {}

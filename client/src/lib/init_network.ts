@@ -9,7 +9,8 @@ import { client } from '@/lib/trpc';
 import Engine from "./engine";
 
 const handleError = (e: unknown) => {
-    if ((e as TRPCClientError<AppRouter>).cause?.name === "ObservableAbortError") console.error(e);
+    if ((e as TRPCClientError<AppRouter>).cause?.name === "ObservableAbortError") return;
+    console.error(e);
 }
 
 export default function handle_network(engine: Engine | undefined) {

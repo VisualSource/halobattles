@@ -19,7 +19,7 @@ const addPlayer = t.procedure.input(schema).mutation(({ ctx, input }) => {
     const player = new Player(input.id, user.personaname, input.team, input.color);
 
 
-    ctx.players.set(input.id, player);
+    ctx.global.players.set(input.id, player);
 
 });
 
