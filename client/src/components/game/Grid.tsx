@@ -3,13 +3,13 @@ import { useRef } from "react";
 import Sortable from "sortablejs";
 import { client } from '@/lib/trpc';
 
-const Grid: React.FC<{ nodeId: string; groupId: number }> = ({ nodeId, groupId }) => {
+const Grid: React.FC<{ canEdit: boolean; units: { icon: string; count: number; id: string; }[], nodeId: string; groupId: number }> = ({ canEdit, units, nodeId, groupId }) => {
     const data = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         let group: Sortable | undefined;
 
-        if (data.current) {
+        if (data.current && canEdit) {
             group = new Sortable(data.current, {
                 group: "unit-grid",
                 animation: 150,
@@ -104,32 +104,18 @@ const Grid: React.FC<{ nodeId: string; groupId: number }> = ({ nodeId, groupId }
         return () => {
             group?.destroy();
         }
-    }, [nodeId]);
+    }, [nodeId, canEdit]);
     return (
         <section className="grid grid-cols-4 grid-rows-6 gap-1" ref={data} data-id={groupId}>
-            <div className="col-span-1 p-4 relative bg-gray-800" data-content="c212e21e-1512-4cf7-84ee-3ec8cd46b34e">
-                <div data-amount="1" className="absolute before:content-[attr(data-amount)] bg-white rounded-full px-2 flex items-center justify-center font-bold top-2 left-2 text-sm"></div>
-                <img className="object-contain" src="https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png" />
-            </div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
-            <div className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
+            {units.map(value => (
+                <div key={value.id} className="col-span-1 p-4 relative bg-gray-800" data-content={value.id}>
+                    <div data-amount={value.count.toString()} className="absolute before:content-[attr(data-amount)] bg-white rounded-full px-2 flex items-center justify-center font-bold top-2 left-2 text-sm"></div>
+                    <img className="object-contain" src={value.icon} />
+                </div>
+            ))}
+            {Array.from({ length: 20 - units.length }).map((_, i) => (
+                <div key={i} className="bg-zinc-900 col-span-1 nonsortable" data-content="empty"></div>
+            ))}
         </section>
     );
 }

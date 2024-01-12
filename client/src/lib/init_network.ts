@@ -1,10 +1,9 @@
+import type { AppRouter } from "halobattles-server/src/index";
 import type { TRPCClientError } from "@trpc/client";
 import { Tween } from "@tweenjs/tween.js";
 import type { Vector3 } from "three";
-
 import UnitMovementIndicator from "./game_objects/unit_movement_indicator";
 import { UnitStackState } from "./game_objects/unit_stack";
-import type { AppRouter } from "../../../server/src";
 import { client } from '@/lib/trpc';
 import Engine from "./engine";
 
@@ -15,21 +14,14 @@ export default function handle_network(engine: Engine | undefined) {
 
     const init = async () => {
         try {
-            const player_profiles = await client.getPlayers.query(undefined, { signal: controller.signal });
+            const self = await client.getSelf.query(undefined, { signal: controller.signal });
 
-            console.log(player_profiles);
+            engine.ownerId = self.steamid;
 
             const map = await client.getMap.query(undefined, { signal: controller.signal });
             engine.loadState(map);
 
-            const player_state = await client.getPlayerState.query(undefined, { signal: controller.signal });
-
-            console.log(player_state);
-            // notify server client is ready.
-
-            setTimeout(() => {
-                window.dispatchEvent(new CustomEvent("event::loading-state", { detail: false }));
-            }, 5000);
+            await client.syncDone.mutate(undefined, { signal: controller.signal });
         } catch (error) {
             if ((error as TRPCClientError<AppRouter>).cause?.name === "ObservableAbortError") return;
             console.error(error);
@@ -37,6 +29,12 @@ export default function handle_network(engine: Engine | undefined) {
     }
 
     init();
+
+    const onSyncDone = client.onSyncDone.subscribe(undefined, {
+        onData() {
+            window.dispatchEvent(new CustomEvent("event::loading-state", { detail: false }));
+        }
+    });
 
     const onTransfer = client.onTransfer.subscribe(undefined, {
         onData({ path, group, node }) {
@@ -78,6 +76,7 @@ export default function handle_network(engine: Engine | undefined) {
     return () => {
         controller.abort();
         onTransfer.unsubscribe();
+        onSyncDone.unsubscribe();
         onMoveGroup.unsubscribe();
     }
 }

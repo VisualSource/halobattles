@@ -1,50 +1,62 @@
-import { Globe, Users2, X } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { Globe, PackagePlus, Users2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import Grid from "./Grid";
+import UnitMangment from "./UnitMangment";
+import BuildingMangment from "./BuildingMangment";
+import BuildQueue from "./BuildQueue";
 
 const NodeView: React.FC = () => {
+    const navigate = useNavigate();
+    const ref_outer = useRef<HTMLDivElement>(null);
+    const ref_inner = useRef<HTMLDivElement>(null);
     const { node } = useParams();
 
+    useEffect(() => {
+        const outer = ref_outer.current;
+        const inner = ref_inner.current;
+        const onClick = (ev: Event) => {
+            if (!inner || !ev.target) return;
+
+            if (!inner.contains(ev.target as HTMLElement)) {
+                navigate(-1);
+            }
+        }
+
+        if (outer && ref_inner.current) {
+            ref_outer.current.addEventListener("click", onClick);
+        }
+
+        return () => {
+            outer?.removeEventListener("click", onClick);
+        }
+    }, [navigate]);
+
     return (
-        <div className="absolute top-0 left-0 flex h-full w-full bg-zinc-600 bg-opacity-20 z-[1000] justify-center items-center">
-            <div className="bg-zinc-600 flex flex-col h-2/3 w-4/6">
-                <Tabs className="flex flex-col h-full">
-                    <header className="flex justify-end">
-                        <Link to="/game">
-                            <X />
-                        </Link>
-                    </header>
+        <div ref={ref_outer} className="absolute top-0 left-0 flex h-full w-full bg-zinc-600 bg-opacity-20 z-[1000] justify-center items-center">
+            <div ref={ref_inner} className="bg-zinc-600 flex flex-col h-2/3 w-4/6">
+                <Tabs className="flex flex-col h-full" defaultValue="units">
                     <main className="h-full">
-                        <TabsContent value="node" className="h-full">
-                            <div className="grid grid-cols-4 grid-rows-6 h-full gap-2 w-1/2 p-1">
-                                <div className="bg-zinc-900"></div>
-                                <div className="bg-zinc-900"></div>
-                                <div className="bg-zinc-900"></div>
-                                <div className="bg-zinc-900"></div>
-                                <div className="bg-zinc-900"></div>
-                                <div className="bg-zinc-900"></div>
-                                <div className="bg-zinc-900"></div>
-                                <div className="bg-zinc-900"></div>
-                                <div className="bg-zinc-900"></div>
-                                <div className="bg-zinc-900"></div>
-                            </div>
+                        <TabsContent value="planet" className="h-full">
+                            <BuildingMangment node={node as string} />
                         </TabsContent>
-                        <TabsContent value="armay" className="h-full">
-                            <div className="h-full grid grid-cols-3 grid-rows-1 gap-2 p-1">
-                                <Grid nodeId={node as string} groupId={1} />
-                                <Grid nodeId={node as string} groupId={2} />
-                                <Grid nodeId={node as string} groupId={3} />
-                            </div>
+                        <TabsContent value="units" className="h-full">
+                            <UnitMangment node={node as string} />
+                        </TabsContent>
+                        <TabsContent value="build" className="h-full mt-0">
+                            <BuildQueue node={node as string} />
                         </TabsContent>
                     </main>
                     <footer className="bg-slate-800">
                         <TabsList className="rounded-none">
-                            <TabsTrigger value="node" title="world">
+                            <TabsTrigger value="planet" title="world">
                                 <Globe />
                             </TabsTrigger>
-                            <TabsTrigger value="armay" title="units">
+                            <TabsTrigger value="units" title="units">
                                 <Users2 />
+                            </TabsTrigger>
+                            <TabsTrigger value="build" title="build">
+                                <PackagePlus />
                             </TabsTrigger>
                         </TabsList>
                     </footer>

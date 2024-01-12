@@ -16,7 +16,7 @@ const ContextContainer: React.FC<ContextProps> = (props) => {
 
                     const pos = engine.unproject(props.worldX, props.worldY);
 
-                    engine.addNode({ x: pos.x, y: pos.y, name: "New World", color: 0x00ffed });
+                    engine.addNode({ owner: null, icon: null, x: pos.x, y: pos.y, name: "New World", color: 0x00ffed });
 
                 }}>
                     Create Node

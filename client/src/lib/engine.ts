@@ -7,7 +7,7 @@ import Lane, { LaneType } from './game_objects/lane';
 import Node from './game_objects/node';
 
 export type MapData = {
-    nodes: { uuid: string; position: { x: number; y: number; z: number }; color: string; label: string; }[],
+    nodes: { owner: string | null; icon: string | null; uuid: string; position: { x: number; y: number; z: number }; color: string; label: string; }[],
     linkes: { uuid: string; nodes: string[], type: string }[]
 }
 
@@ -44,10 +44,10 @@ export default class Engine {
         Engine.INSTANCE?.destory();
         Engine.INSTANCE = null;
     }
+    public ownerId: string | null = null;
     private camera: PerspectiveCamera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 10000);
     private raycaster: Raycaster = new Raycaster();
     private scene: Scene = new Scene();
-
     private clock = new Clock();
     private renderer: SVGRenderer;
     private overlay: CSS2DRenderer;
@@ -90,6 +90,8 @@ export default class Engine {
         for (const child of this.scene.children) {
             if (child.name === "Node") {
                 data.nodes.push({
+                    owner: (child as Node).ownerId,
+                    icon: (child as Node).icon,
                     uuid: child.uuid,
                     position: child.position,
                     color: (child as Node).color,
@@ -135,11 +137,13 @@ export default class Engine {
         return this.camera.position.clone().add(dir.multiplyScalar((0 - this.camera.position.z) / dir.z));
     }
 
-    public addNode({ color, x, y, name = "Node" }: { color: number, x: number, y: number, name: string }, uuid?: string) {
+    public addNode({ owner, icon, color, x, y, name = "Node" }: { owner: string | null, icon: string | null, color: number, x: number, y: number, name: string }, uuid?: string) {
 
         const node = new Node(color, { x, y }, { x: 8, y: 6 });
 
         node.label = name;
+        node.icon = icon;
+        node.ownerId = owner;
 
         if (uuid) {
             node.uuid = uuid;
@@ -186,9 +190,15 @@ export default class Engine {
 
         this.scene.remove(...this.scene.children);
 
-
         for (const a of map.nodes) {
-            this.addNode({ color: new Color(a.color).getHex(), name: a.label, x: a.position.x, y: a.position.y }, a.uuid);
+            this.addNode({
+                color: new Color(a.color).getHex(),
+                icon: a.icon,
+                name: a.label,
+                owner: a.owner,
+                x: a.position.x,
+                y: a.position.y
+            }, a.uuid);
         }
 
         for (const b of map.linkes) {

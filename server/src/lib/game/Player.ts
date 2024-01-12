@@ -10,12 +10,13 @@ export type PlayerJson = {
 
 export default class Player implements Json<PlayerJson> {
     constructor(public user: User, public team: Team, public color: string) { }
-    public credits: number = 0;
-    public energy: number = 0;
+    public credits: number = 500;
+    public energy: number = 50;
     public units: number = 0;
     public unit_cap: number = 10;
     public leaders: number = 0;
     public leader_cap: number = 1;
+    public ready: boolean = false;
     getResouces() {
         return {
             credits: this.credits,

@@ -64,8 +64,8 @@ const Menu: React.FC = () => {
     }, []);
 
     return (
-        <div className="absolute top-0 left-0 w-64 bg-zinc-600 text-zinc-50 z-50">
-            <header className="bg-zinc-800 flex flex-col mb-1">
+        <div className="absolute top-0 left-0 w-64 bg-zinc-600 text-zinc-50 z-50 h-screen">
+            <header className="bg-zinc-800 flex flex-col h-10">
                 <div className="flex justify-between">
                     <h1 className="font-bold p-1">Debug</h1>
                     <button onClick={() => setShow(e => !e)}>
@@ -74,8 +74,8 @@ const Menu: React.FC = () => {
                 </div>
             </header>
             {show ? (
-                <Tabs defaultValue="selection">
-                    <TabsList>
+                <Tabs defaultValue="selection" className="flex flex-col" style={{ height: "calc(100vh - 40px)" }}>
+                    <TabsList className="rounded-none">
                         <TabsTrigger value="selection">
                             <Package />
                         </TabsTrigger>
@@ -83,7 +83,7 @@ const Menu: React.FC = () => {
                             <Globe />
                         </TabsTrigger>
                     </TabsList>
-                    <TabsContent value="scene">
+                    <TabsContent value="scene" className="overflow-y-scroll">
                         <div className="flex p-1 gap-1">
                             <Button size="sm" className="flex gap-1" onClick={() => {
                                 const engine = Engine.Get();
@@ -113,7 +113,7 @@ const Menu: React.FC = () => {
                             )) : null}
                         </ul>
                     </TabsContent>
-                    <TabsContent value="selection">
+                    <TabsContent value="selection" className="overflow-y-scroll">
                         <div className="p-1">
 
                             {selection ? (<div key={selection.uuid} className="flex flex-col gap-1">
@@ -121,11 +121,26 @@ const Menu: React.FC = () => {
                                     ID: <code>{selection.uuid}</code>
                                 </h1>
 
+
+                                <div>
+                                    <Label>Owner</Label>
+                                    <Input onChange={(e) => {
+                                        (selection as Node).ownerId = e.target.value ?? null;
+                                    }} defaultValue={(selection as Node).ownerId ?? undefined} />
+                                </div>
+
+                                <div>
+                                    <Label>Node Icon</Label>
+                                    <Input onChange={(e) => {
+                                        (selection as Node).icon = e.target.value ?? null;
+                                    }} defaultValue={(selection as Node).icon ?? undefined} />
+                                </div>
+
                                 <div>
                                     <Label>Node Name</Label>
                                     <Input onChange={(e) => {
-                                        (selection as Node).label = e.target.value;
-                                    }} defaultValue={(selection as Node).label} />
+                                        (selection as Node).label = e.target.value ?? null;
+                                    }} defaultValue={(selection as Node).label ?? undefined} />
                                 </div>
 
                                 <div>
@@ -190,8 +205,6 @@ const Menu: React.FC = () => {
                             )}
                         </div>
                     </TabsContent>
-
-
                 </Tabs>
             ) : null}
 

@@ -1,6 +1,4 @@
-import type { UUID } from 'node:crypto';
-import type { MoveGroupResponse } from '../procedures/moveGroup.js';
-import type { Team } from './enums.js';
+import type { MoveGroupResponse } from '#procedure/moveGroup.js';
 
 export interface Json<T> {
     asJson(): T
@@ -8,9 +6,10 @@ export interface Json<T> {
 
 export type Events = {
     moveGroup: MoveGroupResponse,
+    syncDone: undefined,
+    updateResouces: undefined,
     moveUnit: {},
     addPlayer: {},
-    internal_unit_order: {},
     removePlayer: {}
     updatePlayer: {}
     startGame: {}

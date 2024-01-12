@@ -3,7 +3,7 @@ import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import UnitStack from './unit_stack';
 
 export default class Node extends Mesh {
-
+    public ownerId: string | null = null;
     constructor(color: number, position: { x: number; y: number; }, radis: { x: number; y: number } = { x: 8, y: 6 }) {
         const sphere = new CircleGeometry(20, 50);
         const materal = new MeshBasicMaterial({ color: new Color(color) });
@@ -72,15 +72,14 @@ export default class Node extends Mesh {
         return stack;
     }
 
-    public get icon(): string | undefined {
+    public get icon(): string | null {
         const child = (this.children.at(3) as CSS2DObject | undefined)?.element;
-        if (!child) return;
+        if (!child) return null;
         const el = child.firstElementChild as HTMLImageElement | null;
-        if (!el) return;
-        return el.src;
+        return el?.src ?? null;
     }
 
-    public set icon(value: string | undefined) {
+    public set icon(value: string | null) {
         const child = (this.children.at(3) as CSS2DObject | undefined)?.element;
         const el = child?.firstElementChild as HTMLImageElement | null;
         if (!el) return;
