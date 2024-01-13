@@ -7,9 +7,13 @@
     "dev": "pnpm -r --parallel run dev",
     "build": "pnpm -r --filter='./*' run build"
   },
+  "engines": {
+    "node": "21.*.*"
+  },
   "workspaces": [
     "halobattles-server",
-    "halobattles-client"
+    "halobattles-client",
+    "halobattles-shared"
   ],
   "keywords": [],
   "author": "",

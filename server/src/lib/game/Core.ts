@@ -19,7 +19,9 @@ export default class Core extends EventEmitter {
                     "z": 0
                 },
                 "color": "#0033ff",
-                "label": "Name"
+                "label": "Name",
+                ownerId: "76561198185501646",
+                icon: "https://avatars.steamstatic.com/a521352ec938d97a89f4b9655f75924d3cea6344_medium.jpg"
             }),
             new Planet({
                 "uuid": "bc8b6b77-908b-4f30-b477-f17bbeceba83",
@@ -119,12 +121,14 @@ export default class Core extends EventEmitter {
         if (ms >= 2147483647) throw new Error("Max time.");
 
         setTimeout(() => {
-            this.send("moveGroup", { group: toGroup, uuid: to, state: "Half" });
+            const planet = this.getPlanet(to);
+            if (!planet) throw new Error("Failed to get planet");
+            this.send("moveGroup", {
+                group: toGroup,
+                uuid: to,
+                stack: planet.getStackState(toGroup)
+            });
         }, ms);
-    }
-
-    public updateNodeInternalGroup({ node, group_1, group_2, group_3 }: UpdateGroupSchema) {
-
     }
 
     public getWeight = (user: string, node: string, laneType: string): number => {
@@ -137,6 +141,7 @@ export default class Core extends EventEmitter {
     */
 
     public send<T extends EventName>(event: T, data: Events[T]) {
+        console.info("Event: %s", event, data);
         this.emit(event, data);
     }
 }

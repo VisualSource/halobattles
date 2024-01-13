@@ -1,17 +1,9 @@
+import { UnitStackState } from 'halobattles-shared';
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import { client } from "../trpc";
-
-export enum UnitStackState {
-    Empty = "Empty",
-    One = "One",
-    Half = "Half",
-    Three = "Three",
-    Full = "Full",
-}
-
 export default class UnitStack extends CSS2DObject {
     private container = document.createElement("div");
-    private state: UnitStackState = UnitStackState.Empty;
+    private _state: UnitStackState = UnitStackState.Empty;
     private level1: HTMLDivElement;
     private level2: HTMLDivElement;
     private level3: HTMLDivElement;
@@ -50,11 +42,16 @@ export default class UnitStack extends CSS2DObject {
         this.container.addEventListener("dragover", ev => ev.preventDefault());
     }
 
-    public setIcon(icon: string): void {
+    public set icon(icon: string | undefined | null) {
+        if (!icon) {
+            this.top.classList.add("hidden");
+            return;
+        }
+        this.top.classList.remove("hidden");
         this.top.src = icon;
     }
 
-    public getIcon(): string {
+    public get icon(): string {
         return this.top.src;
     }
 
@@ -66,14 +63,14 @@ export default class UnitStack extends CSS2DObject {
         return this.container.draggable;
     }
 
-    public getState(): UnitStackState {
-        return this.state;
+    public get state(): UnitStackState {
+        return this._state;
     }
 
-    public setState(value: UnitStackState): void {
-        if (this.state === value) return;
+    public set state(value: UnitStackState) {
+        if (this._state === value) return;
 
-        this.state = value;
+        this._state = value;
 
         switch (this.state) {
             case UnitStackState.Empty: {

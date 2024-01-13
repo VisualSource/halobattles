@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp, Globe, Package, PackageX, RefreshCcw, Save } fr
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Mesh, MathUtils } from "three";
+import { UnitStackState } from 'halobattles-shared';
 
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui/tabs";
@@ -12,7 +13,7 @@ import { Label } from "@ui/label";
 import { Input } from "@ui/input";
 
 import ContextContainer, { type ContextProps } from "./ContextContainer";
-import UnitStack, { UnitStackState } from "@/lib/game_objects/unit_stack";
+import UnitStack from "@/lib/game_objects/unit_stack";
 import Node from "@/lib/game_objects/node";
 import LinkDialog from "./NodeLinkDialog";
 import Engine from "@/lib/engine";
@@ -163,8 +164,8 @@ const Menu: React.FC = () => {
                                         <Separator />
                                         <div className="flex flex-col gap-1">
                                             <Label>State</Label>
-                                            <Select defaultValue={unitstack.getState()} onValueChange={(value => {
-                                                unitstack.setState(value as UnitStackState);
+                                            <Select defaultValue={unitstack.state} onValueChange={(value => {
+                                                unitstack.state = value as UnitStackState;
                                             })} >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select Stack State" />
@@ -182,11 +183,11 @@ const Menu: React.FC = () => {
                                         <div className="flex flex-col">
                                             <Label>Icon</Label>
                                             <div className="flex gap-1 mt-1">
-                                                <Input defaultValue={unitstack.getIcon()} id={`stack-${i}`} type="text" />
+                                                <Input defaultValue={unitstack.icon} id={`stack-${i}`} type="text" />
                                                 <Button onClick={() => {
                                                     const item = document.getElementById(`stack-${i}`) as HTMLInputElement | undefined;
                                                     if (!item) return;
-                                                    unitstack.setIcon(item.value);
+                                                    unitstack.icon = item.value;
                                                 }}>Set</Button>
                                             </div>
                                         </div>

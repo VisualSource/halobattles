@@ -20,9 +20,9 @@ const getPlanetUnits = procedure.input(schema).query(({ ctx, input }) => {
     return {
         canEdit: false,
         units: {
+            0: [],
             1: [],
-            2: [],
-            3: []
+            2: []
         }
     }
 });

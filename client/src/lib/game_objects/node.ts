@@ -1,6 +1,7 @@
 import { Mesh, MeshBasicMaterial, Shape, EllipseCurve, CircleGeometry, Color, ShapeGeometry } from 'three';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import UnitStack from './unit_stack';
+import { UnitStackState } from 'halobattles-shared';
 
 export default class Node extends Mesh {
     public ownerId: string | null = null;
@@ -70,6 +71,12 @@ export default class Node extends Mesh {
         if (!stack) throw new Error("Stack at given index does not exists");
 
         return stack;
+    }
+
+    public setStack(idx: number, props: { state: UnitStackState, icon: string | null }) {
+        const stack = this.getStack(idx);
+        stack.state = props.state;
+        stack.icon = props.icon;
     }
 
     public get icon(): string | null {

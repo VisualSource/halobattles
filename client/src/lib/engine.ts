@@ -2,12 +2,13 @@ import { Clock, Color, Vector2, Vector3, Vector4, Quaternion, Matrix4, Spherical
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
 import { update as tweenUpdate } from "@tweenjs/tween.js";
+import { UnitStackState } from 'halobattles-shared';
 import CameraControls from "camera-controls";
 import Lane, { LaneType } from './game_objects/lane';
 import Node from './game_objects/node';
 
 export type MapData = {
-    nodes: { owner: string | null; icon: string | null; uuid: string; position: { x: number; y: number; z: number }; color: string; label: string; }[],
+    nodes: { stacks?: Record<0 | 1 | 2, { state: UnitStackState, icon: string | null }>, owner: string | null; icon: string | null; uuid: string; position: { x: number; y: number; z: number }; color: string; label: string; }[],
     linkes: { uuid: string; nodes: string[], type: string }[]
 }
 
@@ -137,13 +138,19 @@ export default class Engine {
         return this.camera.position.clone().add(dir.multiplyScalar((0 - this.camera.position.z) / dir.z));
     }
 
-    public addNode({ owner, icon, color, x, y, name = "Node" }: { owner: string | null, icon: string | null, color: number, x: number, y: number, name: string }, uuid?: string) {
+    public addNode({ stacks, owner, icon, color, x, y, name = "Node" }: { stacks?: Record<0 | 1 | 2, { state: UnitStackState, icon: string | null }>, owner: string | null, icon: string | null, color: number, x: number, y: number, name: string }, uuid?: string) {
 
         const node = new Node(color, { x, y }, { x: 8, y: 6 });
 
         node.label = name;
         node.icon = icon;
         node.ownerId = owner;
+
+        if (stacks) {
+            Object.entries(stacks).forEach(([key, value]) => {
+                node.setStack(+key as 0 | 1 | 2, value);
+            });
+        }
 
         if (uuid) {
             node.uuid = uuid;
@@ -197,7 +204,8 @@ export default class Engine {
                 name: a.label,
                 owner: a.owner,
                 x: a.position.x,
-                y: a.position.y
+                y: a.position.y,
+                stacks: a.stacks
             }, a.uuid);
         }
 

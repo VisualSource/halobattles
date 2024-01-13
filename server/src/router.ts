@@ -35,6 +35,7 @@ export const router = t.router({
     moveGroup,
     getPlayerState,
     updateGroup,
+    onUpdatePlanet: subscription("updatePlanet"),
     onMoveGroup: subscription("moveGroup"),
     onStartGame: subscription("startGame"),
     onEndGame: subscription("endGame"),
