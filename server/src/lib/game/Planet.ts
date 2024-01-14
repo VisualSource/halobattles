@@ -1,5 +1,6 @@
 import { UnitStackState } from "halobattles-shared";
 import { type Json } from "./types.js"
+import { merge } from "#lib/utils.js";
 
 type PlanetProps = {
     uuid: string,
@@ -39,27 +40,22 @@ export default class Planet implements Json<PlanetProps> {
         this.owner = ownerId ?? null;
         this.icon = icon ?? null;
     }
+    public reset() {
+        this.units[0] = [];
+        this.units[1] = [];
+        this.units[2] = [];
+        this.buildings = [];
+        this.spies = [];
+        this.icon = null;
+    }
 
-    /**
-     * Merge Group A into Group B
-     *
-     * @param {number} groupA
-     * @param {number} groupB
-     * @memberof Planet
-     */
-    public mergeUnits(groupA: number, groupB: number) {
-        if (groupA < 0 || groupB < 0 || groupA > 2 || groupB > 2) throw new RangeError("Indexs out of range");
+    public takeGroup(group: number) {
+        if (group < 0 || group > 2) throw new RangeError("Index is out of range.");
 
-        for (const item of this.units[groupA as 0 | 1 | 2]) {
-            const idx = this.units[groupB as 0 | 1 | 2].findIndex(value => value.id === item.id);
-            if (idx === -1) {
-                this.units[groupB as 0 | 1 | 2].push(item);
-                continue;
-            }
-            this.units[groupB as 0 | 1 | 2][idx]!.count += item.count;
-        }
+        const copy = this.units[group as 0 | 1 | 2];
+        this.units[group as 0 | 1 | 2] = [];
 
-        this.units[groupA as 0 | 1 | 2] = [];
+        return copy;
     }
 
     public getStackState(index: number): { state: UnitStackState, icon: string | null } {

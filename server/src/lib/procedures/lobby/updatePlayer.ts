@@ -10,7 +10,7 @@ const schema = z.object({
 
 const updatePlayer = t.procedure.input(schema).mutation(({ ctx, input }) => {
     if (!ctx.user) throw new TRPCError({ message: "No User", code: "UNAUTHORIZED" });
-    ctx.global.updatePlayer(ctx.user?.steamid, input.color, input.team);
+
 });
 
 export default updatePlayer;

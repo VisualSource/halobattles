@@ -1,5 +1,4 @@
 import { UnitStackState } from 'halobattles-shared';
-import type { MoveGroupResponse } from '#procedure/moveGroup.js';
 
 export interface Json<T> {
     asJson(): T
@@ -8,7 +7,6 @@ export interface Json<T> {
 type StackState = { state: UnitStackState; icon: string | null; }
 
 export type Events = {
-    moveGroup: MoveGroupResponse,
     syncDone: undefined,
     updateResouces: undefined,
     moveUnit: {},

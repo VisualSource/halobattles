@@ -8,14 +8,13 @@
     "#lib/*": "./dist/lib/*"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "pnpm tsc --outDir ../build/runtime",
     "dev:compile": "tsc --watch",
     "dev:run": "nodemon ./dist/index.js",
     "test:run": "nodemon --config ./nodemon.test.json",
     "test:compile": "tsc --watch",
     "dev": "pnpm --parallel --stream run /^dev:.*/",
-    "test": "pnpm --parallel --stream run /^test:.*/",
-    "editor": "node ./editor/index.js"
+    "test": "pnpm --parallel --stream run /^test:.*/"
   },
   "keywords": [],
   "author": "",
@@ -24,13 +23,13 @@
     "@trpc/server": "^10.45.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "halobattles-shared": "workspace:^",
     "jose": "^5.2.0",
     "lodash.groupby": "^4.6.0",
     "lodash.remove": "^4.7.0",
     "sqlite3": "^5.1.7",
     "superjson": "^2.2.1",
     "trpc-panel": "^1.3.4",
-    "halobattles-shared": "workspace:^",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.39.0",
     "zod": "^3.22.4"
   },

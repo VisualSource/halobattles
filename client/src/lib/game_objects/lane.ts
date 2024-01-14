@@ -1,9 +1,6 @@
 import { Vector3, BufferGeometry, Float32BufferAttribute, LineBasicMaterial, LineBasicMaterialParameters, Line } from 'three';
+import { LaneType } from 'halobattles-shared';
 
-export enum LaneType {
-    Fast = "Fast",
-    Slow = "Slow"
-}
 export default class Lane extends Line {
     public nodes: string[] = []
     public laneType: LaneType;

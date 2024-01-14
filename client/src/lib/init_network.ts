@@ -71,14 +71,6 @@ export default function handle_network(engine: Engine | undefined) {
             root!.start();
         },
     });
-    const onMoveGroup = client.onMoveGroup.subscribe(undefined, {
-        onData(value) {
-            console.info("Event: onMoveGroup, Payload: ", value);
-            const stack = engine.getObject(value.uuid).getStack(value.group);
-            stack.state = value.stack.state;
-            stack.icon = value.stack.icon;
-        },
-    });
 
     const onUpdatePlanet = client.onUpdatePlanet.subscribe(undefined, {
         onData(value) {
@@ -137,7 +129,6 @@ export default function handle_network(engine: Engine | undefined) {
         controller.abort();
         onTransfer.unsubscribe();
         onSyncDone.unsubscribe();
-        onMoveGroup.unsubscribe();
         onUpdatePlanet.unsubscribe();
     }
 }

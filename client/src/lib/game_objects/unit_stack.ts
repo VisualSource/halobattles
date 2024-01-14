@@ -1,5 +1,5 @@
-import { UnitStackState } from 'halobattles-shared';
 import { CSS2DObject } from "three/examples/jsm/renderers/CSS2DRenderer.js";
+import { UnitStackState } from 'halobattles-shared';
 import { client } from "../trpc";
 export default class UnitStack extends CSS2DObject {
     private container = document.createElement("div");

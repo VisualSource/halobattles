@@ -2,9 +2,9 @@ import { Clock, Color, Vector2, Vector3, Vector4, Quaternion, Matrix4, Spherical
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
 import { update as tweenUpdate } from "@tweenjs/tween.js";
-import { UnitStackState } from 'halobattles-shared';
+import { UnitStackState, LaneType } from 'halobattles-shared';
 import CameraControls from "camera-controls";
-import Lane, { LaneType } from './game_objects/lane';
+import Lane from './game_objects/lane';
 import Node from './game_objects/node';
 
 export type MapData = {
@@ -148,6 +148,9 @@ export default class Engine {
 
         if (stacks) {
             Object.entries(stacks).forEach(([key, value]) => {
+                if (node.ownerId !== this.ownerId && value.icon !== null) {
+                    value.icon = "/question.jpg";
+                }
                 node.setStack(+key as 0 | 1 | 2, value);
             });
         }

@@ -1,10 +1,11 @@
+import { LaneType } from "halobattles-shared";
 import { Cable } from "lucide-react";
 import { useState } from "react";
 
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader } from "@ui/alert-dialog";
 import { Select, SelectContent, SelectTrigger, SelectItem, SelectValue } from "@ui/select";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@ui/dialog";
-import Lane, { LaneType } from "@/lib/game_objects/lane";
+import Lane from "@/lib/game_objects/lane";
 import type Node from "@/lib/game_objects/node";
 import { Button } from "@ui/button";
 import { Label } from "@ui/label";

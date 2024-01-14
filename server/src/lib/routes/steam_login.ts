@@ -1,6 +1,6 @@
 import type { HttpRequest } from "uWebSockets.js";
 
-const steam_login = async (req: HttpRequest) => {
+const steam_login: (req: HttpRequest) => Promise<Response> = async (req: HttpRequest) => {
     const query = new URLSearchParams();
 
     query.append('openid.ns', 'http://specs.openid.net/auth/2.0')

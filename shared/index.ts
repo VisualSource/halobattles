@@ -5,3 +5,8 @@ export enum UnitStackState {
     Three = "Three",
     Full = "Full",
 }
+
+export enum LaneType {
+    Fast = "Fast",
+    Slow = "Slow"
+}

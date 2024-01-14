@@ -1,6 +1,6 @@
+import type { User } from '../context.js';
 import type { Json } from './types.js';
 import { Team } from './enums.js';
-import type { User } from '../context.js';
 
 export type PlayerJson = {
     team: Team;

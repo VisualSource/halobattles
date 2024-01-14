@@ -6,3 +6,8 @@ export var UnitStackState;
     UnitStackState["Three"] = "Three";
     UnitStackState["Full"] = "Full";
 })(UnitStackState || (UnitStackState = {}));
+export var LaneType;
+(function (LaneType) {
+    LaneType["Fast"] = "Fast";
+    LaneType["Slow"] = "Slow";
+})(LaneType || (LaneType = {}));

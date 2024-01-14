@@ -1,12 +1,29 @@
 import { EventEmitter } from 'node:events';
-import type { UpdateGroupSchema } from '../procedures/updateGroups.js';
+import { type UUID, randomUUID } from "node:crypto";
 import type { EventName, Events } from './types.js';
 import type { User } from '../context.js';
 import { Team } from './enums.js';
 import Player from "./Player.js";
 import Planet from './Planet.js';
+import { merge } from '#lib/utils.js';
+
+type StackRange = 0 | 1 | 2;
+type Transfer = {
+    id: UUID;
+    owner: string;
+    origin: {
+        id: UUID,
+        group: StackRange;
+    }
+    destination: {
+        id: UUID,
+        group: StackRange;
+    }
+    units: { id: string; count: number; icon: string; }[]
+}
 
 export default class Core extends EventEmitter {
+    public transfers: Map<UUID, Transfer> = new Map();
     public players: Map<string, Player> = new Map();
     public inPlay: boolean = false;
     public mapData = {
@@ -105,8 +122,26 @@ export default class Core extends EventEmitter {
         this.players.delete(steamId);
     }
 
-    public updatePlayer(steamId: string, color: string | undefined, team: Team | undefined) {
+    public createTransfer(origin: { id: UUID; group: StackRange }, destination: { id: UUID; group: StackRange }, owner: string): UUID {
+        const id = randomUUID();
 
+        const planet = this.getPlanet(origin.id);
+        if (!planet) throw new Error("Failed to find planet");
+        if (planet.owner !== owner) throw new Error("Owner does not control origin planet.");
+
+        const units = planet.takeGroup(origin.group);
+
+        const transfer: Transfer = {
+            id,
+            owner,
+            origin,
+            destination,
+            units
+        };
+
+        this.transfers.set(id, transfer);
+
+        return id;
     }
 
     /** 
@@ -116,17 +151,48 @@ export default class Core extends EventEmitter {
     public getPlanet(nodeId: string) {
         return this.mapData.nodes.find(value => value.uuid === nodeId);
     }
-    public startTransfer({ time, toGroup, to }: { time: number; to: string; toGroup: number }) {
+    public startTransfer({ time, toGroup, to, transferId }: { transferId: UUID, time: number; to: string; toGroup: number }) {
         const ms = time * 1000 + 2000;
-        if (ms >= 2147483647) throw new Error("Max time.");
+        if (ms >= 2147483647) throw new Error("The max duration of travel has surpassed 21_4748_3647ms");
 
         setTimeout(() => {
             const planet = this.getPlanet(to);
             if (!planet) throw new Error("Failed to get planet");
-            this.send("moveGroup", {
-                group: toGroup,
-                uuid: to,
-                stack: planet.getStackState(toGroup)
+
+            const transfer = this.transfers.get(transferId);
+            if (!transfer) throw new Error("Missing transfer");
+
+            if (planet.owner !== transfer.owner) {
+
+                console.warn("Finish implementing battles");
+
+                planet.reset();
+                planet.units[transfer.destination.group] = transfer.units;
+                planet.owner = transfer.owner;
+                planet.icon = this.players.get(transfer.owner)?.user.avatar_medium ?? null;
+
+                this.transfers.delete(transferId);
+
+                this.send("updatePlanet", {
+                    id: planet.uuid,
+                    spies: planet.spies,
+                    stack_0: planet.getStackState(0),
+                    stack_1: planet.getStackState(1),
+                    stack_2: planet.getStackState(2),
+                    ownerId: planet.owner,
+                    icon: planet.icon
+                });
+
+                return;
+            }
+
+            planet.units[transfer.destination.group as 0 | 1 | 2] = merge(planet.units[transfer.destination.group as 0 | 1 | 2], transfer.units)
+            this.transfers.delete(transferId);
+
+            this.send("updatePlanet", {
+                id: planet.uuid,
+                spies: planet.spies,
+                [`stack_${toGroup}`]: planet.getStackState(toGroup)
             });
         }, ms);
     }

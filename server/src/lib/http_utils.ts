@@ -3,17 +3,6 @@ import { importPKCS8, jwtVerify } from 'jose';
 import type { Database } from "sqlite3";
 
 export const PRIVATE_KEY = await importPKCS8(process.env.PRIVATE_KEY, process.env.SIGNING_ALG);
-export const USER_DATABASE = new Map<string, {
-    steamid: string;
-    profileurl: string;
-    avatar: {
-        full: string;
-        default: string;
-        medium: string;
-        hash: string;
-    },
-    personaname: string
-}>();
 
 export async function AsyncResponse(res: HttpResponse, req: HttpRequest, db: Database, handler: (req: HttpRequest, db: Database) => Promise<Response>): Promise<void> {
     res.onAborted(() => {
