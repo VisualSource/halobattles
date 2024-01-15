@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["nodes", "linkes"],
+  "properties": {
+    "nodes": {
+      "title": "Nodes",
+      "type": "array",
+      "items": {
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "position": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "integer"
+              },
+              "y": {
+                "type": "integer"
+              },
+              "z": {
+                "type": "integer"
+              }
+            }
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-0a-fA-F]{6}"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "linkes": {
+      "title": "Links",
+      "type": "array",
+      "required": ["uuid", "type", "nodes"],
+      "items": {
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "format": "uuid",
+              "type": "string",
+              "maxItems": 2,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "uniqueItems": true
+            }
+          },
+          "type": {
+            "type": "string",
+            "enum": ["Slow", "Fast"]
+          }
+        }
+      }
+    }
+  }
+}

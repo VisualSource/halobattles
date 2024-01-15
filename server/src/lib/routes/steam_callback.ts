@@ -31,7 +31,7 @@ export type SteamProfile = {
     }
 }
 
-const getResponse = async (steamId: string) => {
+export const getResponse: (steamId: string) => Promise<Response> = async (steamId: string) => {
     const jwt = await new SignJWT({ type: "steam", id: steamId })
         .setProtectedHeader({ alg: process.env.SIGNING_ALG })
         .setExpirationTime("5d").sign(PRIVATE_KEY);

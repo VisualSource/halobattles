@@ -11,3 +11,8 @@ export var LaneType;
     LaneType["Fast"] = "Fast";
     LaneType["Slow"] = "Slow";
 })(LaneType || (LaneType = {}));
+export var Team;
+(function (Team) {
+    Team["UNSC"] = "UNSC";
+    Team["COVENT"] = "COVENT";
+})(Team || (Team = {}));

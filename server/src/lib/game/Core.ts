@@ -1,34 +1,54 @@
-import { EventEmitter } from 'node:events';
 import { type UUID, randomUUID } from "node:crypto";
+import { LaneType, UnitStackState } from 'halobattles-shared';
+import { EventEmitter } from 'node:events';
+
 import type { EventName, Events } from './types.js';
 import type { User } from '../context.js';
+import { merge } from '#lib/utils.js';
 import { Team } from './enums.js';
 import Player from "./Player.js";
-import Planet from './Planet.js';
-import { merge } from '#lib/utils.js';
+import Planet, { type IndexRange, type StackState, type UnitSlot } from './Planet.js';
 
-type StackRange = 0 | 1 | 2;
 type Transfer = {
     id: UUID;
     owner: string;
     origin: {
         id: UUID,
-        group: StackRange;
+        group: IndexRange;
     }
     destination: {
         id: UUID,
-        group: StackRange;
+        group: IndexRange;
     }
-    units: { id: string; count: number; icon: string; }[]
+    units: UnitSlot[]
 }
-
+export type MapData = {
+    nodes: Map<string, Planet>,
+    linkes: {
+        uuid: string;
+        nodes: [string, string],
+        type: LaneType
+    }[]
+}
 export default class Core extends EventEmitter {
     public transfers: Map<UUID, Transfer> = new Map();
     public players: Map<string, Player> = new Map();
     public inPlay: boolean = false;
-    public mapData = {
-        "nodes": [
-            new Planet({
+    public mapData: MapData = {
+        "nodes": new Map(),
+        "linkes": []
+    }
+    constructor() {
+        super({ captureRejections: true });
+    }
+
+
+    public setMap(file: string) {
+        // read map and parse map file.
+
+        // populate mapdata var
+        const nodes = [
+            {
                 "uuid": "28c409a2-4a3a-4e24-8dd7-9275dc668e33",
                 "position": {
                     "x": 0,
@@ -38,9 +58,14 @@ export default class Core extends EventEmitter {
                 "color": "#0033ff",
                 "label": "Name",
                 ownerId: "76561198185501646",
-                icon: "https://avatars.steamstatic.com/a521352ec938d97a89f4b9655f75924d3cea6344_medium.jpg"
-            }),
-            new Planet({
+                icon: "https://avatars.steamstatic.com/a521352ec938d97a89f4b9655f75924d3cea6344_medium.jpg",
+                "units": {
+                    0: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "d8f5338e-4516-42ba-baba-c59ac87ab577", count: 3 }],
+                    1: [],
+                    2: []
+                }
+            },
+            {
                 "uuid": "bc8b6b77-908b-4f30-b477-f17bbeceba83",
                 "position": {
                     "x": -131.872,
@@ -49,8 +74,8 @@ export default class Core extends EventEmitter {
                 },
                 "color": "#00ffed",
                 "label": "New World"
-            }),
-            new Planet({
+            },
+            {
                 "uuid": "2e27644b-7277-4679-9245-c5c74378dd10",
                 "position": {
                     "x": -43.032,
@@ -59,19 +84,27 @@ export default class Core extends EventEmitter {
                 },
                 "color": "#99c936",
                 "label": "Haverst"
-            }),
-            new Planet({
+            },
+            {
                 "uuid": "5c1537ae-9c6c-4240-b515-6be7988f967d",
                 "position": {
                     "x": 109.66223132182344,
                     "y": 180.6881540537398,
                     "z": 0
                 },
+                ownerId: "BOT__0001",
+                icon: "https://api.dicebear.com/7.x/identicon/svg?size=64&seed=BOT__0001",
                 "color": "#b74867",
-                "label": "Rather"
-            })
-        ],
-        "linkes": [
+                "label": "Rather",
+                "units": {
+                    0: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "d8f5338e-4516-42ba-baba-c59ac87ab577", count: 3 }],
+                    1: [],
+                    2: []
+                }
+            }
+        ];
+
+        const links = [
             {
                 "uuid": "da1b775f-3f4f-4fa8-9995-e03804563570",
                 "nodes": [
@@ -104,10 +137,23 @@ export default class Core extends EventEmitter {
                 ],
                 "type": "Slow"
             }
-        ]
-    }
-    constructor() {
-        super({ captureRejections: true });
+        ];
+
+        for (const node of nodes) {
+            this.mapData.nodes.set(node.uuid, new Planet(node));
+        }
+
+        this.mapData.linkes = links as MapData["linkes"];
+
+        for (const link of this.mapData.linkes) {
+            const [a, b] = link.nodes;
+            if (!a || !b) throw new Error(`Link ${link.uuid} does not have node references!`);
+
+            this.getPlanet(a)?.neighbors.add(b);
+            this.getPlanet(b)?.neighbors.add(a);
+        }
+
+        console.info("Map with name %s has been loaded", file);
     }
 
     /** 
@@ -122,14 +168,14 @@ export default class Core extends EventEmitter {
         this.players.delete(steamId);
     }
 
-    public createTransfer(origin: { id: UUID; group: StackRange }, destination: { id: UUID; group: StackRange }, owner: string): UUID {
+    public createTransfer(origin: { id: UUID; group: IndexRange }, destination: { id: UUID; group: IndexRange }, owner: string): UUID {
         const id = randomUUID();
 
         const planet = this.getPlanet(origin.id);
         if (!planet) throw new Error("Failed to find planet");
         if (planet.owner !== owner) throw new Error("Owner does not control origin planet.");
 
-        const units = planet.takeGroup(origin.group);
+        const units = planet.take(origin.group);
 
         const transfer: Transfer = {
             id,
@@ -149,8 +195,38 @@ export default class Core extends EventEmitter {
     */
 
     public getPlanet(nodeId: string) {
-        return this.mapData.nodes.find(value => value.uuid === nodeId);
+        return this.mapData.nodes.get(nodeId);
     }
+
+    public getNeighbors(nodeId: string) {
+        const node = this.mapData.nodes.get(nodeId);
+        if (!node) throw new Error(`Not Found: Node(${nodeId})`);
+
+        const output = [];
+        for (const id of node.neighbors.values()) {
+            const item = this.mapData.nodes.get(id);
+            if (!item || item.owner === node.owner) continue;
+            const data: { spies: string[], id: string; ownerId: string | null; } & Partial<Record<`stack_${0 | 1 | 2}`, NonNullable<StackState>>> = {
+                id: item.uuid,
+                spies: item.spies,
+                ownerId: item.owner,
+            };
+
+            for (let i = 0; i < 3; i++) {
+                const a = item.getStackState(i);
+                if (a.state !== UnitStackState.Empty) {
+                    data[`stack_${i as IndexRange}`] = a;
+                }
+            }
+
+            if ("stack_0" in data || "stack_1" in data || "stack_2" in data) {
+                output.push(data);
+            }
+        }
+
+        return output;
+    }
+
     public startTransfer({ time, toGroup, to, transferId }: { transferId: UUID, time: number; to: string; toGroup: number }) {
         const ms = time * 1000 + 2000;
         if (ms >= 2147483647) throw new Error("The max duration of travel has surpassed 21_4748_3647ms");
@@ -173,20 +249,25 @@ export default class Core extends EventEmitter {
 
                 this.transfers.delete(transferId);
 
-                this.send("updatePlanet", {
-                    id: planet.uuid,
-                    spies: planet.spies,
-                    stack_0: planet.getStackState(0),
-                    stack_1: planet.getStackState(1),
-                    stack_2: planet.getStackState(2),
-                    ownerId: planet.owner,
-                    icon: planet.icon
-                });
+                this.send("updatePlanet",
+                    {
+                        id: planet.uuid,
+                        spies: planet.spies,
+                        stack_0: planet.getStackState(0),
+                        stack_1: planet.getStackState(1),
+                        stack_2: planet.getStackState(2),
+                        ownerId: planet.owner,
+                        icon: planet.icon
+                    },
+                );
+
+                const neighbors = this.getNeighbors(planet.uuid);
+                if (neighbors.length) this.send("updatePlanets", neighbors);
 
                 return;
             }
 
-            planet.units[transfer.destination.group as 0 | 1 | 2] = merge(planet.units[transfer.destination.group as 0 | 1 | 2], transfer.units)
+            planet.units[transfer.destination.group] = merge(planet.units[transfer.destination.group], transfer.units);
             this.transfers.delete(transferId);
 
             this.send("updatePlanet", {
@@ -198,8 +279,7 @@ export default class Core extends EventEmitter {
     }
 
     public getWeight = (user: string, node: string, laneType: string): number => {
-
-        return laneType === "Fast" ? 2 : 4;
+        return laneType === LaneType.Fast ? 2 : 4;
     }
 
     /** 

@@ -7,9 +7,10 @@ import { EventName, Events } from './game/types.js';
 import { PRIVATE_KEY } from './http_utils.js';
 import Core from './game/Core.js';
 
-export const global = new Core();
-
 export type User = { steamid: string; profile: string; avatar_full: string; avatar_medium: string; displayname: string; };
+
+export const global = new Core();
+global.setMap("test_map_01.json");
 
 export const createContext = async (opts: unknown, db: Database) => {
     const cookie = (opts as { req: { headers: { cookie: string; } } })?.req?.headers?.cookie;
@@ -26,7 +27,7 @@ export const createContext = async (opts: unknown, db: Database) => {
         return { user, global };
     }
 
-    return { global, }
+    return { global }
 };
 
 export type Context = inferAsyncReturnType<typeof createContext>;

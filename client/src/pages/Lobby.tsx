@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/trpc";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Team } from "halobattles-shared";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -69,7 +70,8 @@ const Lobby: React.FC = () => {
                     </div>
                 ))}
             </div>
-            <div>
+            <div className="flex gap-2">
+                <Button onClick={() => client.addPlayer.mutate({ color: "#ffffff", team: Team.UNSC })}>Join</Button>
                 <Button onClick={() => client.startGame.mutate()}>Start</Button>
             </div>
 

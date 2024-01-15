@@ -9,3 +9,7 @@ export declare enum LaneType {
     Fast = "Fast",
     Slow = "Slow"
 }
+export declare enum Team {
+    UNSC = "UNSC",
+    COVENT = "COVENT"
+}

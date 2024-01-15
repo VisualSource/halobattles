@@ -16,6 +16,7 @@ import { router } from './router.js';
 
 import { global } from './lib/context.js';
 import { Team } from "./lib/game/enums.js";
+import login_fake from "#lib/routes/login_fake.js";
 
 export type AppRouter = typeof router;
 
@@ -48,6 +49,10 @@ const handler = applyWSHandler(app, "/trpc", {
     router,
     createContext: (opts) => createContext(opts, db)
 });
+
+if (process.env.NODE_ENV === "development") {
+    app.get("/auth/fake/login", (res, req) => AsyncResponse(res, req, db, login_fake))
+}
 
 app.get("/logout", (res, req) => AsyncResponse(res, req, db, logout));
 app.get("/profile", (res, req) => AsyncResponse(res, req, db, steam_profile));

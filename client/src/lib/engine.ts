@@ -12,6 +12,8 @@ export type MapData = {
     linkes: { uuid: string; nodes: string[], type: string }[]
 }
 
+export const UNKNOWN_STACK_ICON = "/question.jpg";
+
 const subset = {
     Vector2: Vector2,
     Vector3: Vector3,
@@ -138,22 +140,20 @@ export default class Engine {
         return this.camera.position.clone().add(dir.multiplyScalar((0 - this.camera.position.z) / dir.z));
     }
 
-    public addNode({ stacks, owner, icon, color, x, y, name = "Node" }: { stacks?: Record<0 | 1 | 2, { state: UnitStackState, icon: string | null }>, owner: string | null, icon: string | null, color: number, x: number, y: number, name: string }, uuid?: string) {
+    public addNode({ owner, icon, color, x, y, name = "Node" }: {
+        owner: string | null,
+        icon: string | null,
+        color: number,
+        x: number,
+        y: number,
+        name: string
+    }, uuid?: string): Node {
 
         const node = new Node(color, { x, y }, { x: 8, y: 6 });
 
         node.label = name;
         node.icon = icon;
         node.ownerId = owner;
-
-        if (stacks) {
-            Object.entries(stacks).forEach(([key, value]) => {
-                if (node.ownerId !== this.ownerId && value.icon !== null) {
-                    value.icon = "/question.jpg";
-                }
-                node.setStack(+key as 0 | 1 | 2, value);
-            });
-        }
 
         if (uuid) {
             node.uuid = uuid;
@@ -163,7 +163,7 @@ export default class Engine {
 
         this.isDirty = true;
 
-        return node.uuid;
+        return node;
     }
 
     public addLane({ type = LaneType.Slow, nodes }: { type?: string; nodes: string[] }, uuid?: string) {
@@ -198,22 +198,58 @@ export default class Engine {
 
     public loadState(map: MapData): void {
 
+        // clear
         this.scene.remove(...this.scene.children);
 
+        // setup nodes
         for (const a of map.nodes) {
-            this.addNode({
+            const node = this.addNode({
                 color: new Color(a.color).getHex(),
                 icon: a.icon,
                 name: a.label,
                 owner: a.owner,
                 x: a.position.x,
                 y: a.position.y,
-                stacks: a.stacks
             }, a.uuid);
+
+            if (!a.stacks || a.owner !== this.ownerId) continue;
+
+            for (const [key, stack] of Object.entries(a.stacks)) {
+                node.setStack(+key, stack);
+            }
         }
 
+        // setup lanes
         for (const b of map.linkes) {
             this.addLane({ type: b.type, nodes: b.nodes }, b.uuid);
+
+            const hasOwner = b.nodes.some(v => {
+                const n = this.getObject(v);
+                return n.ownerId === this.ownerId
+            });
+
+            if (!hasOwner) continue;
+
+            const nodeId = b.nodes.find(v => {
+                const n = this.getObject(v);
+                return n.ownerId !== this.ownerId;
+            });
+
+            if (!nodeId) continue;
+
+            const nodeData = map.nodes.find(v => v.uuid === nodeId);
+            const node = this.getObject(nodeId);
+            if (!nodeData || !node) throw new Error(`Missing node with uuid(${nodeId})`);
+
+            if (!nodeData.stacks) continue;
+
+            for (const [key, stack] of Object.entries(nodeData.stacks)) {
+                if (stack.state !== UnitStackState.Empty) {
+                    stack.icon = UNKNOWN_STACK_ICON;
+                }
+
+                node.setStack(+key, stack);
+            }
         }
 
         this.isDirty = true;

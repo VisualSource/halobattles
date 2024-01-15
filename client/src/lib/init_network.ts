@@ -5,9 +5,7 @@ import { Tween } from "@tweenjs/tween.js";
 import type { Vector3 } from "three";
 import UnitMovementIndicator from "./game_objects/unit_movement_indicator";
 import { client } from '@/lib/trpc';
-import Engine from "./engine";
-
-const UNKNOWN_STACK_ICON = "/question.jpg";
+import Engine, { UNKNOWN_STACK_ICON } from "./engine";
 
 export default function handle_network(engine: Engine | undefined) {
     const controller = new AbortController();
@@ -52,7 +50,7 @@ export default function handle_network(engine: Engine | undefined) {
 
             for (let i = 1; i < path.length; i++) {
                 const current = path[i];
-                const next = new Tween(indicator.position).to({ x: current.position.x, y: current.position.y }, 1000 * current.duration).onUpdate(() => engine.makeDirty());
+                const next = new Tween(indicator.position).to({ x: current.position.x, y: current.position.y }, 1060 * current.duration).onUpdate(() => engine.makeDirty());
 
                 if (i === (path.length - 1)) next.onComplete(() => {
                     indicator.removeFromParent();
@@ -93,7 +91,7 @@ export default function handle_network(engine: Engine | undefined) {
                 if (planet.ownerId === engine.ownerId || engine.ownerId && value.spies.includes(engine.ownerId)) {
                     stack.icon = group.icon;
                 } else {
-                    stack.icon = UNKNOWN_STACK_ICON;
+                    stack.icon = null;
                 }
 
                 stack.state = group.state
@@ -125,10 +123,34 @@ export default function handle_network(engine: Engine | undefined) {
         },
     });
 
+    const onUpdatePlanets = client.onUpdatePlanets.subscribe(undefined, {
+        onData(data) {
+            console.info("Event: onUpdatePlanets, Payload: ", data);
+
+            for (const planet of data) {
+                const item = engine.getObject(planet.id);
+
+                for (const [key, value] of Object.entries(planet)) {
+                    if (["id", "ownerId", "spies"].includes(key) || !value) continue;
+
+                    if (key.startsWith("stack_")) {
+                        if (item.ownerId !== engine.ownerId) {
+                            (value as { icon: string | null }).icon = UNKNOWN_STACK_ICON;
+                        }
+                        item.setStack(+key.replace("stack_", ""), value as { state: UnitStackState, icon: string | null });
+                    }
+
+                }
+
+            }
+        },
+    });
+
     return () => {
         controller.abort();
         onTransfer.unsubscribe();
         onSyncDone.unsubscribe();
         onUpdatePlanet.unsubscribe();
+        onUpdatePlanets.unsubscribe();
     }
 }

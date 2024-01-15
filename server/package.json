@@ -8,7 +8,7 @@
     "#lib/*": "./dist/lib/*"
   },
   "scripts": {
-    "build": "pnpm tsc --outDir ../build/runtime",
+    "build": "pnpm tsc",
     "dev:compile": "tsc --watch",
     "dev:run": "nodemon ./dist/index.js",
     "test:run": "nodemon --config ./nodemon.test.json",

@@ -9,14 +9,23 @@ type StackState = { state: UnitStackState; icon: string | null; }
 export type Events = {
     syncDone: undefined,
     updateResouces: undefined,
-    moveUnit: {},
-    addPlayer: {},
-    removePlayer: {}
-    updatePlayer: {}
+    moveUnit: undefined,
+    addPlayer: undefined,
+    removePlayer: undefined
+    updatePlayer: undefined
+    updatePlanets: {
+        id: string;
+        spies: string[],
+        icon?: string | null,
+        ownerId?: string | null,
+        color?: string;
+        stack_0?: StackState;
+        stack_1?: StackState;
+        stack_2?: StackState;
+    }[],
     updatePlanet: {
         id: string;
         spies: string[],
-
         icon?: string | null,
         ownerId?: string | null,
         color?: string;
@@ -24,8 +33,8 @@ export type Events = {
         stack_1?: StackState;
         stack_2?: StackState;
     },
-    startGame: {}
-    endGame: {}
+    startGame: undefined
+    endGame: undefined
     transfer: {
         path: {
             position: {

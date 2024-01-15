@@ -1,17 +1,8 @@
 import groupby from 'lodash.groupby';
 import PriorityQueue from './priority_queue.js';
+import type { MapData } from './game/Core.js';
 
-export default function Dijkstra(graph: {
-    nodes: {
-        uuid: string;
-        position: { x: number; y: number; }
-    }[],
-    linkes: {
-        uuid: string,
-        nodes: string[];
-        type: string;
-    }[]
-}, { start, end, user }: { start: string; end: string; user: string }, getWeight: (user: string, node: string, linkType: string) => number) {
+export default function Dijkstra(graph: MapData, { start, end, user }: { start: string; end: string; user: string }, getWeight: (user: string, node: string, linkType: string) => number) {
 
     const dist: Record<string, number> = {
         [start]: 0
@@ -47,7 +38,7 @@ export default function Dijkstra(graph: {
     let exec_time = 0;
     let u: string | undefined = end;
     while (u) {
-        const node = graph.nodes.find(value => value.uuid === u);
+        const node = graph.nodes.get(u);
         if (!node) throw new Error("Failed to get node data");
 
         path.push({

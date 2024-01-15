@@ -13,8 +13,12 @@ import getMap from '#procedure/getMap.js';
 import getPlanetUnits from "#procedure/getPlanetUnits.js";
 import getBuildings from "#procedure/getBuildings.js";
 import getBuildOptions from "#procedure/getBuildOptions.js";
+import ping from "#procedure/network/ping.js";
 
 export const router = t.router({
+    ping,
+
+
     removePlayer,
     addPlayer,
     updatePlayer,
@@ -36,6 +40,7 @@ export const router = t.router({
     getPlayerState,
     updateGroup,
     onUpdatePlanet: subscription("updatePlanet"),
+    onUpdatePlanets: subscription("updatePlanets"),
     onStartGame: subscription("startGame"),
     onEndGame: subscription("endGame"),
     onTransfer: subscription("transfer")
