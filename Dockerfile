@@ -3,19 +3,21 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
-COPY . /app
 WORKDIR /app
 
 FROM base as build
-COPY . /usr/src/app
-WORKDIR /usr/src/app
+COPY . .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm run -r build
-
+RUN pnpm deploy --filter=halobattles-server --prod /prod/server
 
 FROM base 
-COPY --from=build /server/dist /
-COPY --from=build /client/dist /public
+# copy backend
+COPY --from=build  /prod/server/node_modules ./node_modules
+COPY --from=build  /prod/server/package.json ./
+COPY --from=build  /app/server/dist ./dist
+# copy frontend
+COPY --from=build /app/client/dist ./public
 
 EXPOSE 8000
 

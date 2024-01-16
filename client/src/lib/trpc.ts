@@ -1,8 +1,7 @@
 import {
     createTRPCProxyClient, createWSClient, wsLink
 } from '@trpc/client';
-import type { AppRouter } from "halobattles-server/src/index";
-
+import type { AppRouter } from "halobattles-server";
 
 export const link = {
     links: [

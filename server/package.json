@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
+  "types": "./dist/index.d.ts",
   "imports": {
     "#procedure/*": "./dist/lib/procedures/*",
     "#lib/*": "./dist/lib/*"
@@ -13,6 +14,7 @@
     "dev:run": "nodemon ./dist/index.js",
     "test:run": "nodemon --config ./nodemon.test.json",
     "test:compile": "tsc --watch",
+    "start": "node ./dist/index.js",
     "dev": "pnpm --parallel --stream run /^dev:.*/",
     "test": "pnpm --parallel --stream run /^test:.*/"
   },
