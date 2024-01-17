@@ -1,6 +1,10 @@
-import { type HTTPRequest, resolveHTTPResponse } from "@trpc/server/http";
-import type { AnyRouter, inferRouterContext } from "@trpc/server";
-import type { uHTTPRequestHandlerOptions, WrappedHTTPRequest, WrappedHTTPResponse } from './types.js';
+import { resolveHTTPResponse, type HTTPRequest } from '@trpc/server/http';
+import type { AnyRouter, inferRouterContext } from '@trpc/server';
+import type {
+    uHTTPRequestHandlerOptions,
+    WrappedHTTPRequest,
+    WrappedHTTPResponse,
+} from './types.js';
 import { getPostBody } from './utils.js';
 
 export async function uWsHTTPRequestHandler<
@@ -17,7 +21,9 @@ export async function uWsHTTPRequestHandler<
     return handleViaMiddleware(opts.req, opts.res, async (err) => {
         if (err) throw err;
 
-        const createContext = async (): Promise<inferRouterContext<TRouter>> => opts.createContext?.(opts);
+        const createContext = async (): Promise<inferRouterContext<TRouter>> => {
+            return await opts.createContext?.(opts); // TODO type this up
+        };
 
         // this may not be needed
         const query = new URLSearchParams(opts.req.query);
@@ -52,19 +58,23 @@ export async function uWsHTTPRequestHandler<
             },
         });
 
-        if (aborted) return;
+        if (aborted) {
+            return;
+        }
 
         res.cork(() => {
-            res.writeStatus(result.status.toString());
+            res.writeStatus(result.status.toString()); // is this okay?
 
+            // oldschool way of writing headers
             for (const [key, value] of Object.entries(result.headers ?? {})) {
-                if (!value) continue;
-                if (Array.isArray(value)) {
-                    value.forEach(v => res.writeHeader(key, v));
+                if (typeof value === 'undefined') {
                     continue;
                 }
-
-                res.writeHeader(key, value);
+                if (Array.isArray(value))
+                    value.forEach((v) => {
+                        res.writeHeader(key, v);
+                    });
+                else res.writeHeader(key, value);
             }
 
             res.end(result.body);

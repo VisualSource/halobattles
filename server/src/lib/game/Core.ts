@@ -1,15 +1,15 @@
 import { type UUID, randomUUID } from "node:crypto";
 import { LaneType, UnitStackState } from 'halobattles-shared';
 import { EventEmitter } from 'node:events';
-
+import Piscina from "piscina";
 import type { EventName, Events } from './types.js';
 import type { User } from '../context.js';
-import { merge } from '#lib/utils.js';
+import { getFile, getFilePathURL, merge } from '#lib/utils.js';
 import { Team } from './enums.js';
 import Player from "./Player.js";
 import Planet, { type IndexRange, type StackState, type UnitSlot } from './Planet.js';
 
-type Transfer = {
+export type Transfer = {
     id: UUID;
     owner: string;
     origin: {
@@ -30,7 +30,11 @@ export type MapData = {
         type: LaneType
     }[]
 }
+
+const TEN_MINUES_IN_MS = 600_000;
+
 export default class Core extends EventEmitter {
+    private piscina: Piscina;
     public transfers: Map<UUID, Transfer> = new Map();
     public players: Map<string, Player> = new Map();
     public inPlay: boolean = false;
@@ -40,6 +44,11 @@ export default class Core extends EventEmitter {
     }
     constructor() {
         super({ captureRejections: true });
+
+        this.piscina = new Piscina({
+            filename: getFilePathURL("worker/battle_worker.js", import.meta.url),
+            maxQueue: "auto"
+        });
     }
 
 
@@ -227,9 +236,50 @@ export default class Core extends EventEmitter {
         return output;
     }
 
+    private handleBattleError = (error: unknown) => {
+        console.error("Battle Error", error);
+    }
+    private handleBattleResult = ({ transferId }: { transferId: UUID; }) => {
+        try {
+            const transfer = this.transfers.get(transferId);
+            if (!transfer) throw new Error("Missing transfer");
+
+            // TODO: update with proper code to handle battle result.
+            const planet = this.getPlanet(transfer.destination.id);
+            if (!planet) throw new Error("Missing planet");
+
+            planet.reset();
+            planet.units[transfer.destination.group] = transfer.units;
+            planet.owner = transfer.owner;
+            planet.icon = this.players.get(transfer.owner)?.user.avatar_medium ?? null;
+
+            this.transfers.delete(transferId);
+
+            this.send("updatePlanet",
+                {
+                    id: planet.uuid,
+                    spies: planet.spies,
+                    stack_0: planet.getStackState(0),
+                    stack_1: planet.getStackState(1),
+                    stack_2: planet.getStackState(2),
+                    ownerId: planet.owner,
+                    icon: planet.icon
+                },
+            );
+
+            const neighbors = this.getNeighbors(planet.uuid);
+            if (neighbors.length) this.send("updatePlanets", neighbors);
+
+        } catch (error) {
+            this.handleBattleError(error);
+        }
+    }
+
     public startTransfer({ time, toGroup, to, transferId }: { transferId: UUID, time: number; to: string; toGroup: number }) {
-        const ms = time * 1000 + 2000;
-        if (ms >= 2147483647) throw new Error("The max duration of travel has surpassed 21_4748_3647ms");
+        let ms = time * 1000 + 1000;
+        if (ms >= TEN_MINUES_IN_MS) {
+            ms = TEN_MINUES_IN_MS;
+        }
 
         setTimeout(() => {
             const planet = this.getPlanet(to);
@@ -239,31 +289,9 @@ export default class Core extends EventEmitter {
             if (!transfer) throw new Error("Missing transfer");
 
             if (planet.owner !== transfer.owner) {
-
-                console.warn("Finish implementing battles");
-
-                planet.reset();
-                planet.units[transfer.destination.group] = transfer.units;
-                planet.owner = transfer.owner;
-                planet.icon = this.players.get(transfer.owner)?.user.avatar_medium ?? null;
-
-                this.transfers.delete(transferId);
-
-                this.send("updatePlanet",
-                    {
-                        id: planet.uuid,
-                        spies: planet.spies,
-                        stack_0: planet.getStackState(0),
-                        stack_1: planet.getStackState(1),
-                        stack_2: planet.getStackState(2),
-                        ownerId: planet.owner,
-                        icon: planet.icon
-                    },
-                );
-
-                const neighbors = this.getNeighbors(planet.uuid);
-                if (neighbors.length) this.send("updatePlanets", neighbors);
-
+                this.piscina.run({ transfer })
+                    .then(this.handleBattleResult)
+                    .catch(this.handleBattleError);
                 return;
             }
 

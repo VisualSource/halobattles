@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import Piscina from 'piscina';
 import { type UUID } from "node:crypto";
 import { procedure } from '../context.js';
 import Dijkstra from '../dijkstra.js';

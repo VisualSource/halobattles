@@ -2,8 +2,6 @@ import "./lib/env.js";
 import { App } from 'uWebSockets.js';
 
 import process from 'node:process';
-import cors from 'cors';
-//import { renderTrpcPanel } from "trpc-panel";
 import { createUWebSocketsHandler, applyWSHandler } from './lib/trpc-uwebsockets/index.js';
 import steam_callback from './lib/routes/steam_callback.js';
 import steam_profile from './lib/routes/steam_profile.js';
@@ -37,12 +35,14 @@ if (process.env.NODE_ENV === "development") {
 createUWebSocketsHandler(app, "/trpc", {
     router,
     createContext: (opts) => createContext(opts, db),
-    middleware(req, res, next) {
-        cors({})(req, {
-            end: () => res.end(undefined, true),
-            setHeader: (key: string, value: string) => res.writeHeader(key, value),
-        }, next)
-    },
+    // CORS part 2. See https://trpc.io/docs/server/caching for more information
+    responseMeta() {
+        return {
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+            }
+        }
+    }
 });
 
 const handler = applyWSHandler(app, "/trpc", {
@@ -54,6 +54,11 @@ if (process.env.NODE_ENV === "development") {
     app.get("/auth/fake/login", (res, req) => AsyncResponse(res, req, db, login_fake))
 }
 
+app.options("/*", (res) => {
+    res.writeHeader('Access-Control-Allow-Origin', "*");
+    res.endWithoutBody();
+});
+
 app.get("/logout", (res, req) => AsyncResponse(res, req, db, logout));
 app.get("/profile", (res, req) => AsyncResponse(res, req, db, steam_profile));
 app.get("/login", (res, req) => AsyncResponse(res, req, db, steam_login));
@@ -62,10 +67,6 @@ app.any("/*", res => {
     res.writeStatus("404 NOT FOUND");
     res.end("Not Found");
 });
-
-/*app.get("/debug/panel", (res, _) => {
-    res.end(renderTrpcPanel(router, { url: "http://localhost:8000/trpc" }))
-});*/
 
 app.listen("0.0.0.0", 8000, () => {
     console.log("Server listening on http://localhost:8000");

@@ -49,9 +49,11 @@ const Lobby: React.FC = () => {
         }
     }, [queryClient, navigate]);
 
-
-    if (isLoading || isError || !data) {
-        return (<div>Loading | Error</div>);
+    if (isError) {
+        return (<div>Error</div>)
+    }
+    if (isLoading || !data) {
+        return (<div>Loading</div>);
     }
 
     return (

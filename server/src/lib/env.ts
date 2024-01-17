@@ -1,5 +1,6 @@
 import { config } from 'dotenv';
 import { z } from 'zod';
+import { exit } from 'node:process';
 
 const schema = z.object({
     STEAM_API_KEY: z.string().min(1),
@@ -9,10 +10,23 @@ const schema = z.object({
     PRIVATE_KEY: z.string().startsWith("-----BEGIN PRIVATE KEY-----").endsWith("-----END PRIVATE KEY-----")
 });
 
-const result = config();
+function loadEnv() {
+    try {
+        config()
+    } catch (error) {
+        console.warn("Missing .env, ignoring.")
+    }
 
-if (result.error) {
-    throw result.error;
+    const data = schema.safeParse(process.env);
+
+    if (data.success) return;
+
+    for (const error of data.error.errors) {
+        console.error("\x1b[33m%s\x1b[0m: %s, %s", error.message, error.code, error.path);
+    }
+
+    exit(1);
 }
 
-schema.parse(result.parsed);
+loadEnv();
+

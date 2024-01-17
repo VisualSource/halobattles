@@ -1,7 +1,8 @@
 import type { NodeHTTPCreateContextFnOptions, NodeHTTPCreateContextOption } from '@trpc/server/adapters/node-http';
+import type { AnyRouter, TRPCError, ProcedureType, inferRouterContext } from '@trpc/server';
 import { HTTPBaseHandlerOptions } from '@trpc/server/http';
 import type { HttpResponse } from 'uWebSockets.js';
-import type { AnyRouter } from '@trpc/server';
+
 
 /**
  *  @author romanzy313
@@ -56,3 +57,20 @@ export type CreateContextOptions = NodeHTTPCreateContextFnOptions<
     WrappedHTTPRequest,
     WrappedHTTPResponse
 >;
+
+export interface BaseHandlerOptions<TRouter extends AnyRouter, TRequest> {
+    onError?: OnErrorFunction<TRouter, TRequest>;
+    batching?: {
+        enabled: boolean;
+    };
+    router: TRouter;
+}
+
+export type OnErrorFunction<TRouter extends AnyRouter, TRequest> = (opts: {
+    error: TRPCError;
+    type: ProcedureType | 'unknown';
+    path: string | undefined;
+    req: TRequest;
+    input: unknown;
+    ctx: inferRouterContext<TRouter> | undefined;
+}) => void;

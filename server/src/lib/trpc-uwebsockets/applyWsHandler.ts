@@ -1,26 +1,43 @@
-import { type ProcedureType, type CombinedDataTransformer, type AnyRouter, type inferRouterContext, TRPCError, callProcedure, getTRPCErrorFromUnknown, type MaybePromise } from '@trpc/server';
-import type { TRPCClientOutgoingMessage, TRPCResponseMessage, JSONRPC2, TRPCReconnectNotification, } from '@trpc/server/rpc';
-import type { BaseHandlerOptions } from 'node_modules/@trpc/server/dist/internals/types.js';
+import type { CompressOptions, TemplatedApp, WebSocket } from 'uWebSockets.js';
+
+import {
+    type ProcedureType,
+    type CombinedDataTransformer,
+    type AnyRouter,
+    type inferRouterContext,
+    TRPCError,
+    callProcedure,
+    getTRPCErrorFromUnknown,
+    type MaybePromise,
+} from '@trpc/server';
 import type { NodeHTTPCreateContextOption } from '@trpc/server/adapters/node-http';
-import type { CompressOptions, RecognizedString, TemplatedApp, WebSocket } from 'uWebSockets.js';
 import { type Unsubscribable, isObservable } from '@trpc/server/observable';
+import type {
+    TRPCClientOutgoingMessage,
+    TRPCResponseMessage,
+    JSONRPC2,
+    TRPCReconnectNotification,
+} from '@trpc/server/rpc';
 
 import { getErrorShape, transformTRPCResponse } from '@trpc/server/shared';
+import type { WrappedHTTPRequest, BaseHandlerOptions } from './types.js';
 import { extractAndWrapHttpRequest } from './utils.js';
-import type { WrappedHTTPRequest } from './types.js';
 
+
+
+/* istanbul ignore next -- @preserve */
 function assertIsObject(obj: unknown): asserts obj is Record<string, unknown> {
     if (typeof obj !== 'object' || Array.isArray(obj) || !obj) {
         throw new Error('Not an object');
     }
 }
-
+/* istanbul ignore next -- @preserve */
 function assertIsProcedureType(obj: unknown): asserts obj is ProcedureType {
     if (obj !== 'query' && obj !== 'subscription' && obj !== 'mutation') {
         throw new Error('Invalid procedure type');
     }
 }
-
+/* istanbul ignore next -- @preserve */
 function assertIsRequestId(
     obj: unknown
 ): asserts obj is number | string | null {
@@ -33,13 +50,13 @@ function assertIsRequestId(
         throw new Error('Invalid request id');
     }
 }
-
+/* istanbul ignore next -- @preserve */
 function assertIsString(obj: unknown): asserts obj is string {
     if (typeof obj !== 'string') {
         throw new Error('Invalid string');
     }
 }
-
+/* istanbul ignore next -- @preserve */
 function assertIsJSONRPC2OrUndefined(
     obj: unknown
 ): asserts obj is '2.0' | undefined {
@@ -47,7 +64,6 @@ function assertIsJSONRPC2OrUndefined(
         throw new Error('Must be JSONRPC 2.0');
     }
 }
-
 function parseMessage(
     obj: unknown,
     transformer: CombinedDataTransformer
@@ -99,14 +115,12 @@ type UWSBuiltInOpts = {
     sendPingsAutomatically?: boolean;
 };
 
-
 /**
  * Web socket server handler
  */
 export type WSSHandlerOptions<TRouter extends AnyRouter> = BaseHandlerOptions<
     TRouter,
     WrappedHTTPRequest
-//   IncomingMessage
 > &
     NodeHTTPCreateContextOption<TRouter, WrappedHTTPRequest, any> &
     UWSBuiltInOpts;
@@ -133,19 +147,15 @@ export function applyWSHandler<TRouter extends AnyRouter>(
     // doing above can eliminate allClients for reconnection notification
     const allClients = new Set<WebSocket<Decoration>>();
 
-
-
     function respond(
         client: WebSocket<Decoration>,
         untransformedJSON: TRPCResponseMessage
     ) {
-
         client.send(
             JSON.stringify(
                 transformTRPCResponse(router._def._config, untransformedJSON)
             )
         );
-
     }
 
     function stopSubscription(
@@ -330,10 +340,10 @@ export function applyWSHandler<TRouter extends AnyRouter>(
         upgrade: (res, req, context) => {
             const wrappedReq = extractAndWrapHttpRequest(prefix, req);
 
-            const secWebSocketKey = wrappedReq.headers['sec-websocket-key'] as RecognizedString;
-            const secWebSocketProtocol = wrappedReq.headers['sec-websocket-protocol'] as RecognizedString;
+            const secWebSocketKey = wrappedReq.headers['sec-websocket-key'] as string;
+            const secWebSocketProtocol = wrappedReq.headers['sec-websocket-protocol'] as string;
             const secWebSocketExtensions =
-                wrappedReq.headers['sec-websocket-extensions'] as RecognizedString;
+                wrappedReq.headers['sec-websocket-extensions'] as string;
 
             const data: Decoration = {
                 clientSubscriptions: new Map<number | string, Unsubscribable>(),
@@ -359,7 +369,6 @@ export function applyWSHandler<TRouter extends AnyRouter>(
                     data.ctx = await data.ctxPromise;
                 } catch (cause) {
                     const error = getTRPCErrorFromUnknown(cause);
-
                     opts.onError?.({
                         error,
                         path: undefined,
@@ -384,8 +393,8 @@ export function applyWSHandler<TRouter extends AnyRouter>(
                     // otherwise it tries to reconnect over and over again, even though the context throws
                     // this is a rouch edge of uWs
                     setTimeout(() => {
-                        client.end()
-                    }, 1000)
+                        client.end(4401);
+                    }, 1000);
 
                     // original code
                     // (global.setImmediate ?? global.setTimeout)(() => {

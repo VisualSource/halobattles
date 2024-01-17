@@ -17,8 +17,6 @@ import ping from "#procedure/network/ping.js";
 
 export const router = t.router({
     ping,
-
-
     removePlayer,
     addPlayer,
     updatePlayer,
