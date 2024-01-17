@@ -44,9 +44,8 @@ export default class Core extends EventEmitter {
     }
     constructor() {
         super({ captureRejections: true });
-
         this.piscina = new Piscina({
-            filename: getFilePathURL("worker/battle_worker.js", import.meta.url),
+            filename: getFilePathURL("../worker/battle_worker.js", import.meta.url),
             maxQueue: "auto"
         });
     }
@@ -268,7 +267,7 @@ export default class Core extends EventEmitter {
             );
 
             const neighbors = this.getNeighbors(planet.uuid);
-            if (neighbors.length) this.send("updatePlanets", neighbors);
+            if (neighbors.length) this.send("updatePlanets", neighbors, [planet.owner]);
 
         } catch (error) {
             this.handleBattleError(error);
@@ -314,8 +313,8 @@ export default class Core extends EventEmitter {
      * Internal Functions
     */
 
-    public send<T extends EventName>(event: T, data: Events[T]) {
+    public send<T extends EventName>(event: T, data: Events[T], targets: string[] | null = null) {
         console.info("Event: %s", event, data);
-        this.emit(event, data);
+        this.emit(event, data, targets);
     }
 }

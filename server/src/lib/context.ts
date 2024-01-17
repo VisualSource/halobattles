@@ -20,7 +20,6 @@ export const createContext = async (opts: { req: { headers: Record<string, strin
         const session = cookies.find(value => value.startsWith("session"))?.replace("session=", "");
         if (!session) {
             throw new TRPCError({ code: "UNAUTHORIZED" });
-
         }
         const { payload } = await jwtVerify(decodeURIComponent(session), PRIVATE_KEY);
         const user = await new Promise<User>((ok, reject) => db.get(`SELECT * FROM users WHERE steamid = ?`, payload.id, (err, row) => {
@@ -43,8 +42,10 @@ export const t = initTRPC.context<Context>().create({
 export const procedure = t.procedure;
 
 export const subscription = <T extends EventName>(event: T) => {
-    return procedure.subscription(() => observable<Events[T]>((emit) => {
-        const callback = (data: Events[T]) => emit.next(data);
+    return procedure.subscription(({ ctx }) => observable<Events[T]>((emit) => {
+        const callback = (data: Events[T], targets: string[] | null = null) => {
+            if (!targets || targets.includes(ctx.user?.steamid ?? "")) return emit.next(data);
+        };
         global.on(event, callback);
         return () => global.off(event, callback);
     }));
