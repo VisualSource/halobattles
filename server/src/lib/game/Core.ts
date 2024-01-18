@@ -206,6 +206,24 @@ export default class Core extends EventEmitter {
         return this.mapData.nodes.get(nodeId);
     }
 
+    public ownsNeighbor(nodeId: string, owner: string) {
+        const node = this.mapData.nodes.get(nodeId);
+        if (!node) throw new Error("Not Found");
+
+        let hasView = false;
+        for (const n of node.neighbors) {
+            const nighbor = this.mapData.nodes.get(n);
+            if (!nighbor) continue;
+
+            if (nighbor.owner === owner) {
+                hasView = true;
+                break;
+            }
+        }
+
+        return hasView;
+    }
+
     public getNeighbors(nodeId: string) {
         const node = this.mapData.nodes.get(nodeId);
         if (!node) throw new Error(`Not Found: Node(${nodeId})`);

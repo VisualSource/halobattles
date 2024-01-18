@@ -2,8 +2,9 @@ import { useEffect } from "react";
 import { useRef } from "react";
 import Sortable from "sortablejs";
 import { client } from '@/lib/trpc';
+import { UNKNOWN_STACK_ICON } from "@/lib/engine";
 
-const Grid: React.FC<{ canEdit: boolean; units: { icon: string; count: number; id: string; }[], nodeId: string; groupId: number }> = ({ canEdit, units, nodeId, groupId }) => {
+const Grid: React.FC<{ view: string, canEdit: boolean; units: { icon: string; count: number; id: string; }[], nodeId: string; groupId: number }> = ({ view, canEdit, units, nodeId, groupId }) => {
     const data = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -110,7 +111,7 @@ const Grid: React.FC<{ canEdit: boolean; units: { icon: string; count: number; i
             {units.map(value => (
                 <div key={value.id} className="col-span-1 p-4 relative bg-gray-800" data-content={value.id}>
                     <div data-amount={value.count.toString()} className="absolute before:content-[attr(data-amount)] bg-white rounded-full px-2 flex items-center justify-center font-bold top-2 left-2 text-sm"></div>
-                    <img className="object-contain" src={value.icon} />
+                    <img className="object-contain" src={view === "partial" ? UNKNOWN_STACK_ICON : value.icon} />
                 </div>
             ))}
             {Array.from({ length: 20 - units.length }).map((_, i) => (

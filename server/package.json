@@ -9,6 +9,7 @@
     "#lib/*": "./dist/lib/*"
   },
   "scripts": {
+    "make": "node ./scripts/index.js",
     "build": "pnpm tsc",
     "dev:compile": "tsc --watch",
     "dev:run": "nodemon ./dist/index.js --config ./nodemon.json",
@@ -32,9 +33,11 @@
     "sqlite3": "^5.1.7",
     "superjson": "^2.2.1",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.39.0",
+    "yaml": "^2.3.4",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@clack/prompts": "^0.7.0",
     "@types/lodash.groupby": "^4.6.9",
     "@types/lodash.remove": "^4.7.9",
     "@types/mocha": "^10.0.6",

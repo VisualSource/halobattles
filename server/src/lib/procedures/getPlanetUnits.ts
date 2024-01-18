@@ -12,13 +12,23 @@ const getPlanetUnits = procedure.input(schema).query(({ ctx, input }) => {
 
     if (planet.owner === ctx.user.steamid || planet.spies.includes(ctx.user.steamid)) {
         return {
+            view: "full",
             canEdit: planet.owner === ctx.user.steamid,
+            units: planet.units
+        };
+    }
+
+    if (ctx.global.ownsNeighbor(planet.uuid, ctx.user.steamid)) {
+        return {
+            canEdit: false,
+            view: "partial",
             units: planet.units
         };
     }
 
     return {
         canEdit: false,
+        view: "none",
         units: {
             0: [],
             1: [],

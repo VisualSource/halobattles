@@ -7,6 +7,7 @@
       "title": "Nodes",
       "type": "array",
       "items": {
+        "required": ["uuid", "position", "color", "label"],
         "properties": {
           "uuid": {
             "type": "string",
@@ -15,6 +16,7 @@
           },
           "position": {
             "type": "object",
+            "required": ["x", "y", "z"],
             "properties": {
               "x": {
                 "type": "integer"
