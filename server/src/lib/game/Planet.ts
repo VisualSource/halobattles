@@ -37,7 +37,7 @@ export default class Planet implements Json<PlanetProps> {
         this.label = label;
         this.owner = ownerId ?? null;
         this.icon = icon ?? null;
-        this.units = units ?? { 0: [], 1: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "d8f5338e-4516-42ba-baba-c59ac87ab577", count: 3 }], 2: [] };
+        this.units = units ?? { 0: [], 1: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "locust_banished_00", count: 3 }], 2: [] };
     }
     public reset() {
         this.buildings = [];
@@ -57,6 +57,10 @@ export default class Planet implements Json<PlanetProps> {
         this.units[group as IndexRange] = [];
 
         return copy;
+    }
+
+    public getUniqueBuildings() {
+        return Array.from(new Set(this.buildings.map(v => v.id)).values());
     }
 
     public getStackState(index: number): NonNullable<StackState> {

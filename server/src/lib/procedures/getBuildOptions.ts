@@ -1,16 +1,21 @@
-import { procedure } from "#lib/context.js";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { procedure } from "#lib/context.js";
+import { units } from "#lib/units.js";
 
 const getBuildOptions = procedure.input(z.string().uuid()).query(({ ctx, input }) => {
+    if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
 
-    // TODO
+    const user = ctx.global.players.get(ctx.user.steamid);
+    if (!user) throw new TRPCError({ code: "NOT_FOUND" });
 
-    // fetch planet get buildings
-    // get player global tech.
+    const planet = ctx.global.getPlanet(input);
+    if (!planet) throw new TRPCError({ code: "NOT_FOUND" });
+    if (planet.owner !== ctx.user.steamid) throw new TRPCError({ code: "UNAUTHORIZED" });
 
-    // return all options that are vaild to this planet
+    const tech_and_buildings = [...planet.getUniqueBuildings(), ...Array.from(user.tech)]
 
-    return [];
+    return units.getBuildableUnits(user.team, tech_and_buildings);
 });
 
 export default getBuildOptions;

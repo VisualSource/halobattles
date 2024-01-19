@@ -68,7 +68,7 @@ export default class Core extends EventEmitter {
                 ownerId: "76561198185501646",
                 icon: "https://avatars.steamstatic.com/a521352ec938d97a89f4b9655f75924d3cea6344_medium.jpg",
                 "units": {
-                    0: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "d8f5338e-4516-42ba-baba-c59ac87ab577", count: 3 }],
+                    0: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "locust_banished_00", count: 3 }],
                     1: [],
                     2: []
                 }
@@ -105,7 +105,7 @@ export default class Core extends EventEmitter {
                 "color": "#b74867",
                 "label": "Rather",
                 "units": {
-                    0: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "d8f5338e-4516-42ba-baba-c59ac87ab577", count: 3 }],
+                    0: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "locust_banished_00", count: 3 }],
                     1: [],
                     2: []
                 }

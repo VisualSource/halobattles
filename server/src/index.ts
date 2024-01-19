@@ -28,7 +28,7 @@ if (process.env.NODE_ENV === "development") {
             console.error(err);
             return;
         }
-        global.addPlayer(row as User, Team.UNSC, "#ffffff");
+        global.addPlayer(row as User, Team.BANISHED, "#ffffff");
     });
 }
 

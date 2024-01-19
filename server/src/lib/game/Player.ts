@@ -16,7 +16,23 @@ export default class Player implements Json<PlayerJson> {
     public unit_cap: number = 10;
     public leaders: number = 0;
     public leader_cap: number = 1;
-    public ready: boolean = false;
+    public ready = false;
+    public tech: Set<string> = new Set();
+    /** Map for unique units */
+    public unique: Map<string, number> = new Map();
+    public hasTech(tech: string) {
+        return this.tech.has(tech);
+    }
+    public reset() {
+        this.credits = 500;
+        this.energy = 50;
+        this.units = 0;
+        this.unit_cap = 10;
+        this.leaders = 0;
+        this.leader_cap = 1;
+        this.tech = new Set();
+        this.unique = new Map();
+    }
     getResouces() {
         return {
             credits: this.credits,

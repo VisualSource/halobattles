@@ -31,6 +31,14 @@ const schema = z.object({
   $armor: z.coerce.number().min(0),
   $shield: z.coerce.number().min(0),
   $damage: z.coerce.number().min(0),
+  $requires: z
+    .array(z.string())
+    .transform((e) => JSON.stringify(e))
+    .default("[]"),
+  $faction: z
+    .enum(["UNCS", "BANISHED", "COVENANT", "FORERUNNER"])
+    .optional()
+    .default("UNSC"),
   $weapon_type: z
     .enum(["kinetic", "plasma", "hardlight", "fire", "cryo"])
     .default("kinetic"),
@@ -323,7 +331,9 @@ const main = async () => {
             weapon_type TEXT DEFAULT 'kinetic',
             unit_type TEXT DEFAULT 'infantry',
             stat TEXT DEFAULT 'g:0,i:0,a:0,e:0',
-            attributes TEXT
+            attributes TEXT,
+            requires TEXT DEFUALT '[]',
+            faction TEXT DEFAULT 'UNSC'
         );`,
     (err) => {
       if (err) console.error(err);
@@ -340,6 +350,7 @@ const main = async () => {
         { value: "unit", label: "Unit" },
         { value: "building", label: "Building" },
         { value: "tech", label: "Tech" },
+        { value: "view", label: "View" },
       ],
     });
 
