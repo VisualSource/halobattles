@@ -9,6 +9,7 @@
     "#lib/*": "./dist/lib/*"
   },
   "scripts": {
+    "mirgate": "node ./scripts/migrate.js",
     "make": "node ./scripts/index.js",
     "build": "pnpm tsc",
     "dev:compile": "tsc --watch",

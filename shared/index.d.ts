@@ -10,6 +10,8 @@ export declare enum LaneType {
     Slow = "Slow"
 }
 export declare enum Team {
-    UNSC = "UNSC",
-    COVENT = "COVENT"
+    BANISHED = "BANISHED",
+    COVENANT = "COVENANT",
+    FORERUNNER = "FORERUNNER",
+    UNSC = "UNSC"
 }

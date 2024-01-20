@@ -13,6 +13,8 @@ export var LaneType;
 })(LaneType || (LaneType = {}));
 export var Team;
 (function (Team) {
+    Team["BANISHED"] = "BANISHED";
+    Team["COVENANT"] = "COVENANT";
+    Team["FORERUNNER"] = "FORERUNNER";
     Team["UNSC"] = "UNSC";
-    Team["COVENT"] = "COVENT";
 })(Team || (Team = {}));

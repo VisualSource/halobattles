@@ -12,7 +12,8 @@ import moveGroup from '#procedure/moveGroup.js';
 import getMap from '#procedure/getMap.js';
 import getPlanetUnits from "#procedure/getPlanetUnits.js";
 import getBuildings from "#procedure/getBuildings.js";
-import getBuildOptions from "#procedure/getBuildOptions.js";
+import getBuildOptionsUnits from "#procedure/getBuildOptions.js";
+import getBuildOptionsBuildings from "#procedure/getBuildOptionsBuildings.js";
 import ping from "#procedure/network/ping.js";
 
 export const router = t.router({
@@ -31,7 +32,8 @@ export const router = t.router({
     onSyncDone: subscription("syncDone"),
 
     getMap,
-    getBuildOptions,
+    getBuildOptionsUnits,
+    getBuildOptionsBuildings,
     getPlanetUnits,
     getBuildings,
     moveGroup,

@@ -26,7 +26,7 @@ export default class Planet implements Json<PlanetProps> {
     public label: string;
     public spies: string[] = [];
     public building_slots: number = 3;
-    public buildings: { id: string; icon: string; instance: number; }[] = [];
+    public buildings: { display: boolean, id: string; icon: string; instance: string; }[] = [];
     public units: Record<IndexRange, UnitSlot[]>;
     private _stack_cache: Record<IndexRange, StackState> = { 0: null, 1: null, 2: null }
 
