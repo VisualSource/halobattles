@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import UnitMangment from "./UnitMangment";
 import BuildingMangment from "./BuildingMangment";
-import BuildQueue from "./BuildQueue";
+import BuildQueue from "./queue/BuildQueue";
 
 const NodeView: React.FC = () => {
     const navigate = useNavigate();

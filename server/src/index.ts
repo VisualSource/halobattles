@@ -13,7 +13,7 @@ import { createDb } from "./lib/sqlite.js";
 import { router } from './router.js';
 
 import { global } from './lib/context.js';
-import { Team } from "./lib/game/enums.js";
+import { Team } from 'halobattles-shared';
 import login_fake from "#lib/routes/login_fake.js";
 
 export type AppRouter = typeof router;
@@ -28,7 +28,7 @@ if (process.env.NODE_ENV === "development") {
             console.error(err);
             return;
         }
-        global.addPlayer(row as User, Team.BANISHED, "#ffffff");
+        global.addPlayer({ user: row as User, team: Team.BANISHED });
     });
 }
 

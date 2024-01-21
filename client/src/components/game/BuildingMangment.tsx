@@ -1,7 +1,9 @@
-import { client } from "@/lib/trpc";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { client } from "@/lib/trpc";
 import { Suspense } from "react";
+
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@component/ui/hover-card'
+import { Button } from "../ui/button";
 
 const Inner: React.FC<{ node: string }> = ({ node }) => {
     const { data } = useSuspenseQuery({
@@ -12,23 +14,28 @@ const Inner: React.FC<{ node: string }> = ({ node }) => {
             if (!key) throw new Error("Failed to load planet buildings");
             return client.getBuildings.query(key)
         }
-    })
+    });
+
+    const nonHiddenBuildings = data.buildings.filter(e => e.display);
+    const empty = Array.from({ length: data.slots - nonHiddenBuildings.length });
 
     return (
         <>
-            {data.buildings.map((item) => (
+            {nonHiddenBuildings.map((item) => (
                 <HoverCard key={`${item.id}-${item.instance}`}>
                     <HoverCardTrigger className="bg-zinc-700">
-                        <div className="h-full">
-                            <img src={item.icon} alt="building" className="object-contain h-full w-full" />
+                        <div className="h-full p-2 rounded-md">
+                            <img src={item.icon} alt="building" className="object-contain h-full w-full rounded-md" />
                         </div>
                     </HoverCardTrigger>
                     <HoverCardContent>
-                        Some Building that does stuff
+                        {item.instance}
+
+                        <Button size="sm" variant="destructive">Destory</Button>
                     </HoverCardContent>
                 </HoverCard>
             ))}
-            {Array.from({ length: data.slots - data.buildings.length }).map((_, i) => (
+            {empty.map((_, i) => (
                 <div key={i} className="bg-zinc-900"></div>
             ))}
         </>

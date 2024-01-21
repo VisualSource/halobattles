@@ -67,6 +67,7 @@ export default class Core extends EventEmitter {
                 "label": "Name",
                 ownerId: "76561198185501646",
                 icon: "https://avatars.steamstatic.com/a521352ec938d97a89f4b9655f75924d3cea6344_medium.jpg",
+                buildings: [],
                 "units": {
                     0: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "locust_banished_00", count: 3 }],
                     1: [],
@@ -168,8 +169,14 @@ export default class Core extends EventEmitter {
      * Lobby Functions 
     */
 
-    public addPlayer(user: User, team: Team, color: string) {
-        this.players.set(user.steamid, new Player(user, team, color))
+    public addPlayer({ team = Team.UNSC, color = "#ffffff", user, tech = [] }: { tech?: string[], team?: Team, color?: string, user: User }) {
+        const player = new Player(user, team, color);
+
+        if (tech.length) {
+            player.tech = new Set(tech);
+        }
+
+        this.players.set(user.steamid, player);
     }
 
     public removePlayer(steamId: string) {

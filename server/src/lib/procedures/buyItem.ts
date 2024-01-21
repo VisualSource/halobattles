@@ -120,10 +120,6 @@ const buyItem = procedure.input(schema).mutation(async ({ ctx, input }) => {
             break;
         }
     }
-
-
-
-
 });
 
 export default buyItem;

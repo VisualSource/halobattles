@@ -15,6 +15,7 @@ import getBuildings from "#procedure/getBuildings.js";
 import getBuildOptionsUnits from "#procedure/getBuildOptions.js";
 import getBuildOptionsBuildings from "#procedure/getBuildOptionsBuildings.js";
 import ping from "#procedure/network/ping.js";
+import buyItem from "#procedure/buyItem.js";
 
 export const router = t.router({
     ping,
@@ -31,6 +32,7 @@ export const router = t.router({
     onUpdatePlayer: subscription("updatePlayer"),
     onSyncDone: subscription("syncDone"),
 
+    buyItem,
     getMap,
     getBuildOptionsUnits,
     getBuildOptionsBuildings,

@@ -15,7 +15,7 @@ type PlanetProps = {
 export type IndexRange = 0 | 1 | 2;
 export type UnitSlot = { icon: string; id: string; count: number };
 export type StackState = { state: UnitStackState, icon: string | null } | null;
-
+export type Building = { display: boolean; id: string; icon: string; instance: string; }
 export default class Planet implements Json<PlanetProps> {
     public neighbors: Set<string> = new Set();
     public uuid: string;
@@ -26,17 +26,18 @@ export default class Planet implements Json<PlanetProps> {
     public label: string;
     public spies: string[] = [];
     public building_slots: number = 3;
-    public buildings: { display: boolean, id: string; icon: string; instance: string; }[] = [];
+    public buildings: Building[] = [];
     public units: Record<IndexRange, UnitSlot[]>;
     private _stack_cache: Record<IndexRange, StackState> = { 0: null, 1: null, 2: null }
 
-    constructor({ uuid, position, color, label, ownerId, icon, units }: PlanetProps & { units?: Record<IndexRange, UnitSlot[]>, icon?: string; ownerId?: string }) {
+    constructor({ uuid, position, color, label, ownerId = null, icon = null, units, buildings = [] }: PlanetProps & { buildings?: Building[], units?: Record<IndexRange, UnitSlot[]>, icon?: string | null; ownerId?: string | null }) {
         this.uuid = uuid;
         this.position = position;
         this.color = color;
         this.label = label;
-        this.owner = ownerId ?? null;
-        this.icon = icon ?? null;
+        this.owner = ownerId;
+        this.icon = icon;
+        this.buildings = buildings;
         this.units = units ?? { 0: [], 1: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "locust_banished_00", count: 3 }], 2: [] };
     }
     public reset() {
