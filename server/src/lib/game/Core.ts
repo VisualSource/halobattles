@@ -291,8 +291,13 @@ export default class Core extends EventEmitter {
                 },
             );
 
+            planet.building_queue.reset();
+            planet.unit_queue.reset();
+
             const neighbors = this.getNeighbors(planet.uuid);
             if (neighbors.length) this.send("updatePlanets", neighbors, [planet.owner]);
+
+            planet.contested = false;
 
         } catch (error) {
             this.handleBattleError(error);
@@ -313,6 +318,10 @@ export default class Core extends EventEmitter {
             if (!transfer) throw new Error("Missing transfer");
 
             if (planet.owner !== transfer.owner) {
+                planet.contested = true;
+                planet.unit_queue.puase();
+                planet.building_queue.puase();
+
                 this.piscina.run({ transfer })
                     .then(this.handleBattleResult)
                     .catch(this.handleBattleError);

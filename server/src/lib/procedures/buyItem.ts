@@ -24,6 +24,8 @@ const buyItem = procedure.input(schema).mutation(async ({ ctx, input }) => {
         case "unit": {
             const unit = await units.getUnit(input.item);
 
+            console.log("Buy unit", unit);
+
             // check if player has resource to buy unit
             if (user.credits < unit.supplies || user.energy < unit.energy) {
                 throw new TRPCError({ message: "Does not have required resources.", code: "PRECONDITION_FAILED" });
@@ -54,6 +56,8 @@ const buyItem = procedure.input(schema).mutation(async ({ ctx, input }) => {
                 });
             }
 
+            // apply changes.
+
             user.credits -= unit.supplies;
             user.energy -= unit.energy;
 
@@ -70,10 +74,14 @@ const buyItem = procedure.input(schema).mutation(async ({ ctx, input }) => {
                 user.units += unit.unit_cap;
             }
 
+            // add unit to build queue.
+
             break;
         }
         case "building": {
             const building = await units.getBuilding(input.item);
+
+            console.log("Buy building", building);
 
             // check if player has resource to buy unit
             if (user.credits < building.supplies || user.energy < building.energy) {
@@ -95,7 +103,7 @@ const buyItem = procedure.input(schema).mutation(async ({ ctx, input }) => {
                 });
             }
 
-            if ((node.buildings.length + 1) < node.building_slots) {
+            if ((node.buildings.length + 1) > node.building_slots) {
                 throw new TRPCError({
                     code: "PRECONDITION_FAILED",
                     message: "Max building slots"
@@ -105,21 +113,44 @@ const buyItem = procedure.input(schema).mutation(async ({ ctx, input }) => {
             user.credits -= building.supplies;
             user.energy -= building.energy;
 
+            const instanceId = randomBytes(5).toString("hex");
             // local instance.
             // hide until build time is done.
-            node.buildings.push({ display: false, id: building.id, icon: building.icon, instance: randomBytes(5).toString("hex") });
+            node.buildings.push({ display: false, id: building.id, icon: building.icon, instance: instanceId });
 
             if (building.max_global_instances !== -1) {
                 const item = user.unique.get(building.id);
                 user.unique.set(building.id, item ? item + 1 : 1);
             }
 
+            node.building_queue.addTask({ attributes: building.attributes, build_time: building.build_time * 1000, node: node.uuid, id: building.id, instance: instanceId }, (meta) => {
+                const node = ctx.global.getPlanet(meta.node);
+                if (!node) throw new Error("Failed to find node");
 
+                const item = node.buildings.find(e => e.id === meta.id && e.instance === meta.instance);
+                if (!item) throw new Error("Failed to find building instance");
+                item.display = true;
 
+                ctx.global.send("updateQueue", {
+                    node: meta.node,
+                    type: "building"
+                }, [ctx.user.steamid]);
+
+                // handle building attributes
+                // I.E inc unit cap
+            });
+
+            ctx.global.send("updateQueue", {
+                node: node.uuid,
+                type: "building"
+            })
 
             break;
         }
     }
+
+
+    ctx.global.send("updateResouces", undefined, [ctx.user.steamid]);
 });
 
 export default buyItem;

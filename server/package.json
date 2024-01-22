@@ -13,7 +13,7 @@
     "make": "node ./scripts/index.js",
     "build": "pnpm tsc",
     "dev:compile": "tsc --watch",
-    "dev:run": "nodemon ./dist/index.js --config ./nodemon.json",
+    "dev:run": "nodemon --inspect ./dist/index.js --config ./nodemon.json",
     "test:run": "nodemon --config ./nodemon.test.json",
     "test:compile": "tsc --watch",
     "start": "node ./dist/index.js",
@@ -25,7 +25,7 @@
   "license": "ISC",
   "dependencies": {
     "@trpc/server": "^10.45.0",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.3.2",
     "halobattles-shared": "workspace:^",
     "jose": "^5.2.0",
     "lodash.groupby": "^4.6.0",
@@ -42,9 +42,9 @@
     "@types/lodash.groupby": "^4.6.9",
     "@types/lodash.remove": "^4.7.9",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^20.11.4",
+    "@types/node": "^20.11.5",
     "mocha": "^10.2.0",
-    "nodemon": "^3.0.2",
+    "nodemon": "^3.0.3",
     "typescript": "^5.3.3"
   }
 }

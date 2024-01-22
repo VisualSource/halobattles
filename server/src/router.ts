@@ -16,6 +16,8 @@ import getBuildOptionsUnits from "#procedure/getBuildOptions.js";
 import getBuildOptionsBuildings from "#procedure/getBuildOptionsBuildings.js";
 import ping from "#procedure/network/ping.js";
 import buyItem from "#procedure/buyItem.js";
+import getQueue from "#procedure/getQueue.js";
+import cancelItem from "#procedure/cancelItem.js";
 
 export const router = t.router({
     ping,
@@ -32,8 +34,10 @@ export const router = t.router({
     onUpdatePlayer: subscription("updatePlayer"),
     onSyncDone: subscription("syncDone"),
 
+    cancelItem,
     buyItem,
     getMap,
+    getQueue,
     getBuildOptionsUnits,
     getBuildOptionsBuildings,
     getPlanetUnits,
@@ -41,6 +45,7 @@ export const router = t.router({
     moveGroup,
     getPlayerState,
     updateGroup,
+    onQueueUpdate: subscription("updateQueue"),
     onUpdatePlanet: subscription("updatePlanet"),
     onUpdatePlanets: subscription("updatePlanets"),
     onStartGame: subscription("startGame"),

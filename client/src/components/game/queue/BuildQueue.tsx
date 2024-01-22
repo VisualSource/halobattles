@@ -4,12 +4,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@component/ui/tabs";
 import { Container, UserPlus2 } from "lucide-react";
 import UnitOptions from "./UnitOptions";
 import BuildingOptions from "./BuildingOptions";
+import QueueUnits from "./QueueUnits";
+import BuildingQueue from "./BuildingQueue";
 
 const BuildQueue: React.FC<{ node: string }> = ({ node }) => {
     return (
         <div className="grid grid-cols-3 grid-rows-none h-full">
-            <section className="col-span-1"></section>
-            <section className="col-span-1 border-l border-r"></section>
+            <Suspense>
+                <QueueUnits node={node} />
+            </Suspense>
+            <Suspense>
+                <BuildingQueue node={node} />
+            </Suspense>
             <section className="col-span-1 bg-zinc-900">
                 <Tabs defaultValue="units">
                     <TabsList className="w-full">

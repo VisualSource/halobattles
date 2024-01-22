@@ -4,6 +4,8 @@ import { client } from "@/lib/trpc";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import BuildOption from "./BuildOption";
 
+import { formatDuration } from 'date-fns/formatDuration'
+
 const BuildingOptions: React.FC<{ node: string }> = ({ node }) => {
     const resouces = usePlayerResources();
     const { data } = useSuspenseQuery({
@@ -26,7 +28,7 @@ const BuildingOptions: React.FC<{ node: string }> = ({ node }) => {
                     <div className="flex flex-col pt-2">
                         <div className="text-sm">Supplies Cost: {item.supplies}</div>
                         <div className="text-sm">Enegry Cost: {item.energy}</div>
-                        <div className="text-sm">Build Time: {item.build_time}</div>
+                        <div className="text-sm">Build Time: {formatDuration({ seconds: item.build_time })}</div>
                     </div>
                     {item.max_global_instances > 0 ? (<div className="text-sm">Max buildable Globaly: {item.max_global_instances}</div>) : null}
                     {item.max_global_instances > 0 ? (<div className="text-sm">Max buildable Localy: {item.max_local_instances}</div>) : null}

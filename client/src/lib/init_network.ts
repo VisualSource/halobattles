@@ -6,6 +6,8 @@ import type { Vector3 } from "three";
 import UnitMovementIndicator from "./game_objects/unit_movement_indicator";
 import { client } from '@/lib/trpc';
 import Engine, { UNKNOWN_STACK_ICON } from "./engine";
+import { queryClient } from "./query";
+import { PLANET_QUEUE_BUILDING, PLANET_QUEUE_UNITS } from "./query_keys";
 
 export default function handle_network(engine: Engine | undefined) {
     const controller = new AbortController();
@@ -146,10 +148,17 @@ export default function handle_network(engine: Engine | undefined) {
         },
     });
 
+    const onUpdateQueue = client.onQueueUpdate.subscribe(undefined, {
+        onData(value) {
+            queryClient.invalidateQueries({ queryKey: [value.type === "unit" ? PLANET_QUEUE_UNITS : PLANET_QUEUE_BUILDING, value.node] });
+        },
+    });
+
     return () => {
         controller.abort();
         onTransfer.unsubscribe();
         onSyncDone.unsubscribe();
+        onUpdateQueue.unsubscribe();
         onUpdatePlanet.unsubscribe();
         onUpdatePlanets.unsubscribe();
     }

@@ -1,8 +1,9 @@
+import { LaneType } from "halobattles-shared";
 import { describe, it } from "mocha";
 import assert from 'node:assert';
-import Dijkstra from "../lib/dijkstra.js";
+
+import Dijkstra from "#lib/dijkstra.js";
 import Planet from "#lib/game/Planet.js";
-import { LaneType } from "halobattles-shared";
 
 const mapData = {
     "nodes": new Map([
@@ -91,8 +92,6 @@ function getWeight(user: string, node: string, type: string): number {
 }
 
 describe("Dijstra", () => {
-
-
     it("test if path is correct", () => {
 
         const result = Dijkstra(
@@ -105,9 +104,8 @@ describe("Dijstra", () => {
             getWeight
         );
 
-        console.log(result);
-
-        assert(result.path.length === 3);
+        assert(result.path.length === 3, "Path length is not 3");
+        assert(result.exec_time === 2, "Result exec time is not 2");
     });
 
 });

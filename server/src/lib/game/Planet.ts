@@ -1,5 +1,6 @@
 import { UnitStackState } from "halobattles-shared";
 import { type Json } from "./types.js"
+import TimedQueue from "#lib/timed_queue.js";
 
 type PlanetProps = {
     uuid: string,
@@ -16,7 +17,25 @@ export type IndexRange = 0 | 1 | 2;
 export type UnitSlot = { icon: string; id: string; count: number };
 export type StackState = { state: UnitStackState, icon: string | null } | null;
 export type Building = { display: boolean; id: string; icon: string; instance: string; }
+
+export interface BuildItem {
+    build_time: number;
+}
+
+export interface UnitJob extends BuildItem {
+    id: string;
+    node: string;
+}
+
+export interface BuildingJob extends BuildItem {
+    id: string;
+    node: string;
+    instance: string;
+    attributes: string;
+}
+
 export default class Planet implements Json<PlanetProps> {
+    public contested: boolean = false;
     public neighbors: Set<string> = new Set();
     public uuid: string;
     public owner: string | null = null;
@@ -30,6 +49,9 @@ export default class Planet implements Json<PlanetProps> {
     public units: Record<IndexRange, UnitSlot[]>;
     private _stack_cache: Record<IndexRange, StackState> = { 0: null, 1: null, 2: null }
 
+    public unit_queue = new TimedQueue<UnitJob>();
+    public building_queue = new TimedQueue<BuildingJob>();
+
     constructor({ uuid, position, color, label, ownerId = null, icon = null, units, buildings = [] }: PlanetProps & { buildings?: Building[], units?: Record<IndexRange, UnitSlot[]>, icon?: string | null; ownerId?: string | null }) {
         this.uuid = uuid;
         this.position = position;
@@ -41,6 +63,10 @@ export default class Planet implements Json<PlanetProps> {
         this.units = units ?? { 0: [], 1: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "locust_banished_00", count: 3 }], 2: [] };
     }
     public reset() {
+
+        this.unit_queue.reset();
+        this.building_queue.reset();
+
         this.buildings = [];
         this.spies = [];
         this.icon = null;
