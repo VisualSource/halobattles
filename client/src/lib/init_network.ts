@@ -1,13 +1,14 @@
-import type { AppRouter } from "halobattles-server/src/index";
+import type { AppRouter } from "halobattles-server";
 import { UnitStackState } from 'halobattles-shared';
 import type { TRPCClientError } from "@trpc/client";
 import { Tween } from "@tweenjs/tween.js";
 import type { Vector3 } from "three";
+
+import { PLANET_QUEUE_BUILDING, PLANET_QUEUE_UNITS, PLAYER_RESOUCES_KEY } from "./query_keys";
 import UnitMovementIndicator from "./game_objects/unit_movement_indicator";
-import { client } from '@/lib/trpc';
 import Engine, { UNKNOWN_STACK_ICON } from "./engine";
 import { queryClient } from "./query";
-import { PLANET_QUEUE_BUILDING, PLANET_QUEUE_UNITS } from "./query_keys";
+import { client } from '@/lib/trpc';
 
 export default function handle_network(engine: Engine | undefined) {
     const controller = new AbortController();
@@ -154,6 +155,12 @@ export default function handle_network(engine: Engine | undefined) {
         },
     });
 
+    const onUpdateResources = client.onUpdateResouces.subscribe(undefined, {
+        onData() {
+            queryClient.invalidateQueries({ queryKey: [PLAYER_RESOUCES_KEY] })
+        }
+    });
+
     return () => {
         controller.abort();
         onTransfer.unsubscribe();
@@ -161,5 +168,6 @@ export default function handle_network(engine: Engine | undefined) {
         onUpdateQueue.unsubscribe();
         onUpdatePlanet.unsubscribe();
         onUpdatePlanets.unsubscribe();
+        onUpdateResources.unsubscribe();
     }
 }

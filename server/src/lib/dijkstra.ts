@@ -1,6 +1,6 @@
 import groupby from 'lodash.groupby';
-import PriorityQueue from './priority_queue.js';
-import type { MapData } from './game/Core.js';
+import PriorityQueue from './queue/priority_queue.js';
+import type { MapData } from '#game/Core.js';
 
 export default function Dijkstra(graph: MapData, { start, end, user }: { start: string; end: string; user: string }, getWeight: (user: string, node: string, linkType: string) => number) {
 

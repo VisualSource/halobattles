@@ -1,6 +1,6 @@
 import { describe, it } from "mocha";
 import assert from 'node:assert';
-import TimedQueue from '#lib/timed_queue.js';
+import TimedQueue from '#lib/queue/timed_queue.js';
 
 describe("TimedQueue", () => {
     describe("#isEmpty()", () => {

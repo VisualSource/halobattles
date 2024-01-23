@@ -21,7 +21,7 @@ export enum Team {
 export type WeaponType = "kinetic" | "plasma" | "hardlight" | "fire" | "cryo" | "none";
 type Stat = `g:${number},i:${number},a:${number},e:${number}`;
 type JsonStringArray = `[${string}]`;
-export type UnitType = "infantry" | "vehicle" | "ground" | "enplacement";
+export type UnitType = "infantry" | "air" | "ground" | "enplacement";
 
 export type Unit = {
     id: `${string}_${string}_${number}${number}`;

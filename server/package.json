@@ -5,8 +5,11 @@
   "type": "module",
   "types": "./dist/index.d.ts",
   "imports": {
-    "#procedure/*": "./dist/lib/procedures/*",
-    "#lib/*": "./dist/lib/*"
+    "#procedure/*": "./dist/procedures/*",
+    "#lib/*": "./dist/lib/*",
+    "#trpc/*": "./dist/trpc/*",
+    "#game/*": "./dist/game/*",
+    "#http/*": "./dist/http/*"
   },
   "scripts": {
     "mirgate": "node ./scripts/migrate.js",

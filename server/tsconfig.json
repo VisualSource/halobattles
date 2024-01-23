@@ -2,7 +2,6 @@
   "include": ["src/**/*"],
   "exclude": ["meta/**/*", "src/old/**/*"],
   "compilerOptions": {
-    "composite": true,
     /* Visit https://aka.ms/tsconfig.json to read more about this file */
     "strictPropertyInitialization": false,
     "allowSyntheticDefaultImports": true,
@@ -14,7 +13,10 @@
     "rootDir": "./src",
     "moduleResolution": "NodeNext",
     "paths": {
-      "#procedure/*": ["./src/lib/procedures/*"],
+      "#procedure/*": ["./src/procedures/*"],
+      "#game/*": ["./src/game/*"],
+      "#http/*": ["./src/http/*"],
+      "#trpc/*": ["./src/trpc/*"],
       "#lib/*": ["./src/lib/*"]
     },
     "baseUrl": "./" /* Specify the base directory to resolve non-relative module names. */,
@@ -25,7 +27,6 @@
       "./global.d.ts"
     ] /* Specify type package names to be included without being referenced in a source file. */,
     "resolveJsonModule": true /* Enable importing .json files */,
-
     "noUncheckedIndexedAccess": true,
     "outDir": "./dist" /* Specify an output folder for all emitted files. */,
     "removeComments": true /* Disable emitting comments. */,

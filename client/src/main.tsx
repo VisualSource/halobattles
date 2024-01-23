@@ -6,14 +6,13 @@ import React from 'react';
 
 import 'react-toastify/dist/ReactToastify.css';
 
-import { ThemeProvider } from './components/theme-provider.tsx';
+import { ThemeProvider } from '@component/theme-provider.tsx';
 //import { trpc, trpcClient } from './lib/trpc.ts';
 import { router } from './router.tsx';
 
 import './index.css';
 
-import { queryClient } from './lib/query.ts';
-
+import { queryClient } from '@lib/query.ts';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

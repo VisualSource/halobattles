@@ -3,7 +3,7 @@ import {
     createBrowserRouter,
     Route,
 } from "react-router-dom";
-import NodeView from "./components/game/NodeView";
+import NodeView from "@component/game/node/NodeView";
 import ErrorPage from "@page/ErrorPage";
 import Lobby from "@page/Lobby";
 import Home from "@page/Home";

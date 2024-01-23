@@ -3,7 +3,7 @@ import { describe, it } from "mocha";
 import assert from 'node:assert';
 
 import Dijkstra from "#lib/dijkstra.js";
-import Planet from "#lib/game/Planet.js";
+import Planet from "#game/Planet.js";
 
 const mapData = {
     "nodes": new Map([

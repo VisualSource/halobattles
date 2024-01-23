@@ -1,6 +1,6 @@
+import { exit } from 'node:process';
 import { config } from 'dotenv';
 import { z } from 'zod';
-import { exit } from 'node:process';
 
 const schema = z.object({
     STEAM_API_KEY: z.string().min(1),

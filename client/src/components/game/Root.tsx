@@ -1,17 +1,13 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
-import { PLAYER_RESOUCES_KEY } from "@/lib/query_keys";
-import PlayerResouces from "./PlayerResouces";
-import { Button } from "../ui/button";
-import PlayerIcon from "./PlayerIcon";
-import { client } from "@/lib/trpc";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@component/ui/dialog";
+import PlayerResouces from "./hud/PlayerResouces";
+import { Button } from "@component/ui/button";
+import PlayerIcon from "./hud/PlayerIcon";
 
 const GameUIRoot: React.FC = () => {
-    const queryClient = useQueryClient();
     const [isLoading, setIsLoading] = useState(true);
 
     const navigate = useNavigate();
@@ -35,18 +31,6 @@ const GameUIRoot: React.FC = () => {
             window.removeEventListener("event::loading-state", loadingState);
         }
     }, [navigate]);
-
-    useEffect(() => {
-        const onUpdate = client.onUpdateResouces.subscribe(undefined, {
-            onData() {
-                queryClient.invalidateQueries({ queryKey: [PLAYER_RESOUCES_KEY] })
-            }
-        });
-
-        return () => {
-            onUpdate.unsubscribe();
-        }
-    }, [queryClient]);
 
     return (
         <>
