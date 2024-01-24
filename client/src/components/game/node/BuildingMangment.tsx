@@ -2,12 +2,13 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { client } from "@/lib/trpc";
 import { Suspense } from "react";
 
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@component/ui/hover-card'
-import { Button } from "@component/ui/button";
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from '@component/ui/context-menu';
+import { PLANET_BUILDINGS } from "@/lib/query_keys";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 const Inner: React.FC<{ node: string }> = ({ node }) => {
     const { data } = useSuspenseQuery({
-        queryKey: ["PLANET_BUILDINGS", node],
+        queryKey: [PLANET_BUILDINGS, node],
         refetchOnMount: true,
         queryFn: ({ queryKey }) => {
             const key = queryKey.at(1);
@@ -22,18 +23,28 @@ const Inner: React.FC<{ node: string }> = ({ node }) => {
     return (
         <>
             {nonHiddenBuildings.map((item) => (
-                <HoverCard key={`${item.id}-${item.instance}`}>
-                    <HoverCardTrigger className="bg-zinc-700">
-                        <div className="h-full p-2 rounded-md">
-                            <img src={item.icon} alt="building" className="object-contain h-full w-full rounded-md" />
-                        </div>
-                    </HoverCardTrigger>
-                    <HoverCardContent>
-                        {item.instance}
+                <ContextMenu key={`${item.id}-${item.instance}`} modal={false}>
+                    <ContextMenuTrigger>
+                        <HoverCard>
+                            <HoverCardTrigger>
+                                <div className="bg-zinc-700">
+                                    <div className="h-full p-2 rounded-md">
+                                        <img src={item.icon} alt="building" className="object-contain h-full w-full rounded-md" />
+                                    </div>
+                                </div>
+                            </HoverCardTrigger>
+                            <HoverCardContent>
+                                {item.instance}
+                            </HoverCardContent>
+                        </HoverCard>
 
-                        <Button size="sm" variant="destructive">Destory</Button>
-                    </HoverCardContent>
-                </HoverCard>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="z-[1001]">
+                        <ContextMenuItem inset onClick={() => {
+                            client.sellBuilding.mutate({ node, instance: item.instance });
+                        }}>Sell</ContextMenuItem>
+                    </ContextMenuContent>
+                </ContextMenu>
             ))}
             {empty.map((_, i) => (
                 <div key={i} className="bg-zinc-900"></div>

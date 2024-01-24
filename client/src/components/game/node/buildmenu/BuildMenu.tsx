@@ -11,10 +11,10 @@ const BuildMenu: React.FC<{ node: string }> = ({ node }) => {
     return (
         <div className="grid grid-cols-3 grid-rows-none h-full">
             <Suspense>
-                <Queue node={node} key={PLANET_QUEUE_UNITS} name="Unit Queue:" type="unit" />
+                <Queue node={node} keyQuery={PLANET_QUEUE_UNITS} name="Unit Queue:" type="unit" />
             </Suspense>
             <Suspense>
-                <Queue node={node} key={PLANET_QUEUE_BUILDING} name="Building Queue:" type="building" />
+                <Queue node={node} keyQuery={PLANET_QUEUE_BUILDING} name="Building Queue:" type="building" />
             </Suspense>
             <section className="col-span-1 bg-zinc-900">
                 <Tabs defaultValue="units">

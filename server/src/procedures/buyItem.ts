@@ -130,6 +130,9 @@ const buyItem = procedure.input(schema).mutation(async ({ ctx, input }) => {
             user.credits -= building.supplies;
             user.energy -= building.energy;
 
+            user.income_credits -= building.upkeep_supplies;
+            user.income_energy -= building.upkeep_energy;
+
             const instanceId = randomBytes(5).toString("hex");
             // local instance.
             // hide until build time is done.

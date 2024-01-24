@@ -17,10 +17,10 @@ const PlayerInnerResouces: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1 bg-zinc-800 pl-0.5 pr-2 py-1">
-                <PoundSterling className="h-4 text-white" /> <span className="text-sm text-gray-400">{data.income_credits}+</span>
+                <PoundSterling className="h-4 text-white" /> <span className="text-sm text-gray-400">{data.income_credits} <span className="text-zinc-50">+</span></span>
             </div>
             <div className="flex items-center gap-1 bg-zinc-800 pl-0.5 pr-2 py-1">
-                <Atom className="h-4 text-white" /> <span className="text-sm text-gray-400">{data.income_energy}+</span>
+                <Atom className="h-4 text-white" /> <span className="text-sm text-gray-400">{data.income_energy} <span className="text-zinc-50">+</span></span>
             </div>
         </>
     );

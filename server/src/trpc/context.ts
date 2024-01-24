@@ -15,22 +15,20 @@ global.setMap("test_map_01.json");
 
 export const createContext = async (opts: { req: { headers: Record<string, string> }, res: HttpResponse }, db: Database) => {
     const cookie = opts?.req?.headers?.cookie;
-    if (cookie) {
-        const cookies = cookie.split("; ");
-        const session = cookies.find(value => value.startsWith("session"))?.replace("session=", "");
-        if (!session) {
-            throw new TRPCError({ code: "UNAUTHORIZED" });
-        }
-        const { payload } = await jwtVerify(decodeURIComponent(session), PRIVATE_KEY);
-        const user = await new Promise<User>((ok, reject) => db.get(`SELECT * FROM users WHERE steamid = ?`, payload.id, (err, row) => {
-            if (err) return reject(err);
-            if (!row) return reject();
-            ok(row as User);
-        }));
-        return { user, global };
-    }
+    if (!cookie) throw new TRPCError({ code: "PRECONDITION_FAILED" });
 
-    return { global }
+    const cookies = cookie.split("; ");
+    const session = cookies.find(value => value.startsWith("session"))?.replace("session=", "");
+    if (!session) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    const { payload } = await jwtVerify(decodeURIComponent(session), PRIVATE_KEY);
+    const user = await new Promise<User>((ok, reject) => db.get<User>(`SELECT * FROM users WHERE steamid = ?`, payload.id, (err, row) => {
+        if (err) return reject(new TRPCError({ code: "INTERNAL_SERVER_ERROR", cause: err }));
+        if (!row) return reject(new TRPCError({ code: "NOT_FOUND", message: "User not found." }));
+        ok(row as User);
+    }));
+    return { user, global };
 };
 
 export type Context = inferAsyncReturnType<typeof createContext>;

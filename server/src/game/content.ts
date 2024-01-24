@@ -1,12 +1,16 @@
 import { Team, type Unit, type Building } from "halobattles-shared";
 import sqlite3 from 'sqlite3';
 import { getFile } from '#lib/utils.js';
+import { Prettify, UniqueArray } from "./types.js";
+
+type GetBuildingKeys<T extends (keyof Building)[]> = T extends ["*"] ? Building : Pick<Building, T[number]>;
+type GetUnitKeys<T extends (keyof Unit)[]> = T extends ["*"] ? Unit : Pick<Unit, T[number]>;
 
 const content = {
     db: new sqlite3.Database(getFile("../../db/units.db", import.meta.url), sqlite3.OPEN_READONLY),
-    getUnit: function (item: string) {
-        return new Promise<Unit>((resolve, reject) => {
-            this.db.get<Unit>("SELECT * FROM units WHERE id = $id;", {
+    getUnit: function <T extends UniqueArray<(keyof Unit)[]>>(item: string, keys: T | ["*"] = ["*"]) {
+        return new Promise<Prettify<GetUnitKeys<T>>>((resolve, reject) => {
+            this.db.get<Prettify<GetUnitKeys<T>>>(`SELECT ${keys.join(",")} FROM units WHERE id = $id;`, {
                 $id: item
             }, (err, row) => {
                 if (err) return reject(err);
@@ -14,9 +18,9 @@ const content = {
             });
         });
     },
-    getBuilding: function (item: string) {
-        return new Promise<Building>((resolve, reject) => {
-            this.db.get<Building>("SELECT * FROM buildings WHERE id = $id;", {
+    getBuilding: function <T extends UniqueArray<(keyof Building)[]>>(item: string, keys: T | ["*"] = ["*"]) {
+        return new Promise<Prettify<GetBuildingKeys<T>>>((resolve, reject) => {
+            this.db.get<Prettify<GetBuildingKeys<T>>>(`SELECT ${keys.join(",")} FROM buildings WHERE id = $id;`, {
                 $id: item
             }, (err, row) => {
                 if (err) return reject(err);

@@ -8,6 +8,7 @@ import getPlayers from "#procedure/lobby/getPlayers.js";
 import startGame from "#procedure/lobby/startGame.js";
 import getBuildings from "#procedure/getBuildings.js";
 import addPlayer from '#procedure/lobby/addPlayer.js';
+import sellBuilding from "#procedure/sellBuilding.js";
 import updateGroup from '#procedure/updateGroups.js';
 import syncDone from "#procedure/lobby/syncDone.js";
 import getSelf from "#procedure/lobby/getSelf.js";
@@ -17,6 +18,7 @@ import moveGroup from '#procedure/moveGroup.js';
 import getQueue from "#procedure/getQueue.js";
 import buyItem from "#procedure/buyItem.js";
 import getMap from '#procedure/getMap.js';
+
 
 export const router = t.router({
     removePlayer,
@@ -31,7 +33,7 @@ export const router = t.router({
     onRemovePlayer: subscription("removePlayer"),
     onUpdatePlayer: subscription("updatePlayer"),
     onSyncDone: subscription("syncDone"),
-
+    sellBuilding,
     cancelItem,
     buyItem,
     getMap,
@@ -43,6 +45,7 @@ export const router = t.router({
     moveGroup,
     getPlayerState,
     updateGroup,
+    onUpdateBuildings: subscription("updateBuildings"),
     onQueueUpdate: subscription("updateQueue"),
     onUpdatePlanet: subscription("updatePlanet"),
     onUpdatePlanets: subscription("updatePlanets"),

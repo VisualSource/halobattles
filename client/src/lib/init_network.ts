@@ -4,7 +4,7 @@ import type { TRPCClientError } from "@trpc/client";
 import { Tween } from "@tweenjs/tween.js";
 import type { Vector3 } from "three";
 
-import { PLANET_QUEUE_BUILDING, PLANET_QUEUE_UNITS, PLAYER_RESOUCES_KEY } from "./query_keys";
+import { PLANET_BUILDINGS, PLANET_QUEUE_BUILDING, PLANET_QUEUE_UNITS, PLAYER_RESOUCES_KEY } from "./query_keys";
 import UnitMovementIndicator from "./game_objects/unit_movement_indicator";
 import Engine, { UNKNOWN_STACK_ICON } from "./engine";
 import { queryClient } from "./query";
@@ -161,6 +161,14 @@ export default function handle_network(engine: Engine | undefined) {
         }
     });
 
+    const onUpdateBuildings = client.onUpdateBuildings.subscribe(undefined, {
+        onData(value) {
+            queryClient.invalidateQueries({
+                queryKey: [PLANET_BUILDINGS, value]
+            });
+        },
+    });
+
     return () => {
         controller.abort();
         onTransfer.unsubscribe();
@@ -169,5 +177,6 @@ export default function handle_network(engine: Engine | undefined) {
         onUpdatePlanet.unsubscribe();
         onUpdatePlanets.unsubscribe();
         onUpdateResources.unsubscribe();
+        onUpdateBuildings.unsubscribe();
     }
 }

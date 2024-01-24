@@ -5,6 +5,7 @@
     /* Visit https://aka.ms/tsconfig.json to read more about this file */
     "strictPropertyInitialization": false,
     "allowSyntheticDefaultImports": true,
+    "declaration": true,
     "target": "ESNext" /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */,
     "lib": ["ES2020"],
     "useDefineForClassFields": true,
