@@ -1,5 +1,5 @@
 import { Team } from 'halobattles-shared';
-import type { User } from '#trpc/context.js';
+import type { User } from './content.js';
 import type { Json } from './types.js';
 
 export type PlayerJson = {
@@ -37,6 +37,31 @@ export default class Player implements Json<PlayerJson> {
         this.income_credits = 50;
         this.income_energy = 5;
     }
+
+    public addUnique(id: string, amount: number = 1) {
+        const item = this.unique.get(id);
+
+        if (!item) {
+            this.unique.set(id, amount);
+            return;
+        }
+
+        this.unique.set(id, item + amount);
+    }
+    public removeUnique(id: string, amount: number = 1) {
+        const item = this.unique.get(id);
+        if (!item) return;
+
+        const value = item - amount;
+
+        if (value <= 0) {
+            this.unique.delete(id);
+            return;
+        }
+
+        this.unique.set(id, value);
+    }
+
     getResouces() {
         return {
             income_credits: this.income_credits,

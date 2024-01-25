@@ -2,7 +2,7 @@ import { LaneType } from "halobattles-shared";
 import { describe, it } from "mocha";
 import assert from 'node:assert';
 
-import Dijkstra from "#lib/dijkstra.js";
+import Dijkstra, { DijkstraClosestNode } from "#lib/dijkstra.js";
 import Planet from "#game/Planet.js";
 
 const mapData = {
@@ -16,6 +16,7 @@ const mapData = {
                     "y": 0,
                     "z": 0
                 },
+                ownerId: "AAAA-AAAA-AAAA-AAAA",
                 "color": "#0033ff",
                 "label": "Name"
             })
@@ -48,7 +49,8 @@ const mapData = {
                 "z": 0
             },
             "color": "#b74867",
-            "label": "Rather"
+            "label": "Rather",
+            ownerId: "BBBB-BBBB-BBBB-BBBB",
         })]
     ]),
     "linkes": [
@@ -92,20 +94,36 @@ function getWeight(user: string, node: string, type: string): number {
 }
 
 describe("Dijstra", () => {
-    it("test if path is correct", () => {
 
-        const result = Dijkstra(
-            mapData,
-            {
-                start: "bc8b6b77-908b-4f30-b477-f17bbeceba83",
-                end: "5c1537ae-9c6c-4240-b515-6be7988f967d",
-                user: "user_uuid"
-            },
-            getWeight
-        );
+    describe("#Dijstra()", () => {
+        it("test if path is correct", function () {
+            const result = Dijkstra(
+                mapData,
+                {
+                    start: "bc8b6b77-908b-4f30-b477-f17bbeceba83",
+                    end: "5c1537ae-9c6c-4240-b515-6be7988f967d",
+                    user: "user_uuid"
+                },
+                getWeight
+            );
 
-        assert(result.path.length === 3, "Path length is not 3");
-        assert(result.exec_time === 2, "Result exec time is not 2");
+            assert(result.path.length === 3, "Path length is not 3");
+            assert(result.exec_time === 2, "Result exec time is not 2");
+        });
+    });
+
+    describe("#DijkstraClosestNode()", () => {
+        it("Returns the closet node with give owner", function () {
+
+            const result = DijkstraClosestNode(mapData, {
+                start: "28c409a2-4a3a-4e24-8dd7-9275dc668e33" /* Start at node with name of "Name" */,
+                owner: "BBBB-BBBB-BBBB-BBBB"
+            }, getWeight);
+
+            console.log(result);
+
+            assert(true);
+        });
     });
 
 });

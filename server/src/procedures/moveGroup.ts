@@ -49,7 +49,7 @@ const moveGroup = procedure.input(schema).mutation(({ ctx, input }) => {
         return;
     }
 
-    const { path, exec_time } = Dijkstra(ctx.global.mapData, { start: input.from, end: input.to, user: "", }, ctx.global.getWeight);
+    const { path, exec_time } = Dijkstra(ctx.global.mapData, { start: input.from, end: input.to, user: ctx.user.steamid, }, ctx.global.getWeight);
 
     const transferId = ctx.global.createTransfer(
         { id: input.from as UUID, group: input.fromGroup as 0 | 1 | 2 },

@@ -43,7 +43,12 @@ export default function handle_network(engine: Engine | undefined) {
     const onTransfer = client.onTransfer.subscribe(undefined, {
         onData({ path, group, node }) {
             console.info("Event: onTransfer, Payload: ", path, group, node);
-            engine.getObject(node).getStack(group).state = UnitStackState.Empty;
+
+            const obj = engine.getObject(node);
+
+            if (engine.ownerId === obj.ownerId) {
+                obj.getStack(group).state = UnitStackState.Empty;
+            }
 
             const indicator = new UnitMovementIndicator(path[0].position.x, path[0].position.y);
             engine.addObject(indicator);

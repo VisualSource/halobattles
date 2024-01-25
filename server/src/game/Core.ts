@@ -8,14 +8,15 @@ import { addMinutes } from "date-fns/addMinutes";
 import Planet, { type IndexRange, type StackState, type UnitSlot } from './Planet.js';
 import type { EventName, Events } from './types.js';
 import { getFilePathURL } from '#lib/utils.js';
-import type { User } from '#trpc/context.js';
 import merge from '#lib/merge.js';
 import Player from "./Player.js";
-import { content } from './content.js';
-
+import { content, type User } from './content.js';
+import { BattleResult } from './battle/battle_worker.js';
+import Dijkstra, { DijkstraClosestNode } from '#lib/dijkstra.js';
 
 export type Transfer = {
     id: UUID;
+    expies: Date,
     owner: string;
     origin: {
         id: UUID,
@@ -223,26 +224,31 @@ export default class Core extends EventEmitter {
         this.players.delete(steamId);
     }
 
-    public createTransfer(origin: { id: UUID; group: IndexRange }, destination: { id: UUID; group: IndexRange }, owner: string): UUID {
+    private createTransferFromUnits(origin: { id: UUID; group: IndexRange }, destination: { id: UUID; group: IndexRange }, owner: string, units: UnitSlot[]) {
         const id = randomUUID();
-
-        const planet = this.getPlanet(origin.id);
-        if (!planet) throw new Error("Failed to find planet");
-        if (planet.owner !== owner) throw new Error("Owner does not control origin planet.");
-
-        const units = planet.take(origin.group);
 
         const transfer: Transfer = {
             id,
             owner,
             origin,
             destination,
-            units
+            units,
+            expies: addMinutes(new Date(), 10)
         };
 
         this.transfers.set(id, transfer);
 
         return id;
+    }
+
+    public createTransfer(origin: { id: UUID; group: IndexRange }, destination: { id: UUID; group: IndexRange }, owner: string): UUID {
+        const planet = this.getPlanet(origin.id);
+        if (!planet) throw new Error("Failed to find planet");
+        if (planet.owner !== owner) throw new Error("Owner does not control origin planet.");
+
+        const units = planet.take(origin.group);
+
+        return this.createTransferFromUnits(origin, destination, owner, units);
     }
 
     /** 
@@ -303,21 +309,150 @@ export default class Core extends EventEmitter {
     private handleBattleError = (error: unknown) => {
         console.error("Battle Error", error);
     }
-    private handleBattleResult = ({ transferId }: { transferId: UUID; }) => {
+    private handleBattleResult = async ({ winner, transfer, attacker, defender }: BattleResult) => {
         try {
-            const transfer = this.transfers.get(transferId);
-            if (!transfer) throw new Error("Missing transfer");
+            const transferData = this.transfers.get(transfer);
+            if (!transferData) throw new Error("Missing transfer");
 
-            // TODO: update with proper code to handle battle result.
-            const planet = this.getPlanet(transfer.destination.id);
-            if (!planet) throw new Error("Missing planet");
+            const planet = this.getPlanet(transferData.destination.id);
+            if (!planet) throw new Error("Failed to find planet");
+
+            // dealloc units
+            for (const [_, units] of Object.entries(attacker.dead.units)) {
+                for (const item of units) {
+                    await this.dealicateUnit(transferData.owner, item.id, item.count);
+                    const idx = transferData.units.findIndex(i => i.id === item.id);
+                    if (idx === -1) continue;
+
+                    if (transferData.units[idx]?.count === item.count) {
+                        transferData.units.splice(idx, 1);
+                        continue;
+                    }
+
+                    const a = transferData.units[idx];
+                    if (!a) continue;
+                    a.count -= item.count;
+                }
+            }
+            for (const [group, units] of Object.entries(defender.dead.units)) {
+                for (const item of units) {
+                    if (planet.owner) await this.dealicateUnit(planet.owner, item.id, item.count);
+
+                    const idx = planet.units[group as never as IndexRange].findIndex(i => i.id === item.id);
+                    if (idx === -1) continue;
+
+                    const i = planet.units[group as never as IndexRange][idx];
+                    if (!i) continue;
+
+                    if (i.count === item.count) {
+                        planet.units[group as never as IndexRange].splice(idx, 1);
+                        continue;
+                    }
+
+                    i.count -= item.count;
+                }
+            }
+
+            const player = this.players.get(planet.owner ?? "");
+
+            for (const building of defender.dead.buildings) {
+                const idx = planet.buildings.findIndex(e => e.id === building.id && e.instance === building.instance);
+
+                if (idx === -1) continue;
+
+                planet.buildings.splice(idx, 1);
+
+                if (player) {
+                    const data = await content.getBuilding(building.id, ["upkeep_supplies", "upkeep_energy", "max_global_instances", "attributes"]);
+
+                    player.income_credits += data.upkeep_supplies;
+                    player.income_energy += data.upkeep_energy;
+
+                    if (data.max_global_instances > 0) {
+                        player.removeUnique(building.id);
+                    }
+                }
+            }
+
+            // update planet with alive units and buildings
+            const oldA = planet.units[0]
+
+            if (defender.alive.units[0]) {
+                planet.units[0] = defender.alive.units[0].map(e => {
+                    const old = oldA.find(i => i.id === e.id)
+                    return { id: e.id, count: e.count, icon: old?.icon ?? "" }
+                })
+            } else {
+                planet.units[0] = [];
+            }
+            if (defender.alive.units[1]) {
+                planet.units[0] = defender.alive.units[1].map(e => {
+                    const old = oldA.find(i => i.id === e.id)
+                    return { id: e.id, count: e.count, icon: old?.icon ?? "" }
+                })
+            } else {
+                planet.units[1] = [];
+            }
+            if (defender.alive.units[2]) {
+                planet.units[2] = defender.alive.units[2].map(e => {
+                    const old = oldA.find(i => i.id === e.id)
+                    return { id: e.id, count: e.count, icon: old?.icon ?? "" }
+                })
+            } else {
+                planet.units[2] = [];
+            }
+
+            const oldB = transferData.units;
+            if (attacker.alive.units[0]?.length) {
+                transferData.units = attacker.alive.units[0].map(e => {
+                    const old = oldB.find(i => i.id === e.id);
+                    return { id: e.id, count: e.count, icon: old?.icon ?? "" };
+                });
+            }
+
+            if (winner === "defender") {
+                // swap origin and destination
+                const temp = transferData.origin;
+
+                transferData.origin = transferData.destination;
+                transferData.destination = temp;
+
+                planet.contested = false;
+                this.send("updatePlanet",
+                    {
+                        id: planet.uuid,
+                        spies: Array.from(planet.spies),
+                        stack_0: planet.getStackState(0),
+                        stack_1: planet.getStackState(1),
+                        stack_2: planet.getStackState(2),
+                    },
+                );
+
+                if (transferData.units.length === 0) {
+                    this.transfers.delete(transferData.id);
+                    return;
+                }
+
+                try {
+                    const { path, exec_time } = Dijkstra(this.mapData, { start: transferData.origin.id, end: transferData.destination.id, user: transferData.owner, }, this.getWeight);
+                    this.startTransfer({ time: exec_time, to: transferData.destination.id, toGroup: transferData.destination.group, transferId: transfer });
+                    this.send("transfer", { path, node: transferData.origin.id, group: transferData.origin.group });
+                } catch (error) {
+                    console.error(error);
+                }
+
+                return;
+            }
+
+            const items = [...planet.take(0), ...planet.take(1), ...planet.take(2)];
+            const oldOwner = planet.owner;
 
             planet.reset();
-            planet.units[transfer.destination.group] = transfer.units;
-            planet.owner = transfer.owner;
-            planet.icon = this.players.get(transfer.owner)?.user.avatar_medium ?? null;
-
-            this.transfers.delete(transferId);
+            planet.contested = false;
+            planet.units[transferData.destination.group] = transferData.units;
+            planet.owner = transferData.owner;
+            planet.icon = this.players.get(transferData.owner)?.user.avatar_medium ?? null;
+            this.transfers.delete(transfer);
 
             this.send("updatePlanet",
                 {
@@ -331,14 +466,26 @@ export default class Core extends EventEmitter {
                 },
             );
 
-            planet.building_queue.reset();
-            planet.unit_queue.reset();
-
             const neighbors = this.getNeighbors(planet.uuid);
             if (neighbors.length) this.send("updatePlanets", neighbors, [planet.owner]);
 
-            planet.contested = false;
 
+            if (items.length && oldOwner) {
+                try {
+                    const result = DijkstraClosestNode(this.mapData, { start: planet.uuid, owner: oldOwner }, this.getWeight);
+
+                    const dest = result.path[result.path.length - 1];
+                    if (!dest) throw new Error("Failed to get last id");
+
+                    const transferId = this.createTransferFromUnits({ id: planet.uuid as UUID, group: 0 }, { id: dest.uuid as UUID, group: 0 }, oldOwner, items);
+
+                    this.startTransfer({ time: result.exec_time, to: dest.uuid, toGroup: 0, transferId });
+
+                    this.send("transfer", { path: result.path, node: planet.uuid, group: 0 });
+                } catch (error) {
+                    console.error(error);
+                }
+            }
         } catch (error) {
             this.handleBattleError(error);
         }
@@ -443,12 +590,7 @@ export default class Core extends EventEmitter {
         }
 
         if (unit.max_unique > 0) {
-            const value = player.unique.get(id);
-            if (value) {
-                const next = value - ammount;
-                if (next <= 0) player.unique.delete(id);
-                else player.unique.set(id, next);
-            }
+            player.removeUnique(id, ammount);
         }
 
         // handle attributes

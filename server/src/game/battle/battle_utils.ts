@@ -4,7 +4,7 @@ import { BattleBuilding, BattleUnit } from './battle_class.js';
 import groupBy from 'lodash.groupby';
 
 type ReturnGroup = { id: string; count: number, group: IndexRange | null };
-type OutputPart = {
+export type OutputPart = {
     dead: {
         units: {
             0?: ReturnGroup[],

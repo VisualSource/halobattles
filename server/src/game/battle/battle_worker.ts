@@ -1,8 +1,15 @@
-import { composeUnits, getAttackerResults, getDefenderResult } from "./battle_utils.js";
+import { OutputPart, composeUnits, getAttackerResults, getDefenderResult } from "./battle_utils.js";
 import type { Building, IndexRange, UnitSlot } from "#game/Planet.js";
 import { BattleBuilding, type BattleUnit } from './battle_class.js';
 import type { Transfer } from "#game/Core.js";
 import { content } from "#game/content.js";
+
+export type BattleResult = {
+    winner: "defender" | "attacker";
+    transfer: `${string}-${string}-${string}-${string}-${string}`;
+    attacker: OutputPart;
+    defender: OutputPart;
+}
 
 export default async function main({ transfer, defender }: { transfer: Transfer, defender: { owner: string; buildings: Building[], units: Record<IndexRange, UnitSlot[]> } }) {
 
