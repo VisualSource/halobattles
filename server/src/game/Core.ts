@@ -2,6 +2,8 @@ import { LaneType, UnitStackState, Team } from 'halobattles-shared';
 import { type UUID, randomUUID } from "node:crypto";
 import { EventEmitter } from 'node:events';
 import Piscina from "piscina";
+import { compareAsc } from 'date-fns/compareAsc';
+import { addMinutes } from "date-fns/addMinutes";
 
 import Planet, { type IndexRange, type StackState, type UnitSlot } from './Planet.js';
 import type { EventName, Events } from './types.js';
@@ -9,6 +11,8 @@ import { getFilePathURL } from '#lib/utils.js';
 import type { User } from '#trpc/context.js';
 import merge from '#lib/merge.js';
 import Player from "./Player.js";
+import { content } from './content.js';
+
 
 export type Transfer = {
     id: UUID;
@@ -33,8 +37,11 @@ export type MapData = {
 }
 
 const TEN_MINUES_IN_MS = 600_000;
+const TWO_MINUES_IN_MS = 120_000;
 
 export default class Core extends EventEmitter {
+    private interval: NodeJS.Timeout;
+    private spies: { expire: Date, node: string; user: string; }[] = [];
     private piscina: Piscina;
     public transfers: Map<UUID, Transfer> = new Map();
     public players: Map<string, Player> = new Map();
@@ -49,6 +56,38 @@ export default class Core extends EventEmitter {
             filename: getFilePathURL("./battle/battle_worker.js", import.meta.url),
             maxQueue: "auto"
         });
+    }
+
+    public startGame() {
+        this.interval = setInterval(() => {
+            this.players.forEach((player) => {
+                player.credits += player.income_credits;
+                player.energy += player.income_energy;
+            });
+            this.send("updateResouces", undefined);
+
+            const time = new Date();
+
+            for (const item of this.spies) {
+                if (compareAsc(time, item.expire) === 1) {
+                    const idx = this.spies.indexOf(item);
+                    this.spies.splice(idx, 1);
+
+                    const planet = this.getPlanet(item.node);
+                    planet?.spies.delete(item.user);
+
+                    if (planet) this.send("updatePlanet", {
+                        id: planet.uuid,
+                        spies: Array.from(planet.spies.values()),
+                    })
+                }
+            }
+
+        }, TWO_MINUES_IN_MS);
+    }
+
+    public endGame() {
+        clearInterval(this.interval);
     }
 
 
@@ -242,7 +281,7 @@ export default class Core extends EventEmitter {
             if (!item || item.owner === node.owner) continue;
             const data: { spies: string[], id: string; ownerId: string | null; } & Partial<Record<`stack_${0 | 1 | 2}`, NonNullable<StackState>>> = {
                 id: item.uuid,
-                spies: item.spies,
+                spies: Array.from(item.spies),
                 ownerId: item.owner,
             };
 
@@ -283,7 +322,7 @@ export default class Core extends EventEmitter {
             this.send("updatePlanet",
                 {
                     id: planet.uuid,
-                    spies: planet.spies,
+                    spies: Array.from(planet.spies),
                     stack_0: planet.getStackState(0),
                     stack_1: planet.getStackState(1),
                     stack_2: planet.getStackState(2),
@@ -311,37 +350,108 @@ export default class Core extends EventEmitter {
             ms = TEN_MINUES_IN_MS;
         }
 
-        setTimeout(() => {
+        setTimeout(async () => {
             const planet = this.getPlanet(to);
             if (!planet) throw new Error("Failed to get planet");
 
             const transfer = this.transfers.get(transferId);
             if (!transfer) throw new Error("Missing transfer");
 
-            if (planet.owner !== transfer.owner) {
-                planet.contested = true;
-                planet.unit_queue.puase();
-                planet.building_queue.puase();
+            let state: "transfer_only" | "battle" | "spy" = "transfer_only";
 
-                this.piscina.run({ transfer })
-                    .then(this.handleBattleResult)
-                    .catch(this.handleBattleError);
-                return;
+            if (planet.owner !== transfer.owner) {
+                if (transfer.units.length === 1 && transfer.units.at(0)?.count === 1) {
+                    const user = this.players.get(transfer.owner);
+                    if (!user) throw new Error("Failed to check user");
+                    const isSpy = await content.getIsSpy(user.team, transfer.units.at(0)!.id);
+                    state = isSpy ? "spy" : "battle";
+                } else {
+                    state = "battle"
+                }
             }
 
-            planet.units[transfer.destination.group] = merge(planet.units[transfer.destination.group], transfer.units);
-            this.transfers.delete(transferId);
+            switch (state) {
+                case "transfer_only": {
+                    planet.units[transfer.destination.group] = merge(planet.units[transfer.destination.group], transfer.units);
+                    this.transfers.delete(transferId);
+                    this.send("updatePlanet", {
+                        id: planet.uuid,
+                        spies: Array.from(planet.spies),
+                        [`stack_${toGroup}`]: planet.getStackState(toGroup)
+                    });
+                    break;
+                }
+                case "battle": {
+                    planet.contested = true;
+                    planet.unit_queue.puase();
+                    planet.building_queue.puase();
 
-            this.send("updatePlanet", {
-                id: planet.uuid,
-                spies: planet.spies,
-                [`stack_${toGroup}`]: planet.getStackState(toGroup)
-            });
+                    this.piscina.run({
+                        transfer,
+                        defender: {
+                            owner: planet.owner,
+                            units: planet.units,
+                            buildings: planet.buildings
+                        }
+                    })
+                        .then(this.handleBattleResult)
+                        .catch(this.handleBattleError);
+                    break;
+                }
+                case "spy": {
+                    this.addSpy(planet.uuid, transfer.owner);
+
+                    await this.dealicateUnit(transfer.owner, transfer.units.at(0)!.id);
+
+                    this.transfers.delete(transferId);
+
+                    this.send("updatePlanet", {
+                        id: planet.uuid,
+                        spies: Array.from(planet.spies),
+                    });
+                    break;
+                }
+                default:
+                    break;
+            }
         }, ms);
     }
 
     public getWeight = (user: string, node: string, laneType: string): number => {
         return laneType === LaneType.Fast ? 2 : 4;
+    }
+
+    private addSpy(node: string, user: string) {
+        const planet = this.getPlanet(node);
+        if (!planet) throw new Error("Failed to find planet");
+        planet.spies.add(user);
+        this.spies.push({ expire: addMinutes(new Date(), 6), node, user });
+    }
+
+    private async dealicateUnit(user: string, id: string, ammount: number = 1) {
+        const unit = await content.getUnit(id, ["unit_cap", "leader_cap", "max_unique", "attributes"]);
+
+        const player = this.players.get(user);
+        if (!player) throw new Error("Failed to find user");
+
+        if (unit.unit_cap > 0) {
+            player.units -= unit.unit_cap * ammount;
+        }
+
+        if (unit.leader_cap > 0) {
+            player.leaders -= unit.leader_cap * ammount;
+        }
+
+        if (unit.max_unique > 0) {
+            const value = player.unique.get(id);
+            if (value) {
+                const next = value - ammount;
+                if (next <= 0) player.unique.delete(id);
+                else player.unique.set(id, next);
+            }
+        }
+
+        // handle attributes
     }
 
     /** 

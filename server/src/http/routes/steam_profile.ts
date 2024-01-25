@@ -1,17 +1,14 @@
 import type { HttpRequest } from 'uWebSockets.js';
-import type { Database } from 'sqlite3';
 
 import isAuthorized from "../isAuthorized.js";
 import HttpError from '../HttpError.js';
+import { content } from '#game/content.js';
 
-const steam_profile = async (req: HttpRequest, db: Database): Promise<Response> => {
+const steam_profile = async (req: HttpRequest): Promise<Response> => {
     try {
         const userid = await isAuthorized(req, "/", false);
 
-        const user = await new Promise((ok, reject) => db.get(`SELECT * FROM users WHERE steamid = ?`, userid, (err, row) => {
-            if (err) return reject(err);
-            ok(row);
-        }));
+        const user = await content.getUser(userid);
 
         if (!user) throw new Error("No data was returned");
 

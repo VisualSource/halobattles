@@ -1,3 +1,13 @@
+CREATE TABLE IF NOT EXISTS users (
+    steamid TEXT, 
+    profile TEXT, 
+    avatar_full TEXT,
+    avatar_default TEXT,
+    avatar_medium TEXT, 
+    displayname TEXT, 
+    created TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS units (
     id TEXT PRIMARY KEY, 
     name TEXT, 

@@ -35,8 +35,8 @@ INSERT INTO units VALUES (
     "plasma",
     "ground",
     "g:2,i:2,a:1,e:3",
-    "[]",
-    "[""b-banished-foundry""]",
+    json_array(),
+    json_array("b-banished-foundry"),
     "BANISHED",
     125
 );
@@ -49,8 +49,8 @@ INSERT INTO units VALUES (
     "plasma",
     "ground",
     "g:2,i:2,a:1,e:3",
-    "[]",
-    "[""b-covenat-factory"",""t-tier-2""]",
+    json_array(),
+    json_array("b-covenat-factory","t-tier-2"),
     "COVENANT",
     60
 );

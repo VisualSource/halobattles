@@ -16,8 +16,8 @@ export declare enum Team {
     UNSC = "UNSC"
 }
 export type WeaponType = "kinetic" | "plasma" | "hardlight" | "fire" | "cryo" | "none";
-type Stat = `g:${number},i:${number},a:${number},e:${number}`;
-type JsonStringArray = `[${string}]`;
+export type Stat = `g:${number},i:${number},a:${number},e:${number}`;
+export type JsonStringArray = `[${string}]`;
 export type UnitType = "infantry" | "air" | "ground" | "enplacement";
 export type Unit = {
     id: `${string}_${string}_${number}${number}`;
@@ -62,4 +62,4 @@ export type Building = {
     damage: number;
     build_time: number;
 };
-export {};
+export { };

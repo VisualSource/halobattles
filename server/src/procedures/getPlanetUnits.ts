@@ -10,7 +10,7 @@ const getPlanetUnits = procedure.input(schema).query(({ ctx, input }) => {
     const planet = ctx.global.getPlanet(input);
     if (!planet) throw new TRPCError({ code: "NOT_FOUND" });
 
-    if (planet.owner === ctx.user.steamid || planet.spies.includes(ctx.user.steamid)) {
+    if (planet.owner === ctx.user.steamid || planet.spies.has(ctx.user.steamid)) {
         return {
             view: "full",
             canEdit: planet.owner === ctx.user.steamid,

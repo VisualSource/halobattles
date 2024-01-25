@@ -4,6 +4,7 @@ import { parse } from 'node:path';
 import { SignJWT } from 'jose';
 
 import { PRIVATE_KEY } from "../isAuthorized.js";
+import { content } from '#game/content.js';
 import HttpError from '../HttpError.js';
 
 export type SteamProfile = {
@@ -31,13 +32,13 @@ export type SteamProfile = {
         }[]
     }
 }
+const five_days = 120 * 60 * 60;
+
 
 export const getResponse: (steamId: string) => Promise<Response> = async (steamId: string) => {
     const jwt = await new SignJWT({ type: "steam", id: steamId })
         .setProtectedHeader({ alg: process.env.SIGNING_ALG })
         .setExpirationTime("5d").sign(PRIVATE_KEY);
-
-    const five_days = 120 * 60 * 60;
 
     return new Response(undefined, {
         headers: {
@@ -52,7 +53,7 @@ export const getResponse: (steamId: string) => Promise<Response> = async (steamI
 https://cindr.org/how-to-make-a-login-with-steam-button-with-php-oauth-open/
 https://github.com/uNetworking/uWebSockets.js/blob/master/examples/AsyncFunction.js
 */
-const steam_callback = async (req: HttpRequest, db: Database): Promise<Response> => {
+const steam_callback = async (req: HttpRequest): Promise<Response> => {
     try {
         const query = new URLSearchParams(req.getQuery());
         query.set("openid.mode", "check_authentication");
@@ -78,12 +79,7 @@ const steam_callback = async (req: HttpRequest, db: Database): Promise<Response>
         // 
         const steam_id = parse(claimed_id.replace("https://", "file://")).name;
 
-        const userdata = await new Promise<null | { steamid: string }>((ok, reject) => {
-            db.get(`SELECT * FROM users WHERE steamid = ${steam_id}`, (err, row) => {
-                if (err) return reject(err);
-                ok(row as null | { steamid: string });
-            });
-        });
+        const userdata = await content.getUser(steam_id);
 
         if (userdata) {
             return getResponse(userdata.steamid);
@@ -105,15 +101,13 @@ const steam_callback = async (req: HttpRequest, db: Database): Promise<Response>
 
         if (!user) throw new HttpError("Failed to fetch user profile", "INTERNAL_ERROR");
 
-        await new Promise<void>((ok, reject) => {
-            const stmt = db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)');
-            stmt.run([user.steamid, user.profileurl, user.avatarfull, user.avatar, user.avatarmedium, user.personaname], (err) => {
-                if (err) reject(err);
-            });
-            stmt.finalize((err) => {
-                if (err) reject(err);
-            });
-            ok();
+        await content.insertUser({
+            id: user.steamid,
+            profileurl: user.profileurl,
+            avatarfull: user.avatarfull,
+            avatar: user.avatar,
+            avatarmedium: user.avatarmedium,
+            personaname: user.personaname
         });
 
         return getResponse(user.steamid);

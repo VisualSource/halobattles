@@ -9,7 +9,7 @@ const getBuildings = procedure.input(z.string().uuid()).query(({ ctx, input }) =
     const planet = ctx.global.getPlanet(input);
     if (!planet) throw new TRPCError({ code: "NOT_FOUND" });
 
-    if (planet.owner === ctx.user.steamid || planet.spies.includes(ctx.user.steamid)) {
+    if (planet.owner === ctx.user.steamid || planet.spies.has(ctx.user.steamid)) {
         return {
             canEdit: planet.owner === ctx.user.steamid,
             buildings: planet.buildings,

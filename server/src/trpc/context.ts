@@ -6,14 +6,13 @@ import { jwtVerify } from 'jose';
 
 import type { EventName, Events } from "#game/types.js";
 import { PRIVATE_KEY } from '../http/isAuthorized.js';
+import { content } from '#game/content.js';
 import Core from '#game/Core.js';
-
-export type User = { steamid: string; profile: string; avatar_full: string; avatar_medium: string; displayname: string; };
 
 export const global = new Core();
 global.setMap("test_map_01.json");
 
-export const createContext = async (opts: { req: { headers: Record<string, string> }, res: HttpResponse }, db: Database) => {
+export const createContext = async (opts: { req: { headers: Record<string, string> }, res: HttpResponse }) => {
     const cookie = opts?.req?.headers?.cookie;
     if (!cookie) throw new TRPCError({ code: "PRECONDITION_FAILED" });
 
@@ -23,11 +22,10 @@ export const createContext = async (opts: { req: { headers: Record<string, strin
         throw new TRPCError({ code: "UNAUTHORIZED" });
     }
     const { payload } = await jwtVerify(decodeURIComponent(session), PRIVATE_KEY);
-    const user = await new Promise<User>((ok, reject) => db.get<User>(`SELECT * FROM users WHERE steamid = ?`, payload.id, (err, row) => {
-        if (err) return reject(new TRPCError({ code: "INTERNAL_SERVER_ERROR", cause: err }));
-        if (!row) return reject(new TRPCError({ code: "NOT_FOUND", message: "User not found." }));
-        ok(row as User);
-    }));
+
+    const user = await content.getUser(payload.id as string);
+    if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "User not found." })
+
     return { user, global };
 };
 

@@ -7,9 +7,12 @@
 --UPDATE units SET name = "Bloodfuel Locust" WHERE id = "locust_banished_01";
 
 
-
-
+SELECT units.id,json_each(units.attributes) FROM units WHERE json_each.value = "Spy" AND faction = "BANISHED";
+SELECT stat,id,health,shield,armor,damage,unit_type,attributes,weapon_type,damage_type FROM units WHERE id IN ();
 --DROP TABLE buildings;
 --DROP TABLE units;
 --SELECT * FROM units;
 SELECT * FROM buildings;
+
+SELECT stat,id,health,shield,armor,damage,unit_type,attributes,weapon_type FROM units WHERE id IN ("locust_covenant_00");
+SELECT armor,attributes,damage,health,id,shield,stat,weapon_type FROM units WHERE id IN ();

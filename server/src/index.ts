@@ -8,32 +8,28 @@ import steam_profile from '#http/routes/steam_profile.js';
 import { initWebSocket } from '#http/initWebSocket.js';
 import steam_login from '#http/routes/steam_login.js';
 import login_fake from "#http/routes/login_fake.js";
-import { type User, global } from '#trpc/context.js';
 import { initHttpRoutes } from "#http/router.js";
 import logout from '#http/routes/logout.js';
+import { content } from "#game/content.js";
 import { __dirname } from "#lib/utils.js";
-import { createDb } from "#lib/sqlite.js";
+import { global } from '#trpc/context.js';
 import { router } from '#trpc/router.js';
 
 export type AppRouter = typeof router;
 
 const app = App();
 
-const db = await createDb("../../db/game.db");
-
 if (process.env.NODE_ENV === "development") {
-    db.get("SELECT * FROM users;", (err, row) => {
-        if (err) {
-            console.error(err);
-            return;
+    content.getUsers().then((rows) => {
+        for (const row of rows) {
+            global.addPlayer({ user: row, team: Team.BANISHED });
         }
-        global.addPlayer({ user: row as User, team: Team.BANISHED });
     });
 }
 
-initWebSocket(app, db);
+initWebSocket(app);
 initHttpRoutes({
-    db, app, routes: [
+    app, routes: [
         {
             path: "/auth/login/fake",
             callback: login_fake,

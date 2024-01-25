@@ -28,6 +28,7 @@
   "license": "ISC",
   "dependencies": {
     "@trpc/server": "^10.45.0",
+    "date-fns": "^3.3.1",
     "dotenv": "^16.3.2",
     "halobattles-shared": "workspace:^",
     "jose": "^5.2.0",

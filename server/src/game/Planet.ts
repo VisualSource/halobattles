@@ -28,7 +28,7 @@ export default class Planet implements Json<PlanetProps> {
     public position: { x: number; y: number; z: number };
     public color: string;
     public label: string;
-    public spies: string[] = [];
+    public spies: Set<string> = new Set();
     public building_slots: number = 3;
     public buildings: Building[] = [];
     public units: Record<IndexRange, UnitSlot[]>;
@@ -47,13 +47,18 @@ export default class Planet implements Json<PlanetProps> {
         this.buildings = buildings;
         this.units = units ?? { 0: [], 1: [{ icon: "https://halo.wiki.gallery/images/0/0a/HW2_Banished_Locust.png", id: "locust_banished_00", count: 3 }], 2: [] };
     }
+
+    get spiesArray() {
+        return Array.from(this.spies);
+    }
+
     public reset() {
 
         this.unit_queue.reset();
         this.building_queue.reset();
 
         this.buildings = [];
-        this.spies = [];
+        this.spies = new Set();
         this.icon = null;
         this.units = { 0: [], 1: [], 2: [] };
         this._stack_cache = { 0: null, 1: null, 2: null };

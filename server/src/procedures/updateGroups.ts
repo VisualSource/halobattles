@@ -29,7 +29,7 @@ const updateGroup = procedure.input(schema).mutation(({ ctx, input }) => {
 
     ctx.global.send("updatePlanet", {
         id: planet.uuid,
-        spies: planet.spies,
+        spies: planet.spiesArray,
         stack_0: planet.getStackState(0),
         stack_1: planet.getStackState(1),
         stack_2: planet.getStackState(2)

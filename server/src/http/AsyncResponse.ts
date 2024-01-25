@@ -1,13 +1,11 @@
 import type { HttpRequest, HttpResponse } from "uWebSockets.js";
-import type { Database } from "sqlite3";
 
-
-export default async function AsyncResponse(res: HttpResponse, req: HttpRequest, db: Database, handler: (req: HttpRequest, db: Database) => Promise<Response>): Promise<void> {
+export default async function AsyncResponse(res: HttpResponse, req: HttpRequest, handler: (req: HttpRequest) => Promise<Response>): Promise<void> {
     res.onAborted(() => {
         res.aborted = true;
     });
 
-    const result = await handler(req, db);
+    const result = await handler(req);
 
     const body = result.body ? await result.text() : null;
 
