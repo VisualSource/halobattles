@@ -84,6 +84,12 @@ export default class Core extends EventEmitter {
                 }
             }
 
+            for (const [key, item] of this.transfers) {
+                if (compareAsc(time, item.expies) === 1) {
+                    this.transfers.delete(key);
+                }
+            }
+
         }, TWO_MINUES_IN_MS);
     }
 
@@ -233,7 +239,7 @@ export default class Core extends EventEmitter {
             origin,
             destination,
             units,
-            expies: addMinutes(new Date(), 10)
+            expies: addMinutes(new Date(), 11)
         };
 
         this.transfers.set(id, transfer);
@@ -311,6 +317,8 @@ export default class Core extends EventEmitter {
     }
     private handleBattleResult = async ({ winner, transfer, attacker, defender }: BattleResult) => {
         try {
+            console.log("Battle Result", winner, transfer, attacker, defender);
+
             const transferData = this.transfers.get(transfer);
             if (!transferData) throw new Error("Missing transfer");
 
@@ -418,15 +426,17 @@ export default class Core extends EventEmitter {
                 transferData.destination = temp;
 
                 planet.contested = false;
-                this.send("updatePlanet",
-                    {
-                        id: planet.uuid,
-                        spies: Array.from(planet.spies),
-                        stack_0: planet.getStackState(0),
-                        stack_1: planet.getStackState(1),
-                        stack_2: planet.getStackState(2),
-                    },
-                );
+
+                const data = {
+                    id: planet.uuid,
+                    spies: Array.from(planet.spies),
+                    stack_0: planet.getStackState(0),
+                    stack_1: planet.getStackState(1),
+                    stack_2: planet.getStackState(2),
+                }
+
+                this.send("updatePlanet", data);
+                this.send("updatePlanets", [data], [transferData.owner]);
 
                 if (transferData.units.length === 0) {
                     this.transfers.delete(transferData.id);

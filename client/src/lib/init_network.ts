@@ -96,6 +96,7 @@ export default function handle_network(engine: Engine | undefined) {
                 if (!group) return;
 
                 const stack = planet.getStack(index);
+
                 if (planet.ownerId === engine.ownerId || engine.ownerId && value.spies.includes(engine.ownerId)) {
                     stack.icon = group.icon;
                 } else {
@@ -142,7 +143,7 @@ export default function handle_network(engine: Engine | undefined) {
                     if (["id", "ownerId", "spies"].includes(key) || !value) continue;
 
                     if (key.startsWith("stack_")) {
-                        if (item.ownerId !== engine.ownerId) {
+                        if (item.ownerId !== engine.ownerId && (value as { state: UnitStackState }).state !== UnitStackState.Empty) {
                             (value as { icon: string | null }).icon = UNKNOWN_STACK_ICON;
                         }
                         item.setStack(+key.replace("stack_", ""), value as { state: UnitStackState, icon: string | null });

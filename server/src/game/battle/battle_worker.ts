@@ -11,7 +11,7 @@ export type BattleResult = {
     defender: OutputPart;
 }
 
-export default async function main({ transfer, defender }: { transfer: Transfer, defender: { owner: string; buildings: Building[], units: Record<IndexRange, UnitSlot[]> } }) {
+export default async function main({ transfer, defender }: { transfer: Transfer, defender: { owner: string; buildings: Building[], units: Record<IndexRange, UnitSlot[]> } }): Promise<BattleResult> {
 
     const attackerData = await content.getUnitsBattle(transfer.units.map(e => e.id));
     const defenderA = await content.getUnitsBattle(defender.units[0].map(e => e.id));
@@ -107,7 +107,7 @@ export default async function main({ transfer, defender }: { transfer: Transfer,
     }
 
     return {
-        winner: attackers.length === 0 ? "defenders" : "attacker",
+        winner: attackers.length === 0 ? "defender" : "attacker",
         transfer: transfer.id,
         attacker: getAttackerResults(deadAttacker, attackers),
         defender: getDefenderResult(deadDefender, defenders)

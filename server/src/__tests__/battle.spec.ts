@@ -8,6 +8,7 @@ describe("Battle Worker", () => {
 
         const result = await main({
             transfer: {
+                expies: new Date(),
                 destination: { group: 0, id: "0-0-0-0-0" },
                 id: "0-0-0-0-0",
                 origin: {
