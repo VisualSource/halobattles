@@ -21,8 +21,8 @@ const app = App();
 
 if (process.env.NODE_ENV === "development") {
     content.getUsers().then((rows) => {
-        for (const row of rows) {
-            global.addPlayer({ user: row, team: Team.BANISHED });
+        for (const user of rows) {
+            global.addPlayer({ user, team: Team.BANISHED });
         }
     });
 }

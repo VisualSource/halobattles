@@ -7,6 +7,8 @@ const schema = z.object({
 
 const removePlayer = procedure.input(schema).mutation(({ ctx, input }) => {
     ctx.global.removePlayer(input.id);
+
+    ctx.global.send("removePlayer", undefined);
 });
 
 export default removePlayer;

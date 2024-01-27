@@ -54,6 +54,7 @@ export type Events = {
         stack_1?: StackState;
         stack_2?: StackState;
     },
+    kickPlayer: undefined,
     updateQueue: {
         node: string;
         type: "unit" | "building"

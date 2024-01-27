@@ -47,6 +47,7 @@ export const router = t.router({
     moveGroup,
     getPlayerState,
     updateGroup,
+    onKickPlayer: subscription("kickPlayer"),
     onNotification: subscription("notification"),
     onUpdateBuildings: subscription("updateBuildings"),
     onQueueUpdate: subscription("updateQueue"),
