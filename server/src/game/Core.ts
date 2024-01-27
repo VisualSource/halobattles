@@ -39,6 +39,7 @@ export type MapData = {
 
 const TEN_MINUES_IN_MS = 600_000;
 const TWO_MINUES_IN_MS = 120_000;
+const ONE_MINUE_IN_MS = 60_000
 
 export default class Core extends EventEmitter {
     private interval: NodeJS.Timeout;
@@ -90,13 +91,12 @@ export default class Core extends EventEmitter {
                 }
             }
 
-        }, TWO_MINUES_IN_MS);
+        }, ONE_MINUE_IN_MS);
     }
 
     public endGame() {
         clearInterval(this.interval);
     }
-
 
     public setMap(file: string) {
         // read map and parse map file.
@@ -148,7 +148,7 @@ export default class Core extends EventEmitter {
                     "y": 180.6881540537398,
                     "z": 0
                 },
-                ownerId: "BOT__0001",
+                ownerId: "bot_001",
                 icon: "https://api.dicebear.com/7.x/identicon/svg?size=64&seed=BOT__0001",
                 "color": "#b74867",
                 "label": "Rather",
@@ -317,7 +317,7 @@ export default class Core extends EventEmitter {
     }
     private handleBattleResult = async ({ winner, transfer, attacker, defender }: BattleResult) => {
         try {
-            console.log("Battle Result", winner, transfer, attacker, defender);
+            console.log(`Battle Result, Winner: ${winner}, TransferId: ${transfer}`, "Attacker", attacker, "Defender", defender);
 
             const transferData = this.transfers.get(transfer);
             if (!transferData) throw new Error("Missing transfer");
@@ -326,8 +326,8 @@ export default class Core extends EventEmitter {
             if (!planet) throw new Error("Failed to find planet");
 
             // dealloc units
-            for (const [_, units] of Object.entries(attacker.dead.units)) {
-                for (const item of units) {
+            if (attacker.dead.units[0]) {
+                for (const item of attacker.dead.units[0]) {
                     await this.dealicateUnit(transferData.owner, item.id, item.count);
                     const idx = transferData.units.findIndex(i => i.id === item.id);
                     if (idx === -1) continue;
@@ -342,6 +342,7 @@ export default class Core extends EventEmitter {
                     a.count -= item.count;
                 }
             }
+
             for (const [group, units] of Object.entries(defender.dead.units)) {
                 for (const item of units) {
                     if (planet.owner) await this.dealicateUnit(planet.owner, item.id, item.count);
@@ -383,9 +384,9 @@ export default class Core extends EventEmitter {
             }
 
             // update planet with alive units and buildings
-            const oldA = planet.units[0]
 
             if (defender.alive.units[0]) {
+                const oldA = planet.units[0];
                 planet.units[0] = defender.alive.units[0].map(e => {
                     const old = oldA.find(i => i.id === e.id)
                     return { id: e.id, count: e.count, icon: old?.icon ?? "" }
@@ -394,7 +395,8 @@ export default class Core extends EventEmitter {
                 planet.units[0] = [];
             }
             if (defender.alive.units[1]) {
-                planet.units[0] = defender.alive.units[1].map(e => {
+                const oldA = planet.units[1];
+                planet.units[1] = defender.alive.units[1].map(e => {
                     const old = oldA.find(i => i.id === e.id)
                     return { id: e.id, count: e.count, icon: old?.icon ?? "" }
                 })
@@ -402,6 +404,7 @@ export default class Core extends EventEmitter {
                 planet.units[1] = [];
             }
             if (defender.alive.units[2]) {
+                const oldA = planet.units[2];
                 planet.units[2] = defender.alive.units[2].map(e => {
                     const old = oldA.find(i => i.id === e.id)
                     return { id: e.id, count: e.count, icon: old?.icon ?? "" }
@@ -410,8 +413,8 @@ export default class Core extends EventEmitter {
                 planet.units[2] = [];
             }
 
-            const oldB = transferData.units;
             if (attacker.alive.units[0]?.length) {
+                const oldB = transferData.units;
                 transferData.units = attacker.alive.units[0].map(e => {
                     const old = oldB.find(i => i.id === e.id);
                     return { id: e.id, count: e.count, icon: old?.icon ?? "" };
@@ -437,6 +440,11 @@ export default class Core extends EventEmitter {
 
                 this.send("updatePlanet", data);
                 this.send("updatePlanets", [data], [transferData.owner]);
+
+                this.send("updatePlanets", [data], this.getNeighborsOwners(planet.neighbors));
+
+                this.send("notification", { title: "Battle Report", text: "We have been defeated." }, [transferData.owner]);
+                if (planet.owner) this.send("notification", { title: "Battle Report", text: "We have defeated that enemy." }, [planet.owner]);
 
                 if (transferData.units.length === 0) {
                     this.transfers.delete(transferData.id);
@@ -464,20 +472,27 @@ export default class Core extends EventEmitter {
             planet.icon = this.players.get(transferData.owner)?.user.avatar_medium ?? null;
             this.transfers.delete(transfer);
 
-            this.send("updatePlanet",
-                {
-                    id: planet.uuid,
-                    spies: Array.from(planet.spies),
-                    stack_0: planet.getStackState(0),
-                    stack_1: planet.getStackState(1),
-                    stack_2: planet.getStackState(2),
-                    ownerId: planet.owner,
-                    icon: planet.icon
-                },
-            );
+            const data = {
+                id: planet.uuid,
+                spies: Array.from(planet.spies),
+                stack_0: planet.getStackState(0),
+                stack_1: planet.getStackState(1),
+                stack_2: planet.getStackState(2),
+                ownerId: planet.owner,
+                icon: planet.icon
+            }
 
-            const neighbors = this.getNeighbors(planet.uuid);
-            if (neighbors.length) this.send("updatePlanets", neighbors, [planet.owner]);
+            this.send("updatePlanet", data);
+
+            this.send("notification", { title: "Battle Report", text: "We have won the battle." }, [planet.owner]);
+            if (oldOwner) this.send("notification", { title: "Battle Report", text: "We have been defeated." }, [oldOwner]);
+
+            // update neighbors of this planets changes
+            this.send("updatePlanets", [data], this.getNeighborsOwners(planet.neighbors));
+
+            // update self with others stats
+            const other = this.getNeighbors(planet.uuid);
+            if (other.length) this.send("updatePlanets", other, [planet.owner]);
 
 
             if (items.length && oldOwner) {
@@ -603,9 +618,21 @@ export default class Core extends EventEmitter {
             player.removeUnique(id, ammount);
         }
 
+        if (player.units < 0) player.units = 0;
+
         // handle attributes
     }
 
+    getNeighborsOwners(items: Set<string>) {
+        const output = [];
+        for (const item of items) {
+            const planet = this.getPlanet(item);
+            if (!planet || !planet.owner) continue;
+
+            output.push(planet.owner);
+        }
+        return output;
+    }
     /** 
      * Internal Functions
     */

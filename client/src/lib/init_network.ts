@@ -9,6 +9,7 @@ import UnitMovementIndicator from "./game_objects/unit_movement_indicator";
 import Engine, { UNKNOWN_STACK_ICON } from "./engine";
 import { queryClient } from "./query";
 import { client } from '@/lib/trpc';
+import { toaster } from "@/components/toast-actions";
 
 export default function handle_network(engine: Engine | undefined) {
     const controller = new AbortController();
@@ -175,8 +176,15 @@ export default function handle_network(engine: Engine | undefined) {
         },
     });
 
+    const onNotification = client.onNotification.subscribe(undefined, {
+        onData(value) {
+            toaster(value);
+        },
+    });
+
     return () => {
         controller.abort();
+        onNotification.unsubscribe();
         onTransfer.unsubscribe();
         onSyncDone.unsubscribe();
         onUpdateQueue.unsubscribe();

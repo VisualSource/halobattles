@@ -22,7 +22,7 @@ const reducer = (state: { time: number, label: string }) => {
 
     return {
         time: int,
-        label: `${value.minutes}:${value.seconds}`
+        label: `${value.minutes}:${(value.seconds?.toString() ?? "").padStart(2, "0")}`
     }
 }
 

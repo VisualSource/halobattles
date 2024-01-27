@@ -35,7 +35,7 @@ export default async function main({ transfer, defender }: { transfer: Transfer,
 
     if (attackers.length === 0 || defenders.length === 0) {
         return {
-            winner: "defender",
+            winner: defenders.length === 0 && attackers.length > 0 ? "attacker" : "defender",
             transfer: transfer.id,
             attacker: {
                 alive: {

@@ -86,6 +86,18 @@ const buyItem = procedure.input(schema).mutation(async ({ ctx, input }) => {
                     node: meta.node,
                     type: "unit"
                 }, [ctx.user.steamid]);
+
+                const planet = ctx.global.getPlanet(meta.node);
+                if (!planet) throw new Error("Planet Not Found");
+
+                const data = {
+                    stack_0: planet.getStackState(0),
+                    spies: planet.spiesArray,
+                    id: planet.uuid
+                }
+
+                ctx.global.send("updatePlanet", data, [planet.owner!]);
+                ctx.global.send("updatePlanets", [data], ctx.global.getNeighborsOwners(planet.neighbors));
             });
 
             ctx.global.send("updateQueue", {

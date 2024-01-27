@@ -11,6 +11,8 @@ import Core from '#game/Core.js';
 
 export const global = new Core();
 global.setMap("test_map_01.json");
+//@ts-ignore
+globalThis.game = global;
 
 export const createContext = async (opts: { req: { headers: Record<string, string> }, res: HttpResponse }) => {
     const cookie = opts?.req?.headers?.cookie;

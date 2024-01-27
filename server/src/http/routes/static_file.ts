@@ -121,9 +121,7 @@ const staticFile = (res: HttpResponse, req: HttpRequest) => {
         }
 
         console.log('Stream was opened, openStreams: ' + ++openStreams);
-
         readStream = createReadStream(path);
-
         pipeStreamOverResponse(res, readStream, stats.size, exts[ext as keyof typeof exts] ?? "text/plain");
     });
 }

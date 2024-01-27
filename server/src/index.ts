@@ -31,7 +31,7 @@ initWebSocket(app);
 initHttpRoutes({
     app, routes: [
         {
-            path: "/auth/login/fake",
+            path: "/login/fake",
             callback: login_fake,
             method: "get",
             devOnly: true

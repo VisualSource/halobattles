@@ -3,8 +3,8 @@ import { client } from "@/lib/trpc";
 import { Suspense } from "react";
 
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from '@component/ui/context-menu';
-import { PLANET_BUILDINGS } from "@/lib/query_keys";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { PLANET_BUILDINGS } from "@/lib/query_keys";
 
 const Inner: React.FC<{ node: string }> = ({ node }) => {
     const { data } = useSuspenseQuery({
@@ -49,13 +49,16 @@ const Inner: React.FC<{ node: string }> = ({ node }) => {
             {empty.map((_, i) => (
                 <div key={i} className="bg-zinc-900"></div>
             ))}
+            {Array.from({ length: 24 - data.slots }).map((_, i) => (
+                <div key={i}></div>
+            ))}
         </>
     );
 }
 
 const BuildingMangment: React.FC<{ node: string }> = ({ node }) => {
     return (
-        <div className="grid grid-cols-4 grid-rows-6 h-full gap-2 w-1/2 p-1">
+        <div className="grid grid-cols-4 grid-rows-6 h-full gap-2 w-1/2 p-1 pb-3">
             <Suspense fallback={<div className="col-span-2">Loading</div>}>
                 <Inner node={node} />
             </Suspense>

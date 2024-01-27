@@ -15,7 +15,7 @@ const Inner: React.FC<{ node: string }> = ({ node }) => {
         }
     });
     return (
-        <div className="h-full grid grid-cols-3 grid-rows-1 gap-2 p-1">
+        <div className="h-full grid grid-cols-3 grid-rows-1 gap-2 p-1 overflow-hidden">
             <Grid view={data.view} canEdit={data.canEdit} units={data.units["0"]} nodeId={node} groupId={0} />
             <Grid view={data.view} canEdit={data.canEdit} units={data.units["1"]} nodeId={node} groupId={1} />
             <Grid view={data.view} canEdit={data.canEdit} units={data.units["2"]} nodeId={node} groupId={2} />

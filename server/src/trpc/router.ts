@@ -15,12 +15,13 @@ import getSelf from "#procedure/lobby/getSelf.js";
 import { t, subscription } from '#trpc/context.js';
 import cancelItem from "#procedure/cancelItem.js";
 import moveGroup from '#procedure/moveGroup.js';
+import ownsNode from "#procedure/ownsNode.js";
 import getQueue from "#procedure/getQueue.js";
 import buyItem from "#procedure/buyItem.js";
 import getMap from '#procedure/getMap.js';
 
-
 export const router = t.router({
+
     removePlayer,
     addPlayer,
     updatePlayer,
@@ -34,6 +35,7 @@ export const router = t.router({
     onUpdatePlayer: subscription("updatePlayer"),
     onSyncDone: subscription("syncDone"),
     sellBuilding,
+    ownsNode,
     cancelItem,
     buyItem,
     getMap,
@@ -45,6 +47,7 @@ export const router = t.router({
     moveGroup,
     getPlayerState,
     updateGroup,
+    onNotification: subscription("notification"),
     onUpdateBuildings: subscription("updateBuildings"),
     onQueueUpdate: subscription("updateQueue"),
     onUpdatePlanet: subscription("updatePlanet"),

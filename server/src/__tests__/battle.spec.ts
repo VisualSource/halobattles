@@ -33,7 +33,7 @@ describe("Battle Worker", () => {
         assert(result.attacker.dead.units[0]?.length === 1);
         assert(result.defender.alive.units[0]?.length === 1);
         assert(result.defender.alive.units[1]?.length === 1);
-        assert(result.winner === "defenders");
+        assert(result.winner === "defender");
         console.log(JSON.stringify(result, undefined, 2));
     });
 })

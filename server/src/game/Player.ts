@@ -11,10 +11,10 @@ export type PlayerJson = {
 export default class Player implements Json<PlayerJson> {
     constructor(public user: User, public team: Team, public color: string) { }
     public income_credits: number = 50;
-    public income_energy: number = 5;
+    public income_energy: number = 25;
     public credits: number = 500;
-    public energy: number = 50;
-    public units: number = 0;
+    public energy: number = 250;
+    public units: number = 3;
     public unit_cap: number = 10;
     public leaders: number = 0;
     public leader_cap: number = 1;
@@ -27,7 +27,7 @@ export default class Player implements Json<PlayerJson> {
     }
     public reset() {
         this.credits = 500;
-        this.energy = 50;
+        this.energy = 250;
         this.units = 0;
         this.unit_cap = 10;
         this.leaders = 0;
@@ -35,7 +35,7 @@ export default class Player implements Json<PlayerJson> {
         this.tech = new Set();
         this.unique = new Map();
         this.income_credits = 50;
-        this.income_energy = 5;
+        this.income_energy = 25;
     }
 
     public addUnique(id: string, amount: number = 1) {

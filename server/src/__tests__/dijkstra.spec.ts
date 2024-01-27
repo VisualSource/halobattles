@@ -112,7 +112,7 @@ describe("Dijstra", () => {
         });
     });
 
-    describe("#DijkstraClosestNode()", () => {
+    describe("#DijkstraClosestNodeOfOwner()", () => {
         it("Returns the closet node with give owner", function () {
 
             const result = DijkstraClosestNode(mapData, {

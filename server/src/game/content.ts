@@ -7,10 +7,9 @@ type GetBuildingKeys<T extends (keyof Building)[]> = T extends ["*"] ? Building 
 type GetUnitKeys<T extends (keyof Unit)[]> = T extends ["*"] ? Unit : Pick<Unit, T[number]>;
 export type User = { steamid: string; profile: string; avatar_full: string; avatar_medium: string; displayname: string; };
 type PickedUnits = Pick<Unit, "armor" | "attributes" | "damage" | "health" | "id" | "stat" | "weapon_type" | "unit_type" | "shield">;
-
+type PickedBuilding = Pick<Building, "armor" | "attributes" | "damage" | "health" | "id" | "shield" | "stat" | "weapon_type">;
 const content = {
     db: new sqlite3.Database(getFile("../../db/units.db", import.meta.url)),
-
     getUser: function (id: string) {
         return new Promise<User | null>((resolve, reject) => {
             this.db.get<User | null>("SELECT * FROM users WHERE steamid = ?", [id], (err, row) => {
@@ -45,7 +44,6 @@ const content = {
             });
         });
     },
-
     getUnit: function <T extends UniqueArray<(keyof Unit)[]>>(item: string, keys: T | ["*"] = ["*"]) {
         return new Promise<Prettify<GetUnitKeys<T>>>((resolve, reject) => {
             this.db.get<Prettify<GetUnitKeys<T>>>(`SELECT ${keys.join(",")} FROM units WHERE id = $id;`, {
@@ -115,8 +113,8 @@ const content = {
         });
     },
     getBuildingsBattle: function (ids: string[]) {
-        return new Promise<Pick<Building, "armor" | "attributes" | "damage" | "health" | "id" | "shield" | "stat" | "weapon_type">[]>((resolve, reject) => {
-            this.db.all<Pick<Building, "armor" | "attributes" | "damage" | "health" | "id" | "shield" | "stat" | "weapon_type">>(`SELECT armor,attributes,damage,health,id,shield,stat,weapon_type FROM units WHERE id IN (${ids.map(a => `"${a}"`).join(",")})`, (err, rows) => {
+        return new Promise<PickedBuilding[]>((resolve, reject) => {
+            this.db.all<PickedBuilding>(`SELECT armor,attributes,damage,health,id,shield,stat,weapon_type FROM buildings WHERE id IN (${ids.map(a => `"${a}"`).join(",")})`, (err, rows) => {
                 if (err) return reject(err);
                 resolve(rows);
             });

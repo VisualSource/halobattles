@@ -4,7 +4,7 @@ import { procedure } from '#trpc/context.js';
 
 const group = z.array(z.object({
     count: z.coerce.number(),
-    id: z.string().uuid()
+    id: z.string()
 })).optional();
 
 const schema = z.object({

@@ -19,7 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ThemeProvider defaultTheme="dark" storageKey="game-ui-theme">
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
-        <ToastContainer theme="dark" position="bottom-right" />
+        <ToastContainer stacked theme="dark" position="bottom-right" draggable={false} />
       </QueryClientProvider>
     </ThemeProvider>
   </React.StrictMode>,

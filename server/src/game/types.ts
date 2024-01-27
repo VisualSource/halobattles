@@ -32,7 +32,7 @@ export type Events = {
     moveUnit: undefined,
     addPlayer: undefined,
     removePlayer: undefined
-    updatePlayer: undefined
+    updatePlayer: undefined,
     updatePlanets: {
         id: string;
         spies: string[],
@@ -59,7 +59,11 @@ export type Events = {
         type: "unit" | "building"
     }
     startGame: undefined
-    endGame: undefined
+    endGame: undefined,
+    notification: {
+        title: string;
+        text: string;
+    },
     transfer: {
         path: {
             position: {

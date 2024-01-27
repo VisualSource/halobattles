@@ -68,7 +68,13 @@ export default class Planet implements Json<PlanetProps> {
         if (this.units[group].length >= 20) {
             throw new Error("Group is full");
         }
+
+        this._stack_cache[group] = null;
         this.units[group] = merge(this.units[group], unit);
+    }
+
+    public invalidedCache(idx: IndexRange) {
+        this._stack_cache[idx] = null;
     }
 
     /** @description Takes a unit from a group */
@@ -78,10 +84,12 @@ export default class Planet implements Json<PlanetProps> {
         const copy = this.units[group as IndexRange].slice();
         this.units[group as IndexRange] = [];
 
+        this._stack_cache[group as IndexRange] = null
+
         return copy;
     }
     public getUniqueBuildings() {
-        return Array.from(new Set(this.buildings.map(v => v.id)).values());
+        return Array.from(new Set(this.buildings.filter(e => e.display).map(v => v.id)).values());
     }
     public getStackState(index: number): NonNullable<StackState> {
         if (index < 0 || index > 2) throw new RangeError("Index is out of range.");
