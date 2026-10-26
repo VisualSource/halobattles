@@ -1,0 +1,19 @@
+{
+  // Defaults from docs/specs/game-design-spec.md#ruleset-defaults.
+  // Later Mods change these with a Patch: {"patch": "base:rules", ...}.
+  "$schema": "../../../../schema/content/ruleset.schema.json",
+  "id": "rules",
+  "name": "Standard rules",
+  "paydaySeconds": 90,
+  "cancelRefundPercent": 50,
+  "sellRefundPercent": 50,
+  "unitSlotsPerStack": 10,
+  "tiers": { "none": 0, "weak": 0.6, "average": 1.0, "strong": 1.4 },
+  "laneTypes": { "fast": 1.0, "slow": 2.0 },
+  "initiativeDie": 20,
+  "roundSeconds": 3,
+  "roundCap": 40,
+  "startingResources": { "credits": 1000, "materials": 300 },
+  "gracePeriodSeconds": 180,
+  "resultsSeconds": 60
+}

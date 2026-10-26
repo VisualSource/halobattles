@@ -8,6 +8,7 @@ import {
 import { type FormEvent, useState } from "react";
 import { setDisplayName, signIn } from "./auth";
 import { client } from "./config";
+import { loadContent } from "./content";
 
 let auth: Awaited<ReturnType<typeof signIn>> | undefined;
 
@@ -25,19 +26,34 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   loader: async ({ context }) => {
-    const res = await client.rpc(context.session, "hello", {});
-    return res.payload as { message: string };
+    const [res, content] = await Promise.all([
+      client.rpc(context.session, "hello", {}),
+      loadContent(client, context.session, globalThis.caches),
+    ]);
+    return { hello: res.payload as { message: string }, content };
   },
   component: Menu,
 });
 
 function Menu() {
   const { needsDisplayName } = indexRoute.useRouteContext();
-  const hello = indexRoute.useLoaderData();
+  const { hello, content } = indexRoute.useLoaderData();
   return (
     <main>
       <h1>Halo Battles</h1>
-      {needsDisplayName ? <DisplayNamePrompt /> : <p>{hello.message}</p>}
+      {needsDisplayName ? (
+        <DisplayNamePrompt />
+      ) : (
+        <>
+          <p>{hello.message}</p>
+          <h2>Resources</h2>
+          <ul>
+            {[...content.resources.values()].map((r) => (
+              <li key={r.id}>{r.name}</li>
+            ))}
+          </ul>
+        </>
+      )}
     </main>
   );
 }

@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Shared definitions",
+  "definitions": {
+    "id": {
+      "description": "A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.",
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+(:[a-z0-9_-]+)?$"
+    },
+    "name": {
+      "description": "Inline English display name.",
+      "type": "string",
+      "minLength": 1
+    },
+    "asset": {
+      "description": "An asset in a Mod's assets/ folder, written `__mod__/path`.",
+      "type": "string",
+      "pattern": "^__[a-z0-9_-]+__/[^\\\\]+$"
+    },
+    "resourceMap": {
+      "description": "Amounts keyed by Resource id.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/definitions/id" },
+      "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 1000000 }
+    }
+  }
+}

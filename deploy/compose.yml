@@ -25,9 +25,11 @@ services:
       - >
         /nakama/nakama migrate up --database.address postgres:localdb@postgres:5432/nakama &&
         exec /nakama/nakama --config /nakama/data/local.yml --database.address postgres:localdb@postgres:5432/nakama
+    env_file: runtime.env
     volumes:
       - ./local.yml:/nakama/data/local.yml:ro,z
       - ../server/build:/nakama/data/modules:z
+      - ../mods:/nakama/data/mods:ro,z
     ports:
       - "7349:7349"
       - "7350:7350"

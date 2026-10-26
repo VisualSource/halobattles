@@ -8,7 +8,11 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
-const codeInternal = 13 // gRPC INTERNAL
+// gRPC status codes for runtime.NewError.
+const (
+	codeInvalidArgument = 3
+	codeInternal        = 13
+)
 
 type rpcFunc = func(context.Context, runtime.Logger, *sql.DB, runtime.NakamaModule, string) (string, error)
 

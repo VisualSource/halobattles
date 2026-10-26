@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mod manifest",
+  "description": "mod.jsonc at the root of a Mod.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "title"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": {
+      "description": "The Mod's id namespace. Must match its folder name.",
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$"
+    },
+    "version": { "description": "Semver.", "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?$" },
+    "title": { "type": "string", "minLength": 1 },
+    "dependencies": {
+      "description": "Factorio-style: `base >= 1.0` (required), `? foo` (optional), `! bar` (incompatible, no version). Operators: < <= = >= >.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(! *[a-z0-9_-]+|(\\? *)?[a-z0-9_-]+( *(<|<=|=|>=|>) *[0-9]+(\\.[0-9]+){0,2})?)$"
+      }
+    }
+  }
+}

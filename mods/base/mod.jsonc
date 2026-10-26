@@ -1,0 +1,6 @@
+{
+  "$schema": "../../schema/content/mod.schema.json",
+  "name": "base",
+  "version": "1.0.0",
+  "title": "Halo Battles"
+}

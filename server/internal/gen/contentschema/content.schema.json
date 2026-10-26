@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Content",
+  "description": "The merged content document the server serves: kind, then id, then definition, with every Patch applied.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["resources", "rulesets"],
+  "properties": {
+    "resources": { "type": "object", "additionalProperties": { "$ref": "resource.schema.json" } },
+    "rulesets": { "type": "object", "additionalProperties": { "$ref": "ruleset.schema.json" } }
+  }
+}
