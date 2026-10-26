@@ -1,0 +1,37 @@
+name: halobattles
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: nakama
+      POSTGRES_PASSWORD: localdb # dev only
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "nakama"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  nakama:
+    image: heroiclabs/nakama:3.41.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -ecx
+      - >
+        /nakama/nakama migrate up --database.address postgres:localdb@postgres:5432/nakama &&
+        exec /nakama/nakama --config /nakama/data/local.yml --database.address postgres:localdb@postgres:5432/nakama
+    volumes:
+      - ./local.yml:/nakama/data/local.yml:ro
+      - ../server/build:/nakama/data/modules
+    ports:
+      - "7349:7349"
+      - "7350:7350"
+      - "7351:7351"
+
+volumes:
+  pgdata:

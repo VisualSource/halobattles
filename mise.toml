@@ -1,0 +1,73 @@
+[tools]
+go = "1.27.1"
+node = "24.22.1"
+pnpm = "12.15.0"
+flatc = "25.12.19"
+watchexec = "2.7.3"
+
+[settings]
+# Tasks are written for a POSIX shell; on Windows they run in Git Bash.
+windows_default_inline_shell_args = "bash -c"
+
+[tasks.setup]
+description = "Install client deps and the pre-push hook"
+run = [
+  "pnpm -C client install",
+  "mise generate git-pre-commit --write --hook pre-push --task pre-push",
+]
+
+[tasks.gen]
+description = "Regenerate committed code from schema/"
+run = "echo 'nothing to generate yet'"
+
+[tasks."gen:diff"]
+description = "Fail if gen leaves a diff"
+depends = ["gen"]
+run = "git diff --exit-code -- server/internal/gen client/src/gen && test -z \"$(git status --porcelain -- server/internal/gen client/src/gen)\""
+
+[tasks.build]
+description = "Build the server .so with the matching pluginbuilder"
+dir = "server"
+run = [
+  "go mod vendor",
+  # MSYS_NO_PATHCONV stops Git Bash rewriting the container paths.
+  "MSYS_NO_PATHCONV=1 docker run --rm -w /builder -v \"$PWD:/builder\" heroiclabs/nakama-pluginbuilder:3.41.0 build -buildmode=plugin -trimpath -mod=vendor -o ./build/halobattles.so .",
+]
+
+[tasks.dev]
+description = "Run Nakama with .so rebuilds on Go changes, plus Vite"
+depends = ["dev:server", "dev:client"]
+
+[tasks."dev:server"]
+hide = true
+run = [
+  "docker compose -f deploy/compose.yml up -d",
+  "watchexec -w server -e go -i 'server/vendor/**' --on-busy-update=restart --shell=bash --'mise run build && docker compose -f deploy/compose.yml restart nakama'",
+]
+
+[tasks."dev:client"]
+hide = true
+run = "pnpm -C client dev"
+
+[tasks.test]
+description = "Go and client tests"
+run = [
+  "cd server && go test ./...",
+  "pnpm -C client test",
+]
+
+[tasks.pre-push]
+description = "Fast subset of check, run by the git pre-push hook"
+depends = ["gen:diff", "test"]
+run = "pnpm -C client typecheck"
+
+[tasks.check]
+description = "Everything: pre-push plus vet, gofmt, Biome and the .so build"
+depends = ["pre-push"]
+run = [
+  "cd server && go vet ./...",
+  # go list skips vendor/, which gofmt -l on the directory would not.
+  "cd server && out=$(gofmt -l $(go list -f '{{.Dir}}' ./...)) && { test -z \"$out\" || { echo \"$out\"; exit 1; }; }",
+  "pnpm -C client lint",
+  "mise run build",
+]

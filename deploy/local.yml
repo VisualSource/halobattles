@@ -1,0 +1,16 @@
+# dev only: Nakama's stock default keys. Never use these anywhere reachable.
+# Production configs live in deploy/*.prod.yml, which is gitignored.
+name: halobattles-local
+logger:
+  level: DEBUG
+session:
+  encryption_key: defaultencryptionkey
+  refresh_encryption_key: defaultrefreshencryptionkey
+socket:
+  server_key: defaultkey
+runtime:
+  http_key: defaulthttpkey
+console:
+  username: admin
+  password: password
+  signing_key: defaultsigningkey

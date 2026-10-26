@@ -1,1 +1,7 @@
 .scratch
+vendor/
+server/build/
+deploy/*.prod.yml
+*.pem
+node_modules/
+dist/
