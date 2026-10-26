@@ -24,6 +24,19 @@ function doc(creditsName: string): Content {
   return {
     resources: { "base:credits": { id: "base:credits", name: creditsName } },
     rulesets: { "base:rules": rules },
+    factions: {
+      "base:unsc": {
+        id: "base:unsc",
+        name: "UNSC",
+        startingKit: { buildings: [], stacks: [] },
+      },
+    },
+    units: {},
+    buildings: {},
+    unitClasses: { "base:infantry": { id: "base:infantry", name: "Infantry" } },
+    weaponTypes: {},
+    planetTypes: {},
+    maps: {},
   };
 }
 
@@ -83,6 +96,19 @@ describe("loadContent", () => {
 
     expect(sent).toEqual([{ hash: "h1" }]);
     expect(content.resources.get("base:credits")?.name).toBe("Credits");
+  });
+
+  it("builds a lookup for every kind", async () => {
+    const content = await loadContent(
+      fakeServer("h1", doc("Credits")).client,
+      session,
+      undefined,
+    );
+
+    expect(content.factions.get("base:unsc")?.name).toBe("UNSC");
+    expect(content.unitClasses.get("base:infantry")?.name).toBe("Infantry");
+    expect(content.maps.size).toBe(0);
+    expect(Object.keys(doc("x")).every((kind) => kind in content)).toBe(true);
   });
 
   it("without the Cache API, fetches the document every time", async () => {

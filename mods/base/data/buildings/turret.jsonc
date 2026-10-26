@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "turret",
+  "name": "Turret",
+  "faction": "unsc",
+  "cost": { "credits": 200, "materials": 50 },
+  "buildTime": 30,
+  "upkeep": { "credits": 10 },
+  "yield": {},
+  "combat": { "unitClass": "structure", "weaponType": "kinetic", "shield": 0, "armor": 200, "hp": 300, "damage": 20, "initiative": 10, "tiers": { "infantry": "strong", "vehicle": "average", "aircraft": "average", "structure": "average" } },
+  "commandPointBonus": 0
+}

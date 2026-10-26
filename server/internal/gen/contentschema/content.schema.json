@@ -4,9 +4,16 @@
   "description": "The merged content document the server serves: kind, then id, then definition, with every Patch applied.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["resources", "rulesets"],
+  "required": ["resources", "rulesets", "factions", "units", "buildings", "unitClasses", "weaponTypes", "planetTypes", "maps"],
   "properties": {
     "resources": { "type": "object", "additionalProperties": { "$ref": "resource.schema.json" } },
-    "rulesets": { "type": "object", "additionalProperties": { "$ref": "ruleset.schema.json" } }
+    "rulesets": { "type": "object", "additionalProperties": { "$ref": "ruleset.schema.json" } },
+    "factions": { "type": "object", "additionalProperties": { "$ref": "faction.schema.json" } },
+    "units": { "type": "object", "additionalProperties": { "$ref": "unit.schema.json" } },
+    "buildings": { "type": "object", "additionalProperties": { "$ref": "building.schema.json" } },
+    "unitClasses": { "type": "object", "additionalProperties": { "$ref": "unit-class.schema.json" } },
+    "weaponTypes": { "type": "object", "additionalProperties": { "$ref": "weapon-type.schema.json" } },
+    "planetTypes": { "type": "object", "additionalProperties": { "$ref": "planet-type.schema.json" } },
+    "maps": { "type": "object", "additionalProperties": { "$ref": "map.schema.json" } }
   }
 }

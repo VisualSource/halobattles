@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "odst",
+  "name": "ODST",
+  "faction": "unsc",
+  "cost": { "credits": 100, "materials": 25 },
+  "buildTime": 25,
+  "commandPoints": 2,
+  "combat": {
+    "unitClass": "infantry",
+    "weaponType": "explosive",
+    "shield": 0,
+    "armor": 20,
+    "hp": 120,
+    "damage": 30,
+    "initiative": 8,
+    "tiers": { "infantry": "weak", "vehicle": "strong", "aircraft": "average", "structure": "strong" }
+  }
+}

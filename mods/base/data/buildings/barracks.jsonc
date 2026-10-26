@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "barracks",
+  "name": "Barracks",
+  "faction": "unsc",
+  "cost": { "credits": 150 },
+  "buildTime": 30,
+  "upkeep": { "credits": 10 },
+  "yield": {},
+  "trains": ["marine", "odst"],
+  "commandPointBonus": 0
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "vehicle-depot",
+  "name": "Vehicle Depot",
+  "faction": "unsc",
+  "cost": { "credits": 300, "materials": 100 },
+  "buildTime": 45,
+  "upkeep": { "credits": 25 },
+  "yield": {},
+  "trains": ["warthog", "scorpion"],
+  "commandPointBonus": 0
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../schema/content/faction.schema.json",
+  "id": "unsc",
+  "name": "UNSC",
+  "startingKit": {
+    "buildings": ["barracks", "supply-pad"],
+    "stacks": [
+      [
+        { "unit": "marine", "count": 10 },
+        { "unit": "warthog", "count": 2 }
+      ]
+    ]
+  }
+}

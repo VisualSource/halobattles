@@ -5,19 +5,204 @@ package contentschema
 // An asset in a Mod's assets/ folder, written `__mod__/path`.
 type Asset string
 
+// Sits in a Building Slot. `trains` makes it a production building with its own
+// unit queue; `combat` makes it armed.
+type Building struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// Seconds to build.
+	BuildTime Seconds `json:"buildTime"`
+
+	// Combat corresponds to the JSON schema field "combat".
+	Combat *Combat `json:"combat,omitempty,omitzero"`
+
+	// CommandPointBonus corresponds to the JSON schema field "commandPointBonus".
+	CommandPointBonus int `json:"commandPointBonus"`
+
+	// Cost corresponds to the JSON schema field "cost".
+	Cost map[string]int `json:"cost"`
+
+	// Faction corresponds to the JSON schema field "faction".
+	Faction ID `json:"faction"`
+
+	// Icon corresponds to the JSON schema field "icon".
+	Icon *Asset `json:"icon,omitempty,omitzero"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Trains corresponds to the JSON schema field "trains".
+	Trains []ID `json:"trains,omitempty,omitzero"`
+
+	// Charged at each Payday.
+	Upkeep map[string]int `json:"upkeep"`
+
+	// Paid at each Payday.
+	Yield map[string]int `json:"yield"`
+}
+
+// Battle stats. A Unit Class missing from tiers counts as `average`.
+type Combat struct {
+	// Armor corresponds to the JSON schema field "armor".
+	Armor int `json:"armor"`
+
+	// Damage corresponds to the JSON schema field "damage".
+	Damage float64 `json:"damage"`
+
+	// Hp corresponds to the JSON schema field "hp".
+	Hp int `json:"hp"`
+
+	// Initiative corresponds to the JSON schema field "initiative".
+	Initiative int `json:"initiative"`
+
+	// Shield corresponds to the JSON schema field "shield".
+	Shield int `json:"shield"`
+
+	// Effectiveness tier name (from the Ruleset) per Unit Class id.
+	Tiers map[string]string `json:"tiers,omitempty,omitzero"`
+
+	// UnitClass corresponds to the JSON schema field "unitClass".
+	UnitClass ID `json:"unitClass"`
+
+	// WeaponType corresponds to the JSON schema field "weaponType".
+	WeaponType ID `json:"weaponType"`
+}
+
 // The merged content document the server serves: kind, then id, then definition,
 // with every Patch applied.
 type Content struct {
+	// Buildings corresponds to the JSON schema field "buildings".
+	Buildings map[string]Building `json:"buildings"`
+
+	// Factions corresponds to the JSON schema field "factions".
+	Factions map[string]Faction `json:"factions"`
+
+	// Maps corresponds to the JSON schema field "maps".
+	Maps map[string]GalaxyMap `json:"maps"`
+
+	// PlanetTypes corresponds to the JSON schema field "planetTypes".
+	PlanetTypes map[string]PlanetType `json:"planetTypes"`
+
 	// Resources corresponds to the JSON schema field "resources".
 	Resources map[string]Resource `json:"resources"`
 
 	// Rulesets corresponds to the JSON schema field "rulesets".
 	Rulesets map[string]Ruleset `json:"rulesets"`
+
+	// UnitClasses corresponds to the JSON schema field "unitClasses".
+	UnitClasses map[string]UnitClass `json:"unitClasses"`
+
+	// Units corresponds to the JSON schema field "units".
+	Units map[string]Unit `json:"units"`
+
+	// WeaponTypes corresponds to the JSON schema field "weaponTypes".
+	WeaponTypes map[string]WeaponType `json:"weaponTypes"`
+}
+
+// A playable side with its own units and buildings.
+type Faction struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// Icon corresponds to the JSON schema field "icon".
+	Icon *Asset `json:"icon,omitempty,omitzero"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Placed on the Faction's Capital when a Match starts. Starting resources are a
+	// lobby setting, not part of the kit.
+	StartingKit StartingKit `json:"startingKit"`
+}
+
+// A galaxy map. Planet ids are local to it.
+type GalaxyMap struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// Neutral starting forces by Planet id. On a start Planet it applies only when
+	// that start is unused.
+	Garrisons map[string]Stacks `json:"garrisons,omitempty,omitzero"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Lanes corresponds to the JSON schema field "lanes".
+	Lanes []Lane `json:"lanes"`
+
+	// MinPlayers corresponds to the JSON schema field "minPlayers".
+	MinPlayers int `json:"minPlayers"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Planets corresponds to the JSON schema field "planets".
+	Planets []MapPlanet `json:"planets"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Planet ids. Its length is the most players the map takes; a used start is its
+	// player's Capital.
+	Starts []LocalID `json:"starts"`
+
+	// Win corresponds to the JSON schema field "win".
+	Win Win `json:"win"`
 }
 
 // A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it.
 // ASCII only, so Go and JS sort ids the same way.
 type ID string
+
+type Lane struct {
+	// From corresponds to the JSON schema field "from".
+	From LocalID `json:"from"`
+
+	// Defaults to the straight-line distance. One unit is 1 s at multiplier 1.
+	Length *float64 `json:"length,omitempty,omitzero"`
+
+	// Seconds; overrides length × the Lane type's multiplier.
+	Time *float64 `json:"time,omitempty,omitzero"`
+
+	// To corresponds to the JSON schema field "to".
+	To LocalID `json:"to"`
+
+	// A Lane type from the Ruleset.
+	Type string `json:"type"`
+}
+
+// An id local to one definition, such as a map's Planet ids. No namespace.
+type LocalID string
+
+type MapPlanet struct {
+	// ID corresponds to the JSON schema field "id".
+	ID LocalID `json:"id"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Values that replace this Planet's Planet Type values.
+	Overrides *PlanetOverrides `json:"overrides,omitempty,omitzero"`
+
+	// Position corresponds to the JSON schema field "position".
+	Position Position `json:"position"`
+
+	// A Planet Type id.
+	Type ID `json:"type"`
+}
 
 // mod.jsonc at the root of a Mod.
 type ModManifest struct {
@@ -40,6 +225,56 @@ type ModManifest struct {
 
 // Inline English display name.
 type Name string
+
+// Values that replace this Planet's Planet Type values.
+type PlanetOverrides struct {
+	// BuildingSlots corresponds to the JSON schema field "buildingSlots".
+	BuildingSlots *int `json:"buildingSlots,omitempty,omitzero"`
+
+	// CommandPointBonus corresponds to the JSON schema field "commandPointBonus".
+	CommandPointBonus *int `json:"commandPointBonus,omitempty,omitzero"`
+
+	// Income corresponds to the JSON schema field "income".
+	Income map[string]int `json:"income,omitempty,omitzero"`
+
+	// Sprite corresponds to the JSON schema field "sprite".
+	Sprite *Asset `json:"sprite,omitempty,omitzero"`
+}
+
+// A template of Planet values that a map's Planets are based on.
+type PlanetType struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// BuildingSlots corresponds to the JSON schema field "buildingSlots".
+	BuildingSlots int `json:"buildingSlots"`
+
+	// CommandPointBonus corresponds to the JSON schema field "commandPointBonus".
+	CommandPointBonus int `json:"commandPointBonus"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Paid at each Payday.
+	Income map[string]int `json:"income"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Sprite corresponds to the JSON schema field "sprite".
+	Sprite *Asset `json:"sprite,omitempty,omitzero"`
+}
+
+type Position struct {
+	// X corresponds to the JSON schema field "x".
+	X float64 `json:"x"`
+
+	// Y corresponds to the JSON schema field "y".
+	Y float64 `json:"y"`
+}
 
 // A stockpiled currency players earn at Payday and spend. Command Points is not a
 // Resource.
@@ -111,4 +346,110 @@ type Ruleset struct {
 
 	// UnitSlotsPerStack corresponds to the JSON schema field "unitSlotsPerStack".
 	UnitSlotsPerStack int `json:"unitSlotsPerStack"`
+}
+
+type Seconds int
+
+// Units in one Stack, one entry per Unit Slot.
+type Stack []struct {
+	// Count corresponds to the JSON schema field "count".
+	Count int `json:"count"`
+
+	// Unit corresponds to the JSON schema field "unit".
+	Unit ID `json:"unit"`
+}
+
+// Up to a Planet's three Stacks, first Stack first.
+type Stacks []Stack
+
+// Placed on the Faction's Capital when a Match starts. Starting resources are a
+// lobby setting, not part of the kit.
+type StartingKit struct {
+	// Buildings corresponds to the JSON schema field "buildings".
+	Buildings []ID `json:"buildings"`
+
+	// Stacks corresponds to the JSON schema field "stacks".
+	Stacks Stacks `json:"stacks"`
+}
+
+type Unit struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// Seconds to train one.
+	BuildTime Seconds `json:"buildTime"`
+
+	// Combat corresponds to the JSON schema field "combat".
+	Combat Combat `json:"combat"`
+
+	// Command Points one unit occupies, from queue to death.
+	CommandPoints int `json:"commandPoints"`
+
+	// Cost corresponds to the JSON schema field "cost".
+	Cost map[string]int `json:"cost"`
+
+	// Faction corresponds to the JSON schema field "faction".
+	Faction ID `json:"faction"`
+
+	// Icon corresponds to the JSON schema field "icon".
+	Icon *Asset `json:"icon,omitempty,omitzero"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Per-player limit, counted from queue to death.
+	MaxCount *int `json:"maxCount,omitempty,omitzero"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+}
+
+// A combat category that attackers are more or less effective against.
+type UnitClass struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+}
+
+// A kind of damage, with a multiplier for each layer it hits.
+type WeaponType struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// Armor corresponds to the JSON schema field "armor".
+	Armor float64 `json:"armor"`
+
+	// Hp corresponds to the JSON schema field "hp".
+	Hp float64 `json:"hp"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Shield corresponds to the JSON schema field "shield".
+	Shield float64 `json:"shield"`
+}
+
+type Win struct {
+	// HoldSeconds corresponds to the JSON schema field "holdSeconds".
+	HoldSeconds Seconds `json:"holdSeconds"`
+
+	// Share of Planets to hold; must be over 0.5.
+	PlanetShare float64 `json:"planetShare"`
 }

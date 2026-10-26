@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "marine",
+  "name": "Marine",
+  "faction": "unsc",
+  "cost": { "credits": 50 },
+  "buildTime": 15,
+  "commandPoints": 1,
+  "combat": {
+    "unitClass": "infantry",
+    "weaponType": "kinetic",
+    "shield": 0,
+    "armor": 0,
+    "hp": 100,
+    "damage": 10,
+    "initiative": 10,
+    "tiers": { "infantry": "strong", "vehicle": "weak", "aircraft": "weak", "structure": "weak" }
+  }
+}

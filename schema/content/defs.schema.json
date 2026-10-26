@@ -7,6 +7,11 @@
       "type": "string",
       "pattern": "^[a-z0-9_-]+(:[a-z0-9_-]+)?$"
     },
+    "localId": {
+      "description": "An id local to one definition, such as a map's Planet ids. No namespace.",
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$"
+    },
     "name": {
       "description": "Inline English display name.",
       "type": "string",
@@ -17,11 +22,55 @@
       "type": "string",
       "pattern": "^__[a-z0-9_-]+__/[^\\\\]+$"
     },
+    "seconds": { "type": "integer", "minimum": 0 },
     "resourceMap": {
       "description": "Amounts keyed by Resource id.",
       "type": "object",
       "propertyNames": { "$ref": "#/definitions/id" },
       "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 1000000 }
+    },
+    "stack": {
+      "title": "Stack",
+      "description": "Units in one Stack, one entry per Unit Slot.",
+      "type": "array",
+      "items": {
+        "title": "Stack Entry",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["unit", "count"],
+        "properties": {
+          "unit": { "$ref": "#/definitions/id" },
+          "count": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "stacks": {
+      "description": "Up to a Planet's three Stacks, first Stack first.",
+      "type": "array",
+      "maxItems": 3,
+      "items": { "$ref": "#/definitions/stack" }
+    },
+    "combat": {
+      "title": "Combat",
+      "description": "Battle stats. A Unit Class missing from tiers counts as `average`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unitClass", "weaponType", "shield", "armor", "hp", "damage", "initiative"],
+      "properties": {
+        "unitClass": { "$ref": "#/definitions/id" },
+        "weaponType": { "$ref": "#/definitions/id" },
+        "shield": { "type": "integer", "minimum": 0 },
+        "armor": { "type": "integer", "minimum": 0 },
+        "hp": { "type": "integer", "minimum": 1 },
+        "damage": { "type": "number", "minimum": 0 },
+        "initiative": { "type": "integer" },
+        "tiers": {
+          "description": "Effectiveness tier name (from the Ruleset) per Unit Class id.",
+          "type": "object",
+          "propertyNames": { "$ref": "#/definitions/id" },
+          "additionalProperties": { "type": "string", "pattern": "^[a-z0-9_-]+$" }
+        }
+      }
     }
   }
 }

@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "wraith",
+  "name": "Wraith",
+  "faction": "covenant",
+  "cost": { "credits": 250, "materials": 100 },
+  "buildTime": 45,
+  "commandPoints": 4,
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "explosive",
+    "shield": 150,
+    "armor": 150,
+    "hp": 250,
+    "damage": 60,
+    "initiative": 4,
+    "tiers": { "infantry": "average", "vehicle": "strong", "aircraft": "none", "structure": "strong" }
+  }
+}

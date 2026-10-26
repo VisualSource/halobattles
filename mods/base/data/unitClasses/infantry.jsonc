@@ -1,0 +1,5 @@
+{
+  "$schema": "../../../../schema/content/unit-class.schema.json",
+  "id": "infantry",
+  "name": "Infantry"
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "warehouse",
+  "name": "Warehouse",
+  "faction": "covenant",
+  "cost": { "credits": 200 },
+  "buildTime": 30,
+  "upkeep": {},
+  "yield": { "credits": 100 },
+  "commandPointBonus": 0
+}

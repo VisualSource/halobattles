@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../schema/content/faction.schema.json",
+  "id": "covenant",
+  "name": "Covenant",
+  "startingKit": {
+    "buildings": ["hall", "warehouse"],
+    "stacks": [
+      [
+        { "unit": "grunt", "count": 10 },
+        { "unit": "ghost", "count": 2 }
+      ]
+    ]
+  }
+}

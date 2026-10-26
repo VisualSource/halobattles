@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "summoning-foundry",
+  "name": "Summoning Foundry",
+  "faction": "covenant",
+  "cost": { "credits": 300, "materials": 100 },
+  "buildTime": 45,
+  "upkeep": { "credits": 25 },
+  "yield": {},
+  "trains": ["ghost", "wraith"],
+  "commandPointBonus": 0
+}

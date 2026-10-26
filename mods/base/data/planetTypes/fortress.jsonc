@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/planet-type.schema.json",
+  "id": "fortress",
+  "name": "Fortress",
+  "income": { "credits": 100, "materials": 25 },
+  "buildingSlots": 4,
+  "commandPointBonus": 15
+}

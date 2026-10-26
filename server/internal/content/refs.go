@@ -1,0 +1,280 @@
+package content
+
+import (
+	"maps"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+
+	"github.com/VisualSource/halobattles/server/internal/gen/contentschema"
+)
+
+// resolveRefs namespaces the references in a definition or Patch that are
+// written without a prefix. A Patch may leave any field out.
+func resolveRefs(kind string, obj map[string]any, ns string) {
+	switch kind {
+	case "rulesets":
+		qualifyKeys(obj, "startingResources", ns)
+	case "factions":
+		if kit, ok := obj["startingKit"].(map[string]any); ok {
+			qualifyList(kit, "buildings", ns)
+			qualifyStacks(kit["stacks"], ns)
+		}
+	case "units", "buildings":
+		qualifyField(obj, "faction", ns)
+		qualifyKeys(obj, "cost", ns)
+		qualifyKeys(obj, "upkeep", ns)
+		qualifyKeys(obj, "yield", ns)
+		qualifyList(obj, "trains", ns)
+		if c, ok := obj["combat"].(map[string]any); ok {
+			qualifyField(c, "unitClass", ns)
+			qualifyField(c, "weaponType", ns)
+			qualifyKeys(c, "tiers", ns)
+		}
+	case "planetTypes":
+		qualifyKeys(obj, "income", ns)
+	case "maps":
+		planets, _ := obj["planets"].([]any)
+		for _, p := range planets {
+			if p, ok := p.(map[string]any); ok {
+				qualifyField(p, "type", ns)
+				if o, ok := p["overrides"].(map[string]any); ok {
+					qualifyKeys(o, "income", ns)
+				}
+			}
+		}
+		garrisons, _ := obj["garrisons"].(map[string]any)
+		for _, stacks := range garrisons {
+			qualifyStacks(stacks, ns)
+		}
+	}
+}
+
+func qualifyField(obj map[string]any, field, ns string) {
+	if s, ok := obj[field].(string); ok {
+		obj[field] = qualify(s, ns)
+	}
+}
+
+func qualifyList(obj map[string]any, field, ns string) {
+	list, _ := obj[field].([]any)
+	for i, v := range list {
+		if s, ok := v.(string); ok {
+			list[i] = qualify(s, ns)
+		}
+	}
+}
+
+func qualifyKeys(obj map[string]any, field, ns string) {
+	m, ok := obj[field].(map[string]any)
+	if !ok {
+		return
+	}
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[qualify(k, ns)] = v
+	}
+	obj[field] = out
+}
+
+func qualifyStacks(v any, ns string) {
+	stacks, _ := v.([]any)
+	for _, s := range stacks {
+		entries, _ := s.([]any)
+		for _, e := range entries {
+			if e, ok := e.(map[string]any); ok {
+				qualifyField(e, "unit", ns)
+			}
+		}
+	}
+}
+
+// checker runs the semantic pass: references, and constraints that span
+// definitions.
+type checker struct {
+	*loader
+	doc    *contentschema.Content
+	defs   map[string]map[string]map[string]any // kind → id → raw definition, to look references up
+	broken map[string]bool                      // "kind id" that failed its schema
+	dirs   map[string]string                    // Mod name → folder, for assets
+	rules  *contentschema.Ruleset               // nil if base:rules is missing or broken
+}
+
+func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[string]map[string]any, broken map[string]bool, mods []*mod) {
+	c := &checker{loader: l, doc: doc, defs: defs, broken: broken, dirs: map[string]string{}}
+	for _, m := range mods {
+		c.dirs[m.Name] = m.dir
+	}
+	if r, ok := doc.Rulesets["base:rules"]; ok {
+		c.rules = &r
+	}
+	if (c.rules == nil && !broken["rulesets base:rules"]) || len(doc.Rulesets) > 1 {
+		c.fail("there must be exactly one Ruleset, base:rules; found %v", slices.Sorted(maps.Keys(doc.Rulesets)))
+	}
+
+	for _, id := range slices.Sorted(maps.Keys(doc.Rulesets)) {
+		r := doc.Rulesets[id]
+		where := "rulesets " + id
+		if _, ok := r.Tiers["average"]; !ok {
+			c.fail("%s: tiers must include \"average\"", where)
+		}
+		c.resourceKeys(where+": startingResources", r.StartingResources)
+	}
+	for _, id := range slices.Sorted(maps.Keys(doc.Resources)) {
+		c.asset("resources "+id, doc.Resources[id].Icon)
+	}
+	for _, id := range slices.Sorted(maps.Keys(doc.Factions)) {
+		f := doc.Factions[id]
+		where := "factions " + id
+		c.asset(where, f.Icon)
+		for _, b := range f.StartingKit.Buildings {
+			c.ref(where+": startingKit", "buildings", string(b))
+		}
+		c.stacks(where+": startingKit", f.StartingKit.Stacks)
+	}
+	for _, id := range slices.Sorted(maps.Keys(doc.Units)) {
+		u := doc.Units[id]
+		where := "units " + id
+		c.ref(where, "factions", string(u.Faction))
+		c.resourceKeys(where+": cost", u.Cost)
+		c.combat(where, &u.Combat)
+		c.asset(where, u.Icon)
+	}
+	for _, id := range slices.Sorted(maps.Keys(doc.Buildings)) {
+		b := doc.Buildings[id]
+		where := "buildings " + id
+		c.ref(where, "factions", string(b.Faction))
+		c.resourceKeys(where+": cost", b.Cost)
+		c.resourceKeys(where+": upkeep", b.Upkeep)
+		c.resourceKeys(where+": yield", b.Yield)
+		for _, u := range b.Trains {
+			c.ref(where+": trains", "units", string(u))
+		}
+		if b.Combat != nil {
+			c.combat(where, b.Combat)
+		}
+		c.asset(where, b.Icon)
+	}
+	for _, id := range slices.Sorted(maps.Keys(doc.PlanetTypes)) {
+		p := doc.PlanetTypes[id]
+		c.resourceKeys("planetTypes "+id+": income", p.Income)
+		c.asset("planetTypes "+id, p.Sprite)
+	}
+	for _, id := range slices.Sorted(maps.Keys(doc.Maps)) {
+		c.galaxyMap("maps "+id, doc.Maps[id])
+	}
+}
+
+// ref reports a reference to a kind's id that doesn't exist. References to a
+// definition that failed its schema were already reported.
+func (c *checker) ref(where, kind, id string) {
+	if _, ok := c.defs[kind][id]; ok || c.broken[kind+" "+id] {
+		return
+	}
+	c.fail("%s: unknown %s %s", where, kinds[kind].label, id)
+}
+
+func (c *checker) resourceKeys(where string, m map[string]int) {
+	for _, id := range slices.Sorted(maps.Keys(m)) {
+		c.ref(where, "resources", id)
+	}
+}
+
+func (c *checker) combat(where string, cb *contentschema.Combat) {
+	c.ref(where+": combat", "unitClasses", string(cb.UnitClass))
+	c.ref(where+": combat", "weaponTypes", string(cb.WeaponType))
+	for _, class := range slices.Sorted(maps.Keys(cb.Tiers)) {
+		c.ref(where+": combat tiers", "unitClasses", class)
+		if c.rules != nil {
+			if _, ok := c.rules.Tiers[cb.Tiers[class]]; !ok {
+				c.fail("%s: combat tiers: unknown tier %q", where, cb.Tiers[class])
+			}
+		}
+	}
+}
+
+// stacks checks units exist, and that each Stack fits its Unit Slots: one
+// slot per unit type.
+func (c *checker) stacks(where string, stacks contentschema.Stacks) {
+	for i, s := range stacks {
+		seen := map[contentschema.ID]bool{}
+		for _, e := range s {
+			c.ref(where, "units", string(e.Unit))
+			if seen[e.Unit] {
+				c.fail("%s: Stack %d lists %s twice; a unit type fills one Unit Slot", where, i+1, e.Unit)
+			}
+			seen[e.Unit] = true
+		}
+		if c.rules != nil && len(s) > c.rules.UnitSlotsPerStack {
+			c.fail("%s: Stack %d needs %d Unit Slots, more than the %d a Stack has", where, i+1, len(s), c.rules.UnitSlotsPerStack)
+		}
+	}
+}
+
+func (c *checker) galaxyMap(where string, m contentschema.GalaxyMap) {
+	planets := map[contentschema.LocalID]bool{}
+	for _, p := range m.Planets {
+		if planets[p.ID] {
+			c.fail("%s: Planet id %s is used twice", where, p.ID)
+		}
+		planets[p.ID] = true
+		c.ref(where+": planet "+string(p.ID), "planetTypes", string(p.Type))
+		if p.Overrides != nil {
+			c.resourceKeys(where+": planet "+string(p.ID)+": overrides income", p.Overrides.Income)
+			c.asset(where+": planet "+string(p.ID), p.Overrides.Sprite)
+		}
+	}
+	planet := func(where string, id contentschema.LocalID) {
+		if !planets[id] {
+			c.fail("%s: unknown Planet %s", where, id)
+		}
+	}
+	for _, l := range m.Lanes {
+		lw := where + ": lane " + string(l.From) + "-" + string(l.To)
+		planet(lw, l.From)
+		planet(lw, l.To)
+		if l.From == l.To {
+			c.fail("%s: a Lane can't join a Planet to itself", lw)
+		}
+		if c.rules != nil {
+			if _, ok := c.rules.LaneTypes[l.Type]; !ok {
+				c.fail("%s: unknown Lane type %q", lw, l.Type)
+			}
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(m.Garrisons)) {
+		planet(where+": garrisons", contentschema.LocalID(id))
+		c.stacks(where+": garrisons", m.Garrisons[id])
+	}
+	seen := map[contentschema.LocalID]bool{}
+	for _, s := range m.Starts {
+		planet(where+": starts", s)
+		if seen[s] {
+			c.fail("%s: starts lists %s twice", where, s)
+		}
+		seen[s] = true
+	}
+	if m.Win.PlanetShare <= 0.5 {
+		c.fail("%s: win.planetShare is %v; it must be over 0.5, so only one player can hold it", where, m.Win.PlanetShare)
+	}
+	if m.MinPlayers > len(m.Starts) {
+		c.fail("%s: minPlayers %d is more than its %d starts", where, m.MinPlayers, len(m.Starts))
+	}
+}
+
+// asset checks that "__mod__/path" exists as <mod>/assets/path.
+func (c *checker) asset(where string, ref *contentschema.Asset) {
+	if ref == nil {
+		return
+	}
+	modName, path, _ := strings.Cut(strings.TrimPrefix(string(*ref), "__"), "__/")
+	dir, ok := c.dirs[modName]
+	if !ok {
+		c.fail("%s: asset %s is in Mod %s, which is not enabled", where, *ref, modName)
+		return
+	}
+	if _, err := os.Stat(filepath.Join(dir, "assets", filepath.FromSlash(path))); err != nil {
+		c.fail("%s: asset %s not found", where, *ref)
+	}
+}

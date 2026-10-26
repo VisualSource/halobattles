@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "air-pad",
+  "name": "Air Pad",
+  "faction": "unsc",
+  "cost": { "credits": 300, "materials": 150 },
+  "buildTime": 60,
+  "upkeep": { "credits": 30 },
+  "yield": {},
+  "trains": ["hornet"],
+  "commandPointBonus": 0
+}

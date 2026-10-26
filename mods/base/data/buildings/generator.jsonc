@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "generator",
+  "name": "Generator",
+  "faction": "covenant",
+  "cost": { "credits": 200 },
+  "buildTime": 30,
+  "upkeep": {},
+  "yield": { "materials": 50 },
+  "commandPointBonus": 0
+}

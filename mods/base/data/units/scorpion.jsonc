@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "scorpion",
+  "name": "Scorpion",
+  "faction": "unsc",
+  "cost": { "credits": 250, "materials": 100 },
+  "buildTime": 45,
+  "commandPoints": 4,
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "explosive",
+    "shield": 0,
+    "armor": 300,
+    "hp": 300,
+    "damage": 60,
+    "initiative": 4,
+    "tiers": { "infantry": "average", "vehicle": "strong", "aircraft": "none", "structure": "strong" }
+  }
+}

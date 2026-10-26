@@ -194,22 +194,22 @@ func TestDependenciesAreEnforced(t *testing.T) {
 	})
 }
 
-func TestEveryProblemIsListed(t *testing.T) {
-	dirs := writeMods(t, with(baseFiles(), map[string]string{
+func TestEveryContentProblemIsListedAtOnce(t *testing.T) {
+	files := with(baseFiles(), map[string]string{
 		"base/data/resources/bad-id.jsonc":   `{"id": "Not Valid", "name": "x"}`,
 		"base/data/resources/extra.jsonc":    `{"id": "extra", "name": "x", "colour": "red"}`,
 		"base/data/resources/dupe.jsonc":     `{"id": "credits", "name": "Dupe"}`,
 		"base/data/rulesets/bad-patch.jsonc": `{"patch": "nope", "roundCap": 1}`,
-	}), "base")
+	})
+	files["base/data/rulesets/rules.jsonc"] = strings.Replace(baseRules, `{"credits": 1000}`, `{"gold": 5}`, 1)
 
-	// Merge-stage problems come first; schema problems need a clean merge.
-	wantErr(t, dirs, "base/data/resources/dupe.jsonc: redefines base:credits", "patches base:nope, which doesn't exist")
-
-	dirs = writeMods(t, with(baseFiles(), map[string]string{
-		"base/data/resources/bad-id.jsonc": `{"id": "Not Valid", "name": "x"}`,
-		"base/data/resources/extra.jsonc":  `{"id": "extra", "name": "x", "colour": "red"}`,
-	}), "base")
-	wantErr(t, dirs, "resources base:Not Valid (from base/data/resources/bad-id.jsonc): at /id", "resources base:extra (from base/data/resources/extra.jsonc): at /: additional properties 'colour' not allowed")
+	// Merge, schema and cross-reference problems all come back together.
+	wantErr(t, writeMods(t, files, "base"),
+		"base/data/resources/dupe.jsonc: redefines base:credits",
+		"patches base:nope, which doesn't exist",
+		"resources base:Not Valid (from base/data/resources/bad-id.jsonc): at /id",
+		"resources base:extra (from base/data/resources/extra.jsonc): at /: additional properties 'colour' not allowed",
+		"rulesets base:rules: startingResources: unknown Resource base:gold")
 }
 
 func TestCrossReferencesAreChecked(t *testing.T) {

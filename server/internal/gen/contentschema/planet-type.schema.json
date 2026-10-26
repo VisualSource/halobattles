@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Planet Type",
+  "description": "A template of Planet values that a map's Planets are based on.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "income", "buildingSlots", "commandPointBonus"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "replace": { "description": "Replace an existing definition with this id.", "type": "boolean" },
+    "id": { "$ref": "defs.schema.json#/definitions/id" },
+    "name": { "$ref": "defs.schema.json#/definitions/name" },
+    "income": { "description": "Paid at each Payday.", "$ref": "defs.schema.json#/definitions/resourceMap" },
+    "buildingSlots": { "type": "integer", "minimum": 0 },
+    "commandPointBonus": { "type": "integer", "minimum": 0 },
+    "sprite": { "$ref": "defs.schema.json#/definitions/asset" }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "warthog",
+  "name": "Warthog",
+  "faction": "unsc",
+  "cost": { "credits": 150, "materials": 50 },
+  "buildTime": 30,
+  "commandPoints": 3,
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "kinetic",
+    "shield": 0,
+    "armor": 100,
+    "hp": 200,
+    "damage": 20,
+    "initiative": 14,
+    "tiers": { "infantry": "strong", "vehicle": "weak", "aircraft": "average", "structure": "weak" }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "hall",
+  "name": "Hall",
+  "faction": "covenant",
+  "cost": { "credits": 150 },
+  "buildTime": 30,
+  "upkeep": { "credits": 10 },
+  "yield": {},
+  "trains": ["grunt", "elite"],
+  "commandPointBonus": 0
+}

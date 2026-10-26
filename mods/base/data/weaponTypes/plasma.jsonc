@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/weapon-type.schema.json",
+  "id": "plasma",
+  "name": "Plasma",
+  "shield": 1.5,
+  "armor": 0.75,
+  "hp": 1.0
+}

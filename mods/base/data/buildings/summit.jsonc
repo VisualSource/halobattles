@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "summit",
+  "name": "Summit",
+  "faction": "covenant",
+  "cost": { "credits": 300, "materials": 150 },
+  "buildTime": 60,
+  "upkeep": { "credits": 30 },
+  "yield": {},
+  "trains": ["banshee"],
+  "commandPointBonus": 0
+}

@@ -1,0 +1,74 @@
+{
+  // The first map: 13 Planets with 4-fold rotational symmetry. Going
+  // clockwise from each corner Capital, its edge has a Standard Planet (which
+  // links to the hub) and then a Fortress next to the following Capital.
+  // Lane lengths come from the spec, so positions only place Planets on screen.
+  "$schema": "../../../../schema/content/map.schema.json",
+  "id": "quadrant",
+  "name": "Quadrant",
+  "planets": [
+    { "id": "reach", "name": "Reach", "type": "capital", "position": { "x": 0, "y": 0 } },
+    { "id": "jericho", "name": "Jericho VII", "type": "standard", "position": { "x": 133, "y": 0 } },
+    { "id": "tribute", "name": "Tribute", "type": "fortress", "position": { "x": 267, "y": 0 } },
+
+    { "id": "harvest", "name": "Harvest", "type": "capital", "position": { "x": 400, "y": 0 } },
+    { "id": "draetheus", "name": "Draetheus V", "type": "standard", "position": { "x": 400, "y": 133 } },
+    { "id": "paris", "name": "Paris IV", "type": "fortress", "position": { "x": 400, "y": 267 } },
+
+    { "id": "arcadia", "name": "Arcadia", "type": "capital", "position": { "x": 400, "y": 400 } },
+    { "id": "meridian", "name": "Meridian", "type": "standard", "position": { "x": 267, "y": 400 } },
+    { "id": "sigma", "name": "Sigma Octanus IV", "type": "fortress", "position": { "x": 133, "y": 400 } },
+
+    { "id": "sanghelios", "name": "Sanghelios", "type": "capital", "position": { "x": 0, "y": 400 } },
+    { "id": "requiem", "name": "Requiem", "type": "standard", "position": { "x": 0, "y": 267 } },
+    { "id": "trevelyan", "name": "Trevelyan", "type": "fortress", "position": { "x": 0, "y": 133 } },
+
+    { "id": "alpha-halo", "name": "Installation 04", "type": "rich", "position": { "x": 200, "y": 200 } }
+  ],
+  "lanes": [
+    // Capital to the near Planet on each of its two edges.
+    { "from": "reach", "to": "jericho", "type": "fast", "length": 30 },
+    { "from": "reach", "to": "trevelyan", "type": "fast", "length": 30 },
+    { "from": "harvest", "to": "draetheus", "type": "fast", "length": 30 },
+    { "from": "harvest", "to": "tribute", "type": "fast", "length": 30 },
+    { "from": "arcadia", "to": "meridian", "type": "fast", "length": 30 },
+    { "from": "arcadia", "to": "paris", "type": "fast", "length": 30 },
+    { "from": "sanghelios", "to": "requiem", "type": "fast", "length": 30 },
+    { "from": "sanghelios", "to": "sigma", "type": "fast", "length": 30 },
+
+    // Along each edge.
+    { "from": "jericho", "to": "tribute", "type": "fast", "length": 40 },
+    { "from": "draetheus", "to": "paris", "type": "fast", "length": 40 },
+    { "from": "meridian", "to": "sigma", "type": "fast", "length": 40 },
+    { "from": "requiem", "to": "trevelyan", "type": "fast", "length": 40 },
+
+    // Standard edge Planets to the hub.
+    { "from": "alpha-halo", "to": "jericho", "type": "slow", "length": 30 },
+    { "from": "alpha-halo", "to": "draetheus", "type": "slow", "length": 30 },
+    { "from": "alpha-halo", "to": "meridian", "type": "slow", "length": 30 },
+    { "from": "alpha-halo", "to": "requiem", "type": "slow", "length": 30 }
+  ],
+  "garrisons": {
+    // Unused starts only; a used start gets its player's Starting Kit.
+    "reach": [[{ "unit": "marine", "count": 15 }, { "unit": "odst", "count": 4 }, { "unit": "scorpion", "count": 2 }]],
+    "harvest": [[{ "unit": "marine", "count": 15 }, { "unit": "odst", "count": 4 }, { "unit": "scorpion", "count": 2 }]],
+    "arcadia": [[{ "unit": "marine", "count": 15 }, { "unit": "odst", "count": 4 }, { "unit": "scorpion", "count": 2 }]],
+    "sanghelios": [[{ "unit": "marine", "count": 15 }, { "unit": "odst", "count": 4 }, { "unit": "scorpion", "count": 2 }]],
+
+    "jericho": [[{ "unit": "grunt", "count": 6 }]],
+    "draetheus": [[{ "unit": "grunt", "count": 6 }]],
+    "meridian": [[{ "unit": "grunt", "count": 6 }]],
+    "requiem": [[{ "unit": "grunt", "count": 6 }]],
+
+    "tribute": [[{ "unit": "marine", "count": 6 }]],
+    "paris": [[{ "unit": "marine", "count": 6 }]],
+    "sigma": [[{ "unit": "marine", "count": 6 }]],
+    "trevelyan": [[{ "unit": "marine", "count": 6 }]],
+
+    // A mid-game objective.
+    "alpha-halo": [[{ "unit": "grunt", "count": 20 }, { "unit": "elite", "count": 6 }, { "unit": "wraith", "count": 2 }]]
+  },
+  "starts": ["reach", "harvest", "arcadia", "sanghelios"],
+  "minPlayers": 2,
+  "win": { "planetShare": 0.6, "holdSeconds": 90 }
+}

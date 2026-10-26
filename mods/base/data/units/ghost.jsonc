@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "ghost",
+  "name": "Ghost",
+  "faction": "covenant",
+  "cost": { "credits": 150, "materials": 50 },
+  "buildTime": 30,
+  "commandPoints": 3,
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "plasma",
+    "shield": 80,
+    "armor": 40,
+    "hp": 120,
+    "damage": 18,
+    "initiative": 16,
+    "tiers": { "infantry": "strong", "vehicle": "weak", "aircraft": "average", "structure": "weak" }
+  }
+}

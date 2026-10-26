@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Galaxy Map",
+  "description": "A galaxy map. Planet ids are local to it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "planets", "lanes", "starts", "minPlayers", "win"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "replace": { "description": "Replace an existing definition with this id.", "type": "boolean" },
+    "id": { "$ref": "defs.schema.json#/definitions/id" },
+    "name": { "$ref": "defs.schema.json#/definitions/name" },
+    "planets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "title": "Map Planet",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "type", "position"],
+        "properties": {
+          "id": { "$ref": "defs.schema.json#/definitions/localId" },
+          "name": { "$ref": "defs.schema.json#/definitions/name" },
+          "type": { "description": "A Planet Type id.", "$ref": "defs.schema.json#/definitions/id" },
+          "position": {
+            "title": "Position",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y"],
+            "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
+          },
+          "overrides": {
+            "title": "Planet Overrides",
+            "description": "Values that replace this Planet's Planet Type values.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "income": { "$ref": "defs.schema.json#/definitions/resourceMap" },
+              "buildingSlots": { "type": "integer", "minimum": 0 },
+              "commandPointBonus": { "type": "integer", "minimum": 0 },
+              "sprite": { "$ref": "defs.schema.json#/definitions/asset" }
+            }
+          }
+        }
+      }
+    },
+    "lanes": {
+      "type": "array",
+      "items": {
+        "title": "Lane",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "type"],
+        "properties": {
+          "from": { "$ref": "defs.schema.json#/definitions/localId" },
+          "to": { "$ref": "defs.schema.json#/definitions/localId" },
+          "type": { "description": "A Lane type from the Ruleset.", "type": "string", "pattern": "^[a-z0-9_-]+$" },
+          "length": { "description": "Defaults to the straight-line distance. One unit is 1 s at multiplier 1.", "type": "number", "exclusiveMinimum": 0 },
+          "time": { "description": "Seconds; overrides length × the Lane type's multiplier.", "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "garrisons": {
+      "description": "Neutral starting forces by Planet id. On a start Planet it applies only when that start is unused.",
+      "type": "object",
+      "propertyNames": { "$ref": "defs.schema.json#/definitions/localId" },
+      "additionalProperties": { "$ref": "defs.schema.json#/definitions/stacks" }
+    },
+    "starts": {
+      "description": "Planet ids. Its length is the most players the map takes; a used start is its player's Capital.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "defs.schema.json#/definitions/localId" }
+    },
+    "minPlayers": { "type": "integer", "minimum": 1 },
+    "win": {
+      "title": "Win",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["planetShare", "holdSeconds"],
+      "properties": {
+        "planetShare": { "description": "Share of Planets to hold; must be over 0.5.", "type": "number", "minimum": 0, "maximum": 1 },
+        "holdSeconds": { "$ref": "defs.schema.json#/definitions/seconds" }
+      }
+    }
+  }
+}

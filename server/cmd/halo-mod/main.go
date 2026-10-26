@@ -6,8 +6,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/VisualSource/halobattles/server/internal/content"
 )
@@ -22,5 +26,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	fmt.Printf("ok: %d resources, %d rulesets, hash %s\n", len(c.Doc.Resources), len(c.Doc.Rulesets), c.Hash)
+	var doc map[string]map[string]json.RawMessage
+	if err := json.Unmarshal(c.JSON, &doc); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	var counts []string
+	for _, kind := range slices.Sorted(maps.Keys(doc)) {
+		counts = append(counts, fmt.Sprintf("%d %s", len(doc[kind]), kind))
+	}
+	fmt.Printf("ok: %s\nhash %s\n", strings.Join(counts, ", "), c.Hash)
 }

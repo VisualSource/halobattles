@@ -1,12 +1,14 @@
 import type { Client, Session } from "@heroiclabs/nakama-js";
-import type { Content, Resource, Ruleset } from "./gen/content";
+import type { Content, Ruleset } from "./gen/content";
 
 const CACHE_NAME = "halobattles-content";
 const keyFor = (hash: string) => `/content/${hash}`;
 
+/** One Map per kind, keyed by id, e.g. `content.units.get("base:marine")`. */
 export type ContentLookups = {
+  [K in keyof Content]: Map<string, Content[K][string]>;
+} & {
   hash: string;
-  resources: Map<string, Resource>;
   rules: Ruleset;
 };
 
@@ -45,9 +47,11 @@ export async function loadContent(
 
   const rules = doc.rulesets["base:rules"];
   if (!rules) throw new Error("content has no base:rules");
-  return {
-    hash: reply.hash,
-    resources: new Map(Object.entries(doc.resources)),
-    rules,
-  };
+  const lookups = Object.fromEntries(
+    Object.entries(doc).map(([kind, defs]) => [
+      kind,
+      new Map(Object.entries(defs)),
+    ]),
+  ) as { [K in keyof Content]: Map<string, Content[K][string]> };
+  return { ...lookups, hash: reply.hash, rules };
 }

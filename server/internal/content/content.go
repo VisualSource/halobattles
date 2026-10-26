@@ -28,14 +28,27 @@ type Content struct {
 	Hash string // hex SHA-256 of JSON
 }
 
-// kinds maps each data/<kind> folder to the schema its definitions follow.
-var kinds = map[string]string{
-	"resources": "resource.schema.json",
-	"rulesets":  "ruleset.schema.json",
+type kind struct {
+	schema string // the schema its definitions follow
+	label  string // for messages
 }
 
-// Problems lists every content error found. Load stops after the first
-// stage that finds any, since later stages depend on earlier ones.
+// kinds maps each data/<kind> folder, which is also its key in Content.
+var kinds = map[string]kind{
+	"resources":   {"resource.schema.json", "Resource"},
+	"rulesets":    {"ruleset.schema.json", "Ruleset"},
+	"factions":    {"faction.schema.json", "Faction"},
+	"units":       {"unit.schema.json", "Unit"},
+	"buildings":   {"building.schema.json", "Building"},
+	"unitClasses": {"unit-class.schema.json", "Unit Class"},
+	"weaponTypes": {"weapon-type.schema.json", "Weapon Type"},
+	"planetTypes": {"planet-type.schema.json", "Planet Type"},
+	"maps":        {"map.schema.json", "Map"},
+}
+
+// Problems lists every content error found. Manifest and dependency
+// problems stop the load, since content can't be merged without an order;
+// every content problem after that is reported together.
 type Problems []string
 
 func (p Problems) Error() string {
@@ -69,16 +82,18 @@ func Load(dirs []string) (*Content, error) {
 		return nil, l.errs
 	}
 	doc, sources := l.merge(mods)
-	if l.errs != nil {
-		return nil, l.errs
-	}
-	for _, kind := range slices.Sorted(maps.Keys(doc)) {
-		for _, id := range slices.Sorted(maps.Keys(doc[kind])) {
-			l.validate(kinds[kind], doc[kind][id], fmt.Sprintf("%s %s (from %s)", kind, id, strings.Join(sources[kind+" "+id], ", ")))
+
+	// A definition that fails its schema is dropped, and references to it
+	// aren't reported again as unknown.
+	broken := map[string]bool{}
+	for _, k := range slices.Sorted(maps.Keys(doc)) {
+		for _, id := range slices.Sorted(maps.Keys(doc[k])) {
+			key := k + " " + id
+			if !l.validate(kinds[k].schema, doc[k][id], fmt.Sprintf("%s %s (from %s)", k, id, strings.Join(sources[key], ", "))) {
+				delete(doc[k], id)
+				broken[key] = true
+			}
 		}
-	}
-	if l.errs != nil {
-		return nil, l.errs
 	}
 
 	c := &Content{}
@@ -88,7 +103,7 @@ func Load(dirs []string) (*Content, error) {
 	if err := json.Unmarshal(c.JSON, &c.Doc); err != nil {
 		return nil, err
 	}
-	l.crossCheck(&c.Doc, mods)
+	l.crossCheck(&c.Doc, doc, broken, mods)
 	if l.errs != nil {
 		return nil, l.errs
 	}
@@ -205,66 +220,6 @@ func (l *loader) readData(m *mod) []file {
 		}
 	}
 	return files
-}
-
-// crossCheck runs the semantic pass: references and constraints that span
-// definitions.
-func (l *loader) crossCheck(doc *contentschema.Content, mods []*mod) {
-	if _, ok := doc.Rulesets["base:rules"]; !ok || len(doc.Rulesets) != 1 {
-		l.fail("there must be exactly one Ruleset, base:rules; found %v", slices.Sorted(maps.Keys(doc.Rulesets)))
-	}
-	for id, r := range doc.Rulesets {
-		if _, ok := r.Tiers["average"]; !ok {
-			l.fail("rulesets %s: tiers must include \"average\"", id)
-		}
-		for _, res := range slices.Sorted(maps.Keys(r.StartingResources)) {
-			if _, ok := doc.Resources[res]; !ok {
-				l.fail("rulesets %s: startingResources: unknown Resource %s", id, res)
-			}
-		}
-	}
-	dirs := map[string]string{}
-	for _, m := range mods {
-		dirs[m.Name] = m.dir
-	}
-	for _, id := range slices.Sorted(maps.Keys(doc.Resources)) {
-		if icon := doc.Resources[id].Icon; icon != nil {
-			l.checkAsset(string(*icon), "resources "+id, dirs)
-		}
-	}
-}
-
-// checkAsset checks that "__mod__/path" exists as <mod>/assets/path.
-func (l *loader) checkAsset(ref, where string, dirs map[string]string) {
-	modName, path, _ := strings.Cut(strings.TrimPrefix(ref, "__"), "__/")
-	dir, ok := dirs[modName]
-	if !ok {
-		l.fail("%s: asset %s is in Mod %s, which is not enabled", where, ref, modName)
-		return
-	}
-	if _, err := os.Stat(filepath.Join(dir, "assets", filepath.FromSlash(path))); err != nil {
-		l.fail("%s: asset %s not found", where, ref)
-	}
-}
-
-// resolveRefs namespaces the references in a definition or Patch that are
-// written without a prefix.
-func resolveRefs(kind string, obj map[string]any, modName string) {
-	if kind == "rulesets" {
-		qualifyKeys(obj, "startingResources", modName)
-	}
-}
-
-func qualifyKeys(obj map[string]any, field, modName string) {
-	m, ok := obj[field].(map[string]any)
-	if !ok {
-		return
-	}
-	out := make(map[string]any, len(m))
-	for k, v := range m {
-		out[qualify(k, modName)] = v
-	}
-	obj[field] = out
 }
 
 func qualify(id, modName string) string {

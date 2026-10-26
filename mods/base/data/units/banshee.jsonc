@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "banshee",
+  "name": "Banshee",
+  "faction": "covenant",
+  "cost": { "credits": 300, "materials": 150 },
+  "buildTime": 50,
+  "commandPoints": 5,
+  "combat": {
+    "unitClass": "aircraft",
+    "weaponType": "plasma",
+    "shield": 100,
+    "armor": 40,
+    "hp": 150,
+    "damage": 25,
+    "initiative": 18,
+    "tiers": { "infantry": "average", "vehicle": "strong", "aircraft": "strong", "structure": "average" }
+  }
+}

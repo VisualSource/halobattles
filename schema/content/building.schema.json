@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Building",
+  "description": "Sits in a Building Slot. `trains` makes it a production building with its own unit queue; `combat` makes it armed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "faction", "cost", "buildTime", "upkeep", "yield", "commandPointBonus"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "replace": { "description": "Replace an existing definition with this id.", "type": "boolean" },
+    "id": { "$ref": "defs.schema.json#/definitions/id" },
+    "name": { "$ref": "defs.schema.json#/definitions/name" },
+    "faction": { "$ref": "defs.schema.json#/definitions/id" },
+    "cost": { "$ref": "defs.schema.json#/definitions/resourceMap" },
+    "buildTime": { "description": "Seconds to build.", "$ref": "defs.schema.json#/definitions/seconds" },
+    "upkeep": { "description": "Charged at each Payday.", "$ref": "defs.schema.json#/definitions/resourceMap" },
+    "yield": { "description": "Paid at each Payday.", "$ref": "defs.schema.json#/definitions/resourceMap" },
+    "commandPointBonus": { "type": "integer", "minimum": 0 },
+    "trains": { "type": "array", "items": { "$ref": "defs.schema.json#/definitions/id" } },
+    "combat": { "$ref": "defs.schema.json#/definitions/combat" },
+    "icon": { "$ref": "defs.schema.json#/definitions/asset" }
+  }
+}

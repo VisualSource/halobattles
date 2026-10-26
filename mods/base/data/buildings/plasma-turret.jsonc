@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "plasma-turret",
+  "name": "Plasma Turret",
+  "faction": "covenant",
+  "cost": { "credits": 200, "materials": 50 },
+  "buildTime": 30,
+  "upkeep": { "credits": 10 },
+  "yield": {},
+  "combat": { "unitClass": "structure", "weaponType": "plasma", "shield": 150, "armor": 50, "hp": 300, "damage": 20, "initiative": 10, "tiers": { "infantry": "strong", "vehicle": "average", "aircraft": "average", "structure": "average" } },
+  "commandPointBonus": 0
+}

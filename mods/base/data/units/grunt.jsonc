@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "grunt",
+  "name": "Grunt",
+  "faction": "covenant",
+  "cost": { "credits": 50 },
+  "buildTime": 15,
+  "commandPoints": 1,
+  "combat": {
+    "unitClass": "infantry",
+    "weaponType": "plasma",
+    "shield": 20,
+    "armor": 0,
+    "hp": 70,
+    "damage": 9,
+    "initiative": 12,
+    "tiers": { "infantry": "strong", "vehicle": "weak", "aircraft": "weak", "structure": "weak" }
+  }
+}

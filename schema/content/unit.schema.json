@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Unit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "faction", "cost", "buildTime", "commandPoints", "combat"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "replace": { "description": "Replace an existing definition with this id.", "type": "boolean" },
+    "id": { "$ref": "defs.schema.json#/definitions/id" },
+    "name": { "$ref": "defs.schema.json#/definitions/name" },
+    "faction": { "$ref": "defs.schema.json#/definitions/id" },
+    "cost": { "$ref": "defs.schema.json#/definitions/resourceMap" },
+    "buildTime": { "description": "Seconds to train one.", "$ref": "defs.schema.json#/definitions/seconds" },
+    "commandPoints": { "description": "Command Points one unit occupies, from queue to death.", "type": "integer", "minimum": 0 },
+    "maxCount": { "description": "Per-player limit, counted from queue to death.", "type": "integer", "minimum": 1 },
+    "combat": { "$ref": "defs.schema.json#/definitions/combat" },
+    "icon": { "$ref": "defs.schema.json#/definitions/asset" }
+  }
+}
