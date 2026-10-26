@@ -27,6 +27,9 @@ const (
 	OpViewDelta            Op = 103
 	OpPaydayPaid           Op = 104
 	OpPlanetCaptured       Op = 105
+	OpBattleStarted        Op = 106
+	OpBattleRound          Op = 107
+	OpBattleEnded          Op = 108
 )
 
 var EnumNamesOp = map[Op]string{
@@ -50,6 +53,9 @@ var EnumNamesOp = map[Op]string{
 	OpViewDelta:            "ViewDelta",
 	OpPaydayPaid:           "PaydayPaid",
 	OpPlanetCaptured:       "PlanetCaptured",
+	OpBattleStarted:        "BattleStarted",
+	OpBattleRound:          "BattleRound",
+	OpBattleEnded:          "BattleEnded",
 }
 
 var EnumValuesOp = map[string]Op{
@@ -73,6 +79,9 @@ var EnumValuesOp = map[string]Op{
 	"ViewDelta":            OpViewDelta,
 	"PaydayPaid":           OpPaydayPaid,
 	"PlanetCaptured":       OpPlanetCaptured,
+	"BattleStarted":        OpBattleStarted,
+	"BattleRound":          OpBattleRound,
+	"BattleEnded":          OpBattleEnded,
 }
 
 func (v Op) String() string {

@@ -12,7 +12,9 @@ type PaydayPaid struct {
 // it's due, and returns the events for players.
 func (s *State) Advance(c *cs.Content, now int64) Events {
 	s.Time = now
-	ev := Events{Captures: s.moveArmies(c, now)}
+	var ev Events
+	s.moveArmies(c, now, &ev)
+	s.fightBattles(c, now, &ev)
 	for s.NextPayday <= now {
 		ev.Paydays = append(ev.Paydays, s.payday(c)...)
 		s.NextPayday += s.PaydayEvery
@@ -25,6 +27,9 @@ func (s *State) Advance(c *cs.Content, now int64) Events {
 type Events struct {
 	Paydays  []PaydayPaid
 	Captures []PlanetCaptured
+	Started  []*Battle
+	Rounds   []BattleRound
+	Ended    []BattleEnded
 }
 
 // payday pays each player, per Resource, their Planets' income plus their
@@ -108,6 +113,15 @@ func (s *State) units(seat int) map[string]int {
 		if a.Owner == seat {
 			for _, u := range a.Units {
 				n[u.Unit] += u.Count
+			}
+		}
+	}
+	for _, b := range s.Battles { // attackers count until the Battle ends
+		if b.Attacker == seat {
+			for _, cb := range b.Result.Roster {
+				if cb.Side == Attacker {
+					n[cb.Unit]++
+				}
 			}
 		}
 	}

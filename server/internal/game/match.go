@@ -65,6 +65,7 @@ type State struct {
 	NextPayday  int64                       // Match Time
 	LastID      uint32                      // Match entity ids come from this one counter
 	Armies      map[uint32]*Army
+	Battles     map[uint32]*Battle
 }
 
 // SeatSetup is one Seat as the lobby left it.

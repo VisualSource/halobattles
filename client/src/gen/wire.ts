@@ -5,7 +5,13 @@
 export { Amount, AmountT } from './wire/amount.js';
 export { ArmyUnits, ArmyUnitsT } from './wire/army-units.js';
 export { ArmyView, ArmyViewT } from './wire/army-view.js';
+export { BattleAction, BattleActionT } from './wire/battle-action.js';
+export { BattleEnded, BattleEndedT } from './wire/battle-ended.js';
+export { BattleRound, BattleRoundT } from './wire/battle-round.js';
+export { BattleStarted, BattleStartedT } from './wire/battle-started.js';
+export { BattleView, BattleViewT } from './wire/battle-view.js';
 export { CancelQueueItem, CancelQueueItemT } from './wire/cancel-queue-item.js';
+export { Combatant, CombatantT } from './wire/combatant.js';
 export { CommandRejected, CommandRejectedT } from './wire/command-rejected.js';
 export { Economy, EconomyT } from './wire/economy.js';
 export { LobbyState, LobbyStateT } from './wire/lobby-state.js';

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import { GalaxyScene } from "../scene/galaxy";
+import { BattlePanel } from "./battle";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
 import { laneTimes } from "./route";
@@ -40,6 +41,7 @@ export function PlayScreen(props: {
         <div ref={container} style={{ flex: 1, minWidth: 0 }} />
         <PlanetPanel conn={conn} content={content} />
         <ArmyPanel conn={conn} content={content} />
+        <BattlePanel conn={conn} content={content} />
       </div>
     </>
   );
@@ -188,6 +190,17 @@ function PlanetPanel(props: {
             {planet.capital && " · Capital"}
             {planet.locked && " · Locked"}
           </p>
+          {[...view.battles.values()]
+            .filter((b) => b.planet === planet.id)
+            .map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => conn.local.setState({ watching: b.id })}
+              >
+                Watch Battle
+              </button>
+            ))}
           <h4>Buildings</h4>
           <ol>
             {planet.buildings.map((b, i) => {

@@ -378,3 +378,36 @@ func TestOrderArmyCapturesTheEmptyPlanetBetweenTheCapitals(t *testing.T) {
 		}
 	}
 }
+
+func TestAnArmyAtAnEnemyCapitalStartsABattleBothSidesHear(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	mine, theirs := "", ""
+	for _, p := range h.d.views[u1.session].Planets {
+		if p.Capital {
+			mine = p.Id
+		}
+	}
+	for _, p := range h.d.views[u2.session].Planets {
+		if p.Capital {
+			theirs = p.Id
+		}
+	}
+	h.loop(cmd(u1, wire.OpOrderArmy, &wire.OrderArmyT{
+		Seq: 103, FromPlanet: mine, ToPlanet: "y", Units: []*wire.ArmyUnitsT{{Stack: 0, Unit: "base:grunt", Count: 2}},
+	})) // takes empty y
+
+	h.loop(cmd(u1, wire.OpOrderArmy, &wire.OrderArmyT{
+		Seq: 104, FromPlanet: "y", ToPlanet: theirs, Units: []*wire.ArmyUnitsT{{Stack: 0, Unit: "base:grunt", Count: 2}},
+	}))
+
+	if r := h.rejection(u1, 104); r != "" {
+		t.Fatalf("OrderArmy rejected: %s", r)
+	}
+	for _, p := range []presence{u1, u2} {
+		ops := h.d.ops[p.session]
+		if !slices.Contains(ops, wire.OpBattleStarted) || !slices.Contains(ops, wire.OpBattleEnded) {
+			t.Errorf("%s got %v, want BattleStarted and BattleEnded", p.user, ops)
+		}
+	}
+}

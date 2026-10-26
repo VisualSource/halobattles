@@ -144,6 +144,14 @@ func (m *match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 
 // advance fires what's due, then sends each connected player a ViewDelta
 // if their View changed since the last one they were sent.
+// sides are a Battle's players: a neutral defender has nobody to tell.
+func sides(b *game.Battle) []int {
+	if b.Defender == game.Neutral {
+		return []int{b.Attacker}
+	}
+	return []int{b.Attacker, b.Defender}
+}
+
 // sendTo sends an event to the connected players among seats. Anyone
 // disconnected catches up from their ViewFull.
 func (s *matchState) sendTo(logger runtime.Logger, dispatcher runtime.MatchDispatcher, op wire.Op, data []byte, seats ...int) {
@@ -166,6 +174,28 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 	for _, c := range ev.Captures {
 		t := &wire.PlanetCapturedT{MatchTime: s.play.Time, Planet: c.Planet, From: int8(c.From), To: int8(c.To)}
 		s.sendTo(logger, dispatcher, wire.OpPlanetCaptured, finish(t), c.Viewers...)
+	}
+	for _, b := range ev.Started {
+		t := &wire.BattleStartedT{
+			MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender),
+			Started: b.Started, RoundMs: uint32(b.RoundMs), Roster: roster(b.Result.Roster),
+		}
+		s.sendTo(logger, dispatcher, wire.OpBattleStarted, finish(t), sides(b)...)
+	}
+	for _, r := range ev.Rounds {
+		var actions []*wire.BattleActionT
+		for _, a := range r.Battle.Result.Rounds[r.Round] {
+			actions = append(actions, &wire.BattleActionT{
+				Actor: a.Actor, Target: a.Target, Weapon: a.Weapon, ShieldDmg: float32(a.ShieldDmg),
+				ArmorDmg: float32(a.ArmorDmg), HpDmg: float32(a.HPDmg), Killed: a.Killed,
+			})
+		}
+		t := &wire.BattleRoundT{MatchTime: s.play.Time, Battle: r.Battle.ID, Planet: r.Battle.Planet, Round: uint16(r.Round + 1), Actions: actions}
+		s.sendTo(logger, dispatcher, wire.OpBattleRound, finish(t), sides(r.Battle)...)
+	}
+	for _, e := range ev.Ended {
+		t := &wire.BattleEndedT{MatchTime: s.play.Time, Battle: e.Battle, Planet: e.Planet, Winner: int8(e.Winner)}
+		s.sendTo(logger, dispatcher, wire.OpBattleEnded, finish(t), e.Viewers...)
 	}
 	for _, paid := range ev.Paydays {
 		t := &wire.PaydayPaidT{MatchTime: s.play.Time, Net: amounts(paid.Net)}
@@ -276,6 +306,7 @@ func encodeView(v game.View, contentHash string) []byte {
 	return finish(&wire.ViewFullT{
 		MatchTime: v.Time, ContentHash: contentHash, Ruleset: game.RulesetID, Map: v.Map, You: uint8(v.You),
 		Players: players(v.Players), Planets: planets(v.Planets), Economy: economy(&v.Economy), Armies: armies(v.Armies),
+		Battles: battles(v.Battles),
 	})
 }
 
@@ -284,7 +315,30 @@ func encodeDelta(d game.Delta) []byte {
 		MatchTime: d.Time, Players: players(d.Players), Planets: planets(d.Planets),
 		RemovedPlanets: d.RemovedPlanets, Economy: economy(d.Economy),
 		Armies: armies(d.Armies), RemovedArmies: d.RemovedArmies,
+		Battles: battles(d.Battles), RemovedBattles: d.RemovedBattles,
 	})
+}
+
+func battles(bs []game.BattleView) []*wire.BattleViewT {
+	var out []*wire.BattleViewT
+	for _, b := range bs { // already sorted by id, as the (key) needs
+		out = append(out, &wire.BattleViewT{
+			Id: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender),
+			Started: b.Started, RoundMs: uint32(b.RoundMs), Round: uint16(b.Round), Roster: roster(b.Roster),
+		})
+	}
+	return out
+}
+
+func roster(cs []game.Combatant) []*wire.CombatantT {
+	var out []*wire.CombatantT
+	for _, c := range cs {
+		out = append(out, &wire.CombatantT{
+			Id: c.ID, Side: uint8(c.Side), Unit: c.Unit,
+			Shield: float32(max(0, c.Shield)), Armor: float32(max(0, c.Armor)), Hp: float32(max(0, c.HP)),
+		})
+	}
+	return out
 }
 
 func armies(as []game.ArmyView) []*wire.ArmyViewT {

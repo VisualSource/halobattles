@@ -22,6 +22,9 @@ type Army struct {
 	Path     []string // the Planets still to go after To
 	ToStack  int      // the Stack it merges into on arrival
 	Waiting  bool
+	// Retreating after a lost Battle: it passes through any Planet without
+	// stopping, and can't be re-ordered.
+	Retreating bool
 }
 
 // ArmyUnits is part of an order: count of a unit from one Stack.
@@ -96,6 +99,9 @@ func (s *State) ReorderArmy(seat int, id uint32, to string, toStack int) error {
 	if a == nil || a.Owner != seat {
 		return fmt.Errorf("you have no Army %d", id)
 	}
+	if a.Retreating {
+		return errors.New("a Retreating Army can't be re-ordered")
+	}
 	if err := s.checkTarget(to, toStack); err != nil {
 		return err
 	}
@@ -122,6 +128,14 @@ func (s *State) checkTarget(to string, toStack int) error {
 	return nil
 }
 
+// destination is the last Planet on the Army's route.
+func (a *Army) destination() string {
+	if len(a.Path) > 0 {
+		return a.Path[len(a.Path)-1]
+	}
+	return a.To
+}
+
 // hop starts the Lane hop to the next Planet on the Army's path.
 func (a *Army) hop(lanes map[string]map[string]int64, at int64) {
 	a.From, a.To, a.Path = a.To, a.Path[0], a.Path[1:]
@@ -129,38 +143,47 @@ func (a *Army) hop(lanes map[string]map[string]int64, at int64) {
 }
 
 // moveArmies moves every Army along its path and resolves arrivals. Armies
-// go in Seat order, so when two hostile Armies reach an empty Planet on the
-// same tick, the lower Seat takes it and the other finds an enemy there.
-func (s *State) moveArmies(c *cs.Content, now int64) []PlanetCaptured {
+// go in Seat order, so when two hostile Armies reach a Planet on the same
+// tick, the lower Seat attacks and the other waits in orbit.
+func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 	armies := slices.SortedFunc(maps.Values(s.Armies), func(a, b *Army) int {
 		return cmp.Or(cmp.Compare(a.Owner, b.Owner), cmp.Compare(a.ID, b.ID))
 	})
-	var captured []PlanetCaptured
 	for _, a := range armies {
 		for !a.Waiting && a.Arrives <= now {
+			switch {
+			case a.Retreating && !s.owns(a.Owner)(a.destination()):
+				// Its target fell on the way: pick a new one from here.
+				if !s.retreat(a, a.Arrives) {
+					delete(s.Armies, a.ID) // its owner has no Planets left
+				}
 			// Pass through only a Planet the owner still holds; anything else
-			// ends the move there, even if it changed hands on the way.
-			if len(a.Path) > 0 && s.owns(a.Owner)(a.To) {
+			// ends the move there, even if it changed hands on the way. A
+			// Retreat passes through anything.
+			case len(a.Path) > 0 && (a.Retreating || s.owns(a.Owner)(a.To)):
 				a.hop(s.Lanes, a.Arrives)
-			} else {
-				a.Waiting, a.Path = true, nil
+			default:
+				a.Waiting, a.Retreating, a.Path = true, false, nil
+			}
+			if s.Armies[a.ID] == nil {
+				break
 			}
 		}
-		if !a.Waiting {
+		if s.Armies[a.ID] == nil || !a.Waiting {
 			continue
 		}
 		p := s.Planets[a.To]
 		switch {
 		case p.Locked:
-			continue // waits until the Battle ends
+			continue // waits until the Battle ends, then resolves against the new owner
 		case p.Owner == Neutral && p.empty():
-			captured = append(captured, s.capture(p, a.Owner))
+			ev.Captures = append(ev.Captures, s.capture(p, a.Owner))
 		case p.Owner != a.Owner:
-			continue // Battles come with ticket 12; until then it waits
+			s.startBattle(c, a, p, ev)
+			continue
 		}
 		s.land(c, a, p)
 	}
-	return captured
 }
 
 // land merges an Army into its Stack, with overflow. Units that don't fit

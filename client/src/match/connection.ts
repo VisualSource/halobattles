@@ -4,7 +4,12 @@ import {
   AmountT,
   ArmyUnitsT,
   type ArmyViewT,
+  BattleEnded,
+  BattleRound,
+  BattleStarted,
+  type BattleViewT,
   CancelQueueItemT,
+  type CombatantT,
   CommandRejected,
   type EconomyT,
   LobbyState,
@@ -37,6 +42,9 @@ import { type CommandKind, createLocalStore } from "./local";
 import {
   type Army,
   applyDelta,
+  type Battle,
+  type BattleAction,
+  type Combatant,
   createMatchStore,
   type ViewDelta as Delta,
   type Economy,
@@ -122,6 +130,26 @@ const toArmy = (a: ArmyViewT): Army => ({
   toStack: a.toStack,
 });
 
+const toCombatant = (c: CombatantT): Combatant => ({
+  id: str(c.id),
+  side: c.side === 0 ? "attacker" : "defender",
+  unit: str(c.unit),
+  shield: c.shield,
+  armor: c.armor,
+  hp: c.hp,
+});
+
+const toBattle = (b: BattleViewT): Battle => ({
+  id: b.id,
+  planet: str(b.planet),
+  attacker: b.attacker,
+  defender: b.defender < 0 ? null : b.defender,
+  started: Number(b.started),
+  roundMs: b.roundMs,
+  round: b.round,
+  roster: b.roster.map(toCombatant),
+});
+
 const toQueueItem = (q: QueueItemT): QueueItem => ({
   id: q.id,
   slot: q.slot,
@@ -159,6 +187,7 @@ function toView(t: ViewFullT): View {
     players: t.players.map(toPlayer),
     planets: new Map(t.planets.map((p) => [str(p.id), toPlanet(p)])),
     armies: new Map(t.armies.map((a) => [a.id, toArmy(a)])),
+    battles: new Map(t.battles.map((b) => [b.id, toBattle(b)])),
     economy: t.economy ? toEconomy(t.economy) : NO_ECONOMY,
   };
 }
@@ -170,6 +199,8 @@ const toDelta = (t: ViewDeltaT): Delta => ({
   removedPlanets: t.removedPlanets.map(str),
   armies: t.armies.map(toArmy),
   removedArmies: [...t.removedArmies],
+  battles: t.battles.map(toBattle),
+  removedBattles: [...t.removedBattles],
   economy: t.economy ? toEconomy(t.economy) : null,
 });
 
@@ -178,8 +209,10 @@ const toDelta = (t: ViewDeltaT): Delta => ({
  * at the edge and writes the Match store, and it sends commands, tracking
  * each by seq in the Local store until the server has processed it. One-off
  * events go out on `events`: "rejected" carries a refused command's reason,
- * "payday" the Map of what each Resource changed by, and "captured" a
- * Planet that changed hands, as {planet, from, to} (Seats; null is neutral).
+ * "payday" the Map of what each Resource changed by, "captured" a Planet
+ * that changed hands, as {planet, from, to} (Seats; null is neutral),
+ * "battleStarted" {battle, planet}, "battleRound" {battle, round, actions},
+ * and "battleEnded" {battle, planet, winner}.
  */
 export class MatchConnection {
   readonly store = createMatchStore();
@@ -389,6 +422,40 @@ export class MatchConnection {
         );
         return;
       }
+      case Op.BattleStarted: {
+        const t = BattleStarted.getRootAsBattleStarted(bb).unpack();
+        this.debug("BattleStarted", t);
+        this.syncClock(Number(t.matchTime));
+        this.emit("battleStarted", { battle: t.battle, planet: str(t.planet) });
+        return;
+      }
+      case Op.BattleRound: {
+        const t = BattleRound.getRootAsBattleRound(bb).unpack();
+        this.debug("BattleRound", t);
+        this.syncClock(Number(t.matchTime));
+        const actions: BattleAction[] = t.actions.map((a) => ({
+          actor: str(a.actor),
+          target: str(a.target),
+          weapon: str(a.weapon),
+          shieldDmg: a.shieldDmg,
+          armorDmg: a.armorDmg,
+          hpDmg: a.hpDmg,
+          killed: a.killed,
+        }));
+        this.emit("battleRound", { battle: t.battle, round: t.round, actions });
+        return;
+      }
+      case Op.BattleEnded: {
+        const t = BattleEnded.getRootAsBattleEnded(bb).unpack();
+        this.debug("BattleEnded", t);
+        this.syncClock(Number(t.matchTime));
+        this.emit("battleEnded", {
+          battle: t.battle,
+          planet: str(t.planet),
+          winner: t.winner < 0 ? null : t.winner,
+        });
+        return;
+      }
       case Op.CommandRejected: {
         const t = CommandRejected.getRootAsCommandRejected(bb).unpack();
         this.debug("CommandRejected", t);
@@ -399,6 +466,10 @@ export class MatchConnection {
       default:
         console.warn(`[match] unknown opcode ${op}`);
     }
+  }
+
+  private emit(type: string, detail: unknown) {
+    this.events.dispatchEvent(new CustomEvent(type, { detail }));
   }
 
   /** Every play message carries the Match Time it was sent at. */

@@ -22,6 +22,7 @@ export type LocalState = {
   selected: string | null; // the selected Planet's id
   selectedArmy: number | null;
   hovered: string | null; // the Planet under the pointer
+  watching: number | null; // the Battle open in the Battle panel
   clockOffset: number; // Match Time = performance.now() + clockOffset
 };
 
@@ -31,6 +32,7 @@ export const createLocalStore = () =>
     selected: null,
     selectedArmy: null,
     hovered: null,
+    watching: null,
     clockOffset: 0,
   }));
 

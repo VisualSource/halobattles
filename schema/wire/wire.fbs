@@ -27,6 +27,9 @@ enum Op : int {
   ViewDelta = 103,
   PaydayPaid = 104,
   PlanetCaptured = 105,
+  BattleStarted = 106,
+  BattleRound = 107,
+  BattleEnded = 108,
 }
 
 enum Phase : byte { Lobby, Play, Results }
@@ -206,6 +209,40 @@ table ArmyView {
   to_stack: ubyte;         // own only
 }
 
+// One unit or armed building in a Battle, tracked on its own.
+table Combatant {
+  id: string;              // unique in the Battle
+  side: ubyte;             // 0 attacker, 1 defender
+  unit: string;            // a unit or building id
+  shield: float;
+  armor: float;
+  hp: float;
+}
+
+// One combatant's turn in a Round.
+table BattleAction {
+  actor: string;
+  target: string;
+  weapon: string;          // the actor's Weapon Type
+  shield_dmg: float;
+  armor_dmg: float;
+  hp_dmg: float;
+  killed: bool;
+}
+
+// A Battle you're a side of, as it stands after the Rounds completed so far.
+// Anyone else with vision sees only the Planet's Locked flag.
+table BattleView {
+  id: uint32 (key);
+  planet: string;
+  attacker: byte;
+  defender: byte = -1;     // -1 is neutral
+  started: long;           // Match Time of Round 1
+  round_ms: uint32;
+  round: uint16;           // Rounds completed
+  roster: [Combatant];     // with each one's Shield, Armor and HP now
+}
+
 // The public part of every player.
 table PlayerView {
   seat: ubyte;
@@ -236,6 +273,7 @@ table ViewFull {
   planets: [PlanetView];
   economy: Economy;
   armies: [ArmyView];
+  battles: [BattleView];
 }
 
 // Sent on a tick when the viewer's View changed since the last one sent.
@@ -248,6 +286,8 @@ table ViewDelta {
   economy: Economy;        // absent when unchanged
   armies: [ArmyView];
   removed_armies: [uint32];
+  battles: [BattleView];
+  removed_battles: [uint32];
 }
 
 // Sent to everyone who can see the Planet, and its previous owner.
@@ -256,6 +296,36 @@ table PlanetCaptured {
   planet: string;
   from: byte = -1;         // a Seat index; -1 is neutral
   to: byte;
+}
+
+// Sent to the two sides when a Battle starts. Round k is played out from
+// started + (k-1) × round_ms.
+table BattleStarted {
+  match_time: long;
+  battle: uint32;
+  planet: string;
+  attacker: byte;
+  defender: byte = -1;
+  started: long;
+  round_ms: uint32;
+  roster: [Combatant];     // at full Shield, Armor and HP
+}
+
+// Sent to the two sides as each Round is played out.
+table BattleRound {
+  match_time: long;
+  battle: uint32;
+  planet: string;
+  round: uint16;           // from 1
+  actions: [BattleAction]; // in Initiative order
+}
+
+// Sent to everyone who can see the Planet, and both sides.
+table BattleEnded {
+  match_time: long;
+  battle: uint32;
+  planet: string;
+  winner: byte = -1;       // a Seat; -1 is neutral
 }
 
 // Sent to one player at each Payday: what each Resource changed by.

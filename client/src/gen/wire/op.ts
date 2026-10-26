@@ -22,5 +22,8 @@ export enum Op {
   ViewFull = 102,
   ViewDelta = 103,
   PaydayPaid = 104,
-  PlanetCaptured = 105
+  PlanetCaptured = 105,
+  BattleStarted = 106,
+  BattleRound = 107,
+  BattleEnded = 108
 }

@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   AmountT,
   ArmyViewT,
+  BattleActionT,
+  BattleRoundT,
+  BattleViewT,
+  CombatantT,
   EconomyT,
   LobbyStateT,
   MoveUnits,
@@ -231,6 +235,7 @@ describe("MatchConnection", () => {
           },
         ],
       ]),
+      battles: new Map(),
     });
   });
 
@@ -459,6 +464,82 @@ describe("MatchConnection", () => {
     const armies = conn.store.getState().view?.armies;
     expect([...(armies?.keys() ?? [])]).toEqual([2]);
     expect(armies?.get(2)?.to).toBe("b");
+  });
+
+  it("applies Battles in a ViewDelta and sends Rounds out as events", async () => {
+    const { conn, send } = await playing();
+    const rounds: unknown[] = [];
+    conn.events.addEventListener("battleRound", (e) =>
+      rounds.push((e as CustomEvent).detail),
+    );
+    const battle = new BattleViewT(5, "c", 0, -1, 3000n, 3000, 1, [
+      new CombatantT("a0001", 0, "base:marine", 0, 0, 100),
+      new CombatantT("d0001", 1, "base:grunt", 9.5, 0, 70),
+    ]);
+
+    send(
+      Op.ViewDelta,
+      pack(new ViewDeltaT(3000n, [], [], [], null, [], [], [battle], [])),
+    );
+    send(
+      Op.BattleRound,
+      pack(
+        new BattleRoundT(3000n, 5, "c", 2, [
+          new BattleActionT("a0001", "d0001", "base:kinetic", 9.5, 0, 5, false),
+        ]),
+      ),
+    );
+
+    expect(conn.store.getState().view?.battles.get(5)).toEqual({
+      id: 5,
+      planet: "c",
+      attacker: 0,
+      defender: null,
+      started: 3000,
+      roundMs: 3000,
+      round: 1,
+      roster: [
+        {
+          id: "a0001",
+          side: "attacker",
+          unit: "base:marine",
+          shield: 0,
+          armor: 0,
+          hp: 100,
+        },
+        {
+          id: "d0001",
+          side: "defender",
+          unit: "base:grunt",
+          shield: 9.5,
+          armor: 0,
+          hp: 70,
+        },
+      ],
+    });
+    expect(rounds).toEqual([
+      {
+        battle: 5,
+        round: 2,
+        actions: [
+          {
+            actor: "a0001",
+            target: "d0001",
+            weapon: "base:kinetic",
+            shieldDmg: 9.5,
+            armorDmg: 0,
+            hpDmg: 5,
+            killed: false,
+          },
+        ],
+      },
+    ]);
+
+    send(
+      Op.ViewDelta,
+      pack(new ViewDeltaT(9000n, [], [], [], null, [], [], [], [5])),
+    );
+    expect(conn.store.getState().view?.battles.size).toBe(0);
   });
 
   it("sends PlanetCaptured out as a captured event", async () => {

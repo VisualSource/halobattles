@@ -57,17 +57,6 @@ func TestAnArmyCapturesAnEmptyNeutralPlanet(t *testing.T) {
 	}
 }
 
-func TestAnArmyWaitsInOrbitAtAGarrisonedPlanet(t *testing.T) {
-	s, c := fixedMatch(t), lineContent()
-	_ = s.OrderArmy(0, "a", marines(4), "b", 0)
-
-	s.Advance(c, 30_000)
-
-	if a := onlyArmy(t, s); !a.Waiting || a.To != "b" || s.Planets["b"].Owner != Neutral {
-		t.Errorf("Army %+v, b's owner %d; want it waiting at b until Battles exist", a, s.Planets["b"].Owner)
-	}
-}
-
 func TestAnArmyPassesOnlyThroughItsOwnersPlanets(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	if err := s.OrderArmy(0, "a", marines(1), "c", 0); err == nil || !strings.Contains(err.Error(), "no route") {
@@ -172,7 +161,8 @@ func TestReorderMidLaneIntoAnUnownedPlanetMustStopThere(t *testing.T) {
 		t.Error("an Army entering neutral b was re-routed beyond it")
 	}
 
-	s.Advance(c, 30_000) // waiting in orbit at b
+	s.Planets["b"].Locked = true // as if another Battle were on
+	s.Advance(c, 30_000)         // waiting in orbit at b
 	if err := s.ReorderArmy(0, a.ID, "a", 0); err != nil {
 		t.Fatalf("a waiting Army should be able to leave: %v", err)
 	}
@@ -216,15 +206,21 @@ func TestHostileArmiesPassOnALane(t *testing.T) {
 	_ = s.OrderArmy(0, "c", marines(3), "d", 0)
 	_ = s.OrderArmy(1, "d", marines(3), "c", 0)
 
-	s.Advance(c, 30_000)
-
-	if len(s.Armies) != 2 {
-		t.Fatalf("%d Armies, want both still there", len(s.Armies))
+	s.Advance(c, 29_800)
+	if len(s.Armies) != 2 || len(s.Battles) != 0 {
+		t.Fatalf("%d Armies and %d Battles mid-Lane, want both Armies and no Battle", len(s.Armies), len(s.Battles))
 	}
-	for _, a := range s.Armies {
-		if !a.Waiting || a.To == a.From {
-			t.Errorf("Army %+v, want each at the other's Planet", a)
-		}
+
+	// Each found the other's Planet empty: a Battle with no defenders.
+	ev := s.Advance(c, 30_000)
+	got := []string{}
+	for _, e := range ev.Ended {
+		got = append(got, e.Planet)
+	}
+	slices.Sort(got)
+	if !slices.Equal(got, []string{"c", "d"}) || s.Planets["c"].Owner != 1 || s.Planets["d"].Owner != 0 {
+		t.Errorf("Battles ended at %v; c is Seat %d's, d is Seat %d's; want a Battle at each end and the Planets swapped",
+			got, s.Planets["c"].Owner, s.Planets["d"].Owner)
 	}
 }
 

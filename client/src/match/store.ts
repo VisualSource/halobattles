@@ -68,6 +68,37 @@ export type Army = {
   toStack: number; // own only
 };
 
+export type Combatant = {
+  id: string;
+  side: "attacker" | "defender";
+  unit: string; // a unit or building id
+  shield: number;
+  armor: number;
+  hp: number;
+};
+
+export type BattleAction = {
+  actor: string;
+  target: string;
+  weapon: string;
+  shieldDmg: number;
+  armorDmg: number;
+  hpDmg: number;
+  killed: boolean;
+};
+
+/** A Battle you're a side of, as it stands after the Rounds completed. */
+export type Battle = {
+  id: number;
+  planet: string;
+  attacker: number;
+  defender: number | null; // null is neutral
+  started: number; // Match Time of Round 1
+  roundMs: number;
+  round: number; // Rounds completed
+  roster: Combatant[];
+};
+
 /** The public part of every player. */
 export type PlayerView = {
   seat: number;
@@ -95,6 +126,7 @@ export type View = {
   players: PlayerView[]; // by Seat
   planets: Map<string, PlanetView>;
   armies: Map<number, Army>;
+  battles: Map<number, Battle>;
   economy: Economy;
 };
 
@@ -106,6 +138,8 @@ export type ViewDelta = {
   removedPlanets: string[];
   armies: Army[];
   removedArmies: number[];
+  battles: Battle[];
+  removedBattles: number[];
   economy: Economy | null; // null when unchanged
 };
 
@@ -118,12 +152,16 @@ export function applyDelta(view: View, d: ViewDelta): View {
   const armies = new Map(view.armies);
   for (const a of d.armies) armies.set(a.id, a);
   for (const id of d.removedArmies) armies.delete(id);
+  const battles = new Map(view.battles);
+  for (const b of d.battles) battles.set(b.id, b);
+  for (const id of d.removedBattles) battles.delete(id);
   return {
     ...view,
     matchTime: d.matchTime,
     players,
     planets,
     armies,
+    battles,
     economy: d.economy ?? view.economy,
   };
 }

@@ -5,6 +5,7 @@
 import * as flatbuffers from 'flatbuffers';
 
 import { ArmyView, ArmyViewT } from '../wire/army-view.js';
+import { BattleView, BattleViewT } from '../wire/battle-view.js';
 import { Economy, EconomyT } from '../wire/economy.js';
 import { PlanetView, PlanetViewT } from '../wire/planet-view.js';
 import { PlayerView, PlayerViewT } from '../wire/player-view.js';
@@ -95,8 +96,33 @@ removedArmiesArray():Uint32Array|null {
   return offset ? new Uint32Array(this.bb!.bytes().buffer, this.bb!.bytes().byteOffset + this.bb!.__vector(this.bb_pos + offset), this.bb!.__vector_len(this.bb_pos + offset)) : null;
 }
 
+battles(index: number, obj?:BattleView):BattleView|null {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? (obj || new BattleView()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+battlesLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
+removedBattles(index: number):number|null {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? this.bb!.readUint32(this.bb!.__vector(this.bb_pos + offset) + index * 4) : 0;
+}
+
+removedBattlesLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
+removedBattlesArray():Uint32Array|null {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? new Uint32Array(this.bb!.bytes().buffer, this.bb!.bytes().byteOffset + this.bb!.__vector(this.bb_pos + offset), this.bb!.__vector_len(this.bb_pos + offset)) : null;
+}
+
 static startViewDelta(builder:flatbuffers.Builder) {
-  builder.startObject(7);
+  builder.startObject(9);
 }
 
 static addMatchTime(builder:flatbuffers.Builder, matchTime:bigint) {
@@ -192,6 +218,43 @@ static startRemovedArmiesVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addBattles(builder:flatbuffers.Builder, battlesOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(7, battlesOffset, 0);
+}
+
+static createBattlesVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startBattlesVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
+static addRemovedBattles(builder:flatbuffers.Builder, removedBattlesOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(8, removedBattlesOffset, 0);
+}
+
+static createRemovedBattlesVector(builder:flatbuffers.Builder, data:number[]|Uint32Array):flatbuffers.Offset;
+/**
+ * @deprecated This Uint8Array overload will be removed in the future.
+ */
+static createRemovedBattlesVector(builder:flatbuffers.Builder, data:number[]|Uint8Array):flatbuffers.Offset;
+static createRemovedBattlesVector(builder:flatbuffers.Builder, data:number[]|Uint32Array|Uint8Array):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addInt32(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startRemovedBattlesVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
 static endViewDelta(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -206,7 +269,9 @@ unpack(): ViewDeltaT {
     this.bb!.createScalarList<string>(this.removedPlanets.bind(this), this.removedPlanetsLength()),
     (this.economy() !== null ? this.economy()!.unpack() : null),
     this.bb!.createObjList<ArmyView, ArmyViewT>(this.armies.bind(this), this.armiesLength()),
-    this.bb!.createScalarList<number>(this.removedArmies.bind(this), this.removedArmiesLength())
+    this.bb!.createScalarList<number>(this.removedArmies.bind(this), this.removedArmiesLength()),
+    this.bb!.createObjList<BattleView, BattleViewT>(this.battles.bind(this), this.battlesLength()),
+    this.bb!.createScalarList<number>(this.removedBattles.bind(this), this.removedBattlesLength())
   );
 }
 
@@ -219,6 +284,8 @@ unpackTo(_o: ViewDeltaT): void {
   _o.economy = (this.economy() !== null ? this.economy()!.unpack() : null);
   _o.armies = this.bb!.createObjList<ArmyView, ArmyViewT>(this.armies.bind(this), this.armiesLength());
   _o.removedArmies = this.bb!.createScalarList<number>(this.removedArmies.bind(this), this.removedArmiesLength());
+  _o.battles = this.bb!.createObjList<BattleView, BattleViewT>(this.battles.bind(this), this.battlesLength());
+  _o.removedBattles = this.bb!.createScalarList<number>(this.removedBattles.bind(this), this.removedBattlesLength());
 }
 }
 
@@ -230,7 +297,9 @@ constructor(
   public removedPlanets: (string)[] = [],
   public economy: EconomyT|null = null,
   public armies: (ArmyViewT)[] = [],
-  public removedArmies: (number)[] = []
+  public removedArmies: (number)[] = [],
+  public battles: (BattleViewT)[] = [],
+  public removedBattles: (number)[] = []
 ){}
 
 
@@ -241,6 +310,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const economy = (this.economy !== null ? this.economy!.pack(builder) : 0);
   const armies = ViewDelta.createArmiesVector(builder, builder.createObjectOffsetList(this.armies));
   const removedArmies = ViewDelta.createRemovedArmiesVector(builder, this.removedArmies);
+  const battles = ViewDelta.createBattlesVector(builder, builder.createObjectOffsetList(this.battles));
+  const removedBattles = ViewDelta.createRemovedBattlesVector(builder, this.removedBattles);
 
   ViewDelta.startViewDelta(builder);
   ViewDelta.addMatchTime(builder, this.matchTime);
@@ -250,6 +321,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   ViewDelta.addEconomy(builder, economy);
   ViewDelta.addArmies(builder, armies);
   ViewDelta.addRemovedArmies(builder, removedArmies);
+  ViewDelta.addBattles(builder, battles);
+  ViewDelta.addRemovedBattles(builder, removedBattles);
 
   return ViewDelta.endViewDelta(builder);
 }

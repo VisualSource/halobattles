@@ -22,8 +22,12 @@ func lineContent() *cs.Content {
 		return cs.Stacks{cs.Stack{{Unit: cs.ID(unit), Count: n}}}
 	}
 	return &cs.Content{
-		Rulesets:  map[string]cs.Ruleset{RulesetID: {PaydaySeconds: 90, CancelRefundPercent: 50, SellRefundPercent: 50, UnitSlotsPerStack: 10}},
-		Resources: map[string]cs.Resource{"base:credits": {Name: "Credits"}, "base:materials": {Name: "Materials"}},
+		Rulesets: map[string]cs.Ruleset{RulesetID: {
+			PaydaySeconds: 90, CancelRefundPercent: 50, SellRefundPercent: 50, UnitSlotsPerStack: 10,
+			Tiers: map[string]float64{"none": 0, "weak": 0.6, "average": 1, "strong": 1.4}, InitiativeDie: 20, RoundCap: 40, RoundSeconds: 3,
+		}},
+		WeaponTypes: battleContent().WeaponTypes,
+		Resources:   map[string]cs.Resource{"base:credits": {Name: "Credits"}, "base:materials": {Name: "Materials"}},
 		PlanetTypes: map[string]cs.PlanetType{
 			"base:capital":  {BuildingSlots: 4, CommandPointBonus: 20, Income: map[string]int{"base:credits": 300, "base:materials": 100}},
 			"base:standard": {BuildingSlots: 3, CommandPointBonus: 10, Income: map[string]int{"base:credits": 200, "base:materials": 50}},
@@ -38,10 +42,14 @@ func lineContent() *cs.Content {
 			"base:hall": {Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150}},
 		},
 		Units: map[string]cs.Unit{
-			"base:marine":  {CommandPoints: 1, BuildTime: 15, Cost: map[string]int{"base:credits": 50}},
-			"base:odst":    {CommandPoints: 2, BuildTime: 25, Cost: map[string]int{"base:credits": 100}},
-			"base:spartan": {Name: "Spartans", CommandPoints: 1, BuildTime: 60, Cost: map[string]int{"base:credits": 100}, MaxCount: new(1)},
-			"base:warthog": {CommandPoints: 3}, "base:grunt": {CommandPoints: 1},
+			"base:marine": {CommandPoints: 1, BuildTime: 15, Cost: map[string]int{"base:credits": 50},
+				Combat: battleContent().Units["base:marine"].Combat},
+			"base:odst": {CommandPoints: 2, BuildTime: 25, Cost: map[string]int{"base:credits": 100},
+				Combat: battleContent().Units["base:marine"].Combat},
+			"base:spartan": {Name: "Spartans", CommandPoints: 1, BuildTime: 60, Cost: map[string]int{"base:credits": 100}, MaxCount: new(1),
+				Combat: battleContent().Units["base:marine"].Combat},
+			"base:warthog": {CommandPoints: 3, Combat: battleContent().Units["base:warthog"].Combat},
+			"base:grunt":   {CommandPoints: 1, Combat: battleContent().Units["base:grunt"].Combat},
 		},
 		Factions: map[string]cs.Faction{
 			"base:unsc": {StartingKit: cs.StartingKit{

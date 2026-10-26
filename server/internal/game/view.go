@@ -18,6 +18,7 @@ type View struct {
 	Players []PlayerView
 	Planets []PlanetView // only Planets in vision, sorted by id
 	Armies  []ArmyView   // only Armies in vision, sorted by id
+	Battles []BattleView // only the viewer's own Battles, as a side, sorted by id
 	Economy Economy
 }
 
@@ -65,6 +66,19 @@ type ArmyView struct {
 	Waiting     bool
 	Destination string // own only
 	ToStack     int    // own only
+}
+
+// BattleView is a Battle the viewer is a side of, as it stands after the
+// Rounds played out so far. Others see only the Planet's Locked flag.
+type BattleView struct {
+	ID       uint32
+	Planet   string
+	Attacker int
+	Defender int
+	Started  int64
+	RoundMs  int64
+	Round    int         // Rounds completed
+	Roster   []Combatant // with each one's Shield, Armor and HP now
 }
 
 // visible is the set of Planets a player sees: those they own and every
@@ -132,14 +146,39 @@ func (s *State) View(c *cs.Content, seat int) View {
 			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting,
 		}
 		if mine {
-			av.Destination, av.ToStack = a.To, a.ToStack
-			if len(a.Path) > 0 {
-				av.Destination = a.Path[len(a.Path)-1]
-			}
+			av.Destination, av.ToStack = a.destination(), a.ToStack
 		}
 		v.Armies = append(v.Armies, av)
 	}
+	for _, id := range slices.Sorted(maps.Keys(s.Battles)) {
+		if b := s.Battles[id]; b.Attacker == seat || b.Defender == seat {
+			v.Battles = append(v.Battles, b.view(s.Time))
+		}
+	}
 	return v
+}
+
+// view replays the Rounds whose Round duration has passed onto the roster.
+func (b *Battle) view(now int64) BattleView {
+	done := 0
+	for done < b.Sent && b.Started+int64(done+1)*b.RoundMs <= now {
+		done++
+	}
+	roster := slices.Clone(b.Result.Roster)
+	at := map[string]int{}
+	for i, cb := range roster {
+		at[cb.ID] = i
+	}
+	for _, round := range b.Result.Rounds[:done] {
+		for _, a := range round {
+			t := &roster[at[a.Target]]
+			t.Shield, t.Armor, t.HP = t.Shield-a.ShieldDmg, t.Armor-a.ArmorDmg, t.HP-a.HPDmg
+		}
+	}
+	return BattleView{
+		ID: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender,
+		Started: b.Started, RoundMs: b.RoundMs, Round: done, Roster: roster,
+	}
 }
 
 // Delta is what changed between two Views of the same player: whole
@@ -151,6 +190,8 @@ type Delta struct {
 	RemovedPlanets []string     // sorted
 	Armies         []ArmyView   // sorted by id
 	RemovedArmies  []uint32     // sorted
+	Battles        []BattleView // sorted by id
+	RemovedBattles []uint32     // sorted
 	Economy        *Economy     // nil when unchanged
 }
 
@@ -165,11 +206,12 @@ func Diff(prev, next View) (Delta, bool) {
 	}
 	d.Planets, d.RemovedPlanets = diffBy(prev.Planets, next.Planets, func(p PlanetView) string { return p.ID })
 	d.Armies, d.RemovedArmies = diffBy(prev.Armies, next.Armies, func(a ArmyView) uint32 { return a.ID })
+	d.Battles, d.RemovedBattles = diffBy(prev.Battles, next.Battles, func(b BattleView) uint32 { return b.ID })
 	if !reflect.DeepEqual(prev.Economy, next.Economy) {
 		d.Economy = &next.Economy
 	}
-	changed := len(d.Players)+len(d.Planets)+len(d.RemovedPlanets)+len(d.Armies)+len(d.RemovedArmies) > 0 ||
-		d.Economy != nil
+	changed := len(d.Players)+len(d.Planets)+len(d.RemovedPlanets)+len(d.Armies)+len(d.RemovedArmies)+
+		len(d.Battles)+len(d.RemovedBattles) > 0 || d.Economy != nil
 	return d, changed
 }
 

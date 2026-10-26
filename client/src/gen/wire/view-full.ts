@@ -5,6 +5,7 @@
 import * as flatbuffers from 'flatbuffers';
 
 import { ArmyView, ArmyViewT } from '../wire/army-view.js';
+import { BattleView, BattleViewT } from '../wire/battle-view.js';
 import { Economy, EconomyT } from '../wire/economy.js';
 import { PlanetView, PlanetViewT } from '../wire/planet-view.js';
 import { PlayerView, PlayerViewT } from '../wire/player-view.js';
@@ -94,8 +95,18 @@ armiesLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+battles(index: number, obj?:BattleView):BattleView|null {
+  const offset = this.bb!.__offset(this.bb_pos, 22);
+  return offset ? (obj || new BattleView()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+battlesLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 22);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
 static startViewFull(builder:flatbuffers.Builder) {
-  builder.startObject(9);
+  builder.startObject(10);
 }
 
 static addMatchTime(builder:flatbuffers.Builder, matchTime:bigint) {
@@ -170,6 +181,22 @@ static startArmiesVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addBattles(builder:flatbuffers.Builder, battlesOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(9, battlesOffset, 0);
+}
+
+static createBattlesVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startBattlesVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
 static endViewFull(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -186,7 +213,8 @@ unpack(): ViewFullT {
     this.bb!.createObjList<PlayerView, PlayerViewT>(this.players.bind(this), this.playersLength()),
     this.bb!.createObjList<PlanetView, PlanetViewT>(this.planets.bind(this), this.planetsLength()),
     (this.economy() !== null ? this.economy()!.unpack() : null),
-    this.bb!.createObjList<ArmyView, ArmyViewT>(this.armies.bind(this), this.armiesLength())
+    this.bb!.createObjList<ArmyView, ArmyViewT>(this.armies.bind(this), this.armiesLength()),
+    this.bb!.createObjList<BattleView, BattleViewT>(this.battles.bind(this), this.battlesLength())
   );
 }
 
@@ -201,6 +229,7 @@ unpackTo(_o: ViewFullT): void {
   _o.planets = this.bb!.createObjList<PlanetView, PlanetViewT>(this.planets.bind(this), this.planetsLength());
   _o.economy = (this.economy() !== null ? this.economy()!.unpack() : null);
   _o.armies = this.bb!.createObjList<ArmyView, ArmyViewT>(this.armies.bind(this), this.armiesLength());
+  _o.battles = this.bb!.createObjList<BattleView, BattleViewT>(this.battles.bind(this), this.battlesLength());
 }
 }
 
@@ -214,7 +243,8 @@ constructor(
   public players: (PlayerViewT)[] = [],
   public planets: (PlanetViewT)[] = [],
   public economy: EconomyT|null = null,
-  public armies: (ArmyViewT)[] = []
+  public armies: (ArmyViewT)[] = [],
+  public battles: (BattleViewT)[] = []
 ){}
 
 
@@ -226,6 +256,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const planets = ViewFull.createPlanetsVector(builder, builder.createObjectOffsetList(this.planets));
   const economy = (this.economy !== null ? this.economy!.pack(builder) : 0);
   const armies = ViewFull.createArmiesVector(builder, builder.createObjectOffsetList(this.armies));
+  const battles = ViewFull.createBattlesVector(builder, builder.createObjectOffsetList(this.battles));
 
   ViewFull.startViewFull(builder);
   ViewFull.addMatchTime(builder, this.matchTime);
@@ -237,6 +268,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   ViewFull.addPlanets(builder, planets);
   ViewFull.addEconomy(builder, economy);
   ViewFull.addArmies(builder, armies);
+  ViewFull.addBattles(builder, battles);
 
   return ViewFull.endViewFull(builder);
 }

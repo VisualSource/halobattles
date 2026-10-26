@@ -22,9 +22,16 @@ type fakeDispatcher struct {
 	deltas   map[string][]*wire.ViewDeltaT       // by session
 	paydays  map[string][]*wire.PaydayPaidT      // by session
 	captured map[string][]*wire.PlanetCapturedT  // by session
+	ops      map[string][]wire.Op                // every message, by session
 }
 
 func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Presence, _ runtime.Presence, _ bool) error {
+	if d.ops == nil {
+		d.ops = map[string][]wire.Op{}
+	}
+	for _, p := range to {
+		d.ops[p.GetSessionId()] = append(d.ops[p.GetSessionId()], wire.Op(op))
+	}
 	switch {
 	case op == int64(wire.OpLobbyState) && to == nil:
 		d.lobby = wire.GetRootAsLobbyState(data, 0).UnPack()
