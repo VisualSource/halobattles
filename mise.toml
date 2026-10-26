@@ -28,8 +28,7 @@ description = "Fail if gen leaves a diff"
 depends = ["gen"]
 run = "git diff --exit-code -- server/internal/gen client/src/gen && test -z \"$(git status --porcelain -- server/internal/gen client/src/gen)\""
 
-# Skipped unless go.mod/go.sum changed: recreating vendor/ would retrigger the
-# dev watcher, which sees it as a change to server/ itself.
+# Skipped unless go.mod/go.sum changed.
 [tasks.vendor]
 hide = true
 dir = "server"
@@ -50,11 +49,15 @@ run = [
 description = "Run Nakama with .so rebuilds on Go changes, plus Vite"
 depends = ["dev:server", "dev:client"]
 
+
 [tasks."dev:server"]
 hide = true
 run = [
   "${CONTAINER:-podman} compose -f deploy/compose.yml up -d",
-  "watchexec -w server -e go -i '**/vendor/**' --on-busy-update=restart --shell=none -- mise run dev:reload",
+  # Watch sources, not server/: vendor/ churn shows up as events on server/
+  # itself. Add new top-level Go dirs (e.g. server/cmd) here. Queue, don't
+  # restart: killing a build mid-vendor leaves vendor/ without modules.txt.
+  "watchexec -w server/internal -w server/main.go -w server/go.mod -w server/go.sum --on-busy-update=queue --shell=none -- mise run dev:reload",
 ]
 
 [tasks."dev:reload"]
@@ -68,10 +71,7 @@ run = "pnpm -C client dev"
 
 [tasks.test]
 description = "Go and client tests"
-run = [
-  "cd server && go test ./...",
-  "pnpm -C client test",
-]
+run = ["cd server && go test ./...", "pnpm -C client test"]
 
 [tasks.pre-push]
 description = "Fast subset of check, run by the git pre-push hook"
@@ -88,3 +88,8 @@ run = [
   "pnpm -C client lint",
   "mise run build",
 ]
+
+
+[tasks.down]
+description = "stop container"
+run = "${CONTAINER:-podman} compose -f deploy/compose.yml down"
