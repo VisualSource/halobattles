@@ -4,9 +4,9 @@ import {
   createRouter,
   Link,
   Outlet,
-  useLocation,
   useNavigate,
   useRouter,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useStore } from "zustand";
@@ -15,6 +15,7 @@ import { client, createSocket } from "./config";
 import { type ContentLookups, loadContent } from "./content";
 import { MatchConnection } from "./match/connection";
 import { LobbyScreen } from "./match/lobby";
+import { inMatch, phaseRedirect } from "./match/phase";
 import { Toasts } from "./match/toasts";
 import { DisplayNamePrompt, listOpenMatches, Menu } from "./menu";
 
@@ -25,9 +26,6 @@ let content: Promise<ContentLookups> | undefined;
 // Seat is free before the menu lists Matches. (A route's onLeave runs only
 // after the next route has loaded, and left routes stay cached.)
 let active: { matchId: string; conn: MatchConnection } | undefined;
-
-const inMatch = (pathname: string, matchId: string) =>
-  pathname === `/match/${matchId}` || pathname.startsWith(`/match/${matchId}/`);
 
 async function closeActive() {
   const conn = active?.conn;
@@ -132,18 +130,17 @@ const matchRoute = createRoute({
     const { matchId } = matchRoute.useParams();
     const phase = useStore(conn.store, (st) => st.lobby?.phase);
     const disconnected = useStore(conn.store, (st) => st.disconnected);
-    const pathname = useLocation({ select: (l) => l.pathname });
+    // The resolved location: while leaving, the pending one is already "/"
+    // but this screen is still mounted.
+    const pathname = useRouterState({
+      select: (st) => st.resolvedLocation?.pathname ?? "",
+    });
     const navigate = useNavigate();
     // The server's phase drives navigation: a phase change moves to the
     // matching child, and a URL for another phase is sent back.
     useEffect(() => {
-      if (phase && pathname !== `/match/${matchId}/${phase}`) {
-        void navigate({
-          to: phaseRoutes[phase],
-          params: { matchId },
-          replace: true,
-        });
-      }
+      const to = phaseRedirect(phase, pathname, matchId);
+      if (to) void navigate({ to, params: { matchId }, replace: true });
     }, [phase, pathname, matchId, navigate]);
     if (disconnected) {
       return (
@@ -164,12 +161,6 @@ const matchRoute = createRoute({
     );
   },
 });
-
-const phaseRoutes = {
-  lobby: "/match/$matchId/lobby",
-  play: "/match/$matchId/play",
-  results: "/match/$matchId/results",
-} as const;
 
 // The layout redirects to the phase's child once the first LobbyState lands.
 const matchIndexRoute = createRoute({
