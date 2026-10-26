@@ -8,6 +8,7 @@ function fakeSocket() {
   const calls: string[] = [];
   const socket: SocketLike = {
     onmatchdata: () => {},
+    ondisconnect: () => {},
     connect: async () => {
       calls.push("connect");
       return {} as Session;
@@ -81,6 +82,17 @@ describe("MatchConnection", () => {
         },
       ],
     });
+  });
+
+  it("marks the Match store disconnected when the socket drops", async () => {
+    const { socket } = fakeSocket();
+    const conn = new MatchConnection(socket, { log: false });
+    await conn.open({} as Session, "m1");
+    expect(conn.store.getState().disconnected).toBe(false);
+
+    socket.ondisconnect(new Event("close"));
+
+    expect(conn.store.getState().disconnected).toBe(true);
   });
 
   it("logs each message as JSON when logging is on", async () => {

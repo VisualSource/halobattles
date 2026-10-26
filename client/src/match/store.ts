@@ -20,7 +20,10 @@ export type Lobby = {
   seats: Seat[]; // longest held first
 };
 
-export type MatchState = { lobby: Lobby | null };
+export type MatchState = {
+  lobby: Lobby | null;
+  disconnected: boolean; // the socket dropped, e.g. the server restarted
+};
 
 export const createMatchStore = () =>
-  createStore<MatchState>(() => ({ lobby: null }));
+  createStore<MatchState>(() => ({ lobby: null, disconnected: false }));

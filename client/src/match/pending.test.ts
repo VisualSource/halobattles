@@ -14,6 +14,7 @@ function setup() {
   const sent: { op: number; data: Uint8Array }[] = [];
   const socket: SocketLike = {
     onmatchdata: () => {},
+    ondisconnect: () => {},
     connect: async () => ({}) as Session,
     joinMatch: async () => ({}) as never,
     leaveMatch: async () => {},

@@ -22,15 +22,7 @@ run = [
 [tasks.gen]
 description = "Regenerate committed code from schema/"
 depends = ["vendor"]
-run = [
-  # Go embeds the schemas to validate with, and go:embed can't reach outside the module.
-  "mkdir -p server/internal/gen/contentschema && rm -f server/internal/gen/contentschema/*.schema.json && cp schema/content/*.schema.json server/internal/gen/contentschema/",
-  "cd server && go tool go-jsonschema -p contentschema -t --capitalization ID --tags json --only-models --disable-custom-types-for-maps -o internal/gen/contentschema/types.go ../schema/content/content.schema.json ../schema/content/mod.schema.json",
-  "pnpm -C client exec json2ts -i ../schema/content/content.schema.json -o src/gen/content.ts --cwd ../schema/content --bannerComment '// Generated from schema/content by mise run gen. Do not edit.'",
-  "rm -rf server/internal/gen/wire client/src/gen/wire client/src/gen/wire.ts",
-  "flatc --go --gen-object-api -o server/internal/gen schema/wire/*.fbs && gofmt -w server/internal/gen/wire",
-  "flatc --ts --gen-object-api -o client/src/gen schema/wire/*.fbs",
-]
+run = "bash scripts/gen.sh"
 
 [tasks."gen:diff"]
 description = "Fail if gen leaves a diff"
@@ -64,11 +56,14 @@ depends = ["dev:server", "dev:mods", "dev:client"]
 [tasks."dev:server"]
 hide = true
 run = [
-  "${CONTAINER:-podman} compose -f deploy/compose.yml up -d",
+  # Build first, then start Nakama once on the fresh .so. Starting it before
+  # the build finished meant a second restart that dropped every Match.
+  "mise run build",
+  "${CONTAINER:-podman} compose -f deploy/compose.yml up -d --force-recreate nakama",
   # Watch sources, not server/: vendor/ churn shows up as events on server/
   # itself. Add new top-level Go dirs the .so builds from here. Queue, don't
   # restart: killing a build mid-vendor leaves vendor/ without modules.txt.
-  "watchexec -w server/internal -w server/main.go -w server/go.mod -w server/go.sum --on-busy-update=queue --shell=none -- mise run dev:reload",
+  "watchexec -w server/internal -w server/main.go -w server/go.mod -w server/go.sum --postpone --on-busy-update=queue --shell=none -- mise run dev:reload",
 ]
 
 [tasks."dev:mods"]

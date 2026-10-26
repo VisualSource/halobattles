@@ -19,7 +19,10 @@ import { createMatchStore, type Lobby } from "./store";
 export type SocketLike = Pick<
   Socket,
   "connect" | "joinMatch" | "leaveMatch" | "disconnect" | "sendMatchState"
-> & { onmatchdata: (m: MatchData) => void };
+> & {
+  onmatchdata: (m: MatchData) => void;
+  ondisconnect: (e: Event) => void;
+};
 
 const phases = {
   [Phase.Lobby]: "lobby",
@@ -73,6 +76,9 @@ export class MatchConnection {
   async open(session: Session, matchId: string) {
     this.userId = session.user_id ?? "";
     this.socket.onmatchdata = (m) => this.receive(m.op_code, m.data);
+    // Not fired by close(), which disconnects without the event.
+    this.socket.ondisconnect = () =>
+      this.store.setState({ disconnected: true });
     await this.socket.connect(session, true);
     await this.socket.joinMatch(matchId);
     this.matchId = matchId;

@@ -102,7 +102,10 @@ const matchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "match/$matchId",
   loader: async ({ context, params }) => {
-    if (active?.matchId !== params.matchId) {
+    if (
+      active?.matchId !== params.matchId ||
+      active.conn.store.getState().disconnected
+    ) {
       await closeActive();
       const conn = new MatchConnection(createSocket());
       try {
@@ -128,6 +131,7 @@ const matchRoute = createRoute({
     const { conn } = matchRoute.useLoaderData();
     const { matchId } = matchRoute.useParams();
     const phase = useStore(conn.store, (st) => st.lobby?.phase);
+    const disconnected = useStore(conn.store, (st) => st.disconnected);
     const pathname = useLocation({ select: (l) => l.pathname });
     const navigate = useNavigate();
     // The server's phase drives navigation: a phase change moves to the
@@ -141,6 +145,17 @@ const matchRoute = createRoute({
         });
       }
     }, [phase, pathname, matchId, navigate]);
+    if (disconnected) {
+      return (
+        <>
+          <p role="alert">
+            Lost the connection to the server. If it restarted, this Match is
+            gone.
+          </p>
+          <Link to="/">Back to menu</Link>
+        </>
+      );
+    }
     return (
       <>
         <Toasts events={conn.events} />
