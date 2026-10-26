@@ -232,7 +232,8 @@ func TestCaptureCancelsTheLosersQueuesAndDestroysTheirBuildings(t *testing.T) {
 	a := s.Planets["a"]
 	a.Stacks = [StacksPerPlanet]Stack{}
 
-	ev := s.capture(a, 1)
+	var ev Events
+	s.capture(a, 1, &ev)
 
 	if a.Owner != 1 || len(a.Queue) != 0 || len(a.UnitQueues) != 0 || slices.ContainsFunc(a.Buildings, func(b string) bool { return b != "" }) {
 		t.Errorf("a = %+v, want Seat 1's with no queues or buildings", a)
@@ -240,8 +241,8 @@ func TestCaptureCancelsTheLosersQueuesAndDestroysTheirBuildings(t *testing.T) {
 	if used, _ := s.commandPoints(c, 0); used != 0 || s.Players[0].Resources["base:credits"] != credits {
 		t.Errorf("Seat 0: %d Command Points used, Credits %d; want 0 and no refund", used, s.Players[0].Resources["base:credits"])
 	}
-	if !slices.Contains(ev.Viewers, 0) {
-		t.Errorf("viewers %v, want the previous owner to hear of it", ev.Viewers)
+	if !slices.Contains(ev.Captures[0].Viewers, 0) {
+		t.Errorf("viewers %v, want the previous owner to hear of it", ev.Captures[0].Viewers)
 	}
 }
 

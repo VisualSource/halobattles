@@ -55,8 +55,13 @@ planetCount():number {
   return offset ? this.bb!.readUint16(this.bb_pos + offset) : 0;
 }
 
+eliminated():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 14);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startPlayerView(builder:flatbuffers.Builder) {
-  builder.startObject(5);
+  builder.startObject(6);
 }
 
 static addSeat(builder:flatbuffers.Builder, seat:number) {
@@ -79,18 +84,23 @@ static addPlanetCount(builder:flatbuffers.Builder, planetCount:number) {
   builder.addFieldInt16(4, planetCount, 0);
 }
 
+static addEliminated(builder:flatbuffers.Builder, eliminated:boolean) {
+  builder.addFieldInt8(5, +eliminated, +false);
+}
+
 static endPlayerView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createPlayerView(builder:flatbuffers.Builder, seat:number, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, planetCount:number):flatbuffers.Offset {
+static createPlayerView(builder:flatbuffers.Builder, seat:number, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, planetCount:number, eliminated:boolean):flatbuffers.Offset {
   PlayerView.startPlayerView(builder);
   PlayerView.addSeat(builder, seat);
   PlayerView.addUser(builder, userOffset);
   PlayerView.addDisplayName(builder, displayNameOffset);
   PlayerView.addFaction(builder, factionOffset);
   PlayerView.addPlanetCount(builder, planetCount);
+  PlayerView.addEliminated(builder, eliminated);
   return PlayerView.endPlayerView(builder);
 }
 
@@ -100,7 +110,8 @@ unpack(): PlayerViewT {
     this.user(),
     this.displayName(),
     this.faction(),
-    this.planetCount()
+    this.planetCount(),
+    this.eliminated()
   );
 }
 
@@ -111,6 +122,7 @@ unpackTo(_o: PlayerViewT): void {
   _o.displayName = this.displayName();
   _o.faction = this.faction();
   _o.planetCount = this.planetCount();
+  _o.eliminated = this.eliminated();
 }
 }
 
@@ -120,7 +132,8 @@ constructor(
   public user: string|Uint8Array|null = null,
   public displayName: string|Uint8Array|null = null,
   public faction: string|Uint8Array|null = null,
-  public planetCount: number = 0
+  public planetCount: number = 0,
+  public eliminated: boolean = false
 ){}
 
 
@@ -134,7 +147,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     user,
     displayName,
     faction,
-    this.planetCount
+    this.planetCount,
+    this.eliminated
   );
 }
 }

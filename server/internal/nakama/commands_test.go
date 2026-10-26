@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/VisualSource/halobattles/server/internal/game"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -409,5 +410,56 @@ func TestAnArmyAtAnEnemyCapitalStartsABattleBothSidesHear(t *testing.T) {
 		if !slices.Contains(ops, wire.OpBattleStarted) || !slices.Contains(ops, wire.OpBattleEnded) {
 			t.Errorf("%s got %v, want BattleStarted and BattleEnded", p.user, ops)
 		}
+	}
+}
+
+func TestHoldingTheShareEndsTheMatchIntoResults(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	mine := ""
+	for _, p := range h.d.views[u1.session].Planets {
+		if p.Capital {
+			mine = p.Id
+		}
+	}
+	h.loop(cmd(u1, wire.OpOrderArmy, &wire.OrderArmyT{
+		Seq: 103, FromPlanet: mine, ToPlanet: "y", Units: []*wire.ArmyUnitsT{{Stack: 0, Unit: "base:grunt", Count: 1}},
+	})) // 2 of 3 Planets: over the 0.6 share, so a 90 s hold starts
+
+	for range 90 * tickRate {
+		h.loop()
+	}
+
+	if h.d.lobby.Phase != wire.PhaseResults || h.d.lobby.Winner != 0 || h.d.lobby.EndReason != "hold" {
+		t.Fatalf("LobbyState = phase %v, winner %d, reason %q; want results, Seat 0, hold",
+			h.d.lobby.Phase, h.d.lobby.Winner, h.d.lobby.EndReason)
+	}
+	if !slices.Contains(h.d.toAll, wire.OpMatchEnded) {
+		t.Error("MatchEnded wasn't broadcast to everyone")
+	}
+	for range 60*tickRate - 1 {
+		h.loop()
+	}
+	if h.state == nil {
+		t.Fatal("the Match ended before resultsSeconds were up")
+	}
+	h.loop()
+	if h.state != nil {
+		t.Error("the Match should terminate after resultsSeconds")
+	}
+}
+
+func TestResultsCloseOnceEveryoneLeaves(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	s := h.state.(*matchState)
+	s.play.Result = &game.Result{Winner: 1, Reason: game.ReasonLastStanding}
+	s.phase, s.endTick = wire.PhaseResults, h.tick
+
+	h.leave(u1)
+	h.leave(u2)
+	h.loop()
+	if h.state != nil {
+		t.Error("an empty results phase should close the Match")
 	}
 }

@@ -30,6 +30,8 @@ enum Op : int {
   BattleStarted = 106,
   BattleRound = 107,
   BattleEnded = 108,
+  PlayerEliminated = 109,
+  MatchEnded = 110,
 }
 
 enum Phase : byte { Lobby, Play, Results }
@@ -144,6 +146,8 @@ table LobbyState {
   map: string;
   starting_resources: [Amount];
   seats: [Seat];           // in Seat order: longest held first
+  winner: byte = -1;       // in results: a Seat index; -1 is none
+  end_reason: string;      // in results: "hold", "last-standing", ...
 }
 
 // Sent to the sender of a command the server refused.
@@ -250,6 +254,13 @@ table PlayerView {
   display_name: string;
   faction: string;
   planet_count: uint16;
+  eliminated: bool;
+}
+
+// The running win-hold countdown, public to everyone.
+table WinHold {
+  seat: byte = -1;         // -1 is none
+  ends: long;              // Match Time
 }
 
 // The viewer's own economy. Never sent for anyone else.
@@ -274,6 +285,7 @@ table ViewFull {
   economy: Economy;
   armies: [ArmyView];
   battles: [BattleView];
+  win_hold: WinHold;
 }
 
 // Sent on a tick when the viewer's View changed since the last one sent.
@@ -288,6 +300,7 @@ table ViewDelta {
   removed_armies: [uint32];
   battles: [BattleView];
   removed_battles: [uint32];
+  win_hold: WinHold;       // absent when unchanged
 }
 
 // Sent to everyone who can see the Planet, and its previous owner.
@@ -326,6 +339,19 @@ table BattleEnded {
   battle: uint32;
   planet: string;
   winner: byte = -1;       // a Seat; -1 is neutral
+}
+
+// Sent to everyone.
+table PlayerEliminated {
+  match_time: long;
+  seat: ubyte;
+}
+
+// Sent to everyone; the Match moves to results.
+table MatchEnded {
+  match_time: long;
+  winner: byte = -1;       // a Seat index; -1 is none
+  reason: string;
 }
 
 // Sent to one player at each Payday: what each Resource changed by.

@@ -16,6 +16,7 @@ import { MatchConnection } from "./match/connection";
 import { LobbyScreen } from "./match/lobby";
 import { inMatch } from "./match/phase";
 import { PlayScreen } from "./match/play";
+import { ResultsScreen } from "./match/results";
 import { MatchScreen, useMatchContext } from "./match/screen";
 import { DisplayNamePrompt, listOpenMatches, Menu } from "./menu";
 
@@ -180,16 +181,13 @@ const playRoute = createRoute({
   },
 });
 
-// A placeholder until the results screen lands.
 const resultsRoute = createRoute({
   getParentRoute: () => matchRoute,
   path: "results",
-  component: () => (
-    <>
-      <p>The Match is over.</p>
-      <Link to="/">Back to menu</Link>
-    </>
-  ),
+  component: function Results() {
+    const { conn } = useMatchContext();
+    return <ResultsScreen conn={conn} />;
+  },
 });
 
 export const router = createRouter({

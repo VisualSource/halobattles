@@ -30,6 +30,8 @@ const (
 	OpBattleStarted        Op = 106
 	OpBattleRound          Op = 107
 	OpBattleEnded          Op = 108
+	OpPlayerEliminated     Op = 109
+	OpMatchEnded           Op = 110
 )
 
 var EnumNamesOp = map[Op]string{
@@ -56,6 +58,8 @@ var EnumNamesOp = map[Op]string{
 	OpBattleStarted:        "BattleStarted",
 	OpBattleRound:          "BattleRound",
 	OpBattleEnded:          "BattleEnded",
+	OpPlayerEliminated:     "PlayerEliminated",
+	OpMatchEnded:           "MatchEnded",
 }
 
 var EnumValuesOp = map[string]Op{
@@ -82,6 +86,8 @@ var EnumValuesOp = map[string]Op{
 	"BattleStarted":        OpBattleStarted,
 	"BattleRound":          OpBattleRound,
 	"BattleEnded":          OpBattleEnded,
+	"PlayerEliminated":     OpPlayerEliminated,
+	"MatchEnded":           OpMatchEnded,
 }
 
 func (v Op) String() string {

@@ -18,6 +18,8 @@ export type Lobby = {
   map: string;
   startingResources: Map<string, number>;
   seats: Seat[]; // longest held first
+  winner: number | null; // in results: a Seat, or null for none
+  endReason: string; // in results: "hold", "last-standing", ...
 };
 
 export type UnitSlot = { unit: string; count: number };
@@ -106,7 +108,11 @@ export type PlayerView = {
   displayName: string;
   faction: string;
   planetCount: number;
+  eliminated: boolean;
 };
+
+/** The running win-hold countdown, public to everyone. */
+export type WinHold = { seat: number | null; ends: number };
 
 /** Your own economy; nobody else's is ever sent. */
 export type Economy = {
@@ -128,6 +134,7 @@ export type View = {
   armies: Map<number, Army>;
   battles: Map<number, Battle>;
   economy: Economy;
+  winHold: WinHold;
 };
 
 /** What changed since the last View: whole entities, plus removed ids. */
@@ -141,6 +148,7 @@ export type ViewDelta = {
   battles: Battle[];
   removedBattles: number[];
   economy: Economy | null; // null when unchanged
+  winHold: WinHold | null; // null when unchanged
 };
 
 export function applyDelta(view: View, d: ViewDelta): View {
@@ -163,6 +171,7 @@ export function applyDelta(view: View, d: ViewDelta): View {
     armies,
     battles,
     economy: d.economy ?? view.economy,
+    winHold: d.winHold ?? view.winHold,
   };
 }
 

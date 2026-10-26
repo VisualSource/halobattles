@@ -12,6 +12,7 @@ type PlayerViewT struct {
 	DisplayName string `json:"display_name"`
 	Faction     string `json:"faction"`
 	PlanetCount uint16 `json:"planet_count"`
+	Eliminated  bool   `json:"eliminated"`
 }
 
 func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -36,6 +37,7 @@ func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	PlayerViewAddDisplayName(builder, displayNameOffset)
 	PlayerViewAddFaction(builder, factionOffset)
 	PlayerViewAddPlanetCount(builder, t.PlanetCount)
+	PlayerViewAddEliminated(builder, t.Eliminated)
 	return PlayerViewEnd(builder)
 }
 
@@ -45,6 +47,7 @@ func (rcv *PlayerView) UnPackTo(t *PlayerViewT) {
 	t.DisplayName = string(rcv.DisplayName())
 	t.Faction = string(rcv.Faction())
 	t.PlanetCount = rcv.PlanetCount()
+	t.Eliminated = rcv.Eliminated()
 }
 
 func (rcv *PlayerView) UnPack() *PlayerViewT {
@@ -139,8 +142,20 @@ func (rcv *PlayerView) MutatePlanetCount(n uint16) bool {
 	return rcv._tab.MutateUint16Slot(12, n)
 }
 
+func (rcv *PlayerView) Eliminated() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *PlayerView) MutateEliminated(n bool) bool {
+	return rcv._tab.MutateBoolSlot(14, n)
+}
+
 func PlayerViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(5)
+	builder.StartObject(6)
 }
 func PlayerViewAddSeat(builder *flatbuffers.Builder, seat byte) {
 	builder.PrependByteSlot(0, seat, 0)
@@ -156,6 +171,9 @@ func PlayerViewAddFaction(builder *flatbuffers.Builder, faction flatbuffers.UOff
 }
 func PlayerViewAddPlanetCount(builder *flatbuffers.Builder, planetCount uint16) {
 	builder.PrependUint16Slot(4, planetCount, 0)
+}
+func PlayerViewAddEliminated(builder *flatbuffers.Builder, eliminated bool) {
+	builder.PrependBoolSlot(5, eliminated, false)
 }
 func PlayerViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

@@ -23,6 +23,7 @@ type fakeDispatcher struct {
 	paydays  map[string][]*wire.PaydayPaidT      // by session
 	captured map[string][]*wire.PlanetCapturedT  // by session
 	ops      map[string][]wire.Op                // every message, by session
+	toAll    []wire.Op                           // messages broadcast to everyone
 }
 
 func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Presence, _ runtime.Presence, _ bool) error {
@@ -31,6 +32,9 @@ func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Pr
 	}
 	for _, p := range to {
 		d.ops[p.GetSessionId()] = append(d.ops[p.GetSessionId()], wire.Op(op))
+	}
+	if to == nil {
+		d.toAll = append(d.toAll, wire.Op(op))
 	}
 	switch {
 	case op == int64(wire.OpLobbyState) && to == nil:
@@ -106,11 +110,12 @@ func testContent() *content.Content {
 		}
 		return ps
 	}
+	win := contentschema.Win{PlanetShare: 0.6, HoldSeconds: 90}
 	return &content.Content{Hash: "hash1", Doc: contentschema.Content{
 		Maps: map[string]contentschema.GalaxyMap{
-			"base:b-map": {Planets: planets("x", "y", "z"), Starts: []contentschema.LocalID{"x", "y", "z"}, MinPlayers: 2},
+			"base:b-map": {Planets: planets("x", "y", "z"), Starts: []contentschema.LocalID{"x", "y", "z"}, MinPlayers: 2, Win: win},
 			"base:a-map": {
-				Planets: planets("x", "y", "z"), Starts: []contentschema.LocalID{"x", "z"}, MinPlayers: 2,
+				Planets: planets("x", "y", "z"), Starts: []contentschema.LocalID{"x", "z"}, MinPlayers: 2, Win: win,
 				Lanes: []contentschema.Lane{{From: "x", To: "y", Type: "fast"}, {From: "y", To: "z", Type: "fast"}},
 			},
 		},
@@ -122,7 +127,7 @@ func testContent() *content.Content {
 			Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
 		}},
 		Resources: map[string]contentschema.Resource{"base:credits": {}},
-		Rulesets:  map[string]contentschema.Ruleset{"base:rules": {PaydaySeconds: 90, UnitSlotsPerStack: 10, StartingResources: map[string]int{"base:credits": 1000}}},
+		Rulesets:  map[string]contentschema.Ruleset{"base:rules": {PaydaySeconds: 90, UnitSlotsPerStack: 10, ResultsSeconds: 60, StartingResources: map[string]int{"base:credits": 1000}}},
 	}}
 }
 

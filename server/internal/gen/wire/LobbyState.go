@@ -12,6 +12,8 @@ type LobbyStateT struct {
 	Map               string     `json:"map"`
 	StartingResources []*AmountT `json:"starting_resources"`
 	Seats             []*SeatT   `json:"seats"`
+	Winner            int8       `json:"winner"`
+	EndReason         string     `json:"end_reason"`
 }
 
 func (t *LobbyStateT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -52,12 +54,18 @@ func (t *LobbyStateT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		}
 		seatsOffset = builder.EndVector(seatsLength)
 	}
+	endReasonOffset := flatbuffers.UOffsetT(0)
+	if t.EndReason != "" {
+		endReasonOffset = builder.CreateString(t.EndReason)
+	}
 	LobbyStateStart(builder)
 	LobbyStateAddPhase(builder, t.Phase)
 	LobbyStateAddHost(builder, hostOffset)
 	LobbyStateAddMap(builder, map_Offset)
 	LobbyStateAddStartingResources(builder, startingResourcesOffset)
 	LobbyStateAddSeats(builder, seatsOffset)
+	LobbyStateAddWinner(builder, t.Winner)
+	LobbyStateAddEndReason(builder, endReasonOffset)
 	return LobbyStateEnd(builder)
 }
 
@@ -79,6 +87,8 @@ func (rcv *LobbyState) UnPackTo(t *LobbyStateT) {
 		rcv.Seats(&x, j)
 		t.Seats[j] = x.UnPack()
 	}
+	t.Winner = rcv.Winner()
+	t.EndReason = string(rcv.EndReason())
 }
 
 func (rcv *LobbyState) UnPack() *LobbyStateT {
@@ -202,8 +212,28 @@ func (rcv *LobbyState) SeatsLength() int {
 	return 0
 }
 
+func (rcv *LobbyState) Winner() int8 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		return rcv._tab.GetInt8(o + rcv._tab.Pos)
+	}
+	return -1
+}
+
+func (rcv *LobbyState) MutateWinner(n int8) bool {
+	return rcv._tab.MutateInt8Slot(14, n)
+}
+
+func (rcv *LobbyState) EndReason() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
 func LobbyStateStart(builder *flatbuffers.Builder) {
-	builder.StartObject(5)
+	builder.StartObject(7)
 }
 func LobbyStateAddPhase(builder *flatbuffers.Builder, phase Phase) {
 	builder.PrependInt8Slot(0, int8(phase), 0)
@@ -225,6 +255,12 @@ func LobbyStateAddSeats(builder *flatbuffers.Builder, seats flatbuffers.UOffsetT
 }
 func LobbyStateStartSeatsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
+}
+func LobbyStateAddWinner(builder *flatbuffers.Builder, winner int8) {
+	builder.PrependInt8Slot(5, winner, -1)
+}
+func LobbyStateAddEndReason(builder *flatbuffers.Builder, endReason flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(endReason), 0)
 }
 func LobbyStateEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

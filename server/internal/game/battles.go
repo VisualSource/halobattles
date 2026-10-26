@@ -125,6 +125,9 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	if b.Result.Winner == Attacker {
 		winner = b.Attacker
 	}
+	if s.Players[b.Attacker].Eliminated {
+		attackers = nil // eliminated mid-Battle: their Armies are gone
+	}
 	viewers := []int{}
 	for seat := range s.Players {
 		if seat == b.Attacker || seat == b.Defender || s.sees(seat, p.ID) {
@@ -133,13 +136,13 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	}
 	ev.Ended = append(ev.Ended, BattleEnded{Battle: b.ID, Planet: p.ID, Winner: winner, Viewers: viewers})
 	if len(attackers) == 0 {
-		return
+		return // a winning attacker always has survivors, unless eliminated mid-Battle
 	}
 
 	s.LastID++
 	a := &Army{ID: s.LastID, Owner: b.Attacker, Units: attackers, From: p.ID, To: p.ID, ToStack: b.ToStack}
 	if winner == b.Attacker {
-		ev.Captures = append(ev.Captures, s.capture(p, b.Attacker))
+		s.capture(p, b.Attacker, ev)
 		a.Waiting = true
 		s.Armies[a.ID] = a
 		s.land(c, a, p) // with overflow; what doesn't fit waits in orbit

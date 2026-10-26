@@ -42,6 +42,7 @@ type matchState struct {
 	presences map[string]runtime.Presence
 	lastSeq   map[string]uint32    // the last command seq processed per user
 	sent      map[string]game.View // the last View sent per user, to diff against
+	endTick   int64                // the tick the Match ended on, in results
 	joined    bool                 // someone has joined; an empty lobby after that closes
 }
 
@@ -126,6 +127,12 @@ func (m *match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 	if s.phase == wire.PhaseLobby && len(s.lobby.Seats) == 0 && (s.joined || tick > creatorGraceTicks) {
 		return nil // returning nil ends the Match
 	}
+	if s.phase == wire.PhaseResults {
+		resultsTicks := int64(s.content.Doc.Rulesets[game.RulesetID].ResultsSeconds) * tickRate
+		if len(s.presences) == 0 || tick >= s.endTick+resultsTicks {
+			return nil
+		}
+	}
 	if s.play != nil {
 		s.setTime(tick)
 	}
@@ -136,14 +143,21 @@ func (m *match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 	if wasLobby && s.play != nil {
 		s.sendViews(logger, dispatcher, slices.Collect(maps.Values(s.presences)))
 	}
-	if s.play != nil {
-		s.advance(logger, dispatcher)
+	if s.phase == wire.PhasePlay {
+		s.advance(logger, dispatcher, tick)
 	}
 	return s
 }
 
 // advance fires what's due, then sends each connected player a ViewDelta
 // if their View changed since the last one they were sent.
+// broadcast sends an event to everyone in the Match.
+func (s *matchState) broadcast(logger runtime.Logger, dispatcher runtime.MatchDispatcher, op wire.Op, data []byte) {
+	if err := dispatcher.BroadcastMessage(int64(op), data, nil, nil, true); err != nil {
+		logger.Error("broadcast %s: %v", op, err)
+	}
+}
+
 // sides are a Battle's players: a neutral defender has nobody to tell.
 func sides(b *game.Battle) []int {
 	if b.Defender == game.Neutral {
@@ -169,8 +183,12 @@ func (s *matchState) sendTo(logger runtime.Logger, dispatcher runtime.MatchDispa
 	}
 }
 
-func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDispatcher) {
+func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDispatcher, tick int64) {
 	ev := s.play.Advance(&s.content.Doc, s.play.Time)
+	for _, seat := range ev.Eliminated {
+		t := &wire.PlayerEliminatedT{MatchTime: s.play.Time, Seat: uint8(seat)}
+		s.broadcast(logger, dispatcher, wire.OpPlayerEliminated, finish(t))
+	}
 	for _, c := range ev.Captures {
 		t := &wire.PlanetCapturedT{MatchTime: s.play.Time, Planet: c.Planet, From: int8(c.From), To: int8(c.To)}
 		s.sendTo(logger, dispatcher, wire.OpPlanetCaptured, finish(t), c.Viewers...)
@@ -215,6 +233,13 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		if err := dispatcher.BroadcastMessage(int64(wire.OpViewDelta), encodeDelta(d), []runtime.Presence{p}, nil, true); err != nil {
 			logger.Error("send ViewDelta: %v", err)
 		}
+	}
+	// After the last deltas, so everyone has the final map behind the results.
+	if r := ev.MatchEnded; r != nil {
+		t := &wire.MatchEndedT{MatchTime: s.play.Time, Winner: int8(r.Winner), Reason: r.Reason}
+		s.broadcast(logger, dispatcher, wire.OpMatchEnded, finish(t))
+		s.phase, s.endTick = wire.PhaseResults, tick
+		s.lobbyChanged(logger, dispatcher)
 	}
 }
 
@@ -291,7 +316,10 @@ func (s *matchState) label() string {
 
 func (s *matchState) encodeLobby() []byte {
 	l := s.lobby
-	t := &wire.LobbyStateT{Phase: s.phase, Host: l.Host(), Map: l.Map}
+	t := &wire.LobbyStateT{Phase: s.phase, Host: l.Host(), Map: l.Map, Winner: -1}
+	if r := s.result(); r != nil {
+		t.Winner, t.EndReason = int8(r.Winner), r.Reason
+	}
 	t.StartingResources = amounts(l.StartingResources)
 	for _, seat := range l.Seats {
 		t.Seats = append(t.Seats, &wire.SeatT{
@@ -302,11 +330,18 @@ func (s *matchState) encodeLobby() []byte {
 	return finish(t)
 }
 
+func (s *matchState) result() *game.Result {
+	if s.play == nil {
+		return nil
+	}
+	return s.play.Result
+}
+
 func encodeView(v game.View, contentHash string) []byte {
 	return finish(&wire.ViewFullT{
 		MatchTime: v.Time, ContentHash: contentHash, Ruleset: game.RulesetID, Map: v.Map, You: uint8(v.You),
 		Players: players(v.Players), Planets: planets(v.Planets), Economy: economy(&v.Economy), Armies: armies(v.Armies),
-		Battles: battles(v.Battles),
+		Battles: battles(v.Battles), WinHold: &wire.WinHoldT{Seat: int8(v.Hold.Seat), Ends: v.Hold.Ends},
 	})
 }
 
@@ -315,8 +350,15 @@ func encodeDelta(d game.Delta) []byte {
 		MatchTime: d.Time, Players: players(d.Players), Planets: planets(d.Planets),
 		RemovedPlanets: d.RemovedPlanets, Economy: economy(d.Economy),
 		Armies: armies(d.Armies), RemovedArmies: d.RemovedArmies,
-		Battles: battles(d.Battles), RemovedBattles: d.RemovedBattles,
+		Battles: battles(d.Battles), RemovedBattles: d.RemovedBattles, WinHold: winHold(d.Hold),
 	})
+}
+
+func winHold(h *game.Hold) *wire.WinHoldT {
+	if h == nil {
+		return nil
+	}
+	return &wire.WinHoldT{Seat: int8(h.Seat), Ends: h.Ends}
 }
 
 func battles(bs []game.BattleView) []*wire.BattleViewT {
@@ -365,6 +407,7 @@ func players(ps []game.PlayerView) []*wire.PlayerViewT {
 	for _, p := range ps {
 		out = append(out, &wire.PlayerViewT{
 			Seat: uint8(p.Seat), User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: uint16(p.PlanetCount),
+			Eliminated: p.Eliminated,
 		})
 	}
 	return out

@@ -48,6 +48,7 @@ type Player struct {
 	DisplayName string
 	Faction     string
 	Resources   map[string]int
+	Eliminated  bool
 }
 
 // State is the full, authoritative state of a running Match. It is plain
@@ -66,6 +67,11 @@ type State struct {
 	LastID      uint32                      // Match entity ids come from this one counter
 	Armies      map[uint32]*Army
 	Battles     map[uint32]*Battle
+	// The win-hold: the Seat holding more than the map's share of Planets
+	// (-1 for none) and when its hold runs out.
+	HoldSeat int
+	HoldEnds int64
+	Result   *Result // set once the Match is over
 }
 
 // SeatSetup is one Seat as the lobby left it.
@@ -90,7 +96,7 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 	payday := int64(c.Rulesets[RulesetID].PaydaySeconds) * 1000
 	s := &State{
 		Seed: seed, Map: mapID, Planets: map[string]*Planet{}, Lanes: map[string]map[string]int64{},
-		PaydayEvery: payday, NextPayday: payday,
+		PaydayEvery: payday, NextPayday: payday, HoldSeat: Neutral,
 	}
 	for _, mp := range m.Planets {
 		pt := c.PlanetTypes[string(mp.Type)]

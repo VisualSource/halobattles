@@ -20,6 +20,13 @@ type View struct {
 	Armies  []ArmyView   // only Armies in vision, sorted by id
 	Battles []BattleView // only the viewer's own Battles, as a side, sorted by id
 	Economy Economy
+	Hold    Hold // public
+}
+
+// Hold is the running win-hold countdown, if any.
+type Hold struct {
+	Seat int   // Neutral for none
+	Ends int64 // Match Time
 }
 
 // Economy is the viewer's own: other players' Resources and Command Points
@@ -39,6 +46,7 @@ type PlayerView struct {
 	DisplayName string
 	Faction     string
 	PlanetCount int
+	Eliminated  bool
 }
 
 // PlanetView is a Planet in vision. Other players' queues stay hidden.
@@ -102,7 +110,7 @@ func (s *State) sees(seat int, planet string) bool { return s.visible(seat)[plan
 // left out, so their owner and Capital flag stay hidden. An Army is seen
 // while either end of its Lane hop is in vision, or the Planet it waits at.
 func (s *State) View(c *cs.Content, seat int) View {
-	v := View{Time: s.Time, Map: s.Map, You: seat}
+	v := View{Time: s.Time, Map: s.Map, You: seat, Hold: Hold{Seat: s.HoldSeat, Ends: s.HoldEnds}}
 	used, cp := s.commandPoints(c, seat)
 	v.Economy = Economy{
 		Resources: maps.Clone(s.Players[seat].Resources), CommandPointsUsed: used, CommandPointsCap: cp,
@@ -116,6 +124,7 @@ func (s *State) View(c *cs.Content, seat int) View {
 	for _, p := range s.Players {
 		v.Players = append(v.Players, PlayerView{
 			Seat: p.Seat, User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: counts[p.Seat],
+			Eliminated: p.Eliminated,
 		})
 	}
 	for _, id := range slices.Sorted(maps.Keys(visible)) {
@@ -193,6 +202,7 @@ type Delta struct {
 	Battles        []BattleView // sorted by id
 	RemovedBattles []uint32     // sorted
 	Economy        *Economy     // nil when unchanged
+	Hold           *Hold        // nil when unchanged
 }
 
 // Diff reports what changed from prev to next, and whether anything did.
@@ -210,8 +220,11 @@ func Diff(prev, next View) (Delta, bool) {
 	if !reflect.DeepEqual(prev.Economy, next.Economy) {
 		d.Economy = &next.Economy
 	}
+	if prev.Hold != next.Hold {
+		d.Hold = &next.Hold
+	}
 	changed := len(d.Players)+len(d.Planets)+len(d.RemovedPlanets)+len(d.Armies)+len(d.RemovedArmies)+
-		len(d.Battles)+len(d.RemovedBattles) > 0 || d.Economy != nil
+		len(d.Battles)+len(d.RemovedBattles) > 0 || d.Economy != nil || d.Hold != nil
 	return d, changed
 }
 

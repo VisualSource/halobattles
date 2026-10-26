@@ -14,6 +14,7 @@ import {
   type EconomyT,
   LobbyState,
   type LobbyStateT,
+  MatchEnded,
   MoveUnitsT,
   Op,
   OrderArmyT,
@@ -21,6 +22,7 @@ import {
   Phase,
   PlanetCaptured,
   type PlanetViewT,
+  PlayerEliminated,
   type PlayerViewT,
   QueueBuildingT,
   type QueueItemT,
@@ -37,6 +39,7 @@ import {
   type ViewDeltaT,
   ViewFull,
   type ViewFullT,
+  type WinHoldT,
 } from "../gen/wire";
 import { type CommandKind, createLocalStore } from "./local";
 import {
@@ -87,8 +90,15 @@ function toLobby(t: LobbyStateT): Lobby {
       faction: str(s.faction),
       ready: s.ready,
     })),
+    winner: t.winner < 0 ? null : t.winner,
+    endReason: str(t.endReason),
   };
 }
+
+const toWinHold = (h: WinHoldT) => ({
+  seat: h.seat < 0 ? null : h.seat,
+  ends: Number(h.ends),
+});
 
 const STACKS_PER_PLANET = 3;
 
@@ -98,6 +108,7 @@ const toPlayer = (p: PlayerViewT): PlayerView => ({
   displayName: str(p.displayName),
   faction: str(p.faction),
   planetCount: p.planetCount,
+  eliminated: p.eliminated,
 });
 
 const toPlanet = (p: PlanetViewT): PlanetView => ({
@@ -189,6 +200,7 @@ function toView(t: ViewFullT): View {
     armies: new Map(t.armies.map((a) => [a.id, toArmy(a)])),
     battles: new Map(t.battles.map((b) => [b.id, toBattle(b)])),
     economy: t.economy ? toEconomy(t.economy) : NO_ECONOMY,
+    winHold: t.winHold ? toWinHold(t.winHold) : { seat: null, ends: 0 },
   };
 }
 
@@ -202,6 +214,7 @@ const toDelta = (t: ViewDeltaT): Delta => ({
   battles: t.battles.map(toBattle),
   removedBattles: [...t.removedBattles],
   economy: t.economy ? toEconomy(t.economy) : null,
+  winHold: t.winHold ? toWinHold(t.winHold) : null,
 });
 
 /**
@@ -212,7 +225,8 @@ const toDelta = (t: ViewDeltaT): Delta => ({
  * "payday" the Map of what each Resource changed by, "captured" a Planet
  * that changed hands, as {planet, from, to} (Seats; null is neutral),
  * "battleStarted" {battle, planet}, "battleRound" {battle, round, actions},
- * and "battleEnded" {battle, planet, winner}.
+ * "battleEnded" {battle, planet, winner}, "eliminated" {seat}, and
+ * "matchEnded" {winner, reason}.
  */
 export class MatchConnection {
   readonly store = createMatchStore();
@@ -453,6 +467,22 @@ export class MatchConnection {
           battle: t.battle,
           planet: str(t.planet),
           winner: t.winner < 0 ? null : t.winner,
+        });
+        return;
+      }
+      case Op.PlayerEliminated: {
+        const t = PlayerEliminated.getRootAsPlayerEliminated(bb).unpack();
+        this.debug("PlayerEliminated", t);
+        this.syncClock(Number(t.matchTime));
+        this.emit("eliminated", { seat: t.seat });
+        return;
+      }
+      case Op.MatchEnded: {
+        const t = MatchEnded.getRootAsMatchEnded(bb).unpack();
+        this.debug("MatchEnded", t);
+        this.emit("matchEnded", {
+          winner: t.winner < 0 ? null : t.winner,
+          reason: str(t.reason),
         });
         return;
       }

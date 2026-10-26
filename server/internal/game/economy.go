@@ -13,8 +13,12 @@ type PaydayPaid struct {
 func (s *State) Advance(c *cs.Content, now int64) Events {
 	s.Time = now
 	var ev Events
+	if s.Result != nil {
+		return ev // the Match is over
+	}
 	s.moveArmies(c, now, &ev)
 	s.fightBattles(c, now, &ev)
+	s.checkWin(c, now, &ev)
 	for s.NextPayday <= now {
 		ev.Paydays = append(ev.Paydays, s.payday(c)...)
 		s.NextPayday += s.PaydayEvery
@@ -30,6 +34,9 @@ type Events struct {
 	Started  []*Battle
 	Rounds   []BattleRound
 	Ended    []BattleEnded
+	// Eliminated are the Seats eliminated this tick.
+	Eliminated []int
+	MatchEnded *Result
 }
 
 // payday pays each player, per Resource, their Planets' income plus their

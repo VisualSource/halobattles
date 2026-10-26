@@ -37,6 +37,7 @@ export function PlayScreen(props: {
   return (
     <>
       <Hud conn={conn} content={content} />
+      <Players conn={conn} content={content} />
       <div style={{ display: "flex", height: "80vh", minHeight: 480 }}>
         <div ref={container} style={{ flex: 1, minWidth: 0 }} />
         <PlanetPanel conn={conn} content={content} />
@@ -141,6 +142,43 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
       </span>
       <span>Next Payday in {secs} s</span>
     </header>
+  );
+}
+
+/**
+ * Every player's Planet count and whether they're out, plus any running
+ * win-hold countdown: all public.
+ */
+function Players(props: { conn: MatchConnection; content: ContentLookups }) {
+  const { conn, content } = props;
+  const view = useStore(conn.store, (s) => s.view);
+  const now = useMatchNow(conn.local);
+  if (!view) return null;
+  const map = content.maps.get(view.map);
+  const total = map?.planets.length ?? 0;
+  // More than the share wins, so this many is enough.
+  const needed = Math.floor((map?.win.planetShare ?? 1) * total) + 1;
+  const name = (seat: number) =>
+    view.players[seat]?.displayName || `Player ${seat + 1}`;
+  const hold = view.winHold;
+  return (
+    <section
+      aria-label="Players"
+      style={{ display: "flex", gap: 16, flexWrap: "wrap" }}
+    >
+      {view.players.map((p) => (
+        <span key={p.seat} style={p.eliminated ? { opacity: 0.5 } : undefined}>
+          {name(p.seat)}
+          {p.seat === view.you && " (you)"}:{" "}
+          {p.eliminated ? "eliminated" : `${p.planetCount} / ${total} Planets`}
+        </span>
+      ))}
+      <span>
+        {hold.seat === null
+          ? `Hold ${needed} Planets to start the win countdown`
+          : `${name(hold.seat)} wins in ${Math.max(0, Math.ceil((hold.ends - now) / 1000))} s`}
+      </span>
+    </section>
   );
 }
 

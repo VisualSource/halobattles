@@ -177,7 +177,7 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 		case p.Locked:
 			continue // waits until the Battle ends, then resolves against the new owner
 		case p.Owner == Neutral && p.empty():
-			ev.Captures = append(ev.Captures, s.capture(p, a.Owner))
+			s.capture(p, a.Owner, ev)
 		case p.Owner != a.Owner:
 			s.startBattle(c, a, p, ev)
 			continue
@@ -207,7 +207,8 @@ func (p *Planet) empty() bool {
 
 // capture hands a Planet over. The loser's queues there are cancelled with
 // no refund, freeing their Command Points, and their buildings destroyed.
-func (s *State) capture(p *Planet, to int) PlanetCaptured {
+// Losing a Capital eliminates its player.
+func (s *State) capture(p *Planet, to int, ev *Events) {
 	from := p.Owner
 	p.Owner, p.Queue, p.UnitQueues, p.Rally = to, nil, nil, 0
 	for i := range p.Buildings {
@@ -219,5 +220,11 @@ func (s *State) capture(p *Planet, to int) PlanetCaptured {
 			viewers = append(viewers, seat)
 		}
 	}
-	return PlanetCaptured{Planet: p.ID, From: from, To: to, Viewers: viewers}
+	ev.Captures = append(ev.Captures, PlanetCaptured{Planet: p.ID, From: from, To: to, Viewers: viewers})
+	if p.Capital {
+		p.Capital = false // no one's Capital now; the captor keeps their own
+		if from != Neutral {
+			s.eliminate(from, ev)
+		}
+	}
 }

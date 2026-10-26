@@ -68,6 +68,7 @@ func lineContent() *cs.Content {
 				"b": stacks("base:grunt", 6),
 			},
 			Starts: []cs.LocalID{"a", "c", "e"},
+			Win:    cs.Win{PlanetShare: 0.6, HoldSeconds: 90},
 		}},
 	}
 }

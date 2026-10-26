@@ -10,6 +10,7 @@ import {
   CombatantT,
   EconomyT,
   LobbyStateT,
+  MatchEndedT,
   MoveUnits,
   Op,
   OrderArmy,
@@ -26,6 +27,7 @@ import {
   UnitSlotT,
   ViewDeltaT,
   ViewFullT,
+  WinHoldT,
 } from "../gen/wire";
 import { MatchConnection, type SocketLike } from "./connection";
 
@@ -106,6 +108,8 @@ describe("MatchConnection", () => {
           ready: false,
         },
       ],
+      winner: null,
+      endReason: "",
     });
   });
 
@@ -172,6 +176,7 @@ describe("MatchConnection", () => {
           displayName: "Chief",
           faction: "base:unsc",
           planetCount: 1,
+          eliminated: false,
         },
         {
           seat: 1,
@@ -179,6 +184,7 @@ describe("MatchConnection", () => {
           displayName: "Arbiter",
           faction: "base:covenant",
           planetCount: 1,
+          eliminated: false,
         },
       ],
       planets: new Map([
@@ -236,6 +242,7 @@ describe("MatchConnection", () => {
         ],
       ]),
       battles: new Map(),
+      winHold: { seat: null, ends: 0 },
     });
   });
 
@@ -540,6 +547,39 @@ describe("MatchConnection", () => {
       pack(new ViewDeltaT(9000n, [], [], [], null, [], [], [], [5])),
     );
     expect(conn.store.getState().view?.battles.size).toBe(0);
+  });
+
+  it("applies the win-hold from a ViewDelta and sends MatchEnded out", async () => {
+    const { conn, send } = await playing();
+    const ended: unknown[] = [];
+    conn.events.addEventListener("matchEnded", (e) =>
+      ended.push((e as CustomEvent).detail),
+    );
+
+    send(
+      Op.ViewDelta,
+      pack(
+        new ViewDeltaT(
+          1000n,
+          [],
+          [],
+          [],
+          null,
+          [],
+          [],
+          [],
+          [],
+          new WinHoldT(0, 91000n),
+        ),
+      ),
+    );
+    send(Op.MatchEnded, pack(new MatchEndedT(91000n, 0, "hold")));
+
+    expect(conn.store.getState().view?.winHold).toEqual({
+      seat: 0,
+      ends: 91000,
+    });
+    expect(ended).toEqual([{ winner: 0, reason: "hold" }]);
   });
 
   it("sends PlanetCaptured out as a captured event", async () => {

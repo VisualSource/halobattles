@@ -66,8 +66,20 @@ seatsLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+winner():number {
+  const offset = this.bb!.__offset(this.bb_pos, 14);
+  return offset ? this.bb!.readInt8(this.bb_pos + offset) : -1;
+}
+
+endReason():string|null
+endReason(optionalEncoding:flatbuffers.Encoding):string|Uint8Array|null
+endReason(optionalEncoding?:any):string|Uint8Array|null {
+  const offset = this.bb!.__offset(this.bb_pos, 16);
+  return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
+}
+
 static startLobbyState(builder:flatbuffers.Builder) {
-  builder.startObject(5);
+  builder.startObject(7);
 }
 
 static addPhase(builder:flatbuffers.Builder, phase:Phase) {
@@ -114,18 +126,28 @@ static startSeatsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addWinner(builder:flatbuffers.Builder, winner:number) {
+  builder.addFieldInt8(5, winner, -1);
+}
+
+static addEndReason(builder:flatbuffers.Builder, endReasonOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(6, endReasonOffset, 0);
+}
+
 static endLobbyState(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createLobbyState(builder:flatbuffers.Builder, phase:Phase, hostOffset:flatbuffers.Offset, mapOffset:flatbuffers.Offset, startingResourcesOffset:flatbuffers.Offset, seatsOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createLobbyState(builder:flatbuffers.Builder, phase:Phase, hostOffset:flatbuffers.Offset, mapOffset:flatbuffers.Offset, startingResourcesOffset:flatbuffers.Offset, seatsOffset:flatbuffers.Offset, winner:number, endReasonOffset:flatbuffers.Offset):flatbuffers.Offset {
   LobbyState.startLobbyState(builder);
   LobbyState.addPhase(builder, phase);
   LobbyState.addHost(builder, hostOffset);
   LobbyState.addMap(builder, mapOffset);
   LobbyState.addStartingResources(builder, startingResourcesOffset);
   LobbyState.addSeats(builder, seatsOffset);
+  LobbyState.addWinner(builder, winner);
+  LobbyState.addEndReason(builder, endReasonOffset);
   return LobbyState.endLobbyState(builder);
 }
 
@@ -135,7 +157,9 @@ unpack(): LobbyStateT {
     this.host(),
     this.map(),
     this.bb!.createObjList<Amount, AmountT>(this.startingResources.bind(this), this.startingResourcesLength()),
-    this.bb!.createObjList<Seat, SeatT>(this.seats.bind(this), this.seatsLength())
+    this.bb!.createObjList<Seat, SeatT>(this.seats.bind(this), this.seatsLength()),
+    this.winner(),
+    this.endReason()
   );
 }
 
@@ -146,6 +170,8 @@ unpackTo(_o: LobbyStateT): void {
   _o.map = this.map();
   _o.startingResources = this.bb!.createObjList<Amount, AmountT>(this.startingResources.bind(this), this.startingResourcesLength());
   _o.seats = this.bb!.createObjList<Seat, SeatT>(this.seats.bind(this), this.seatsLength());
+  _o.winner = this.winner();
+  _o.endReason = this.endReason();
 }
 }
 
@@ -155,7 +181,9 @@ constructor(
   public host: string|Uint8Array|null = null,
   public map: string|Uint8Array|null = null,
   public startingResources: (AmountT)[] = [],
-  public seats: (SeatT)[] = []
+  public seats: (SeatT)[] = [],
+  public winner: number = -1,
+  public endReason: string|Uint8Array|null = null
 ){}
 
 
@@ -164,13 +192,16 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const map = (this.map !== null ? builder.createString(this.map!) : 0);
   const startingResources = LobbyState.createStartingResourcesVector(builder, builder.createObjectOffsetList(this.startingResources));
   const seats = LobbyState.createSeatsVector(builder, builder.createObjectOffsetList(this.seats));
+  const endReason = (this.endReason !== null ? builder.createString(this.endReason!) : 0);
 
   return LobbyState.createLobbyState(builder,
     this.phase,
     host,
     map,
     startingResources,
-    seats
+    seats,
+    this.winner,
+    endReason
   );
 }
 }
