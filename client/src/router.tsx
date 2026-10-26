@@ -4,19 +4,16 @@ import {
   createRouter,
   Link,
   Outlet,
-  useNavigate,
+  useMatch,
   useRouter,
-  useRouterState,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { useStore } from "zustand";
 import { signIn } from "./auth";
 import { client, createSocket } from "./config";
 import { type ContentLookups, loadContent } from "./content";
 import { MatchConnection } from "./match/connection";
 import { LobbyScreen } from "./match/lobby";
-import { inMatch, phaseRedirect } from "./match/phase";
-import { Toasts } from "./match/toasts";
+import { inMatch } from "./match/phase";
+import { MatchScreen, useMatchContext } from "./match/screen";
 import { DisplayNamePrompt, listOpenMatches, Menu } from "./menu";
 
 let auth: Awaited<ReturnType<typeof signIn>> | undefined;
@@ -68,9 +65,11 @@ const indexRoute = createRoute({
   path: "/",
   loader: ({ context }) => listOpenMatches(client, context.session),
   component: function Index() {
-    const { session, needsDisplayName, content } = indexRoute.useRouteContext();
-    const openMatches = indexRoute.useLoaderData();
+    const { session, needsDisplayName, content } = rootRoute.useRouteContext();
+    // Not the strict route hook: this re-renders while the route is leaving.
+    const match = useMatch({ from: "/", shouldThrow: false });
     const router = useRouter();
+    if (!match) return null;
     if (needsDisplayName) {
       return (
         <DisplayNamePrompt
@@ -88,7 +87,7 @@ const indexRoute = createRoute({
         client={client}
         session={session}
         content={content}
-        openMatches={openMatches}
+        openMatches={match.loaderData ?? []}
       />
     );
   },
@@ -126,39 +125,11 @@ const matchRoute = createRoute({
     </>
   ),
   component: function MatchLayout() {
-    const { conn } = matchRoute.useLoaderData();
-    const { matchId } = matchRoute.useParams();
-    const phase = useStore(conn.store, (st) => st.lobby?.phase);
-    const disconnected = useStore(conn.store, (st) => st.disconnected);
-    // The resolved location: while leaving, the pending one is already "/"
-    // but this screen is still mounted.
-    const pathname = useRouterState({
-      select: (st) => st.resolvedLocation?.pathname ?? "",
-    });
-    const navigate = useNavigate();
-    // The server's phase drives navigation: a phase change moves to the
-    // matching child, and a URL for another phase is sent back.
-    useEffect(() => {
-      const to = phaseRedirect(phase, pathname, matchId);
-      if (to) void navigate({ to, params: { matchId }, replace: true });
-    }, [phase, pathname, matchId, navigate]);
-    if (disconnected) {
-      return (
-        <>
-          <p role="alert">
-            Lost the connection to the server. If it restarted, this Match is
-            gone.
-          </p>
-          <Link to="/">Back to menu</Link>
-        </>
-      );
-    }
-    return (
-      <>
-        <Toasts events={conn.events} />
-        <Outlet />
-      </>
-    );
+    // Not the strict route hooks: this re-renders while the route is leaving.
+    const match = useMatch({ from: "/match/$matchId", shouldThrow: false });
+    const conn = match?.loaderData?.conn;
+    if (!match || !conn) return null;
+    return <MatchScreen conn={conn} matchId={match.params.matchId} />;
   },
 });
 
@@ -173,9 +144,8 @@ const lobbyRoute = createRoute({
   getParentRoute: () => matchRoute,
   path: "lobby",
   component: function Lobby() {
-    const { conn } = matchRoute.useLoaderData();
-    const { content } = lobbyRoute.useRouteContext();
-    const { matchId } = lobbyRoute.useParams();
+    const { conn, matchId } = useMatchContext();
+    const { content } = rootRoute.useRouteContext();
     return (
       <LobbyScreen
         conn={conn}
