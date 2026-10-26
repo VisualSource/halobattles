@@ -46,7 +46,9 @@ run = "go mod vendor"
 [tasks.build]
 description = "Build the server .so with the matching pluginbuilder"
 dir = "server"
-depends = ["gen"]
+# Not gen: it rewrites server/internal/gen, which the dev watcher would see
+# as a change and rebuild forever. gen:diff keeps generated code current.
+depends = ["vendor"]
 run = [
   # MSYS_NO_PATHCONV stops Git Bash rewriting the container paths.
   "MSYS_NO_PATHCONV=1 ${CONTAINER:-podman} run --rm -w /builder -v ./:/builder:z docker.io/heroiclabs/nakama-pluginbuilder:3.41.0 build -buildmode=plugin -trimpath -mod=vendor -o ./build/halobattles.so .",
