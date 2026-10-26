@@ -5,6 +5,7 @@ import {
   AmountT,
   EconomyT,
   LobbyStateT,
+  MoveUnits,
   Op,
   PaydayPaidT,
   Phase,
@@ -12,6 +13,7 @@ import {
   PlayerViewT,
   QueueBuilding,
   QueueItemT,
+  QueueUnit,
   SeatT,
   StackT,
   UnitSlotT,
@@ -169,6 +171,8 @@ describe("MatchConnection", () => {
             buildings: ["base:hall", ""],
             stacks: [[{ unit: "base:grunt", count: 10 }], [], []],
             queue: [],
+            unitQueue: [],
+            rallyStack: 0,
           },
         ],
         [
@@ -181,6 +185,8 @@ describe("MatchConnection", () => {
             buildings: ["", "", ""],
             stacks: [[], [], []],
             queue: [],
+            unitQueue: [],
+            rallyStack: 0,
           },
         ],
       ]),
@@ -284,7 +290,7 @@ describe("MatchConnection", () => {
     now.mockRestore();
   });
 
-  it("decodes a Planet's construction queue", async () => {
+  it("decodes a Planet's construction and unit queues", async () => {
     const { conn, send } = await playing();
     const planet = new PlanetViewT(
       "a",
@@ -294,9 +300,11 @@ describe("MatchConnection", () => {
       ["", ""],
       [],
       [
-        new QueueItemT(7, 1, "base:barracks", true, false, 30200n, 0n),
-        new QueueItemT(8, 0, "base:supply-pad", false, false, 0n, 30000n),
+        new QueueItemT(7, 1, "base:barracks", "", true, false, 30200n, 0n),
+        new QueueItemT(8, 0, "base:supply-pad", "", false, false, 0n, 30000n),
       ],
+      [new QueueItemT(9, 0, "", "base:marine", true, true, 0n, 4000n)],
+      2,
     );
 
     send(Op.ViewDelta, pack(new ViewDeltaT(200n, [], [planet], [], null)));
@@ -306,6 +314,7 @@ describe("MatchConnection", () => {
         id: 7,
         slot: 1,
         building: "base:barracks",
+        unit: "",
         started: true,
         paused: false,
         endsAt: 30200,
@@ -315,15 +324,30 @@ describe("MatchConnection", () => {
         id: 8,
         slot: 0,
         building: "base:supply-pad",
+        unit: "",
         started: false,
         paused: false,
         endsAt: 0,
         remaining: 30000,
       },
     ]);
+    const a = conn.store.getState().view?.planets.get("a");
+    expect(a?.unitQueue).toEqual([
+      {
+        id: 9,
+        slot: 0,
+        building: "",
+        unit: "base:marine",
+        started: true,
+        paused: true,
+        endsAt: 0,
+        remaining: 4000,
+      },
+    ]);
+    expect(a?.rallyStack).toBe(2);
   });
 
-  it("sends construction commands, pending until settled", async () => {
+  it("sends construction and unit commands, pending until settled", async () => {
     const { socket } = fakeSocket();
     const sent: [number, Uint8Array][] = [];
     socket.sendMatchState = async (_id, op, data) => {
@@ -335,11 +359,33 @@ describe("MatchConnection", () => {
     conn.queueBuilding("a", 2, "base:barracks");
     conn.cancelQueueItem(7);
     conn.sellBuilding("a", 0);
+    conn.queueUnit("a", 0, "base:marine", 5);
+    conn.moveUnits("a", 0, 2, "base:marine", 3);
+    conn.setRallyStack("a", 1);
 
     expect(sent.map(([op]) => op)).toEqual([
       Op.QueueBuilding,
       Op.CancelQueueItem,
       Op.SellBuilding,
+      Op.QueueUnit,
+      Op.MoveUnits,
+      Op.SetRallyStack,
+    ]);
+    const bb = (i: number) =>
+      new flatbuffers.ByteBuffer(sent[i]?.[1] ?? new Uint8Array());
+    const u = QueueUnit.getRootAsQueueUnit(bb(3)).unpack();
+    expect([u.planet, u.slot, u.unit, u.count]).toEqual([
+      "a",
+      0,
+      "base:marine",
+      5,
+    ]);
+    const m = MoveUnits.getRootAsMoveUnits(bb(4)).unpack();
+    expect([m.fromStack, m.toStack, m.unit, m.count]).toEqual([
+      0,
+      2,
+      "base:marine",
+      3,
     ]);
     const q = QueueBuilding.getRootAsQueueBuilding(
       new flatbuffers.ByteBuffer(sent[0]?.[1] ?? new Uint8Array()),
@@ -354,6 +400,9 @@ describe("MatchConnection", () => {
       "build",
       "cancel",
       "sell",
+      "train",
+      "move",
+      "rally",
     ]);
   });
 

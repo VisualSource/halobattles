@@ -22,7 +22,7 @@ func lineContent() *cs.Content {
 		return cs.Stacks{cs.Stack{{Unit: cs.ID(unit), Count: n}}}
 	}
 	return &cs.Content{
-		Rulesets:  map[string]cs.Ruleset{RulesetID: {PaydaySeconds: 90, CancelRefundPercent: 50, SellRefundPercent: 50}},
+		Rulesets:  map[string]cs.Ruleset{RulesetID: {PaydaySeconds: 90, CancelRefundPercent: 50, SellRefundPercent: 50, UnitSlotsPerStack: 10}},
 		Resources: map[string]cs.Resource{"base:credits": {Name: "Credits"}, "base:materials": {Name: "Materials"}},
 		PlanetTypes: map[string]cs.PlanetType{
 			"base:capital":  {BuildingSlots: 4, CommandPointBonus: 20, Income: map[string]int{"base:credits": 300, "base:materials": 100}},
@@ -30,7 +30,7 @@ func lineContent() *cs.Content {
 		},
 		Buildings: map[string]cs.Building{
 			"base:barracks": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
-				Upkeep: map[string]int{"base:credits": 10}},
+				Upkeep: map[string]int{"base:credits": 10}, Trains: []cs.ID{"base:marine", "base:odst", "base:spartan"}},
 			"base:supply-pad": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 200},
 				Yield: map[string]int{"base:credits": 100}},
 			"base:air-pad": {Faction: "base:unsc", BuildTime: 60, Cost: map[string]int{"base:credits": 300, "base:materials": 150},
@@ -38,8 +38,10 @@ func lineContent() *cs.Content {
 			"base:hall": {Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150}},
 		},
 		Units: map[string]cs.Unit{
-			"base:marine": {CommandPoints: 1}, "base:warthog": {CommandPoints: 3},
-			"base:odst": {CommandPoints: 2}, "base:grunt": {CommandPoints: 1},
+			"base:marine":  {CommandPoints: 1, BuildTime: 15, Cost: map[string]int{"base:credits": 50}},
+			"base:odst":    {CommandPoints: 2, BuildTime: 25, Cost: map[string]int{"base:credits": 100}},
+			"base:spartan": {Name: "Spartans", CommandPoints: 1, BuildTime: 60, Cost: map[string]int{"base:credits": 100}, MaxCount: new(1)},
+			"base:warthog": {CommandPoints: 3}, "base:grunt": {CommandPoints: 1},
 		},
 		Factions: map[string]cs.Faction{
 			"base:unsc": {StartingKit: cs.StartingKit{

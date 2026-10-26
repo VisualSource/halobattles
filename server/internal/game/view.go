@@ -47,6 +47,8 @@ type PlanetView struct {
 	Buildings []string
 	Stacks    [StacksPerPlanet]Stack
 	Queue     []QueueItem // only on the viewer's own Planets
+	UnitQueue []QueueItem // every unit queue, by slot then order; own only
+	Rally     int         // own only
 }
 
 // View is the only place vision is enforced: a player sees the Planets they
@@ -81,8 +83,14 @@ func (s *State) View(c *cs.Content, seat int) View {
 		for i, st := range p.Stacks {
 			pv.Stacks[i] = slices.Clone(st)
 		}
-		if p.Owner == seat && len(p.Queue) > 0 { // nil when empty, so Diff sees no change
-			pv.Queue = slices.Clone(p.Queue)
+		if p.Owner == seat {
+			if len(p.Queue) > 0 { // nil when empty, so Diff sees no change
+				pv.Queue = slices.Clone(p.Queue)
+			}
+			for _, slot := range slices.Sorted(maps.Keys(p.UnitQueues)) {
+				pv.UnitQueue = append(pv.UnitQueue, p.UnitQueues[slot]...)
+			}
+			pv.Rally = p.Rally
 		}
 		v.Planets = append(v.Planets, pv)
 	}

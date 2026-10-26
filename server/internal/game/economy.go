@@ -17,7 +17,7 @@ func (s *State) Advance(c *cs.Content, now int64) []PaydayPaid {
 		paid = append(paid, s.payday(c)...)
 		s.NextPayday += s.PaydayEvery
 	}
-	s.build(now) // after Payday, so income that clears a debt resumes queues now
+	s.build(c, now) // after Payday, so income that clears a debt resumes queues now
 	return paid
 }
 
@@ -62,9 +62,11 @@ func (s *State) payday(c *cs.Content) []PaydayPaid {
 }
 
 // commandPoints is a player's Command Points in use and their cap. Units
-// occupy theirs from queue to death; for now that's every unit in their
-// Planets' Stacks. Planets and buildings raise the cap.
+// occupy theirs from queue to death. Planets and buildings raise the cap.
 func (s *State) commandPoints(c *cs.Content, seat int) (used, cap int) {
+	for unit, n := range s.units(seat) {
+		used += n * c.Units[unit].CommandPoints
+	}
 	for _, p := range s.Planets {
 		if p.Owner != seat {
 			continue
@@ -73,11 +75,28 @@ func (s *State) commandPoints(c *cs.Content, seat int) (used, cap int) {
 		for _, id := range p.Buildings {
 			cap += c.Buildings[id].CommandPointBonus
 		}
+	}
+	return used, cap
+}
+
+// units counts a player's units by type, from queue to death: in their
+// Planets' Stacks and in their unit queues.
+func (s *State) units(seat int) map[string]int {
+	n := map[string]int{}
+	for _, p := range s.Planets {
+		if p.Owner != seat {
+			continue
+		}
 		for _, st := range p.Stacks {
 			for _, u := range st {
-				used += u.Count * c.Units[u.Unit].CommandPoints
+				n[u.Unit] += u.Count
+			}
+		}
+		for _, q := range p.UnitQueues {
+			for _, item := range q {
+				n[item.Unit]++
 			}
 		}
 	}
-	return used, cap
+	return n
 }

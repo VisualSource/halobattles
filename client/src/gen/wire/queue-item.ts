@@ -41,28 +41,35 @@ building(optionalEncoding?:any):string|Uint8Array|null {
   return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
 }
 
-started():boolean {
+unit():string|null
+unit(optionalEncoding:flatbuffers.Encoding):string|Uint8Array|null
+unit(optionalEncoding?:any):string|Uint8Array|null {
   const offset = this.bb!.__offset(this.bb_pos, 10);
-  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+  return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
 }
 
-paused():boolean {
+started():boolean {
   const offset = this.bb!.__offset(this.bb_pos, 12);
   return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
 }
 
-endsAt():bigint {
+paused():boolean {
   const offset = this.bb!.__offset(this.bb_pos, 14);
-  return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
 }
 
-remaining():bigint {
+endsAt():bigint {
   const offset = this.bb!.__offset(this.bb_pos, 16);
   return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
 }
 
+remaining():bigint {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
+}
+
 static startQueueItem(builder:flatbuffers.Builder) {
-  builder.startObject(7);
+  builder.startObject(8);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -77,20 +84,24 @@ static addBuilding(builder:flatbuffers.Builder, buildingOffset:flatbuffers.Offse
   builder.addFieldOffset(2, buildingOffset, 0);
 }
 
+static addUnit(builder:flatbuffers.Builder, unitOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(3, unitOffset, 0);
+}
+
 static addStarted(builder:flatbuffers.Builder, started:boolean) {
-  builder.addFieldInt8(3, +started, +false);
+  builder.addFieldInt8(4, +started, +false);
 }
 
 static addPaused(builder:flatbuffers.Builder, paused:boolean) {
-  builder.addFieldInt8(4, +paused, +false);
+  builder.addFieldInt8(5, +paused, +false);
 }
 
 static addEndsAt(builder:flatbuffers.Builder, endsAt:bigint) {
-  builder.addFieldInt64(5, endsAt, BigInt('0'));
+  builder.addFieldInt64(6, endsAt, BigInt('0'));
 }
 
 static addRemaining(builder:flatbuffers.Builder, remaining:bigint) {
-  builder.addFieldInt64(6, remaining, BigInt('0'));
+  builder.addFieldInt64(7, remaining, BigInt('0'));
 }
 
 static endQueueItem(builder:flatbuffers.Builder):flatbuffers.Offset {
@@ -98,11 +109,12 @@ static endQueueItem(builder:flatbuffers.Builder):flatbuffers.Offset {
   return offset;
 }
 
-static createQueueItem(builder:flatbuffers.Builder, id:number, slot:number, buildingOffset:flatbuffers.Offset, started:boolean, paused:boolean, endsAt:bigint, remaining:bigint):flatbuffers.Offset {
+static createQueueItem(builder:flatbuffers.Builder, id:number, slot:number, buildingOffset:flatbuffers.Offset, unitOffset:flatbuffers.Offset, started:boolean, paused:boolean, endsAt:bigint, remaining:bigint):flatbuffers.Offset {
   QueueItem.startQueueItem(builder);
   QueueItem.addId(builder, id);
   QueueItem.addSlot(builder, slot);
   QueueItem.addBuilding(builder, buildingOffset);
+  QueueItem.addUnit(builder, unitOffset);
   QueueItem.addStarted(builder, started);
   QueueItem.addPaused(builder, paused);
   QueueItem.addEndsAt(builder, endsAt);
@@ -115,6 +127,7 @@ unpack(): QueueItemT {
     this.id(),
     this.slot(),
     this.building(),
+    this.unit(),
     this.started(),
     this.paused(),
     this.endsAt(),
@@ -127,6 +140,7 @@ unpackTo(_o: QueueItemT): void {
   _o.id = this.id();
   _o.slot = this.slot();
   _o.building = this.building();
+  _o.unit = this.unit();
   _o.started = this.started();
   _o.paused = this.paused();
   _o.endsAt = this.endsAt();
@@ -139,6 +153,7 @@ constructor(
   public id: number = 0,
   public slot: number = 0,
   public building: string|Uint8Array|null = null,
+  public unit: string|Uint8Array|null = null,
   public started: boolean = false,
   public paused: boolean = false,
   public endsAt: bigint = BigInt('0'),
@@ -148,11 +163,13 @@ constructor(
 
 pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const building = (this.building !== null ? builder.createString(this.building!) : 0);
+  const unit = (this.unit !== null ? builder.createString(this.unit!) : 0);
 
   return QueueItem.createQueueItem(builder,
     this.id,
     this.slot,
     building,
+    unit,
     this.started,
     this.paused,
     this.endsAt,

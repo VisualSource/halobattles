@@ -291,13 +291,22 @@ func planets(ps []game.PlanetView) []*wire.PlanetViewT {
 			}
 			pv.Stacks = append(pv.Stacks, ws)
 		}
-		for i, q := range p.Queue {
-			pv.Queue = append(pv.Queue, &wire.QueueItemT{
-				Id: q.ID, Slot: uint8(q.Slot), Building: q.Building, Started: q.Started,
-				Paused: i == 0 && q.EndsAt == 0, EndsAt: q.EndsAt, Remaining: q.Remaining,
-			})
-		}
+		pv.Queue, pv.UnitQueue, pv.RallyStack = queueItems(p.Queue), queueItems(p.UnitQueue), uint8(p.Rally)
 		out = append(out, pv)
+	}
+	return out
+}
+
+// queueItems encodes one or more queues, each a run of the same slot. The
+// first item of each is paused when it isn't running.
+func queueItems(q []game.QueueItem) []*wire.QueueItemT {
+	var out []*wire.QueueItemT
+	for i, it := range q {
+		first := i == 0 || q[i-1].Slot != it.Slot
+		out = append(out, &wire.QueueItemT{
+			Id: it.ID, Slot: uint8(it.Slot), Building: it.Building, Unit: it.Unit, Started: it.Started,
+			Paused: first && it.EndsAt == 0, EndsAt: it.EndsAt, Remaining: it.Remaining,
+		})
 	}
 	return out
 }

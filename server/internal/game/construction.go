@@ -8,13 +8,14 @@ import (
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
-// QueueItem is a building under construction. Only the first item in a
-// Planet's queue runs; it has EndsAt while running. Otherwise it holds the
-// ms it still needs in Remaining.
+// QueueItem is a building under construction or a unit in training. Only
+// the first item in a queue runs; it has EndsAt while running. Otherwise it
+// holds the ms it still needs in Remaining.
 type QueueItem struct {
 	ID        uint32
-	Slot      int // the Building Slot it will fill
-	Building  string
+	Slot      int    // the Building Slot it fills, or trains at
+	Building  string // a construction item
+	Unit      string // a unit item
 	Started   bool
 	Remaining int64
 	EndsAt    int64 // Match Time; 0 unless running
@@ -69,26 +70,54 @@ func (s *State) QueueBuilding(c *cs.Content, seat int, planet string, slot int, 
 	return nil
 }
 
+func (q QueueItem) cost(c *cs.Content) map[string]int {
+	if q.Unit != "" {
+		return c.Units[q.Unit].Cost
+	}
+	return c.Buildings[q.Building].Cost
+}
+
 // CancelQueueItem refunds an item in full if it hasn't started, or the
-// Ruleset's cancel percentage if it has.
+// Ruleset's cancel percentage if it has. A cancelled unit frees its Command
+// Points, since only queued and living units hold them.
 func (s *State) CancelQueueItem(c *cs.Content, seat int, id uint32) error {
 	for _, p := range s.Planets {
-		i := slices.IndexFunc(p.Queue, func(q QueueItem) bool { return q.ID == id })
+		q, i := p.findItem(id)
 		if i < 0 {
 			continue
 		}
 		if _, err := s.ownedPlanet(seat, p.ID); err != nil {
 			return err
 		}
+		item := q[i]
 		percent := 100
-		if p.Queue[i].Started {
+		if item.Started {
 			percent = c.Rulesets[RulesetID].CancelRefundPercent
 		}
-		s.Players[seat].refund(c.Buildings[p.Queue[i].Building].Cost, percent)
-		p.Queue = slices.Delete(p.Queue, i, i+1)
+		s.Players[seat].refund(item.cost(c), percent)
+		q = slices.Delete(q, i, i+1)
+		if item.Unit != "" {
+			p.setUnitQueue(item.Slot, q)
+		} else {
+			p.Queue = q
+		}
 		return nil
 	}
 	return fmt.Errorf("no queue item %d", id)
+}
+
+// findItem finds a queue item by id in any of the Planet's queues.
+func (p *Planet) findItem(id uint32) ([]QueueItem, int) {
+	is := func(q QueueItem) bool { return q.ID == id }
+	if i := slices.IndexFunc(p.Queue, is); i >= 0 {
+		return p.Queue, i
+	}
+	for _, q := range p.UnitQueues {
+		if i := slices.IndexFunc(q, is); i >= 0 {
+			return q, i
+		}
+	}
+	return nil, -1
 }
 
 // SellBuilding empties a finished building's slot for the Ruleset's sell
@@ -99,8 +128,11 @@ func (s *State) SellBuilding(c *cs.Content, seat int, planet string, slot int) e
 	if err != nil {
 		return err
 	}
-	if slot < 0 || slot >= len(p.Buildings) || p.Buildings[slot] == "" {
+	switch {
+	case slot < 0 || slot >= len(p.Buildings) || p.Buildings[slot] == "":
 		return fmt.Errorf("no building in Building Slot %d", slot+1)
+	case len(p.UnitQueues[slot]) > 0:
+		return errors.New("cancel that building's unit queue before selling it")
 	}
 	s.Players[seat].refund(c.Buildings[p.Buildings[slot]].Cost, c.Rulesets[RulesetID].SellRefundPercent)
 	p.Buildings[slot] = ""
@@ -122,28 +154,40 @@ func (p *Player) inDebt() bool {
 	return false
 }
 
-// build finishes every running item that's due, then starts, pauses or
-// resumes the first item of each queue. Queues pause while their owner is
-// in debt or the Planet is Locked.
-func (s *State) build(now int64) {
+// build runs every queue. Queues pause while their owner is in debt or the
+// Planet is Locked.
+func (s *State) build(c *cs.Content, now int64) {
+	slots := c.Rulesets[RulesetID].UnitSlotsPerStack
 	for _, p := range s.Planets {
-		if len(p.Queue) == 0 {
-			continue
-		}
-		if q := p.Queue[0]; q.EndsAt != 0 && q.EndsAt <= now {
-			p.Buildings[q.Slot] = q.Building
-			p.Queue = p.Queue[1:]
-			if len(p.Queue) == 0 {
-				continue
-			}
-		}
-		q := &p.Queue[0]
 		run := p.Owner != Neutral && !s.Players[p.Owner].inDebt() && !p.Locked
-		switch {
-		case run && q.EndsAt == 0:
-			q.Started, q.EndsAt = true, now+q.Remaining
-		case !run && q.EndsAt != 0:
-			q.Remaining, q.EndsAt = q.EndsAt-now, 0
+		p.Queue = runQueue(p.Queue, run, now, func(q QueueItem) bool {
+			p.Buildings[q.Slot] = q.Building
+			return true
+		})
+		for slot, q := range p.UnitQueues {
+			p.setUnitQueue(slot, runQueue(q, run, now, func(q QueueItem) bool {
+				return p.addUnits(q.Unit, 1, slots)
+			}))
 		}
 	}
+}
+
+// runQueue finishes the first item if it's due, then starts, pauses or
+// resumes the new first item. An item that can't finish (a unit with no
+// room) stays first, past its end, and blocks the queue.
+func runQueue(q []QueueItem, run bool, now int64, finish func(QueueItem) bool) []QueueItem {
+	if len(q) > 0 && q[0].EndsAt != 0 && q[0].EndsAt <= now && finish(q[0]) {
+		q = q[1:]
+	}
+	if len(q) == 0 {
+		return nil
+	}
+	head := &q[0]
+	switch {
+	case run && head.EndsAt == 0:
+		head.Started, head.EndsAt = true, now+head.Remaining
+	case !run && head.EndsAt != 0:
+		head.Remaining, head.EndsAt = max(0, head.EndsAt-now), 0
+	}
+	return q
 }

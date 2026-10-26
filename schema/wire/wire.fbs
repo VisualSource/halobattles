@@ -15,6 +15,9 @@ enum Op : int {
   QueueBuilding = 6,
   CancelQueueItem = 7,
   SellBuilding = 8,
+  QueueUnit = 9,
+  MoveUnits = 10,
+  SetRallyStack = 11,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -74,6 +77,29 @@ table SellBuilding {      // owner only
   slot: ubyte;
 }
 
+table QueueUnit {         // owner only; expands into count queue items
+  seq: uint32;
+  planet: string;
+  slot: ubyte;             // the production building's Building Slot
+  unit: string;
+  count: uint16;
+}
+
+table MoveUnits {         // owner only
+  seq: uint32;
+  planet: string;
+  from_stack: ubyte;
+  to_stack: ubyte;
+  unit: string;
+  count: uint32;
+}
+
+table SetRallyStack {     // owner only
+  seq: uint32;
+  planet: string;
+  stack: ubyte;
+}
+
 // Server messages.
 
 table Seat {
@@ -111,13 +137,16 @@ table Stack {
   slots: [UnitSlot];       // in order
 }
 
-// One item in a Planet's construction queue. Only the first runs: it has
-// ends_at while running, or paused while it can't (debt or Locked). Later
-// items wait with their full remaining time.
+// One item in a queue: a Planet's construction queue, or a production
+// building's unit queue. Only the first runs: it has ends_at while running,
+// or paused while it can't (debt or Locked). Later items wait with their full
+// remaining time. A finished unit with no room in any Stack stays first, with
+// ends_at in the past, and blocks its queue.
 table QueueItem {
   id: uint32;
-  slot: ubyte;             // the Building Slot it will fill
-  building: string;
+  slot: ubyte;             // the Building Slot it fills, or trains at
+  building: string;        // a construction item
+  unit: string;            // a unit item
   started: bool;           // cancelling a started item refunds less
   paused: bool;
   ends_at: long;           // Match Time; 0 unless running
@@ -134,6 +163,8 @@ table PlanetView {
   buildings: [string];     // one per Building Slot; "" is empty
   stacks: [Stack];         // the Planet's three Stacks
   queue: [QueueItem];      // construction, in order; only on your own Planets
+  unit_queue: [QueueItem]; // every unit queue, by slot then order; own only
+  rally_stack: ubyte;      // where trained units go; own Planets only
 }
 
 // The public part of every player.

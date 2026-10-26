@@ -7,15 +7,19 @@ import {
   type EconomyT,
   LobbyState,
   type LobbyStateT,
+  MoveUnitsT,
   Op,
   PaydayPaid,
   Phase,
   type PlanetViewT,
   type PlayerViewT,
   QueueBuildingT,
+  type QueueItemT,
+  QueueUnitT,
   SellBuildingT,
   SetFactionT,
   SetMapT,
+  SetRallyStackT,
   SetReadyT,
   SetStartingResourcesT,
   StartMatchT,
@@ -33,6 +37,7 @@ import {
   type Lobby,
   type PlanetView,
   type PlayerView,
+  type QueueItem,
   type View,
 } from "./store";
 
@@ -93,15 +98,20 @@ const toPlanet = (p: PlanetViewT): PlanetView => ({
       count: u.count,
     })),
   ),
-  queue: p.queue.map((q) => ({
-    id: q.id,
-    slot: q.slot,
-    building: str(q.building),
-    started: q.started,
-    paused: q.paused,
-    endsAt: Number(q.endsAt),
-    remaining: Number(q.remaining),
-  })),
+  queue: p.queue.map(toQueueItem),
+  unitQueue: p.unitQueue.map(toQueueItem),
+  rallyStack: p.rallyStack,
+});
+
+const toQueueItem = (q: QueueItemT): QueueItem => ({
+  id: q.id,
+  slot: q.slot,
+  building: str(q.building),
+  unit: str(q.unit),
+  started: q.started,
+  paused: q.paused,
+  endsAt: Number(q.endsAt),
+  remaining: Number(q.remaining),
 });
 
 const toEconomy = (e: EconomyT): Economy => ({
@@ -225,6 +235,36 @@ export class MatchConnection {
       Op.CancelQueueItem,
       "cancel",
       (seq) => new CancelQueueItemT(seq, itemId),
+    );
+  }
+
+  queueUnit(planet: string, slot: number, unit: string, count: number) {
+    this.send(
+      Op.QueueUnit,
+      "train",
+      (seq) => new QueueUnitT(seq, planet, slot, unit, count),
+    );
+  }
+
+  moveUnits(
+    planet: string,
+    from: number,
+    to: number,
+    unit: string,
+    count: number,
+  ) {
+    this.send(
+      Op.MoveUnits,
+      "move",
+      (seq) => new MoveUnitsT(seq, planet, from, to, unit, count),
+    );
+  }
+
+  setRallyStack(planet: string, stack: number) {
+    this.send(
+      Op.SetRallyStack,
+      "rally",
+      (seq) => new SetRallyStackT(seq, planet, stack),
     );
   }
 

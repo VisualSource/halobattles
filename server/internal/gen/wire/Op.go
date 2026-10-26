@@ -16,6 +16,9 @@ const (
 	OpQueueBuilding        Op = 6
 	OpCancelQueueItem      Op = 7
 	OpSellBuilding         Op = 8
+	OpQueueUnit            Op = 9
+	OpMoveUnits            Op = 10
+	OpSetRallyStack        Op = 11
 	OpLobbyState           Op = 100
 	OpCommandRejected      Op = 101
 	OpViewFull             Op = 102
@@ -33,6 +36,9 @@ var EnumNamesOp = map[Op]string{
 	OpQueueBuilding:        "QueueBuilding",
 	OpCancelQueueItem:      "CancelQueueItem",
 	OpSellBuilding:         "SellBuilding",
+	OpQueueUnit:            "QueueUnit",
+	OpMoveUnits:            "MoveUnits",
+	OpSetRallyStack:        "SetRallyStack",
 	OpLobbyState:           "LobbyState",
 	OpCommandRejected:      "CommandRejected",
 	OpViewFull:             "ViewFull",
@@ -50,6 +56,9 @@ var EnumValuesOp = map[string]Op{
 	"QueueBuilding":        OpQueueBuilding,
 	"CancelQueueItem":      OpCancelQueueItem,
 	"SellBuilding":         OpSellBuilding,
+	"QueueUnit":            OpQueueUnit,
+	"MoveUnits":            OpMoveUnits,
+	"SetRallyStack":        OpSetRallyStack,
 	"LobbyState":           OpLobbyState,
 	"CommandRejected":      OpCommandRejected,
 	"ViewFull":             OpViewFull,

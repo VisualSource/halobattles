@@ -80,8 +80,23 @@ queueLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+unitQueue(index: number, obj?:QueueItem):QueueItem|null {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? (obj || new QueueItem()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+unitQueueLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
+rallyStack():number {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+}
+
 static startPlanetView(builder:flatbuffers.Builder) {
-  builder.startObject(7);
+  builder.startObject(9);
 }
 
 static addId(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset) {
@@ -148,13 +163,33 @@ static startQueueVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addUnitQueue(builder:flatbuffers.Builder, unitQueueOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(7, unitQueueOffset, 0);
+}
+
+static createUnitQueueVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startUnitQueueVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
+static addRallyStack(builder:flatbuffers.Builder, rallyStack:number) {
+  builder.addFieldInt8(8, rallyStack, 0);
+}
+
 static endPlanetView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   builder.requiredField(offset, 4) // id
   return offset;
 }
 
-static createPlanetView(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset, owner:number, capital:boolean, locked:boolean, buildingsOffset:flatbuffers.Offset, stacksOffset:flatbuffers.Offset, queueOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createPlanetView(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset, owner:number, capital:boolean, locked:boolean, buildingsOffset:flatbuffers.Offset, stacksOffset:flatbuffers.Offset, queueOffset:flatbuffers.Offset, unitQueueOffset:flatbuffers.Offset, rallyStack:number):flatbuffers.Offset {
   PlanetView.startPlanetView(builder);
   PlanetView.addId(builder, idOffset);
   PlanetView.addOwner(builder, owner);
@@ -163,6 +198,8 @@ static createPlanetView(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset
   PlanetView.addBuildings(builder, buildingsOffset);
   PlanetView.addStacks(builder, stacksOffset);
   PlanetView.addQueue(builder, queueOffset);
+  PlanetView.addUnitQueue(builder, unitQueueOffset);
+  PlanetView.addRallyStack(builder, rallyStack);
   return PlanetView.endPlanetView(builder);
 }
 
@@ -174,7 +211,9 @@ unpack(): PlanetViewT {
     this.locked(),
     this.bb!.createScalarList<string>(this.buildings.bind(this), this.buildingsLength()),
     this.bb!.createObjList<Stack, StackT>(this.stacks.bind(this), this.stacksLength()),
-    this.bb!.createObjList<QueueItem, QueueItemT>(this.queue.bind(this), this.queueLength())
+    this.bb!.createObjList<QueueItem, QueueItemT>(this.queue.bind(this), this.queueLength()),
+    this.bb!.createObjList<QueueItem, QueueItemT>(this.unitQueue.bind(this), this.unitQueueLength()),
+    this.rallyStack()
   );
 }
 
@@ -187,6 +226,8 @@ unpackTo(_o: PlanetViewT): void {
   _o.buildings = this.bb!.createScalarList<string>(this.buildings.bind(this), this.buildingsLength());
   _o.stacks = this.bb!.createObjList<Stack, StackT>(this.stacks.bind(this), this.stacksLength());
   _o.queue = this.bb!.createObjList<QueueItem, QueueItemT>(this.queue.bind(this), this.queueLength());
+  _o.unitQueue = this.bb!.createObjList<QueueItem, QueueItemT>(this.unitQueue.bind(this), this.unitQueueLength());
+  _o.rallyStack = this.rallyStack();
 }
 }
 
@@ -198,7 +239,9 @@ constructor(
   public locked: boolean = false,
   public buildings: (string)[] = [],
   public stacks: (StackT)[] = [],
-  public queue: (QueueItemT)[] = []
+  public queue: (QueueItemT)[] = [],
+  public unitQueue: (QueueItemT)[] = [],
+  public rallyStack: number = 0
 ){}
 
 
@@ -207,6 +250,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const buildings = PlanetView.createBuildingsVector(builder, builder.createObjectOffsetList(this.buildings));
   const stacks = PlanetView.createStacksVector(builder, builder.createObjectOffsetList(this.stacks));
   const queue = PlanetView.createQueueVector(builder, builder.createObjectOffsetList(this.queue));
+  const unitQueue = PlanetView.createUnitQueueVector(builder, builder.createObjectOffsetList(this.unitQueue));
 
   return PlanetView.createPlanetView(builder,
     id,
@@ -215,7 +259,9 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.locked,
     buildings,
     stacks,
-    queue
+    queue,
+    unitQueue,
+    this.rallyStack
   );
 }
 }

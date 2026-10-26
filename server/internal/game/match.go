@@ -34,6 +34,9 @@ type Planet struct {
 	Buildings []string // one per Building Slot; "" is empty
 	Stacks    [StacksPerPlanet]Stack
 	Queue     []QueueItem // construction, in order; only the first runs
+	// UnitQueues has a queue per production building, by Building Slot.
+	UnitQueues map[int][]QueueItem
+	Rally      int // the Stack trained units join
 	// From its Planet Type and the map's overrides, fixed at Start.
 	Income            map[string]int
 	CommandPointBonus int

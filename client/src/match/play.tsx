@@ -4,7 +4,7 @@ import type { ContentLookups } from "../content";
 import { GalaxyScene } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
-import type { QueueItem } from "./store";
+import type { PlanetView, QueueItem, UnitSlot } from "./store";
 import { useMatchNow } from "./time";
 
 export function PlayScreen(props: {
@@ -72,7 +72,9 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
   );
 }
 
-/** Read-only details of the selected Planet. */
+const DRAG_TYPE = "application/x-halobattles-units";
+
+/** The selected Planet: read-only, plus orders on your own. */
 function PlanetPanel(props: {
   conn: MatchConnection;
   content: ContentLookups;
@@ -97,6 +99,7 @@ function PlanetPanel(props: {
   const buildable = [...content.buildings.values()].filter(
     (b) => b.faction === faction,
   );
+  const mine = planet?.owner === view.you && !planet.locked;
   const ownerName = (seat: number | null) =>
     seat === null
       ? "Neutral"
@@ -119,7 +122,6 @@ function PlanetPanel(props: {
           <ol>
             {planet.buildings.map((b, i) => {
               const queued = planet.queue.find((q) => q.slot === i);
-              const mine = planet.owner === view.you && !planet.locked;
               return (
                 // biome-ignore lint/suspicious/noArrayIndexKey: Building Slots are positional
                 <li key={i}>
@@ -161,54 +163,241 @@ function PlanetPanel(props: {
               );
             })}
           </ol>
-          {planet.queue.length > 0 && (
-            <>
-              <h4>Construction</h4>
-              <ol>
-                {planet.queue.map((q) => (
-                  <li key={q.id}>
-                    {name(q.building)}
-                    {q.paused && " (paused)"}{" "}
-                    <button
-                      type="button"
-                      disabled={isPending(local, "cancel") || planet.locked}
-                      onClick={() => conn.cancelQueueItem(q.id)}
-                    >
-                      Cancel
-                    </button>
-                    <Progress
-                      item={q}
-                      total={
-                        (content.buildings.get(q.building)?.buildTime ?? 0) *
-                        1000
-                      }
-                      offset={local.clockOffset}
-                    />
-                  </li>
-                ))}
-              </ol>
-            </>
+          {mine && (
+            <QueueList
+              title="Construction"
+              conn={conn}
+              content={content}
+              items={planet.queue}
+            />
           )}
+          {mine &&
+            planet.buildings.map((b, slot) => {
+              const trains = content.buildings.get(b)?.trains ?? [];
+              if (trains.length === 0) return null;
+              return (
+                // biome-ignore lint/suspicious/noArrayIndexKey: Building Slots are positional
+                <section key={slot}>
+                  <TrainForm
+                    building={name(b)}
+                    units={trains.map((u) => ({
+                      id: u,
+                      label: `${name(u)} (${cost(content.units.get(u)?.cost ?? {})})`,
+                    }))}
+                    disabled={isPending(local, "train")}
+                    onTrain={(unit, count) =>
+                      conn.queueUnit(planet.id, slot, unit, count)
+                    }
+                  />
+                  <QueueList
+                    conn={conn}
+                    content={content}
+                    items={planet.unitQueue.filter((q) => q.slot === slot)}
+                  />
+                </section>
+              );
+            })}
           {planet.stacks.map((stack, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: the three Stacks are positional
-            <section key={i}>
-              <h4>Stack {i + 1}</h4>
-              {stack.length === 0 ? (
-                <p>(empty)</p>
-              ) : (
-                <ul>
-                  {stack.map((u) => (
-                    <li key={u.unit}>
-                      {name(u.unit)} × {u.count}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            <StackSection
+              // biome-ignore lint/suspicious/noArrayIndexKey: the three Stacks are positional
+              key={i}
+              index={i}
+              stack={stack}
+              planet={planet}
+              mine={mine}
+              conn={conn}
+              name={name}
+            />
           ))}
         </>
       )}
     </aside>
+  );
+}
+
+/**
+ * One Stack's Unit Slots. Your own can be dragged onto another Stack, or
+ * moved with the "Move to" picker (Shift-drop asks for a partial count),
+ * and the Rally toggle picks where trained units go.
+ */
+function StackSection(props: {
+  index: number;
+  stack: UnitSlot[];
+  planet: PlanetView;
+  mine: boolean;
+  conn: MatchConnection;
+  name: (id: string) => string;
+}) {
+  const { index: i, stack, planet, mine, conn, name } = props;
+  const local = useStore(conn.local);
+  const moving = isPending(local, "move");
+  const move = (from: number, unit: string, count: number) =>
+    count > 0 && conn.moveUnits(planet.id, from, i, unit, count);
+  const others = [0, 1, 2].filter((j) => j !== i);
+
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: a drop target for the mouse; the "Move to" picker is the keyboard path
+    <section
+      onDragOver={(e) => mine && e.preventDefault()}
+      onDrop={(e) => {
+        const data = e.dataTransfer.getData(DRAG_TYPE); // "" for anything else dropped
+        if (!data) return;
+        const d = JSON.parse(data);
+        if (d.from === i) return;
+        move(
+          d.from,
+          d.unit,
+          e.shiftKey ? Number(prompt("How many?", `${d.count}`)) : d.count,
+        );
+      }}
+    >
+      <h4>
+        Stack {i + 1}{" "}
+        {mine && (
+          <label>
+            <input
+              type="radio"
+              name={`rally-${planet.id}`}
+              checked={planet.rallyStack === i}
+              disabled={isPending(local, "rally")}
+              onChange={() => conn.setRallyStack(planet.id, i)}
+            />{" "}
+            Rally
+          </label>
+        )}
+      </h4>
+      {stack.length === 0 ? (
+        <p>(empty)</p>
+      ) : (
+        <ul>
+          {stack.map((u) => (
+            <li
+              key={u.unit}
+              draggable={mine && !moving}
+              onDragStart={(e) =>
+                e.dataTransfer.setData(
+                  DRAG_TYPE,
+                  JSON.stringify({ from: i, ...u }),
+                )
+              }
+              style={mine ? { cursor: "grab" } : undefined}
+            >
+              {name(u.unit)} × {u.count}{" "}
+              {mine && (
+                <select
+                  aria-label={`Move ${name(u.unit)} to`}
+                  value=""
+                  disabled={moving}
+                  onChange={(e) =>
+                    conn.moveUnits(
+                      planet.id,
+                      i,
+                      Number(e.target.value),
+                      u.unit,
+                      u.count,
+                    )
+                  }
+                >
+                  <option value="">Move to…</option>
+                  {others.map((j) => (
+                    <option key={j} value={j}>
+                      Stack {j + 1}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** One queue: each item with its progress and a cancel button. */
+function QueueList(props: {
+  title?: string;
+  conn: MatchConnection;
+  content: ContentLookups;
+  items: QueueItem[];
+}) {
+  const { conn, content, items } = props;
+  const local = useStore(conn.local);
+  if (items.length === 0) return null;
+  const now = performance.now() + local.clockOffset;
+  return (
+    <>
+      {props.title && <h4>{props.title}</h4>}
+      <ol>
+        {items.map((q) => {
+          const def = q.unit
+            ? content.units.get(q.unit)
+            : content.buildings.get(q.building);
+          return (
+            <li key={q.id}>
+              {def?.name ?? (q.unit || q.building)}
+              {q.paused && " (paused)"}
+              {q.endsAt > 0 && q.endsAt <= now && " (no room in any Stack)"}{" "}
+              <button
+                type="button"
+                disabled={isPending(local, "cancel")}
+                onClick={() => conn.cancelQueueItem(q.id)}
+              >
+                Cancel
+              </button>
+              <Progress
+                item={q}
+                total={(def?.buildTime ?? 0) * 1000}
+                offset={local.clockOffset}
+              />
+            </li>
+          );
+        })}
+      </ol>
+    </>
+  );
+}
+
+/** Picks a unit and a count to train at one production building. */
+function TrainForm(props: {
+  building: string;
+  units: { id: string; label: string }[];
+  disabled: boolean;
+  onTrain: (unit: string, count: number) => void;
+}) {
+  const [unit, setUnit] = useState(props.units[0]?.id ?? "");
+  const [count, setCount] = useState(1);
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        props.onTrain(unit, count);
+      }}
+    >
+      <h4>{props.building}</h4>
+      <select
+        aria-label="Unit"
+        value={unit}
+        onChange={(e) => setUnit(e.target.value)}
+      >
+        {props.units.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.label}
+          </option>
+        ))}
+      </select>{" "}
+      <input
+        aria-label="Count"
+        type="number"
+        min={1}
+        value={count}
+        onChange={(e) => setCount(Math.max(1, Number(e.target.value) || 1))}
+        style={{ width: 48 }}
+      />{" "}
+      <button type="submit" disabled={props.disabled || !unit}>
+        Train
+      </button>
+    </form>
   );
 }
 

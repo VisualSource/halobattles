@@ -10,6 +10,7 @@ type QueueItemT struct {
 	Id        uint32 `json:"id"`
 	Slot      byte   `json:"slot"`
 	Building  string `json:"building"`
+	Unit      string `json:"unit"`
 	Started   bool   `json:"started"`
 	Paused    bool   `json:"paused"`
 	EndsAt    int64  `json:"ends_at"`
@@ -24,10 +25,15 @@ func (t *QueueItemT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t.Building != "" {
 		buildingOffset = builder.CreateString(t.Building)
 	}
+	unitOffset := flatbuffers.UOffsetT(0)
+	if t.Unit != "" {
+		unitOffset = builder.CreateString(t.Unit)
+	}
 	QueueItemStart(builder)
 	QueueItemAddId(builder, t.Id)
 	QueueItemAddSlot(builder, t.Slot)
 	QueueItemAddBuilding(builder, buildingOffset)
+	QueueItemAddUnit(builder, unitOffset)
 	QueueItemAddStarted(builder, t.Started)
 	QueueItemAddPaused(builder, t.Paused)
 	QueueItemAddEndsAt(builder, t.EndsAt)
@@ -39,6 +45,7 @@ func (rcv *QueueItem) UnPackTo(t *QueueItemT) {
 	t.Id = rcv.Id()
 	t.Slot = rcv.Slot()
 	t.Building = string(rcv.Building())
+	t.Unit = string(rcv.Unit())
 	t.Started = rcv.Started()
 	t.Paused = rcv.Paused()
 	t.EndsAt = rcv.EndsAt()
@@ -121,19 +128,15 @@ func (rcv *QueueItem) Building() []byte {
 	return nil
 }
 
-func (rcv *QueueItem) Started() bool {
+func (rcv *QueueItem) Unit() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
-		return rcv._tab.GetBool(o + rcv._tab.Pos)
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
 	}
-	return false
+	return nil
 }
 
-func (rcv *QueueItem) MutateStarted(n bool) bool {
-	return rcv._tab.MutateBoolSlot(10, n)
-}
-
-func (rcv *QueueItem) Paused() bool {
+func (rcv *QueueItem) Started() bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.GetBool(o + rcv._tab.Pos)
@@ -141,23 +144,23 @@ func (rcv *QueueItem) Paused() bool {
 	return false
 }
 
-func (rcv *QueueItem) MutatePaused(n bool) bool {
+func (rcv *QueueItem) MutateStarted(n bool) bool {
 	return rcv._tab.MutateBoolSlot(12, n)
 }
 
-func (rcv *QueueItem) EndsAt() int64 {
+func (rcv *QueueItem) Paused() bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
-		return rcv._tab.GetInt64(o + rcv._tab.Pos)
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
 	}
-	return 0
+	return false
 }
 
-func (rcv *QueueItem) MutateEndsAt(n int64) bool {
-	return rcv._tab.MutateInt64Slot(14, n)
+func (rcv *QueueItem) MutatePaused(n bool) bool {
+	return rcv._tab.MutateBoolSlot(14, n)
 }
 
-func (rcv *QueueItem) Remaining() int64 {
+func (rcv *QueueItem) EndsAt() int64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		return rcv._tab.GetInt64(o + rcv._tab.Pos)
@@ -165,12 +168,24 @@ func (rcv *QueueItem) Remaining() int64 {
 	return 0
 }
 
-func (rcv *QueueItem) MutateRemaining(n int64) bool {
+func (rcv *QueueItem) MutateEndsAt(n int64) bool {
 	return rcv._tab.MutateInt64Slot(16, n)
 }
 
+func (rcv *QueueItem) Remaining() int64 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		return rcv._tab.GetInt64(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *QueueItem) MutateRemaining(n int64) bool {
+	return rcv._tab.MutateInt64Slot(18, n)
+}
+
 func QueueItemStart(builder *flatbuffers.Builder) {
-	builder.StartObject(7)
+	builder.StartObject(8)
 }
 func QueueItemAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -181,17 +196,20 @@ func QueueItemAddSlot(builder *flatbuffers.Builder, slot byte) {
 func QueueItemAddBuilding(builder *flatbuffers.Builder, building flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(building), 0)
 }
+func QueueItemAddUnit(builder *flatbuffers.Builder, unit flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(unit), 0)
+}
 func QueueItemAddStarted(builder *flatbuffers.Builder, started bool) {
-	builder.PrependBoolSlot(3, started, false)
+	builder.PrependBoolSlot(4, started, false)
 }
 func QueueItemAddPaused(builder *flatbuffers.Builder, paused bool) {
-	builder.PrependBoolSlot(4, paused, false)
+	builder.PrependBoolSlot(5, paused, false)
 }
 func QueueItemAddEndsAt(builder *flatbuffers.Builder, endsAt int64) {
-	builder.PrependInt64Slot(5, endsAt, 0)
+	builder.PrependInt64Slot(6, endsAt, 0)
 }
 func QueueItemAddRemaining(builder *flatbuffers.Builder, remaining int64) {
-	builder.PrependInt64Slot(6, remaining, 0)
+	builder.PrependInt64Slot(7, remaining, 0)
 }
 func QueueItemEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

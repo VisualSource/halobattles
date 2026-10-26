@@ -23,13 +23,15 @@ export type Lobby = {
 export type UnitSlot = { unit: string; count: number };
 
 /**
- * A building under construction. Only the first in a queue runs: it has
- * endsAt, or paused when it can't run (debt or Locked). Later items wait.
+ * A building under construction or a unit in training. Only the first in a
+ * queue runs: it has endsAt, or paused when it can't run (debt or Locked).
+ * Later items wait. A trained unit with no room stays first, past its end.
  */
 export type QueueItem = {
   id: number;
-  slot: number; // the Building Slot it will fill
-  building: string;
+  slot: number; // the Building Slot it fills, or trains at
+  building: string; // a construction item
+  unit: string; // a unit item
   started: boolean;
   paused: boolean;
   endsAt: number; // Match Time; 0 unless running
@@ -45,6 +47,8 @@ export type PlanetView = {
   buildings: string[]; // one per Building Slot; "" is empty
   stacks: UnitSlot[][]; // the three Stacks
   queue: QueueItem[]; // construction, in order; only on your own Planets
+  unitQueue: QueueItem[]; // every unit queue, by slot then order; own only
+  rallyStack: number; // where trained units go; own only
 };
 
 /** The public part of every player. */

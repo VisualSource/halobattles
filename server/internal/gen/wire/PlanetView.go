@@ -8,13 +8,15 @@ import (
 )
 
 type PlanetViewT struct {
-	Id        string        `json:"id"`
-	Owner     int8          `json:"owner"`
-	Capital   bool          `json:"capital"`
-	Locked    bool          `json:"locked"`
-	Buildings []string      `json:"buildings"`
-	Stacks    []*StackT     `json:"stacks"`
-	Queue     []*QueueItemT `json:"queue"`
+	Id         string        `json:"id"`
+	Owner      int8          `json:"owner"`
+	Capital    bool          `json:"capital"`
+	Locked     bool          `json:"locked"`
+	Buildings  []string      `json:"buildings"`
+	Stacks     []*StackT     `json:"stacks"`
+	Queue      []*QueueItemT `json:"queue"`
+	UnitQueue  []*QueueItemT `json:"unit_queue"`
+	RallyStack byte          `json:"rally_stack"`
 }
 
 func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -64,6 +66,19 @@ func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		}
 		queueOffset = builder.EndVector(queueLength)
 	}
+	unitQueueOffset := flatbuffers.UOffsetT(0)
+	if t.UnitQueue != nil {
+		unitQueueLength := len(t.UnitQueue)
+		unitQueueOffsets := make([]flatbuffers.UOffsetT, unitQueueLength)
+		for j := 0; j < unitQueueLength; j++ {
+			unitQueueOffsets[j] = t.UnitQueue[j].Pack(builder)
+		}
+		PlanetViewStartUnitQueueVector(builder, unitQueueLength)
+		for j := unitQueueLength - 1; j >= 0; j-- {
+			builder.PrependUOffsetT(unitQueueOffsets[j])
+		}
+		unitQueueOffset = builder.EndVector(unitQueueLength)
+	}
 	PlanetViewStart(builder)
 	PlanetViewAddId(builder, idOffset)
 	PlanetViewAddOwner(builder, t.Owner)
@@ -72,6 +87,8 @@ func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	PlanetViewAddBuildings(builder, buildingsOffset)
 	PlanetViewAddStacks(builder, stacksOffset)
 	PlanetViewAddQueue(builder, queueOffset)
+	PlanetViewAddUnitQueue(builder, unitQueueOffset)
+	PlanetViewAddRallyStack(builder, t.RallyStack)
 	return PlanetViewEnd(builder)
 }
 
@@ -99,6 +116,14 @@ func (rcv *PlanetView) UnPackTo(t *PlanetViewT) {
 		rcv.Queue(&x, j)
 		t.Queue[j] = x.UnPack()
 	}
+	unitQueueLength := rcv.UnitQueueLength()
+	t.UnitQueue = make([]*QueueItemT, unitQueueLength)
+	for j := 0; j < unitQueueLength; j++ {
+		x := QueueItem{}
+		rcv.UnitQueue(&x, j)
+		t.UnitQueue[j] = x.UnPack()
+	}
+	t.RallyStack = rcv.RallyStack()
 }
 
 func (rcv *PlanetView) UnPack() *PlanetViewT {
@@ -278,8 +303,40 @@ func (rcv *PlanetView) QueueLength() int {
 	return 0
 }
 
+func (rcv *PlanetView) UnitQueue(obj *QueueItem, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *PlanetView) UnitQueueLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
+func (rcv *PlanetView) RallyStack() byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *PlanetView) MutateRallyStack(n byte) bool {
+	return rcv._tab.MutateByteSlot(20, n)
+}
+
 func PlanetViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(7)
+	builder.StartObject(9)
 }
 func PlanetViewAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -310,6 +367,15 @@ func PlanetViewAddQueue(builder *flatbuffers.Builder, queue flatbuffers.UOffsetT
 }
 func PlanetViewStartQueueVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
+}
+func PlanetViewAddUnitQueue(builder *flatbuffers.Builder, unitQueue flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(unitQueue), 0)
+}
+func PlanetViewStartUnitQueueVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func PlanetViewAddRallyStack(builder *flatbuffers.Builder, rallyStack byte) {
+	builder.PrependByteSlot(8, rallyStack, 0)
 }
 func PlanetViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
