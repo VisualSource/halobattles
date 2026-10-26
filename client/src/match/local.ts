@@ -10,10 +10,15 @@ export type CommandKind =
   | "startingResources"
   | "start";
 
-export type LocalState = { pending: Map<number, CommandKind> };
+export type LocalState = {
+  pending: Map<number, CommandKind>;
+  selected: string | null; // the selected Planet's id
+};
 
 export const createLocalStore = () =>
-  createStore<LocalState>(() => ({ pending: new Map() }));
+  createStore<LocalState>(() => ({ pending: new Map(), selected: null }));
+
+export type LocalStore = ReturnType<typeof createLocalStore>;
 
 export const isPending = (s: LocalState, kind: CommandKind) =>
   [...s.pending.values()].includes(kind);

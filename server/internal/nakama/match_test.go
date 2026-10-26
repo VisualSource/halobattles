@@ -18,12 +18,18 @@ type fakeDispatcher struct {
 	label    map[string]any
 	kicked   []string
 	rejected map[string][]*wire.CommandRejectedT // by session
+	views    map[string]*wire.ViewFullT          // last ViewFull, by session
 }
 
 func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Presence, _ runtime.Presence, _ bool) error {
 	switch {
 	case op == int64(wire.OpLobbyState) && to == nil:
 		d.lobby = wire.GetRootAsLobbyState(data, 0).UnPack()
+	case op == int64(wire.OpViewFull) && len(to) == 1:
+		if d.views == nil {
+			d.views = map[string]*wire.ViewFullT{}
+		}
+		d.views[to[0].GetSessionId()] = wire.GetRootAsViewFull(data, 0).UnPack()
 	case op == int64(wire.OpCommandRejected) && len(to) == 1:
 		if d.rejected == nil {
 			d.rejected = map[string][]*wire.CommandRejectedT{}
@@ -64,14 +70,25 @@ func (p presence) GetUserId() string    { return p.user }
 func (p presence) GetSessionId() string { return p.session }
 
 func testContent() *content.Content {
-	return &content.Content{Doc: contentschema.Content{
+	planets := func(ids ...string) []contentschema.MapPlanet {
+		var ps []contentschema.MapPlanet
+		for _, id := range ids {
+			ps = append(ps, contentschema.MapPlanet{ID: contentschema.LocalID(id), Type: "base:capital"})
+		}
+		return ps
+	}
+	return &content.Content{Hash: "hash1", Doc: contentschema.Content{
 		Maps: map[string]contentschema.GalaxyMap{
-			"base:b-map": {Starts: []contentschema.LocalID{"x", "y", "z"}, MinPlayers: 2},
-			"base:a-map": {Starts: []contentschema.LocalID{"x", "y"}, MinPlayers: 2},
+			"base:b-map": {Planets: planets("x", "y", "z"), Starts: []contentschema.LocalID{"x", "y", "z"}, MinPlayers: 2},
+			"base:a-map": {
+				Planets: planets("x", "y", "z"), Starts: []contentschema.LocalID{"x", "z"}, MinPlayers: 2,
+				Lanes: []contentschema.Lane{{From: "x", To: "y", Type: "fast"}, {From: "y", To: "z", Type: "fast"}},
+			},
 		},
-		Factions:  map[string]contentschema.Faction{"base:unsc": {}, "base:covenant": {}},
-		Resources: map[string]contentschema.Resource{"base:credits": {}},
-		Rulesets:  map[string]contentschema.Ruleset{"base:rules": {StartingResources: map[string]int{"base:credits": 1000}}},
+		PlanetTypes: map[string]contentschema.PlanetType{"base:capital": {BuildingSlots: 2}},
+		Factions:    map[string]contentschema.Faction{"base:unsc": {}, "base:covenant": {}},
+		Resources:   map[string]contentschema.Resource{"base:credits": {}},
+		Rulesets:    map[string]contentschema.Ruleset{"base:rules": {StartingResources: map[string]int{"base:credits": 1000}}},
 	}}
 }
 

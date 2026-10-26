@@ -1,7 +1,18 @@
 import type { MatchData, Session } from "@heroiclabs/nakama-js";
 import * as flatbuffers from "flatbuffers";
 import { describe, expect, it, vi } from "vitest";
-import { AmountT, LobbyStateT, Op, Phase, SeatT } from "../gen/wire";
+import {
+  AmountT,
+  LobbyStateT,
+  Op,
+  Phase,
+  PlanetViewT,
+  PlayerViewT,
+  SeatT,
+  StackT,
+  UnitSlotT,
+  ViewFullT,
+} from "../gen/wire";
 import { MatchConnection, type SocketLike } from "./connection";
 
 function fakeSocket() {
@@ -81,6 +92,90 @@ describe("MatchConnection", () => {
           ready: false,
         },
       ],
+    });
+  });
+
+  it("decodes ViewFull into plain objects, Planets in a Map by id", async () => {
+    const { socket, send } = fakeSocket();
+    const conn = new MatchConnection(socket, { log: false });
+    await conn.open({} as Session, "m1");
+    const b = new flatbuffers.Builder();
+    const view = new ViewFullT(
+      2000n,
+      "hash1",
+      "base:rules",
+      "base:quadrant",
+      1,
+      [
+        new PlayerViewT(0, "u1", "Chief", "base:unsc", 1),
+        new PlayerViewT(1, "u2", "Arbiter", "base:covenant", 1),
+      ],
+      [
+        new PlanetViewT(
+          "harvest",
+          1,
+          true,
+          false,
+          ["base:hall", ""],
+          [
+            new StackT([new UnitSlotT("base:grunt", 10)]),
+            new StackT([]),
+            new StackT([]),
+          ],
+        ),
+        new PlanetViewT("jericho", -1, false, false, ["", "", ""], []),
+      ],
+    );
+    b.finish(view.pack(b));
+
+    send(Op.ViewFull, b.asUint8Array());
+
+    expect(conn.store.getState().view).toEqual({
+      matchTime: 2000,
+      contentHash: "hash1",
+      ruleset: "base:rules",
+      map: "base:quadrant",
+      you: 1,
+      players: [
+        {
+          seat: 0,
+          user: "u1",
+          displayName: "Chief",
+          faction: "base:unsc",
+          planetCount: 1,
+        },
+        {
+          seat: 1,
+          user: "u2",
+          displayName: "Arbiter",
+          faction: "base:covenant",
+          planetCount: 1,
+        },
+      ],
+      planets: new Map([
+        [
+          "harvest",
+          {
+            id: "harvest",
+            owner: 1,
+            capital: true,
+            locked: false,
+            buildings: ["base:hall", ""],
+            stacks: [[{ unit: "base:grunt", count: 10 }], [], []],
+          },
+        ],
+        [
+          "jericho",
+          {
+            id: "jericho",
+            owner: null,
+            capital: false,
+            locked: false,
+            buildings: ["", "", ""],
+            stacks: [[], [], []],
+          },
+        ],
+      ]),
     });
   });
 

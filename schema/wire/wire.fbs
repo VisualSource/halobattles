@@ -15,6 +15,7 @@ enum Op : int {
 
   LobbyState = 100,
   CommandRejected = 101,
+  ViewFull = 102,
 }
 
 enum Phase : byte { Lobby, Play, Results }
@@ -73,4 +74,47 @@ table LobbyState {
 table CommandRejected {
   seq: uint32;
   reason: string;
+}
+
+// The View: one player's picture of the Match, the only state they get.
+
+table UnitSlot {
+  unit: string;
+  count: uint32;
+}
+
+table Stack {
+  slots: [UnitSlot];       // in order
+}
+
+// A Planet in vision. Planets outside vision are left out; the client has
+// their static data from content.
+table PlanetView {
+  id: string (key);
+  owner: byte = -1;        // a Seat index; -1 is neutral
+  capital: bool;
+  locked: bool;
+  buildings: [string];     // one per Building Slot; "" is empty
+  stacks: [Stack];         // the Planet's three Stacks
+}
+
+// The public part of every player.
+table PlayerView {
+  seat: ubyte;
+  user: string;
+  display_name: string;
+  faction: string;
+  planet_count: uint16;
+}
+
+// Sent on entering play and on every rejoin. Content is referred to by id;
+// a client whose cached content doesn't match content_hash refetches it.
+table ViewFull {
+  match_time: long;        // ms since Start
+  content_hash: string;
+  ruleset: string;
+  map: string;
+  you: ubyte;              // the viewer's Seat
+  players: [PlayerView];   // by Seat
+  planets: [PlanetView];
 }

@@ -95,6 +95,13 @@ dir = "server"
 depends = ["gen"]
 run = "go run ./cmd/halo-mod check ../mods/base"
 
+[tasks.fmt]
+description = "Format Go (gofmt) and the client (Biome)"
+run = [
+  "cd server && gofmt -w $(git ls-files -co --exclude-standard '*.go')",
+  "pnpm -C client exec biome check --write .",
+]
+
 [tasks.pre-push]
 description = "Fast subset of check, run by the git pre-push hook"
 depends = ["gen:diff", "test", "mods:check"]

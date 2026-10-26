@@ -32,7 +32,7 @@ func (s *matchState) handleCommands(logger runtime.Logger, dispatcher runtime.Ma
 		user := msg.GetUserId()
 		// A reloaded player's old session may still have commands queued;
 		// its seqs would settle the new session's pending commands.
-		if s.sessions[user] != msg.GetSessionId() {
+		if !s.isCurrent(msg) {
 			continue
 		}
 		seq, err := s.handle(msg, tick, perUser[user])
@@ -81,8 +81,7 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 			if err := l.Start(user); err != nil {
 				return err
 			}
-			s.phase = wire.PhasePlay
-			return nil
+			return s.start(tick)
 		}
 	default:
 		return 0, fmt.Errorf("unknown command %d", msg.GetOpCode())

@@ -7,12 +7,15 @@ import {
   useMatch,
   useRouter,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useStore } from "zustand";
 import { signIn } from "./auth";
 import { client, createSocket } from "./config";
 import { type ContentLookups, loadContent } from "./content";
 import { MatchConnection } from "./match/connection";
 import { LobbyScreen } from "./match/lobby";
 import { inMatch } from "./match/phase";
+import { PlayScreen } from "./match/play";
 import { MatchScreen, useMatchContext } from "./match/screen";
 import { DisplayNamePrompt, listOpenMatches, Menu } from "./menu";
 
@@ -157,13 +160,27 @@ const lobbyRoute = createRoute({
   },
 });
 
-// Placeholders until the galaxy map and results screens land.
 const playRoute = createRoute({
   getParentRoute: () => matchRoute,
   path: "play",
-  component: () => <p>The Match has started.</p>,
+  component: function Play() {
+    const { conn } = useMatchContext();
+    const { content: loaded } = rootRoute.useRouteContext();
+    const hash = useStore(conn.store, (st) => st.view?.contentHash);
+    const router = useRouter();
+    const stale = hash !== undefined && hash !== loaded.hash;
+    // The server's content changed since we cached ours: refetch first.
+    useEffect(() => {
+      if (!stale) return;
+      content = undefined;
+      void router.invalidate();
+    }, [stale, router]);
+    if (stale) return <p>Updating content…</p>;
+    return <PlayScreen conn={conn} content={loaded} />;
+  },
 });
 
+// A placeholder until the results screen lands.
 const resultsRoute = createRoute({
   getParentRoute: () => matchRoute,
   path: "results",

@@ -2,6 +2,7 @@ package nakama
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -216,5 +217,66 @@ func TestStartMovesToPlayAndOnlyReturningSeatsMayJoin(t *testing.T) {
 	h.loop()
 	if h.state == nil {
 		t.Error("a running Match ended when everyone disconnected")
+	}
+}
+
+func (h *lobbyHarness) start() {
+	h.t.Helper()
+	h.loop(
+		cmd(u1, wire.OpSetReady, &wire.SetReadyT{Seq: 101, Ready: true}),
+		cmd(u2, wire.OpSetReady, &wire.SetReadyT{Seq: 101, Ready: true}),
+		cmd(u1, wire.OpStartMatch, &wire.StartMatchT{Seq: 102}),
+	)
+	if h.d.lobby.Phase != wire.PhasePlay {
+		h.t.Fatalf("Start failed: %+v", h.d.rejected)
+	}
+}
+
+func TestStartSendsEachPlayerTheirOwnViewFull(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+
+	for seat, p := range []presence{u1, u2} {
+		v := h.d.views[p.session]
+		if v == nil {
+			t.Fatalf("%s got no ViewFull", p.user)
+		}
+		if int(v.You) != seat || v.ContentHash != "hash1" || v.Ruleset != "base:rules" || v.Map != "base:a-map" || v.MatchTime != 0 {
+			t.Errorf("%s ViewFull header = you %d, hash %q, ruleset %q, map %q, time %d", p.user, v.You, v.ContentHash, v.Ruleset, v.Map, v.MatchTime)
+		}
+		// a-map is x - y - z with starts x and z: each player sees their
+		// Capital and y, never the other Capital.
+		var ids []string
+		for _, pl := range v.Planets {
+			ids = append(ids, pl.Id)
+			if pl.Capital && int(pl.Owner) != seat {
+				t.Errorf("%s can see another player's Capital %s", p.user, pl.Id)
+			}
+		}
+		if len(ids) != 2 || !slices.Contains(ids, "y") {
+			t.Errorf("%s sees %v, want its Capital and y", p.user, ids)
+		}
+		if len(v.Players) != 2 || v.Players[1].PlanetCount != 1 {
+			t.Errorf("players = %+v", v.Players)
+		}
+	}
+}
+
+func TestReturningPlayerGetsViewFullWithMatchTime(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	for range 10 {
+		h.loop() // 10 ticks at 5 Hz = 2 s
+	}
+
+	h.leave(u2)
+	back := presence{user: "u2", session: "s2c"}
+	if !h.join(back) {
+		t.Fatal("returning Seat refused")
+	}
+
+	v := h.d.views["s2c"]
+	if v == nil || v.You != 1 || v.MatchTime != 2000 {
+		t.Fatalf("rejoin ViewFull = %+v, want Seat 1 at Match Time 2000", v)
 	}
 }

@@ -12,9 +12,11 @@ import {
   SetReadyT,
   SetStartingResourcesT,
   StartMatchT,
+  ViewFull,
+  type ViewFullT,
 } from "../gen/wire";
 import { type CommandKind, createLocalStore } from "./local";
-import { createMatchStore, type Lobby } from "./store";
+import { createMatchStore, type Lobby, type View } from "./store";
 
 export type SocketLike = Pick<
   Socket,
@@ -47,6 +49,43 @@ function toLobby(t: LobbyStateT): Lobby {
       faction: str(s.faction),
       ready: s.ready,
     })),
+  };
+}
+
+const STACKS_PER_PLANET = 3;
+
+function toView(t: ViewFullT): View {
+  return {
+    matchTime: Number(t.matchTime),
+    contentHash: str(t.contentHash),
+    ruleset: str(t.ruleset),
+    map: str(t.map),
+    you: t.you,
+    players: t.players.map((p) => ({
+      seat: p.seat,
+      user: str(p.user),
+      displayName: str(p.displayName),
+      faction: str(p.faction),
+      planetCount: p.planetCount,
+    })),
+    planets: new Map(
+      t.planets.map((p) => [
+        str(p.id),
+        {
+          id: str(p.id),
+          owner: p.owner < 0 ? null : p.owner,
+          capital: p.capital,
+          locked: p.locked,
+          buildings: p.buildings.map(str),
+          stacks: Array.from({ length: STACKS_PER_PLANET }, (_, i) =>
+            (p.stacks[i]?.slots ?? []).map((u) => ({
+              unit: str(u.unit),
+              count: u.count,
+            })),
+          ),
+        },
+      ]),
+    ),
   };
 }
 
@@ -147,6 +186,12 @@ export class MatchConnection {
         this.store.setState({ lobby });
         const mine = t.seats.find((s) => str(s.user) === this.userId);
         if (mine) this.settle(mine.lastSeq);
+        return;
+      }
+      case Op.ViewFull: {
+        const view = toView(ViewFull.getRootAsViewFull(bb).unpack());
+        this.debug("ViewFull", view);
+        this.store.setState({ view });
         return;
       }
       case Op.CommandRejected: {

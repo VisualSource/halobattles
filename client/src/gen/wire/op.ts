@@ -10,5 +10,6 @@ export enum Op {
   SetStartingResources = 4,
   StartMatch = 5,
   LobbyState = 100,
-  CommandRejected = 101
+  CommandRejected = 101,
+  ViewFull = 102
 }

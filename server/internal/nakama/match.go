@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"maps"
+	"math/rand/v2"
 	"slices"
 
 	"github.com/VisualSource/halobattles/server/internal/content"
@@ -16,6 +17,7 @@ import (
 
 const (
 	matchModule = "halobattles"
+	rulesetID   = "base:rules" // the one Ruleset; later Mods Patch it
 	tickRate    = 5
 	// creatorGraceTicks is how long a new Match waits for its creator to join.
 	creatorGraceTicks = 30 * tickRate
@@ -28,14 +30,19 @@ type match struct {
 }
 
 type matchState struct {
-	phase wire.Phase
-	lobby *game.Lobby
-	// sessions maps each seated user to their current session. A reload can
-	// join the new session before the old one's leave arrives, and that
+	content *content.Content
+	phase   wire.Phase
+	lobby   *game.Lobby
+	seed    uint64      // every random choice in the Match draws from this
+	play    *game.State // the running Match, from Start on
+	// startTick is the tick of Start, Match Time 0.
+	startTick int64
+	// presences maps each seated user to their current presence. A reload
+	// can join the new session before the old one's leave arrives, and that
 	// stale leave must not free the Seat.
-	sessions map[string]string
-	lastSeq  map[string]uint32 // the last command seq processed per user
-	joined   bool              // someone has joined; an empty lobby after that closes
+	presences map[string]runtime.Presence
+	lastSeq   map[string]uint32 // the last command seq processed per user
+	joined    bool              // someone has joined; an empty lobby after that closes
 }
 
 func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
@@ -44,16 +51,18 @@ func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		Maps:              map[string]game.LobbyMap{},
 		Factions:          slices.Collect(maps.Keys(doc.Factions)),
 		Resources:         slices.Collect(maps.Keys(doc.Resources)),
-		StartingResources: doc.Rulesets["base:rules"].StartingResources,
+		StartingResources: doc.Rulesets[rulesetID].StartingResources,
 	}
 	for id, gm := range doc.Maps {
 		lc.Maps[id] = game.LobbyMap{Starts: len(gm.Starts), MinPlayers: gm.MinPlayers}
 	}
 	s := &matchState{
-		phase:    wire.PhaseLobby,
-		lobby:    game.NewLobby(lc),
-		sessions: map[string]string{},
-		lastSeq:  map[string]uint32{},
+		phase:     wire.PhaseLobby,
+		lobby:     game.NewLobby(lc),
+		content:   m.content,
+		seed:      rand.Uint64(),
+		presences: map[string]runtime.Presence{},
+		lastSeq:   map[string]uint32{},
 	}
 	return s, tickRate, s.label()
 }
@@ -80,7 +89,7 @@ func (m *match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB
 			kick = append(kick, p)
 			continue
 		}
-		s.sessions[p.GetUserId()] = p.GetSessionId()
+		s.presences[p.GetUserId()] = p
 		s.lastSeq[p.GetUserId()] = 0 // a new session numbers its commands from 1
 		s.joined = true
 	}
@@ -88,16 +97,20 @@ func (m *match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB
 		_ = dispatcher.MatchKick(kick)
 	}
 	s.lobbyChanged(logger, dispatcher)
+	if s.play != nil {
+		s.setTime(tick)
+		s.sendViews(logger, dispatcher, presences)
+	}
 	return s
 }
 
 func (m *match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) interface{} {
 	s := state.(*matchState)
 	for _, p := range presences {
-		if s.sessions[p.GetUserId()] != p.GetSessionId() {
+		if !s.isCurrent(p) {
 			continue
 		}
-		delete(s.sessions, p.GetUserId())
+		delete(s.presences, p.GetUserId())
 		// After Start a player keeps their Seat; Forfeits come later.
 		if s.phase == wire.PhaseLobby {
 			s.lobby.Leave(p.GetUserId())
@@ -112,10 +125,55 @@ func (m *match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 	if s.phase == wire.PhaseLobby && len(s.lobby.Seats) == 0 && (s.joined || tick > creatorGraceTicks) {
 		return nil // returning nil ends the Match
 	}
+	if s.play != nil {
+		s.setTime(tick)
+	}
+	wasLobby := s.play == nil
 	if s.handleCommands(logger, dispatcher, tick, messages) {
 		s.lobbyChanged(logger, dispatcher)
 	}
+	if wasLobby && s.play != nil {
+		s.sendViews(logger, dispatcher, slices.Collect(maps.Values(s.presences)))
+	}
 	return s
+}
+
+func (s *matchState) setTime(tick int64) {
+	s.play.Time = (tick - s.startTick) * 1000 / tickRate
+}
+
+// start builds the Match from the lobby: Match Time 0 is this tick.
+func (s *matchState) start(tick int64) error {
+	var seats []game.SeatSetup
+	for _, seat := range s.lobby.Seats {
+		seats = append(seats, game.SeatSetup{User: seat.User, DisplayName: seat.DisplayName, Faction: seat.Faction})
+	}
+	g, err := game.StartMatch(&s.content.Doc, s.lobby.Map, seats, s.lobby.StartingResources, s.seed)
+	if err != nil {
+		return err
+	}
+	s.play, s.phase, s.startTick = g, wire.PhasePlay, tick
+	return nil
+}
+
+// isCurrent reports whether p is its user's current session.
+func (s *matchState) isCurrent(p runtime.Presence) bool {
+	cur := s.presences[p.GetUserId()]
+	return cur != nil && cur.GetSessionId() == p.GetSessionId()
+}
+
+// sendViews sends each of presences their own ViewFull.
+func (s *matchState) sendViews(logger runtime.Logger, dispatcher runtime.MatchDispatcher, presences []runtime.Presence) {
+	for _, p := range presences {
+		seat := slices.IndexFunc(s.play.Players, func(pl game.Player) bool { return pl.User == p.GetUserId() })
+		if seat < 0 {
+			continue
+		}
+		data := encodeView(s.play.View(seat), s.content.Hash)
+		if err := dispatcher.BroadcastMessage(int64(wire.OpViewFull), data, []runtime.Presence{p}, nil, true); err != nil {
+			logger.Error("send ViewFull: %v", err)
+		}
+	}
 }
 
 func (m *match) MatchTerminate(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, graceSeconds int) interface{} {
@@ -161,6 +219,29 @@ func (s *matchState) encodeLobby() []byte {
 			User: seat.User, DisplayName: seat.DisplayName, Faction: seat.Faction, Ready: seat.Ready,
 			LastSeq: s.lastSeq[seat.User],
 		})
+	}
+	return finish(t)
+}
+
+func encodeView(v game.View, contentHash string) []byte {
+	t := &wire.ViewFullT{
+		MatchTime: v.Time, ContentHash: contentHash, Ruleset: rulesetID, Map: v.Map, You: uint8(v.You),
+	}
+	for _, p := range v.Players {
+		t.Players = append(t.Players, &wire.PlayerViewT{
+			Seat: uint8(p.Seat), User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: uint16(p.PlanetCount),
+		})
+	}
+	for _, p := range v.Planets { // already sorted by id, as the (key) needs
+		pv := &wire.PlanetViewT{Id: p.ID, Owner: int8(p.Owner), Capital: p.Capital, Locked: p.Locked, Buildings: p.Buildings}
+		for _, st := range p.Stacks {
+			ws := &wire.StackT{}
+			for _, u := range st {
+				ws.Slots = append(ws.Slots, &wire.UnitSlotT{Unit: u.Unit, Count: uint32(u.Count)})
+			}
+			pv.Stacks = append(pv.Stacks, ws)
+		}
+		t.Planets = append(t.Planets, pv)
 	}
 	return finish(t)
 }
