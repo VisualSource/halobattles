@@ -6,7 +6,15 @@ namespace wire;
 // 1–99 are client commands, 100 and up are server messages.
 enum Op : int {
   None = 0,
+
+  SetFaction = 1,
+  SetReady = 2,
+  SetMap = 3,
+  SetStartingResources = 4,
+  StartMatch = 5,
+
   LobbyState = 100,
+  CommandRejected = 101,
 }
 
 enum Phase : byte { Lobby, Play, Results }
@@ -16,11 +24,40 @@ table Amount {
   amount: uint32;
 }
 
+// Commands. Every one carries a client-assigned seq.
+
+table SetFaction {
+  seq: uint32;
+  faction: string;
+}
+
+table SetReady {
+  seq: uint32;
+  ready: bool;
+}
+
+table SetMap {           // Host only
+  seq: uint32;
+  map: string;
+}
+
+table SetStartingResources {  // Host only
+  seq: uint32;
+  amounts: [Amount];
+}
+
+table StartMatch {       // Host only
+  seq: uint32;
+}
+
+// Server messages.
+
 table Seat {
   user: string;
   display_name: string;
   faction: string;
   ready: bool;
+  last_seq: uint32;      // the last command seq processed from this Seat
 }
 
 // Sent whole to everyone on join and on every lobby change.
@@ -30,4 +67,10 @@ table LobbyState {
   map: string;
   starting_resources: [Amount];
   seats: [Seat];           // in Seat order: longest held first
+}
+
+// Sent to the sender of a command the server refused.
+table CommandRejected {
+  seq: uint32;
+  reason: string;
 }

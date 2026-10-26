@@ -7,18 +7,36 @@ import "strconv"
 type Op int32
 
 const (
-	OpNone       Op = 0
-	OpLobbyState Op = 100
+	OpNone                 Op = 0
+	OpSetFaction           Op = 1
+	OpSetReady             Op = 2
+	OpSetMap               Op = 3
+	OpSetStartingResources Op = 4
+	OpStartMatch           Op = 5
+	OpLobbyState           Op = 100
+	OpCommandRejected      Op = 101
 )
 
 var EnumNamesOp = map[Op]string{
-	OpNone:       "None",
-	OpLobbyState: "LobbyState",
+	OpNone:                 "None",
+	OpSetFaction:           "SetFaction",
+	OpSetReady:             "SetReady",
+	OpSetMap:               "SetMap",
+	OpSetStartingResources: "SetStartingResources",
+	OpStartMatch:           "StartMatch",
+	OpLobbyState:           "LobbyState",
+	OpCommandRejected:      "CommandRejected",
 }
 
 var EnumValuesOp = map[string]Op{
-	"None":       OpNone,
-	"LobbyState": OpLobbyState,
+	"None":                 OpNone,
+	"SetFaction":           OpSetFaction,
+	"SetReady":             OpSetReady,
+	"SetMap":               OpSetMap,
+	"SetStartingResources": OpSetStartingResources,
+	"StartMatch":           OpStartMatch,
+	"LobbyState":           OpLobbyState,
+	"CommandRejected":      OpCommandRejected,
 }
 
 func (v Op) String() string {

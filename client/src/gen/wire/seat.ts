@@ -50,8 +50,13 @@ ready():boolean {
   return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
 }
 
+lastSeq():number {
+  const offset = this.bb!.__offset(this.bb_pos, 12);
+  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
+}
+
 static startSeat(builder:flatbuffers.Builder) {
-  builder.startObject(4);
+  builder.startObject(5);
 }
 
 static addUser(builder:flatbuffers.Builder, userOffset:flatbuffers.Offset) {
@@ -70,17 +75,22 @@ static addReady(builder:flatbuffers.Builder, ready:boolean) {
   builder.addFieldInt8(3, +ready, +false);
 }
 
+static addLastSeq(builder:flatbuffers.Builder, lastSeq:number) {
+  builder.addFieldInt32(4, lastSeq, 0);
+}
+
 static endSeat(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createSeat(builder:flatbuffers.Builder, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, ready:boolean):flatbuffers.Offset {
+static createSeat(builder:flatbuffers.Builder, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, ready:boolean, lastSeq:number):flatbuffers.Offset {
   Seat.startSeat(builder);
   Seat.addUser(builder, userOffset);
   Seat.addDisplayName(builder, displayNameOffset);
   Seat.addFaction(builder, factionOffset);
   Seat.addReady(builder, ready);
+  Seat.addLastSeq(builder, lastSeq);
   return Seat.endSeat(builder);
 }
 
@@ -89,7 +99,8 @@ unpack(): SeatT {
     this.user(),
     this.displayName(),
     this.faction(),
-    this.ready()
+    this.ready(),
+    this.lastSeq()
   );
 }
 
@@ -99,6 +110,7 @@ unpackTo(_o: SeatT): void {
   _o.displayName = this.displayName();
   _o.faction = this.faction();
   _o.ready = this.ready();
+  _o.lastSeq = this.lastSeq();
 }
 }
 
@@ -107,7 +119,8 @@ constructor(
   public user: string|Uint8Array|null = null,
   public displayName: string|Uint8Array|null = null,
   public faction: string|Uint8Array|null = null,
-  public ready: boolean = false
+  public ready: boolean = false,
+  public lastSeq: number = 0
 ){}
 
 
@@ -120,7 +133,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     user,
     displayName,
     faction,
-    this.ready
+    this.ready,
+    this.lastSeq
   );
 }
 }

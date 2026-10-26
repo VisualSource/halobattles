@@ -14,14 +14,22 @@ import (
 
 type fakeDispatcher struct {
 	runtime.MatchDispatcher
-	lobby  *wire.LobbyStateT // last LobbyState broadcast
-	label  map[string]any
-	kicked []string
+	lobby    *wire.LobbyStateT // last LobbyState broadcast
+	label    map[string]any
+	kicked   []string
+	rejected map[string][]*wire.CommandRejectedT // by session
 }
 
 func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Presence, _ runtime.Presence, _ bool) error {
-	if op == int64(wire.OpLobbyState) && to == nil {
+	switch {
+	case op == int64(wire.OpLobbyState) && to == nil:
 		d.lobby = wire.GetRootAsLobbyState(data, 0).UnPack()
+	case op == int64(wire.OpCommandRejected) && len(to) == 1:
+		if d.rejected == nil {
+			d.rejected = map[string][]*wire.CommandRejectedT{}
+		}
+		sid := to[0].GetSessionId()
+		d.rejected[sid] = append(d.rejected[sid], wire.GetRootAsCommandRejected(data, 0).UnPack())
 	}
 	return nil
 }
@@ -58,11 +66,12 @@ func (p presence) GetSessionId() string { return p.session }
 func testContent() *content.Content {
 	return &content.Content{Doc: contentschema.Content{
 		Maps: map[string]contentschema.GalaxyMap{
-			"base:b-map": {Starts: []contentschema.LocalID{"x", "y", "z"}},
-			"base:a-map": {Starts: []contentschema.LocalID{"x", "y"}},
+			"base:b-map": {Starts: []contentschema.LocalID{"x", "y", "z"}, MinPlayers: 2},
+			"base:a-map": {Starts: []contentschema.LocalID{"x", "y"}, MinPlayers: 2},
 		},
-		Factions: map[string]contentschema.Faction{"base:unsc": {}, "base:covenant": {}},
-		Rulesets: map[string]contentschema.Ruleset{"base:rules": {StartingResources: map[string]int{"base:credits": 1000}}},
+		Factions:  map[string]contentschema.Faction{"base:unsc": {}, "base:covenant": {}},
+		Resources: map[string]contentschema.Resource{"base:credits": {}},
+		Rulesets:  map[string]contentschema.Ruleset{"base:rules": {StartingResources: map[string]int{"base:credits": 1000}}},
 	}}
 }
 

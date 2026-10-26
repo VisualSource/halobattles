@@ -11,6 +11,7 @@ type SeatT struct {
 	DisplayName string `json:"display_name"`
 	Faction     string `json:"faction"`
 	Ready       bool   `json:"ready"`
+	LastSeq     uint32 `json:"last_seq"`
 }
 
 func (t *SeatT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -34,6 +35,7 @@ func (t *SeatT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	SeatAddDisplayName(builder, displayNameOffset)
 	SeatAddFaction(builder, factionOffset)
 	SeatAddReady(builder, t.Ready)
+	SeatAddLastSeq(builder, t.LastSeq)
 	return SeatEnd(builder)
 }
 
@@ -42,6 +44,7 @@ func (rcv *Seat) UnPackTo(t *SeatT) {
 	t.DisplayName = string(rcv.DisplayName())
 	t.Faction = string(rcv.Faction())
 	t.Ready = rcv.Ready()
+	t.LastSeq = rcv.LastSeq()
 }
 
 func (rcv *Seat) UnPack() *SeatT {
@@ -124,8 +127,20 @@ func (rcv *Seat) MutateReady(n bool) bool {
 	return rcv._tab.MutateBoolSlot(10, n)
 }
 
+func (rcv *Seat) LastSeq() uint32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	if o != 0 {
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Seat) MutateLastSeq(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(12, n)
+}
+
 func SeatStart(builder *flatbuffers.Builder) {
-	builder.StartObject(4)
+	builder.StartObject(5)
 }
 func SeatAddUser(builder *flatbuffers.Builder, user flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(user), 0)
@@ -138,6 +153,9 @@ func SeatAddFaction(builder *flatbuffers.Builder, faction flatbuffers.UOffsetT) 
 }
 func SeatAddReady(builder *flatbuffers.Builder, ready bool) {
 	builder.PrependBoolSlot(3, ready, false)
+}
+func SeatAddLastSeq(builder *flatbuffers.Builder, lastSeq uint32) {
+	builder.PrependUint32Slot(4, lastSeq, 0)
 }
 func SeatEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

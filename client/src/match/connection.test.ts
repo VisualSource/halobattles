@@ -22,6 +22,7 @@ function fakeSocket() {
     disconnect: () => {
       calls.push("disconnect");
     },
+    sendMatchState: async () => {},
   };
   const send = (op: number, data: Uint8Array) =>
     socket.onmatchdata({ op_code: op, data } as MatchData);

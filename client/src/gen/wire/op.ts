@@ -4,5 +4,11 @@
 
 export enum Op {
   None = 0,
-  LobbyState = 100
+  SetFaction = 1,
+  SetReady = 2,
+  SetMap = 3,
+  SetStartingResources = 4,
+  StartMatch = 5,
+  LobbyState = 100,
+  CommandRejected = 101
 }

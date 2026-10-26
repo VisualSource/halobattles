@@ -4,14 +4,18 @@ import {
   createRouter,
   Link,
   Outlet,
-  redirect,
+  useLocation,
+  useNavigate,
   useRouter,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useStore } from "zustand";
 import { signIn } from "./auth";
 import { client, createSocket } from "./config";
 import { type ContentLookups, loadContent } from "./content";
 import { MatchConnection } from "./match/connection";
 import { LobbyScreen } from "./match/lobby";
+import { Toasts } from "./match/toasts";
 import { DisplayNamePrompt, listOpenMatches, Menu } from "./menu";
 
 let auth: Awaited<ReturnType<typeof signIn>> | undefined;
@@ -120,15 +124,43 @@ const matchRoute = createRoute({
       <Link to="/">Back to menu</Link>
     </>
   ),
-  component: Outlet,
+  component: function MatchLayout() {
+    const { conn } = matchRoute.useLoaderData();
+    const { matchId } = matchRoute.useParams();
+    const phase = useStore(conn.store, (st) => st.lobby?.phase);
+    const pathname = useLocation({ select: (l) => l.pathname });
+    const navigate = useNavigate();
+    // The server's phase drives navigation: a phase change moves to the
+    // matching child, and a URL for another phase is sent back.
+    useEffect(() => {
+      if (phase && pathname !== `/match/${matchId}/${phase}`) {
+        void navigate({
+          to: phaseRoutes[phase],
+          params: { matchId },
+          replace: true,
+        });
+      }
+    }, [phase, pathname, matchId, navigate]);
+    return (
+      <>
+        <Toasts events={conn.events} />
+        <Outlet />
+      </>
+    );
+  },
 });
 
+const phaseRoutes = {
+  lobby: "/match/$matchId/lobby",
+  play: "/match/$matchId/play",
+  results: "/match/$matchId/results",
+} as const;
+
+// The layout redirects to the phase's child once the first LobbyState lands.
 const matchIndexRoute = createRoute({
   getParentRoute: () => matchRoute,
   path: "/",
-  beforeLoad: ({ params }) => {
-    throw redirect({ to: "/match/$matchId/lobby", params });
-  },
+  component: () => <p>Joining…</p>,
 });
 
 const lobbyRoute = createRoute({
@@ -138,14 +170,44 @@ const lobbyRoute = createRoute({
     const { conn } = matchRoute.useLoaderData();
     const { content } = lobbyRoute.useRouteContext();
     const { matchId } = lobbyRoute.useParams();
-    return <LobbyScreen conn={conn} content={content} matchId={matchId} />;
+    return (
+      <LobbyScreen
+        conn={conn}
+        content={content}
+        matchId={matchId}
+        userId={conn.userId}
+      />
+    );
   },
+});
+
+// Placeholders until the galaxy map and results screens land.
+const playRoute = createRoute({
+  getParentRoute: () => matchRoute,
+  path: "play",
+  component: () => <p>The Match has started.</p>,
+});
+
+const resultsRoute = createRoute({
+  getParentRoute: () => matchRoute,
+  path: "results",
+  component: () => (
+    <>
+      <p>The Match is over.</p>
+      <Link to="/">Back to menu</Link>
+    </>
+  ),
 });
 
 export const router = createRouter({
   routeTree: rootRoute.addChildren([
     indexRoute,
-    matchRoute.addChildren([matchIndexRoute, lobbyRoute]),
+    matchRoute.addChildren([
+      matchIndexRoute,
+      lobbyRoute,
+      playRoute,
+      resultsRoute,
+    ]),
   ]),
 });
 
