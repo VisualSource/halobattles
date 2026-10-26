@@ -12,6 +12,9 @@ import (
 // Neutral owns every Planet that no Seat does.
 const Neutral = -1
 
+// RulesetID is the one Ruleset; later Mods Patch it.
+const RulesetID = "base:rules"
+
 const StacksPerPlanet = 3
 
 // UnitSlot holds any number of one unit type.
@@ -30,6 +33,9 @@ type Planet struct {
 	Locked    bool
 	Buildings []string // one per Building Slot; "" is empty
 	Stacks    [StacksPerPlanet]Stack
+	// From its Planet Type and the map's overrides, fixed at Start.
+	Income            map[string]int
+	CommandPointBonus int
 }
 
 type Player struct {
@@ -45,12 +51,14 @@ type Player struct {
 // outside: the adapter sets Time each tick, and every random choice draws
 // from Seed.
 type State struct {
-	Seed       uint64
-	Time       int64 // Match Time, in ms since Start
-	Map        string
-	Players    []Player // indexed by Seat
-	Planets    map[string]*Planet
-	Neighbours map[string][]string // the static Lanes, both ways
+	Seed        uint64
+	Time        int64 // Match Time, in ms since Start
+	Map         string
+	Players     []Player // indexed by Seat
+	Planets     map[string]*Planet
+	Neighbours  map[string][]string // the static Lanes, both ways
+	PaydayEvery int64               // ms
+	NextPayday  int64               // Match Time
 }
 
 // SeatSetup is one Seat as the lobby left it.
@@ -72,13 +80,29 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 		return nil, fmt.Errorf("%s has %d starts for %d Seats", mapID, len(m.Starts), len(seats))
 	}
 
-	s := &State{Seed: seed, Map: mapID, Planets: map[string]*Planet{}, Neighbours: map[string][]string{}}
+	payday := int64(c.Rulesets[RulesetID].PaydaySeconds) * 1000
+	s := &State{
+		Seed: seed, Map: mapID, Planets: map[string]*Planet{}, Neighbours: map[string][]string{},
+		PaydayEvery: payday, NextPayday: payday,
+	}
 	for _, mp := range m.Planets {
-		slots := c.PlanetTypes[string(mp.Type)].BuildingSlots
-		if mp.Overrides != nil && mp.Overrides.BuildingSlots != nil {
-			slots = *mp.Overrides.BuildingSlots
+		pt := c.PlanetTypes[string(mp.Type)]
+		slots, income, cp := pt.BuildingSlots, pt.Income, pt.CommandPointBonus
+		if o := mp.Overrides; o != nil {
+			if o.BuildingSlots != nil {
+				slots = *o.BuildingSlots
+			}
+			if o.Income != nil {
+				income = o.Income
+			}
+			if o.CommandPointBonus != nil {
+				cp = *o.CommandPointBonus
+			}
 		}
-		p := &Planet{ID: string(mp.ID), Owner: Neutral, Buildings: make([]string, slots)}
+		p := &Planet{
+			ID: string(mp.ID), Owner: Neutral, Buildings: make([]string, slots),
+			Income: maps.Clone(income), CommandPointBonus: cp,
+		}
 		p.Stacks = toStacks(m.Garrisons[string(mp.ID)])
 		s.Planets[p.ID] = p
 	}

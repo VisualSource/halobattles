@@ -22,9 +22,19 @@ func lineContent() *cs.Content {
 		return cs.Stacks{cs.Stack{{Unit: cs.ID(unit), Count: n}}}
 	}
 	return &cs.Content{
+		Rulesets: map[string]cs.Ruleset{RulesetID: {PaydaySeconds: 90}},
 		PlanetTypes: map[string]cs.PlanetType{
-			"base:capital":  {BuildingSlots: 4},
-			"base:standard": {BuildingSlots: 3},
+			"base:capital":  {BuildingSlots: 4, CommandPointBonus: 20, Income: map[string]int{"base:credits": 300, "base:materials": 100}},
+			"base:standard": {BuildingSlots: 3, CommandPointBonus: 10, Income: map[string]int{"base:credits": 200, "base:materials": 50}},
+		},
+		Buildings: map[string]cs.Building{
+			"base:barracks":   {Upkeep: map[string]int{"base:credits": 10}},
+			"base:supply-pad": {Yield: map[string]int{"base:credits": 100}},
+			"base:air-pad":    {Upkeep: map[string]int{"base:credits": 30}},
+		},
+		Units: map[string]cs.Unit{
+			"base:marine": {CommandPoints: 1}, "base:warthog": {CommandPoints: 3},
+			"base:odst": {CommandPoints: 2}, "base:grunt": {CommandPoints: 1},
 		},
 		Factions: map[string]cs.Faction{
 			"base:unsc": {StartingKit: cs.StartingKit{
@@ -170,7 +180,7 @@ func planetIDs(v View) []string {
 func TestViewShowsOwnedPlanetsAndTheirNeighbours(t *testing.T) {
 	s := fixedMatch(t)
 
-	v := s.View(0)
+	v := s.View(lineContent(), 0)
 
 	if got := planetIDs(v); !slices.Equal(got, []string{"a", "b"}) {
 		t.Errorf("Seat 0 sees %v, want [a b] (its Capital and one Lane away)", got)
@@ -187,13 +197,13 @@ func TestViewShowsOwnedPlanetsAndTheirNeighbours(t *testing.T) {
 func TestAnotherPlayersCapitalIsHiddenOutsideVision(t *testing.T) {
 	s := fixedMatch(t)
 
-	if slices.Contains(planetIDs(s.View(0)), "e") {
+	if slices.Contains(planetIDs(s.View(lineContent(), 0)), "e") {
 		t.Error("Seat 0 can see Seat 1's Capital e, two Lanes outside its vision")
 	}
 
 	// Seat 0 takes d, next to e: now e is in vision, flag and all.
 	s.Planets["d"].Owner = 0
-	v := s.View(0)
+	v := s.View(lineContent(), 0)
 	i := slices.Index(planetIDs(v), "e")
 	if i < 0 || !v.Planets[i].Capital || v.Planets[i].Owner != 1 {
 		t.Errorf("e next to an owned Planet should show its owner and Capital flag, view %+v", v.Planets)

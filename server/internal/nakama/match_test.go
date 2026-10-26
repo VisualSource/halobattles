@@ -19,6 +19,8 @@ type fakeDispatcher struct {
 	kicked   []string
 	rejected map[string][]*wire.CommandRejectedT // by session
 	views    map[string]*wire.ViewFullT          // last ViewFull, by session
+	deltas   map[string][]*wire.ViewDeltaT       // by session
+	paydays  map[string][]*wire.PaydayPaidT      // by session
 }
 
 func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Presence, _ runtime.Presence, _ bool) error {
@@ -30,6 +32,18 @@ func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Pr
 			d.views = map[string]*wire.ViewFullT{}
 		}
 		d.views[to[0].GetSessionId()] = wire.GetRootAsViewFull(data, 0).UnPack()
+	case op == int64(wire.OpViewDelta) && len(to) == 1:
+		if d.deltas == nil {
+			d.deltas = map[string][]*wire.ViewDeltaT{}
+		}
+		sid := to[0].GetSessionId()
+		d.deltas[sid] = append(d.deltas[sid], wire.GetRootAsViewDelta(data, 0).UnPack())
+	case op == int64(wire.OpPaydayPaid) && len(to) == 1:
+		if d.paydays == nil {
+			d.paydays = map[string][]*wire.PaydayPaidT{}
+		}
+		sid := to[0].GetSessionId()
+		d.paydays[sid] = append(d.paydays[sid], wire.GetRootAsPaydayPaid(data, 0).UnPack())
 	case op == int64(wire.OpCommandRejected) && len(to) == 1:
 		if d.rejected == nil {
 			d.rejected = map[string][]*wire.CommandRejectedT{}
@@ -85,10 +99,10 @@ func testContent() *content.Content {
 				Lanes: []contentschema.Lane{{From: "x", To: "y", Type: "fast"}, {From: "y", To: "z", Type: "fast"}},
 			},
 		},
-		PlanetTypes: map[string]contentschema.PlanetType{"base:capital": {BuildingSlots: 2}},
+		PlanetTypes: map[string]contentschema.PlanetType{"base:capital": {BuildingSlots: 2, Income: map[string]int{"base:credits": 300}}},
 		Factions:    map[string]contentschema.Faction{"base:unsc": {}, "base:covenant": {}},
 		Resources:   map[string]contentschema.Resource{"base:credits": {}},
-		Rulesets:    map[string]contentschema.Ruleset{"base:rules": {StartingResources: map[string]int{"base:credits": 1000}}},
+		Rulesets:    map[string]contentschema.Ruleset{"base:rules": {PaydaySeconds: 90, StartingResources: map[string]int{"base:credits": 1000}}},
 	}}
 }
 

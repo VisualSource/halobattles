@@ -280,3 +280,29 @@ func TestReturningPlayerGetsViewFullWithMatchTime(t *testing.T) {
 		t.Fatalf("rejoin ViewFull = %+v, want Seat 1 at Match Time 2000", v)
 	}
 }
+
+func TestPaydaySendsPaydayPaidAndAViewDelta(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	if v := h.d.views[u1.session]; v.Economy == nil || v.Economy.PaydayEnd != 90_000 || v.Economy.Resources[0].Amount != 1000 {
+		t.Fatalf("ViewFull economy = %+v, want 1000 Credits and Payday at 90 s", v.Economy)
+	}
+
+	for range 449 { // up to 89.8 s: nothing changes
+		h.loop()
+	}
+	if len(h.d.deltas[u1.session]) != 0 || len(h.d.paydays[u1.session]) != 0 {
+		t.Fatalf("sent %d deltas and %d paydays before anything changed", len(h.d.deltas[u1.session]), len(h.d.paydays[u1.session]))
+	}
+
+	h.loop() // 90 s
+	paid := h.d.paydays[u1.session]
+	if len(paid) != 1 || paid[0].MatchTime != 90_000 || paid[0].Net[0].Amount != 300 {
+		t.Fatalf("PaydayPaid = %+v, want +300 Credits at 90 s", paid)
+	}
+	deltas := h.d.deltas[u1.session]
+	if len(deltas) != 1 || deltas[0].Economy == nil || deltas[0].Economy.Resources[0].Amount != 1300 ||
+		deltas[0].Economy.PaydayStart != 90_000 || deltas[0].Economy.PaydayEnd != 180_000 || len(deltas[0].Planets) != 0 {
+		t.Errorf("ViewDelta = %+v, want only the economy: 1300 Credits, next Payday 90–180 s", deltas)
+	}
+}

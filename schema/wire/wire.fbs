@@ -16,13 +16,15 @@ enum Op : int {
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,
+  ViewDelta = 103,
+  PaydayPaid = 104,
 }
 
 enum Phase : byte { Lobby, Play, Results }
 
 table Amount {
   resource: string (key);
-  amount: uint32;
+  amount: int;             // signed: a player's Resources can go into debt
 }
 
 // Commands. Every one carries a client-assigned seq.
@@ -74,6 +76,7 @@ table LobbyState {
 table CommandRejected {
   seq: uint32;
   reason: string;
+  match_time: long;        // 0 in the lobby
 }
 
 // The View: one player's picture of the Match, the only state they get.
@@ -107,6 +110,15 @@ table PlayerView {
   planet_count: uint16;
 }
 
+// The viewer's own economy. Never sent for anyone else.
+table Economy {
+  resources: [Amount];
+  command_points_used: uint32;
+  command_points_cap: uint32;
+  payday_start: long;      // Match Time of the last Payday (or Start)
+  payday_end: long;        // Match Time of the next Payday
+}
+
 // Sent on entering play and on every rejoin. Content is referred to by id;
 // a client whose cached content doesn't match content_hash refetches it.
 table ViewFull {
@@ -117,4 +129,21 @@ table ViewFull {
   you: ubyte;              // the viewer's Seat
   players: [PlayerView];   // by Seat
   planets: [PlanetView];
+  economy: Economy;
+}
+
+// Sent on a tick when the viewer's View changed since the last one sent.
+// Entities are whole upserts; a Planet leaving vision is in removed_planets.
+table ViewDelta {
+  match_time: long;
+  players: [PlayerView];   // changed players only
+  planets: [PlanetView];
+  removed_planets: [string];
+  economy: Economy;        // absent when unchanged
+}
+
+// Sent to one player at each Payday: what each Resource changed by.
+table PaydayPaid {
+  match_time: long;
+  net: [Amount];
 }

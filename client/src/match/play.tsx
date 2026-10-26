@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import { GalaxyScene } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
+import { useMatchNow } from "./time";
 
 export function PlayScreen(props: {
   conn: MatchConnection;
@@ -24,10 +25,48 @@ export function PlayScreen(props: {
 
   if (!map) return <p>Loading the galaxy…</p>;
   return (
-    <div style={{ display: "flex", height: "80vh", minHeight: 480 }}>
-      <div ref={container} style={{ flex: 1, minWidth: 0 }} />
-      <PlanetPanel conn={conn} content={content} />
-    </div>
+    <>
+      <Hud conn={conn} content={content} />
+      <div style={{ display: "flex", height: "80vh", minHeight: 480 }}>
+        <div ref={container} style={{ flex: 1, minWidth: 0 }} />
+        <PlanetPanel conn={conn} content={content} />
+      </div>
+    </>
+  );
+}
+
+/** Your Resources, Command Points and the countdown to the next Payday. */
+function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
+  const { conn, content } = props;
+  const economy = useStore(conn.store, (s) => s.view?.economy);
+  const now = useMatchNow(conn.local);
+  const [lastNet, setLastNet] = useState<Map<string, number> | null>(null);
+
+  useEffect(() => {
+    const onPayday = (e: Event) =>
+      setLastNet((e as CustomEvent<Map<string, number>>).detail);
+    conn.events.addEventListener("payday", onPayday);
+    return () => conn.events.removeEventListener("payday", onPayday);
+  }, [conn]);
+
+  if (!economy) return null;
+  const name = (id: string) => content.resources.get(id)?.name ?? id;
+  const signed = (n: number) => (n < 0 ? `${n}` : `+${n}`);
+  const secs = Math.max(0, Math.ceil((economy.paydayEnd - now) / 1000));
+
+  return (
+    <header style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+      {[...economy.resources].map(([id, amount]) => (
+        <span key={id} style={amount < 0 ? { color: "crimson" } : undefined}>
+          {name(id)}: {amount}
+          {lastNet?.has(id) && ` (${signed(lastNet.get(id) ?? 0)})`}
+        </span>
+      ))}
+      <span>
+        Command Points: {economy.commandPointsUsed} / {economy.commandPointsCap}
+      </span>
+      <span>Next Payday in {secs} s</span>
+    </header>
   );
 }
 

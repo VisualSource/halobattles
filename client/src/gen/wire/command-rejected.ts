@@ -36,8 +36,13 @@ reason(optionalEncoding?:any):string|Uint8Array|null {
   return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
 }
 
+matchTime():bigint {
+  const offset = this.bb!.__offset(this.bb_pos, 8);
+  return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
+}
+
 static startCommandRejected(builder:flatbuffers.Builder) {
-  builder.startObject(2);
+  builder.startObject(3);
 }
 
 static addSeq(builder:flatbuffers.Builder, seq:number) {
@@ -48,22 +53,28 @@ static addReason(builder:flatbuffers.Builder, reasonOffset:flatbuffers.Offset) {
   builder.addFieldOffset(1, reasonOffset, 0);
 }
 
+static addMatchTime(builder:flatbuffers.Builder, matchTime:bigint) {
+  builder.addFieldInt64(2, matchTime, BigInt('0'));
+}
+
 static endCommandRejected(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createCommandRejected(builder:flatbuffers.Builder, seq:number, reasonOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createCommandRejected(builder:flatbuffers.Builder, seq:number, reasonOffset:flatbuffers.Offset, matchTime:bigint):flatbuffers.Offset {
   CommandRejected.startCommandRejected(builder);
   CommandRejected.addSeq(builder, seq);
   CommandRejected.addReason(builder, reasonOffset);
+  CommandRejected.addMatchTime(builder, matchTime);
   return CommandRejected.endCommandRejected(builder);
 }
 
 unpack(): CommandRejectedT {
   return new CommandRejectedT(
     this.seq(),
-    this.reason()
+    this.reason(),
+    this.matchTime()
   );
 }
 
@@ -71,13 +82,15 @@ unpack(): CommandRejectedT {
 unpackTo(_o: CommandRejectedT): void {
   _o.seq = this.seq();
   _o.reason = this.reason();
+  _o.matchTime = this.matchTime();
 }
 }
 
 export class CommandRejectedT implements flatbuffers.IGeneratedObject {
 constructor(
   public seq: number = 0,
-  public reason: string|Uint8Array|null = null
+  public reason: string|Uint8Array|null = null,
+  public matchTime: bigint = BigInt('0')
 ){}
 
 
@@ -86,7 +99,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
 
   return CommandRejected.createCommandRejected(builder,
     this.seq,
-    reason
+    reason,
+    this.matchTime
   );
 }
 }

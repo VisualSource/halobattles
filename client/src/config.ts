@@ -2,8 +2,9 @@ import { Client } from "@heroiclabs/nakama-js";
 import { WebSocketAdapterPb } from "@heroiclabs/nakama-js-protobuf";
 
 // The only place that knows where the server lives. Clients talk to Nakama
-// directly on :7350, with no proxy.
-const host = import.meta.env.VITE_NAKAMA_HOST ?? "127.0.0.1";
+// directly on :7350, with no proxy. Defaults to the host that served the page,
+// so another machine on the LAN reaches the same Nakama.
+const host = import.meta.env.VITE_NAKAMA_HOST ?? location.hostname;
 const port = import.meta.env.VITE_NAKAMA_PORT ?? "7350";
 const useSSL = import.meta.env.VITE_NAKAMA_SSL === "true";
 const serverKey = import.meta.env.VITE_NAKAMA_SERVER_KEY ?? "defaultkey"; // dev only

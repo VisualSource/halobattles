@@ -11,5 +11,7 @@ export enum Op {
   StartMatch = 5,
   LobbyState = 100,
   CommandRejected = 101,
-  ViewFull = 102
+  ViewFull = 102,
+  ViewDelta = 103,
+  PaydayPaid = 104
 }

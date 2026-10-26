@@ -3,20 +3,35 @@ import { Builder, ByteBuffer } from "flatbuffers";
 import {
   AmountT,
   CommandRejected,
+  type EconomyT,
   LobbyState,
   type LobbyStateT,
   Op,
+  PaydayPaid,
   Phase,
+  type PlanetViewT,
+  type PlayerViewT,
   SetFactionT,
   SetMapT,
   SetReadyT,
   SetStartingResourcesT,
   StartMatchT,
+  ViewDelta,
+  type ViewDeltaT,
   ViewFull,
   type ViewFullT,
 } from "../gen/wire";
 import { type CommandKind, createLocalStore } from "./local";
-import { createMatchStore, type Lobby, type View } from "./store";
+import {
+  applyDelta,
+  createMatchStore,
+  type ViewDelta as Delta,
+  type Economy,
+  type Lobby,
+  type PlanetView,
+  type PlayerView,
+  type View,
+} from "./store";
 
 export type SocketLike = Pick<
   Socket,
@@ -35,14 +50,15 @@ const phases = {
 // Strings in the object API can be bytes; ours are always decoded text.
 const str = (v: string | Uint8Array | null) => (typeof v === "string" ? v : "");
 
+const toAmounts = (as: AmountT[]) =>
+  new Map(as.map((a) => [str(a.resource), a.amount]));
+
 function toLobby(t: LobbyStateT): Lobby {
   return {
     phase: phases[t.phase],
     host: str(t.host),
     map: str(t.map),
-    startingResources: new Map(
-      t.startingResources.map((a) => [str(a.resource), a.amount]),
-    ),
+    startingResources: toAmounts(t.startingResources),
     seats: t.seats.map((s) => ({
       user: str(s.user),
       displayName: str(s.displayName),
@@ -54,6 +70,44 @@ function toLobby(t: LobbyStateT): Lobby {
 
 const STACKS_PER_PLANET = 3;
 
+const toPlayer = (p: PlayerViewT): PlayerView => ({
+  seat: p.seat,
+  user: str(p.user),
+  displayName: str(p.displayName),
+  faction: str(p.faction),
+  planetCount: p.planetCount,
+});
+
+const toPlanet = (p: PlanetViewT): PlanetView => ({
+  id: str(p.id),
+  owner: p.owner < 0 ? null : p.owner,
+  capital: p.capital,
+  locked: p.locked,
+  buildings: p.buildings.map(str),
+  stacks: Array.from({ length: STACKS_PER_PLANET }, (_, i) =>
+    (p.stacks[i]?.slots ?? []).map((u) => ({
+      unit: str(u.unit),
+      count: u.count,
+    })),
+  ),
+});
+
+const toEconomy = (e: EconomyT): Economy => ({
+  resources: toAmounts(e.resources),
+  commandPointsUsed: e.commandPointsUsed,
+  commandPointsCap: e.commandPointsCap,
+  paydayStart: Number(e.paydayStart),
+  paydayEnd: Number(e.paydayEnd),
+});
+
+const NO_ECONOMY: Economy = {
+  resources: new Map(),
+  commandPointsUsed: 0,
+  commandPointsCap: 0,
+  paydayStart: 0,
+  paydayEnd: 0,
+};
+
 function toView(t: ViewFullT): View {
   return {
     matchTime: Number(t.matchTime),
@@ -61,39 +115,26 @@ function toView(t: ViewFullT): View {
     ruleset: str(t.ruleset),
     map: str(t.map),
     you: t.you,
-    players: t.players.map((p) => ({
-      seat: p.seat,
-      user: str(p.user),
-      displayName: str(p.displayName),
-      faction: str(p.faction),
-      planetCount: p.planetCount,
-    })),
-    planets: new Map(
-      t.planets.map((p) => [
-        str(p.id),
-        {
-          id: str(p.id),
-          owner: p.owner < 0 ? null : p.owner,
-          capital: p.capital,
-          locked: p.locked,
-          buildings: p.buildings.map(str),
-          stacks: Array.from({ length: STACKS_PER_PLANET }, (_, i) =>
-            (p.stacks[i]?.slots ?? []).map((u) => ({
-              unit: str(u.unit),
-              count: u.count,
-            })),
-          ),
-        },
-      ]),
-    ),
+    players: t.players.map(toPlayer),
+    planets: new Map(t.planets.map((p) => [str(p.id), toPlanet(p)])),
+    economy: t.economy ? toEconomy(t.economy) : NO_ECONOMY,
   };
 }
+
+const toDelta = (t: ViewDeltaT): Delta => ({
+  matchTime: Number(t.matchTime),
+  players: t.players.map(toPlayer),
+  planets: t.planets.map(toPlanet),
+  removedPlanets: t.removedPlanets.map(str),
+  economy: t.economy ? toEconomy(t.economy) : null,
+});
 
 /**
  * Owns the socket for one Match. It decodes every message to plain objects
  * at the edge and writes the Match store, and it sends commands, tracking
  * each by seq in the Local store until the server has processed it. One-off
- * events go out on `events`: "rejected" carries a refused command's reason.
+ * events go out on `events`: "rejected" carries a refused command's reason,
+ * and "payday" the Map of what each Resource changed by.
  */
 export class MatchConnection {
   readonly store = createMatchStore();
@@ -191,18 +232,42 @@ export class MatchConnection {
       case Op.ViewFull: {
         const view = toView(ViewFull.getRootAsViewFull(bb).unpack());
         this.debug("ViewFull", view);
+        this.syncClock(view.matchTime);
         this.store.setState({ view });
+        return;
+      }
+      case Op.ViewDelta: {
+        const delta = toDelta(ViewDelta.getRootAsViewDelta(bb).unpack());
+        this.debug("ViewDelta", delta);
+        this.syncClock(delta.matchTime);
+        const { view } = this.store.getState();
+        if (view) this.store.setState({ view: applyDelta(view, delta) });
+        return;
+      }
+      case Op.PaydayPaid: {
+        const t = PaydayPaid.getRootAsPaydayPaid(bb).unpack();
+        this.debug("PaydayPaid", t);
+        this.syncClock(Number(t.matchTime));
+        this.events.dispatchEvent(
+          new CustomEvent("payday", { detail: toAmounts(t.net) }),
+        );
         return;
       }
       case Op.CommandRejected: {
         const t = CommandRejected.getRootAsCommandRejected(bb).unpack();
         this.debug("CommandRejected", t);
+        if (this.store.getState().view) this.syncClock(Number(t.matchTime));
         this.reject(t.seq, str(t.reason));
         return;
       }
       default:
         console.warn(`[match] unknown opcode ${op}`);
     }
+  }
+
+  /** Every play message carries the Match Time it was sent at. */
+  private syncClock(matchTime: number) {
+    this.local.setState({ clockOffset: matchTime - performance.now() });
   }
 
   /** Drops every pending command the server has processed. */

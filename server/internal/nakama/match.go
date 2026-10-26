@@ -17,7 +17,6 @@ import (
 
 const (
 	matchModule = "halobattles"
-	rulesetID   = "base:rules" // the one Ruleset; later Mods Patch it
 	tickRate    = 5
 	// creatorGraceTicks is how long a new Match waits for its creator to join.
 	creatorGraceTicks = 30 * tickRate
@@ -41,8 +40,9 @@ type matchState struct {
 	// can join the new session before the old one's leave arrives, and that
 	// stale leave must not free the Seat.
 	presences map[string]runtime.Presence
-	lastSeq   map[string]uint32 // the last command seq processed per user
-	joined    bool              // someone has joined; an empty lobby after that closes
+	lastSeq   map[string]uint32    // the last command seq processed per user
+	sent      map[string]game.View // the last View sent per user, to diff against
+	joined    bool                 // someone has joined; an empty lobby after that closes
 }
 
 func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
@@ -51,7 +51,7 @@ func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		Maps:              map[string]game.LobbyMap{},
 		Factions:          slices.Collect(maps.Keys(doc.Factions)),
 		Resources:         slices.Collect(maps.Keys(doc.Resources)),
-		StartingResources: doc.Rulesets[rulesetID].StartingResources,
+		StartingResources: doc.Rulesets[game.RulesetID].StartingResources,
 	}
 	for id, gm := range doc.Maps {
 		lc.Maps[id] = game.LobbyMap{Starts: len(gm.Starts), MinPlayers: gm.MinPlayers}
@@ -63,6 +63,7 @@ func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		seed:      rand.Uint64(),
 		presences: map[string]runtime.Presence{},
 		lastSeq:   map[string]uint32{},
+		sent:      map[string]game.View{},
 	}
 	return s, tickRate, s.label()
 }
@@ -135,7 +136,40 @@ func (m *match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 	if wasLobby && s.play != nil {
 		s.sendViews(logger, dispatcher, slices.Collect(maps.Values(s.presences)))
 	}
+	if s.play != nil {
+		s.advance(logger, dispatcher)
+	}
 	return s
+}
+
+// advance fires what's due, then sends each connected player a ViewDelta
+// if their View changed since the last one they were sent.
+func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDispatcher) {
+	for _, paid := range s.play.Advance(&s.content.Doc, s.play.Time) {
+		p := s.presences[s.play.Players[paid.Seat].User]
+		if p == nil {
+			continue // disconnected: the new totals arrive in their ViewFull
+		}
+		t := &wire.PaydayPaidT{MatchTime: s.play.Time, Net: amounts(paid.Net)}
+		if err := dispatcher.BroadcastMessage(int64(wire.OpPaydayPaid), finish(t), []runtime.Presence{p}, nil, true); err != nil {
+			logger.Error("send PaydayPaid: %v", err)
+		}
+	}
+	for seat, pl := range s.play.Players {
+		p := s.presences[pl.User]
+		if p == nil {
+			continue
+		}
+		v := s.play.View(&s.content.Doc, seat)
+		d, changed := game.Diff(s.sent[pl.User], v)
+		if !changed {
+			continue
+		}
+		s.sent[pl.User] = v
+		if err := dispatcher.BroadcastMessage(int64(wire.OpViewDelta), encodeDelta(d), []runtime.Presence{p}, nil, true); err != nil {
+			logger.Error("send ViewDelta: %v", err)
+		}
+	}
 }
 
 func (s *matchState) setTime(tick int64) {
@@ -169,7 +203,9 @@ func (s *matchState) sendViews(logger runtime.Logger, dispatcher runtime.MatchDi
 		if seat < 0 {
 			continue
 		}
-		data := encodeView(s.play.View(seat), s.content.Hash)
+		v := s.play.View(&s.content.Doc, seat)
+		s.sent[p.GetUserId()] = v
+		data := encodeView(v, s.content.Hash)
 		if err := dispatcher.BroadcastMessage(int64(wire.OpViewFull), data, []runtime.Presence{p}, nil, true); err != nil {
 			logger.Error("send ViewFull: %v", err)
 		}
@@ -210,10 +246,7 @@ func (s *matchState) label() string {
 func (s *matchState) encodeLobby() []byte {
 	l := s.lobby
 	t := &wire.LobbyStateT{Phase: s.phase, Host: l.Host(), Map: l.Map}
-	// Sorted, since the vector is keyed by resource.
-	for _, r := range slices.Sorted(maps.Keys(l.StartingResources)) {
-		t.StartingResources = append(t.StartingResources, &wire.AmountT{Resource: r, Amount: uint32(l.StartingResources[r])})
-	}
+	t.StartingResources = amounts(l.StartingResources)
 	for _, seat := range l.Seats {
 		t.Seats = append(t.Seats, &wire.SeatT{
 			User: seat.User, DisplayName: seat.DisplayName, Faction: seat.Faction, Ready: seat.Ready,
@@ -224,15 +257,32 @@ func (s *matchState) encodeLobby() []byte {
 }
 
 func encodeView(v game.View, contentHash string) []byte {
-	t := &wire.ViewFullT{
-		MatchTime: v.Time, ContentHash: contentHash, Ruleset: rulesetID, Map: v.Map, You: uint8(v.You),
-	}
-	for _, p := range v.Players {
-		t.Players = append(t.Players, &wire.PlayerViewT{
+	return finish(&wire.ViewFullT{
+		MatchTime: v.Time, ContentHash: contentHash, Ruleset: game.RulesetID, Map: v.Map, You: uint8(v.You),
+		Players: players(v.Players), Planets: planets(v.Planets), Economy: economy(&v.Economy),
+	})
+}
+
+func encodeDelta(d game.Delta) []byte {
+	return finish(&wire.ViewDeltaT{
+		MatchTime: d.Time, Players: players(d.Players), Planets: planets(d.Planets),
+		RemovedPlanets: d.RemovedPlanets, Economy: economy(d.Economy),
+	})
+}
+
+func players(ps []game.PlayerView) []*wire.PlayerViewT {
+	var out []*wire.PlayerViewT
+	for _, p := range ps {
+		out = append(out, &wire.PlayerViewT{
 			Seat: uint8(p.Seat), User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: uint16(p.PlanetCount),
 		})
 	}
-	for _, p := range v.Planets { // already sorted by id, as the (key) needs
+	return out
+}
+
+func planets(ps []game.PlanetView) []*wire.PlanetViewT {
+	var out []*wire.PlanetViewT
+	for _, p := range ps { // already sorted by id, as the (key) needs
 		pv := &wire.PlanetViewT{Id: p.ID, Owner: int8(p.Owner), Capital: p.Capital, Locked: p.Locked, Buildings: p.Buildings}
 		for _, st := range p.Stacks {
 			ws := &wire.StackT{}
@@ -241,9 +291,28 @@ func encodeView(v game.View, contentHash string) []byte {
 			}
 			pv.Stacks = append(pv.Stacks, ws)
 		}
-		t.Planets = append(t.Planets, pv)
+		out = append(out, pv)
 	}
-	return finish(t)
+	return out
+}
+
+func economy(e *game.Economy) *wire.EconomyT {
+	if e == nil {
+		return nil
+	}
+	return &wire.EconomyT{
+		Resources: amounts(e.Resources), CommandPointsUsed: uint32(e.CommandPointsUsed), CommandPointsCap: uint32(e.CommandPointsCap),
+		PaydayStart: e.PaydayStart, PaydayEnd: e.PaydayEnd,
+	}
+}
+
+// amounts is sorted, since the vector is keyed by resource.
+func amounts(m map[string]int) []*wire.AmountT {
+	var out []*wire.AmountT
+	for _, r := range slices.Sorted(maps.Keys(m)) {
+		out = append(out, &wire.AmountT{Resource: r, Amount: int32(m[r])})
+	}
+	return out
 }
 
 func finish(t interface {

@@ -6,7 +6,10 @@ const DEVICE_ID_KEY = "halobattles.deviceId";
 export async function signIn(client: Client, storage: Storage) {
   let deviceId = storage.getItem(DEVICE_ID_KEY);
   if (!deviceId) {
-    deviceId = crypto.randomUUID();
+    // Not randomUUID: it needs a secure context, and LAN dev serves plain http.
+    deviceId = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+      b.toString(16).padStart(2, "0"),
+    ).join("");
     storage.setItem(DEVICE_ID_KEY, deviceId);
   }
   const session = await client.authenticateDevice(deviceId, true);

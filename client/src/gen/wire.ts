@@ -4,8 +4,10 @@
 
 export { Amount, AmountT } from './wire/amount.js';
 export { CommandRejected, CommandRejectedT } from './wire/command-rejected.js';
+export { Economy, EconomyT } from './wire/economy.js';
 export { LobbyState, LobbyStateT } from './wire/lobby-state.js';
 export { Op } from './wire/op.js';
+export { PaydayPaid, PaydayPaidT } from './wire/payday-paid.js';
 export { Phase } from './wire/phase.js';
 export { PlanetView, PlanetViewT } from './wire/planet-view.js';
 export { PlayerView, PlayerViewT } from './wire/player-view.js';
@@ -17,4 +19,5 @@ export { SetStartingResources, SetStartingResourcesT } from './wire/set-starting
 export { Stack, StackT } from './wire/stack.js';
 export { StartMatch, StartMatchT } from './wire/start-match.js';
 export { UnitSlot, UnitSlotT } from './wire/unit-slot.js';
+export { ViewDelta, ViewDeltaT } from './wire/view-delta.js';
 export { ViewFull, ViewFullT } from './wire/view-full.js';

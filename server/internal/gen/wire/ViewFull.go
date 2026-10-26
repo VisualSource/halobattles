@@ -14,6 +14,7 @@ type ViewFullT struct {
 	You         byte           `json:"you"`
 	Players     []*PlayerViewT `json:"players"`
 	Planets     []*PlanetViewT `json:"planets"`
+	Economy     *EconomyT      `json:"economy"`
 }
 
 func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -58,6 +59,7 @@ func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		}
 		planetsOffset = builder.EndVector(planetsLength)
 	}
+	economyOffset := t.Economy.Pack(builder)
 	ViewFullStart(builder)
 	ViewFullAddMatchTime(builder, t.MatchTime)
 	ViewFullAddContentHash(builder, contentHashOffset)
@@ -66,6 +68,7 @@ func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	ViewFullAddYou(builder, t.You)
 	ViewFullAddPlayers(builder, playersOffset)
 	ViewFullAddPlanets(builder, planetsOffset)
+	ViewFullAddEconomy(builder, economyOffset)
 	return ViewFullEnd(builder)
 }
 
@@ -89,6 +92,7 @@ func (rcv *ViewFull) UnPackTo(t *ViewFullT) {
 		rcv.Planets(&x, j)
 		t.Planets[j] = x.UnPack()
 	}
+	t.Economy = rcv.Economy(nil).UnPack()
 }
 
 func (rcv *ViewFull) UnPack() *ViewFullT {
@@ -232,8 +236,21 @@ func (rcv *ViewFull) PlanetsLength() int {
 	return 0
 }
 
+func (rcv *ViewFull) Economy(obj *Economy) *Economy {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(Economy)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
+}
+
 func ViewFullStart(builder *flatbuffers.Builder) {
-	builder.StartObject(7)
+	builder.StartObject(8)
 }
 func ViewFullAddMatchTime(builder *flatbuffers.Builder, matchTime int64) {
 	builder.PrependInt64Slot(0, matchTime, 0)
@@ -261,6 +278,9 @@ func ViewFullAddPlanets(builder *flatbuffers.Builder, planets flatbuffers.UOffse
 }
 func ViewFullStartPlanetsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
+}
+func ViewFullAddEconomy(builder *flatbuffers.Builder, economy flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(economy), 0)
 }
 func ViewFullEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

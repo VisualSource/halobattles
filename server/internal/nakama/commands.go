@@ -99,7 +99,11 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 }
 
 func (s *matchState) reject(logger runtime.Logger, dispatcher runtime.MatchDispatcher, to runtime.Presence, seq uint32, err error) {
-	data := finish(&wire.CommandRejectedT{Seq: seq, Reason: err.Error()})
+	t := &wire.CommandRejectedT{Seq: seq, Reason: err.Error()}
+	if s.play != nil {
+		t.MatchTime = s.play.Time
+	}
+	data := finish(t)
 	if err := dispatcher.BroadcastMessage(int64(wire.OpCommandRejected), data, []runtime.Presence{to}, nil, true); err != nil {
 		logger.Error("send CommandRejected: %v", err)
 	}

@@ -7,8 +7,9 @@ import (
 )
 
 type CommandRejectedT struct {
-	Seq    uint32 `json:"seq"`
-	Reason string `json:"reason"`
+	Seq       uint32 `json:"seq"`
+	Reason    string `json:"reason"`
+	MatchTime int64  `json:"match_time"`
 }
 
 func (t *CommandRejectedT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -22,12 +23,14 @@ func (t *CommandRejectedT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffse
 	CommandRejectedStart(builder)
 	CommandRejectedAddSeq(builder, t.Seq)
 	CommandRejectedAddReason(builder, reasonOffset)
+	CommandRejectedAddMatchTime(builder, t.MatchTime)
 	return CommandRejectedEnd(builder)
 }
 
 func (rcv *CommandRejected) UnPackTo(t *CommandRejectedT) {
 	t.Seq = rcv.Seq()
 	t.Reason = string(rcv.Reason())
+	t.MatchTime = rcv.MatchTime()
 }
 
 func (rcv *CommandRejected) UnPack() *CommandRejectedT {
@@ -94,14 +97,29 @@ func (rcv *CommandRejected) Reason() []byte {
 	return nil
 }
 
+func (rcv *CommandRejected) MatchTime() int64 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
+	if o != 0 {
+		return rcv._tab.GetInt64(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *CommandRejected) MutateMatchTime(n int64) bool {
+	return rcv._tab.MutateInt64Slot(8, n)
+}
+
 func CommandRejectedStart(builder *flatbuffers.Builder) {
-	builder.StartObject(2)
+	builder.StartObject(3)
 }
 func CommandRejectedAddSeq(builder *flatbuffers.Builder, seq uint32) {
 	builder.PrependUint32Slot(0, seq, 0)
 }
 func CommandRejectedAddReason(builder *flatbuffers.Builder, reason flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(1, flatbuffers.UOffsetT(reason), 0)
+}
+func CommandRejectedAddMatchTime(builder *flatbuffers.Builder, matchTime int64) {
+	builder.PrependInt64Slot(2, matchTime, 0)
 }
 func CommandRejectedEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

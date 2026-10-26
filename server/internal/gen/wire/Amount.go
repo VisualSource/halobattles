@@ -9,7 +9,7 @@ import (
 
 type AmountT struct {
 	Resource string `json:"resource"`
-	Amount   uint32 `json:"amount"`
+	Amount   int32  `json:"amount"`
 }
 
 func (t *AmountT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -115,16 +115,16 @@ func (rcv *Amount) LookupByKey(key string, vectorLocation flatbuffers.UOffsetT, 
 	return false
 }
 
-func (rcv *Amount) Amount() uint32 {
+func (rcv *Amount) Amount() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *Amount) MutateAmount(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(6, n)
+func (rcv *Amount) MutateAmount(n int32) bool {
+	return rcv._tab.MutateInt32Slot(6, n)
 }
 
 func AmountStart(builder *flatbuffers.Builder) {
@@ -133,8 +133,8 @@ func AmountStart(builder *flatbuffers.Builder) {
 func AmountAddResource(builder *flatbuffers.Builder, resource flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(resource), 0)
 }
-func AmountAddAmount(builder *flatbuffers.Builder, amount uint32) {
-	builder.PrependUint32Slot(1, amount, 0)
+func AmountAddAmount(builder *flatbuffers.Builder, amount int32) {
+	builder.PrependInt32Slot(1, amount, 0)
 }
 func AmountEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

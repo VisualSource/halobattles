@@ -41,6 +41,15 @@ export type PlayerView = {
   planetCount: number;
 };
 
+/** Your own economy; nobody else's is ever sent. */
+export type Economy = {
+  resources: Map<string, number>; // can be below zero: debt
+  commandPointsUsed: number;
+  commandPointsCap: number;
+  paydayStart: number; // Match Time of the last Payday, or Start
+  paydayEnd: number; // Match Time of the next Payday
+};
+
 export type View = {
   matchTime: number; // ms since Start
   contentHash: string;
@@ -49,7 +58,32 @@ export type View = {
   you: number; // your Seat
   players: PlayerView[]; // by Seat
   planets: Map<string, PlanetView>;
+  economy: Economy;
 };
+
+/** What changed since the last View: whole entities, plus removed ids. */
+export type ViewDelta = {
+  matchTime: number;
+  players: PlayerView[]; // changed players only
+  planets: PlanetView[];
+  removedPlanets: string[];
+  economy: Economy | null; // null when unchanged
+};
+
+export function applyDelta(view: View, d: ViewDelta): View {
+  const players = [...view.players];
+  for (const p of d.players) players[p.seat] = p;
+  const planets = new Map(view.planets);
+  for (const p of d.planets) planets.set(p.id, p);
+  for (const id of d.removedPlanets) planets.delete(id);
+  return {
+    ...view,
+    matchTime: d.matchTime,
+    players,
+    planets,
+    economy: d.economy ?? view.economy,
+  };
+}
 
 export type MatchState = {
   lobby: Lobby | null;
