@@ -1,13 +1,11 @@
 # Halo Battles MVP: technical-architecture spec
 
-How the MVP is built. It is assembled from the resolved tickets of the [Halo Battles MVP spec](../../.scratch/mvp-spec/map.md) map, and every amendment between them has already been applied. It adds no new decisions. Each section links the ticket it came from. Terms follow [GLOSSARY.md](../../GLOSSARY.md). The rules this runs are in the [game-design spec](game-design-spec.md).
+How the MVP is built. Terms follow [GLOSSARY.md](../../GLOSSARY.md). The rules this runs are in the [game-design spec](game-design-spec.md).
 
 Hard-to-reverse choices are recorded as ADRs:
 
 - [ADR 0001: Content format](../../docs/adr/0001-content-format.md): JSONC with a JSON Schema source of truth, override by id with explicit Patches.
 - [ADR 0002: Wire format](../../docs/adr/0002-flatbuffers-wire-format.md): FlatBuffers over the protobuf socket, kept separate from the content schema.
-
-The five conflicts found while assembling it were settled in [Settle the conflicts found while assembling the specs](../../.scratch/mvp-spec/issues/12-settle-spec-conflicts.md), and are applied below.
 
 ## System overview
 
@@ -29,8 +27,6 @@ Nakama 3.41.0 (Go plugin .so)  ──  Postgres 16 (accounts only; no Match stat
 
 ## Server runtime: Nakama Go
 
-From [What are the Nakama Go runtime constraints?](../../.scratch/mvp-spec/issues/01-nakama-go-runtime-constraints.md).
-
 - **Version pin:** Nakama v3.41.0, Go 1.27.1, nakama-common v1.48.0. Build with `heroiclabs/nakama-pluginbuilder:3.41.0`, run on `heroiclabs/nakama:3.41.0`, and vendor dependencies. Pinning is exact: if the Go toolchain or any shared dependency differs, the `.so` fails to load at startup. There is no hot reload and no Windows build.
 - **Match handler:** `MatchLoop` runs at **5 Hz** (Nakama allows 1–60). Each tick it gets every message buffered since the last one (sender presence, int64 opcode, raw bytes, receive time). It runs even when the Match is empty.
 - **Backpressure:** a full input queue (128) drops messages, and a full call queue (128) closes the Match. Inbound client messages are capped at 4096 bytes.
@@ -43,7 +39,7 @@ From [What are the Nakama Go runtime constraints?](../../.scratch/mvp-spec/issue
 
 ## Content and Mod data model
 
-From [What is the content and Mod data model?](../../.scratch/mvp-spec/issues/05-content-and-mod-data-model.md), grounded in [What does prior art in mod formats look like?](../../.scratch/mvp-spec/issues/04-mod-format-prior-art.md) and amended by [What is in the MVP roster?](../../.scratch/mvp-spec/issues/09-mvp-roster.md). Format choice: [ADR 0001](../../docs/adr/0001-content-format.md).
+Format choice: [ADR 0001](../../docs/adr/0001-content-format.md).
 
 ### Ids
 
@@ -132,7 +128,7 @@ The Plugin API is post-MVP. The spec names only where it will attach:
 
 ## Wire protocol and state sync
 
-From [How is state synced over the wire?](../../.scratch/mvp-spec/issues/06-wire-protocol-and-state-sync.md), as amended by [How do the lobby and the Match lifecycle work?](../../.scratch/mvp-spec/issues/10-lobby-and-match-lifecycle.md). Encoding: [ADR 0002](../../docs/adr/0002-flatbuffers-wire-format.md).
+Encoding: [ADR 0002](../../docs/adr/0002-flatbuffers-wire-format.md).
 
 ### Encoding
 
@@ -237,8 +233,6 @@ Every command carries a client-assigned `seq`.
 
 ## Client architecture
 
-From [What does the client architecture look like?](../../.scratch/mvp-spec/issues/07-client-architecture.md), as amended by [How do the lobby and the Match lifecycle work?](../../.scratch/mvp-spec/issues/10-lobby-and-match-lifecycle.md).
-
 ### Stack
 
 React 19, Vite, strict TypeScript, TanStack Router, and Zustand **vanilla** stores, so the scene can subscribe without React. three.js is used directly, with **no react-three-fiber**.
@@ -313,7 +307,7 @@ Empire at War style: the map shows each Planet's three Stacks, and an order is a
 
 ## Repo layout
 
-From [How are the repo and tooling laid out?](../../.scratch/mvp-spec/issues/08-repo-and-tooling-layout.md). A fresh repo; prior versions are reference only and their keys must never be copied in.
+A fresh repo; prior versions are reference only and their keys must never be copied in.
 
 ```
 server/                  one Go module

@@ -1,10 +1,8 @@
 # Halo Battles MVP: game-design spec
 
-What the MVP plays like. It is assembled from the resolved tickets of the [Halo Battles MVP spec](../../.scratch/mvp-spec/map.md) map, and every amendment between them has already been applied. It adds no new decisions. Each section links the ticket it came from, which has the full reasoning. Terms follow [GLOSSARY.md](../../GLOSSARY.md). The architecture that runs all this is in the [technical-architecture spec](technical-architecture-spec.md).
+What the MVP plays like. Terms follow [GLOSSARY.md](../../GLOSSARY.md). The architecture that runs all this is in the [technical-architecture spec](technical-architecture-spec.md).
 
 Every number below is Mod or map data. The values given are base-Mod defaults, and the roster values are **first-pass numbers meant to be tuned in playtests**.
-
-The five conflicts found while assembling it were settled in [Settle the conflicts found while assembling the specs](../../.scratch/mvp-spec/issues/12-settle-spec-conflicts.md), and are applied below.
 
 ## Overview
 
@@ -13,11 +11,9 @@ The five conflicts found while assembling it were settled in [Settle the conflic
 - Players build on Planets and send Armies along Lanes to capture enemy Planets. A **Battle** is ground only, automatic and round-based, and its Planet is **Locked** while it runs. Players only watch.
 - **Vision**: a player sees the Planets they own plus their neighbours one Lane away.
 - **Winning**: hold more than a map-set share of Planets for a set time, or be the last player not eliminated. Losing your Capital eliminates you.
-- There is no tech tree, no research, no bots, no Pops and no space Battles. See the map's [Out of scope](../../.scratch/mvp-spec/map.md#out-of-scope) section.
+- There is no tech tree, no research, no bots, no Pops and no space Battles. See [Out of scope](#out-of-scope).
 
 ## Economy
-
-From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-core-loop-rules.md), as amended by [What is the content and Mod data model?](../../.scratch/mvp-spec/issues/05-content-and-mod-data-model.md).
 
 - **Resources** are stockpiles: **Credits** and **Materials**.
 - **Payday** comes every 90 s. For each Resource, each player receives their Planets' base income plus their buildings' yields, minus their buildings' Upkeep, paid as one lump sum.
@@ -32,8 +28,6 @@ From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-co
 
 ## Building and production
 
-From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-core-loop-rules.md).
-
 - Each Planet has a number of **Building Slots** set by its Planet Type (2–4 in the base Mod).
 - Each Planet has **one construction queue** for buildings.
 - **Each production building** (one with `trains`) **has its own unit queue**, so more Barracks train more units in parallel.
@@ -44,8 +38,6 @@ From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-co
 - Queues pause while the player is in debt or the Planet is Locked, and resume afterwards.
 
 ## Stacks, Unit Slots and Armies
-
-From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-core-loop-rules.md), as amended by [What are the Battle rules?](../../.scratch/mvp-spec/issues/03-battle-rules.md).
 
 - Each Planet has **three Stacks**. A Stack holds units only. Buildings sit in Building Slots but still fight in Battles.
 - A Stack has **10 Unit Slots**. Each holds one unit type with an uncapped count (for example, Marine × 50), like the EaW grid. Within a Stack, a unit type always merges into its existing Unit Slot.
@@ -59,16 +51,12 @@ From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-co
 
 ## Travel
 
-From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-core-loop-rules.md) and [What is in the MVP roster?](../../.scratch/mvp-spec/issues/09-mvp-roster.md).
-
 - A Lane's travel time is its length × its Lane-type multiplier: `fast` 1.0, `slow` 2.0. One length unit is 1 s. Map data may set an explicit `time` on a Lane, which overrides that.
 - Routes are found automatically with Dijkstra, by shortest time, and pass **only through Planets the player owns**. Entering any other Planet ends the move there as an attack.
 - An Army in transit can be re-ordered at any time. It finishes its current Lane hop, then follows the new route. It never turns back mid-Lane.
 - Hostile Armies on the same Lane pass each other without a fight. Battles happen only at Planets.
 
 ## Arrival
-
-From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-core-loop-rules.md) and [What are the Battle rules?](../../.scratch/mvp-spec/issues/03-battle-rules.md).
 
 - An Army arriving at its owner's Planet merges into the named Stack (subject to overflow).
 - An Army arriving at **any other** Planet attacks it, including a Planet that changed hands while the Army was travelling.
@@ -79,8 +67,6 @@ From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-co
   - A garrisoned one starts a Battle against the neutral side, which has no AI.
 
 ## Battles
-
-From [What are the Battle rules?](../../.scratch/mvp-spec/issues/03-battle-rules.md).
 
 ### Sides
 
@@ -126,8 +112,6 @@ The Battle runs Round after Round until one of these happens:
 
 ### Retreat
 
-From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-core-loop-rules.md).
-
 - **Target:** the attacker's friendly Planet that is the fewest Lane jumps from the Battle. Ties go to the shorter travel time, then the lowest Planet id. Every "lowest id" tie-break compares ids byte-wise; ids are ASCII only.
 - **Movement:** the Army moves there directly and doesn't stop or fight at any Planet in between. The trip takes as long as the Lane route would.
 - A Retreating Army can't be re-ordered.
@@ -141,8 +125,6 @@ From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-co
 - The roster's pacing target: two forces of similar size should fight for about 8–15 Rounds.
 
 ## Ownership, elimination and winning
-
-From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-core-loop-rules.md), [What are the Battle rules?](../../.scratch/mvp-spec/issues/03-battle-rules.md) and [How do the lobby and the Match lifecycle work?](../../.scratch/mvp-spec/issues/10-lobby-and-match-lifecycle.md).
 
 - **On capture:**
   - the loser's queues there are cancelled with no refund;
@@ -160,7 +142,7 @@ From [What are the rules of the core loop?](../../.scratch/mvp-spec/issues/02-co
 
 ## The MVP roster
 
-From [What is in the MVP roster?](../../.scratch/mvp-spec/issues/09-mvp-roster.md). The base Mod ships **no icons or sprites**; the client draws placeholders.
+The base Mod ships **no icons or sprites**; the client draws placeholders.
 
 ### Combat tables
 
@@ -228,7 +210,7 @@ Each kit puts two buildings on the Capital, leaving 2 of its 4 Building Slots fr
 
 ## The first map
 
-From [What is in the MVP roster?](../../.scratch/mvp-spec/issues/09-mvp-roster.md). Planet names and the map's id are left to implementation.
+Planet names and the map's id are left to implementation.
 
 - 13 Planets with 4-fold rotational symmetry. 4 `starts`, `minPlayers` 2.
 - **Capitals:** one at each corner. These are the 4 starts, and each uses the Capital Planet Type.
@@ -253,7 +235,7 @@ From [What is in the MVP roster?](../../.scratch/mvp-spec/issues/09-mvp-roster.m
 
 ## Lobby and Match lifecycle
 
-From [How do the lobby and the Match lifecycle work?](../../.scratch/mvp-spec/issues/10-lobby-and-match-lifecycle.md). A Match moves through the phases `lobby` → `play` → `results`.
+A Match moves through the phases `lobby` → `play` → `results`.
 
 ### Finding a Match
 
@@ -298,19 +280,42 @@ From [How do the lobby and the Match lifecycle work?](../../.scratch/mvp-spec/is
 
 ## Ruleset defaults
 
-The single `base:rules` definition. Fields from [What is the content and Mod data model?](../../.scratch/mvp-spec/issues/05-content-and-mod-data-model.md); values from the tickets named.
+The single `base:rules` definition.
 
-| Field | Default | From |
-|---|---|---|
-| Payday interval | 90 s | 02 |
-| Cancel-after-start refund | 50% | 02 |
-| Sell refund | 50% | 02 |
-| Unit Slots per Stack | 10 | 03 |
-| Tiers | `none` 0, `weak` 0.6, `average` 1.0, `strong` 1.4 | 03 |
-| Lane types | `fast` 1.0, `slow` 2.0 | 09 |
-| Initiative die | 20 | 03 |
-| Round duration | 3 s | 03 |
-| Round cap | 40 | 03 |
-| `startingResources` | 1000 Credits, 300 Materials | 09 |
-| `gracePeriodSeconds` | 180 (3 min) | 10, 12 |
-| `resultsSeconds` | 60 | 10, 12 |
+| Field | Default |
+|---|---|
+| Payday interval | 90 s |
+| Cancel-after-start refund | 50% |
+| Sell refund | 50% |
+| Unit Slots per Stack | 10 |
+| Tiers | `none` 0, `weak` 0.6, `average` 1.0, `strong` 1.4 |
+| Lane types | `fast` 1.0, `slow` 2.0 |
+| Initiative die | 20 |
+| Round duration | 3 s |
+| Round cap | 40 |
+| `startingResources` | 1000 Credits, 300 Materials |
+| `gracePeriodSeconds` | 180 (3 min) |
+| `resultsSeconds` | 60 |
+
+## Out of scope
+
+Post-MVP, decided when the MVP was specified:
+
+- **WASM Plugins:** the API a Plugin sees at the six seams, sandboxing and metering. The MVP only names the seams.
+- **Choosing the Mod set per Match.** The server's enabled Mods apply to every Match.
+- **Localised display text.** The MVP uses inline English `name` strings.
+- **Saving and resuming long-running Matches.** Match state is in memory only, kept serialisable.
+- **Bots** filling empty Seats. The MVP is PvP only.
+- **Spies and richer vision rules.** MVP vision is owned Planets plus their neighbours one Lane away.
+- **A tech tree or unlocks.**
+- **Halo-style Shield regeneration during Battles** (after a Round without damage). MVP Shields refill only after a Battle.
+- **Touch and mobile layouts.** The MVP is desktop mouse and keyboard at 1280×720 or larger.
+
+Further off, not designed yet:
+
+- **Tactical Battles** (player-controlled): wanted eventually, far beyond the MVP.
+- **Space Battles** or an orbital layer. MVP Battles are ground only.
+- **Pops**, a population simulation.
+- **A Tauri desktop client:** blocked on Linux webkitgtk; browser-first keeps it possible.
+- **Steam auth.** Device auth is enough for the MVP.
+- **Real art**, and Halo IP licensing for a public release.
