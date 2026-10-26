@@ -17,6 +17,7 @@ func (s *State) Advance(c *cs.Content, now int64) []PaydayPaid {
 		paid = append(paid, s.payday(c)...)
 		s.NextPayday += s.PaydayEvery
 	}
+	s.build(now) // after Payday, so income that clears a debt resumes queues now
 	return paid
 }
 

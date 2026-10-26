@@ -38,8 +38,7 @@ type PlayerView struct {
 	PlanetCount int
 }
 
-// PlanetView is a Planet in vision. Queues will be added for owned Planets
-// only; other players' Resources are never part of a View.
+// PlanetView is a Planet in vision. Other players' queues stay hidden.
 type PlanetView struct {
 	ID        string
 	Owner     int
@@ -47,6 +46,7 @@ type PlanetView struct {
 	Locked    bool
 	Buildings []string
 	Stacks    [StacksPerPlanet]Stack
+	Queue     []QueueItem // only on the viewer's own Planets
 }
 
 // View is the only place vision is enforced: a player sees the Planets they
@@ -80,6 +80,9 @@ func (s *State) View(c *cs.Content, seat int) View {
 		pv := PlanetView{ID: id, Owner: p.Owner, Capital: p.Capital, Locked: p.Locked, Buildings: slices.Clone(p.Buildings)}
 		for i, st := range p.Stacks {
 			pv.Stacks[i] = slices.Clone(st)
+		}
+		if p.Owner == seat && len(p.Queue) > 0 { // nil when empty, so Diff sees no change
+			pv.Queue = slices.Clone(p.Queue)
 		}
 		v.Planets = append(v.Planets, pv)
 	}

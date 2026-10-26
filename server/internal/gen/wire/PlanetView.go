@@ -8,12 +8,13 @@ import (
 )
 
 type PlanetViewT struct {
-	Id        string    `json:"id"`
-	Owner     int8      `json:"owner"`
-	Capital   bool      `json:"capital"`
-	Locked    bool      `json:"locked"`
-	Buildings []string  `json:"buildings"`
-	Stacks    []*StackT `json:"stacks"`
+	Id        string        `json:"id"`
+	Owner     int8          `json:"owner"`
+	Capital   bool          `json:"capital"`
+	Locked    bool          `json:"locked"`
+	Buildings []string      `json:"buildings"`
+	Stacks    []*StackT     `json:"stacks"`
+	Queue     []*QueueItemT `json:"queue"`
 }
 
 func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -50,6 +51,19 @@ func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		}
 		stacksOffset = builder.EndVector(stacksLength)
 	}
+	queueOffset := flatbuffers.UOffsetT(0)
+	if t.Queue != nil {
+		queueLength := len(t.Queue)
+		queueOffsets := make([]flatbuffers.UOffsetT, queueLength)
+		for j := 0; j < queueLength; j++ {
+			queueOffsets[j] = t.Queue[j].Pack(builder)
+		}
+		PlanetViewStartQueueVector(builder, queueLength)
+		for j := queueLength - 1; j >= 0; j-- {
+			builder.PrependUOffsetT(queueOffsets[j])
+		}
+		queueOffset = builder.EndVector(queueLength)
+	}
 	PlanetViewStart(builder)
 	PlanetViewAddId(builder, idOffset)
 	PlanetViewAddOwner(builder, t.Owner)
@@ -57,6 +71,7 @@ func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	PlanetViewAddLocked(builder, t.Locked)
 	PlanetViewAddBuildings(builder, buildingsOffset)
 	PlanetViewAddStacks(builder, stacksOffset)
+	PlanetViewAddQueue(builder, queueOffset)
 	return PlanetViewEnd(builder)
 }
 
@@ -76,6 +91,13 @@ func (rcv *PlanetView) UnPackTo(t *PlanetViewT) {
 		x := Stack{}
 		rcv.Stacks(&x, j)
 		t.Stacks[j] = x.UnPack()
+	}
+	queueLength := rcv.QueueLength()
+	t.Queue = make([]*QueueItemT, queueLength)
+	for j := 0; j < queueLength; j++ {
+		x := QueueItem{}
+		rcv.Queue(&x, j)
+		t.Queue[j] = x.UnPack()
 	}
 }
 
@@ -236,8 +258,28 @@ func (rcv *PlanetView) StacksLength() int {
 	return 0
 }
 
+func (rcv *PlanetView) Queue(obj *QueueItem, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *PlanetView) QueueLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func PlanetViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(6)
+	builder.StartObject(7)
 }
 func PlanetViewAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -261,6 +303,12 @@ func PlanetViewAddStacks(builder *flatbuffers.Builder, stacks flatbuffers.UOffse
 	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(stacks), 0)
 }
 func PlanetViewStartStacksVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func PlanetViewAddQueue(builder *flatbuffers.Builder, queue flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(queue), 0)
+}
+func PlanetViewStartQueueVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func PlanetViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {

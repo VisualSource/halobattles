@@ -2,6 +2,7 @@ import type { MatchData, Session, Socket } from "@heroiclabs/nakama-js";
 import { Builder, ByteBuffer } from "flatbuffers";
 import {
   AmountT,
+  CancelQueueItemT,
   CommandRejected,
   type EconomyT,
   LobbyState,
@@ -11,6 +12,8 @@ import {
   Phase,
   type PlanetViewT,
   type PlayerViewT,
+  QueueBuildingT,
+  SellBuildingT,
   SetFactionT,
   SetMapT,
   SetReadyT,
@@ -90,6 +93,15 @@ const toPlanet = (p: PlanetViewT): PlanetView => ({
       count: u.count,
     })),
   ),
+  queue: p.queue.map((q) => ({
+    id: q.id,
+    slot: q.slot,
+    building: str(q.building),
+    started: q.started,
+    paused: q.paused,
+    endsAt: Number(q.endsAt),
+    remaining: Number(q.remaining),
+  })),
 });
 
 const toEconomy = (e: EconomyT): Economy => ({
@@ -198,6 +210,30 @@ export class MatchConnection {
 
   startMatch() {
     this.send(Op.StartMatch, "start", (seq) => new StartMatchT(seq));
+  }
+
+  queueBuilding(planet: string, slot: number, building: string) {
+    this.send(
+      Op.QueueBuilding,
+      "build",
+      (seq) => new QueueBuildingT(seq, planet, slot, building),
+    );
+  }
+
+  cancelQueueItem(itemId: number) {
+    this.send(
+      Op.CancelQueueItem,
+      "cancel",
+      (seq) => new CancelQueueItemT(seq, itemId),
+    );
+  }
+
+  sellBuilding(planet: string, slot: number) {
+    this.send(
+      Op.SellBuilding,
+      "sell",
+      (seq) => new SellBuildingT(seq, planet, slot),
+    );
   }
 
   private send(

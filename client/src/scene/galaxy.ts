@@ -329,7 +329,7 @@ function colourOf(p: PlanetView | undefined) {
     : (SEAT_COLOURS[p.owner % SEAT_COLOURS.length] ?? NEUTRAL);
 }
 
-/** Name, owner colour, unit-count badge and Locked icon. */
+/** Name, owner colour, unit-count badge, Locked icon and construction pip. */
 function labelParts(name: string, p: PlanetView | undefined) {
   const nameEl = document.createElement("div");
   nameEl.textContent = name;
@@ -350,5 +350,6 @@ function labelParts(name: string, p: PlanetView | undefined) {
   const units = p.stacks.flat().reduce((n, s) => n + s.count, 0);
   info.append(swatch, `${units}`);
   if (p.locked) info.append(" 🔒");
+  if (p.queue.length > 0) info.append(" 🔨"); // only ever on your own Planets
   return [nameEl, info];
 }

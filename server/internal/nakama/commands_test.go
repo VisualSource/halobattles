@@ -306,3 +306,42 @@ func TestPaydaySendsPaydayPaidAndAViewDelta(t *testing.T) {
 		t.Errorf("ViewDelta = %+v, want only the economy: 1300 Credits, next Payday 90–180 s", deltas)
 	}
 }
+
+func TestQueueBuildingWorksOnlyInPlayAndShowsInTheNextDelta(t *testing.T) {
+	h := newLobbyHarness(t)
+	queue := func(seq uint32, planet string) runtime.MatchData {
+		return cmd(u1, wire.OpQueueBuilding, &wire.QueueBuildingT{Seq: seq, Planet: planet, Slot: 0, Building: "base:hall"})
+	}
+	h.loop(queue(1, "x"))
+	if r := h.rejection(u1, 1); !strings.Contains(r, "during play") {
+		t.Errorf("QueueBuilding in the lobby: rejection = %q", r)
+	}
+
+	h.start()
+	capital := ""
+	for _, p := range h.d.views[u1.session].Planets {
+		if p.Capital {
+			capital = p.Id
+		}
+	}
+	h.loop(queue(103, capital))
+
+	if r := h.rejection(u1, 103); r != "" {
+		t.Fatalf("QueueBuilding rejected: %s", r)
+	}
+	if h.seat("u1").LastSeq != 103 {
+		t.Errorf("last_seq = %d, want 103 so the client settles the command", h.seat("u1").LastSeq)
+	}
+	deltas := h.d.deltas[u1.session]
+	last := deltas[len(deltas)-1]
+	if len(last.Planets) != 1 || len(last.Planets[0].Queue) != 1 {
+		t.Fatalf("delta = %+v, want the Capital with its new queue", last)
+	}
+	q := last.Planets[0].Queue[0]
+	if q.Building != "base:hall" || !q.Started || q.Paused || q.EndsAt != 200+30_000 {
+		t.Errorf("queue item = %+v, want the Hall running until 30.2 s", q)
+	}
+	if last.Economy == nil || last.Economy.Resources[0].Amount != 850 {
+		t.Errorf("economy = %+v, want 850 Credits after paying 150", last.Economy)
+	}
+}

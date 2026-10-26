@@ -101,8 +101,11 @@ func testContent() *content.Content {
 		},
 		PlanetTypes: map[string]contentschema.PlanetType{"base:capital": {BuildingSlots: 2, Income: map[string]int{"base:credits": 300}}},
 		Factions:    map[string]contentschema.Faction{"base:unsc": {}, "base:covenant": {}},
-		Resources:   map[string]contentschema.Resource{"base:credits": {}},
-		Rulesets:    map[string]contentschema.Ruleset{"base:rules": {PaydaySeconds: 90, StartingResources: map[string]int{"base:credits": 1000}}},
+		Buildings: map[string]contentschema.Building{"base:hall": {
+			Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
+		}},
+		Resources: map[string]contentschema.Resource{"base:credits": {}},
+		Rulesets:  map[string]contentschema.Ruleset{"base:rules": {PaydaySeconds: 90, StartingResources: map[string]int{"base:credits": 1000}}},
 	}}
 }
 

@@ -3,6 +3,8 @@ import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import { GalaxyScene } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
+import { isPending } from "./local";
+import type { QueueItem } from "./store";
 import { useMatchNow } from "./time";
 
 export function PlayScreen(props: {
@@ -78,6 +80,7 @@ function PlanetPanel(props: {
   const { conn, content } = props;
   const selected = useStore(conn.local, (s) => s.selected);
   const view = useStore(conn.store, (s) => s.view);
+  const local = useStore(conn.local);
   if (!selected || !view) return null;
 
   const mapPlanet = content.maps
@@ -86,6 +89,14 @@ function PlanetPanel(props: {
   const planet = view.planets.get(selected);
   const name = (id: string) =>
     content.units.get(id)?.name ?? content.buildings.get(id)?.name ?? id;
+  const cost = (c: Record<string, number>) =>
+    Object.entries(c)
+      .map(([r, a]) => `${a} ${content.resources.get(r)?.name ?? r}`)
+      .join(", ");
+  const faction = view.players[view.you]?.faction;
+  const buildable = [...content.buildings.values()].filter(
+    (b) => b.faction === faction,
+  );
   const ownerName = (seat: number | null) =>
     seat === null
       ? "Neutral"
@@ -106,11 +117,78 @@ function PlanetPanel(props: {
           </p>
           <h4>Buildings</h4>
           <ol>
-            {planet.buildings.map((b, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: Building Slots are positional
-              <li key={i}>{b ? name(b) : "(empty)"}</li>
-            ))}
+            {planet.buildings.map((b, i) => {
+              const queued = planet.queue.find((q) => q.slot === i);
+              const mine = planet.owner === view.you && !planet.locked;
+              return (
+                // biome-ignore lint/suspicious/noArrayIndexKey: Building Slots are positional
+                <li key={i}>
+                  {b ? (
+                    <>
+                      {name(b)}{" "}
+                      {mine && (
+                        <button
+                          type="button"
+                          disabled={isPending(local, "sell")}
+                          onClick={() => conn.sellBuilding(planet.id, i)}
+                        >
+                          Sell
+                        </button>
+                      )}
+                    </>
+                  ) : queued ? (
+                    `Building ${name(queued.building)}…`
+                  ) : mine ? (
+                    <select
+                      aria-label={`Build in slot ${i + 1}`}
+                      value=""
+                      disabled={isPending(local, "build")}
+                      onChange={(e) =>
+                        conn.queueBuilding(planet.id, i, e.target.value)
+                      }
+                    >
+                      <option value="">Build…</option>
+                      {buildable.map((bd) => (
+                        <option key={bd.id} value={bd.id}>
+                          {bd.name} ({cost(bd.cost)})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    "(empty)"
+                  )}
+                </li>
+              );
+            })}
           </ol>
+          {planet.queue.length > 0 && (
+            <>
+              <h4>Construction</h4>
+              <ol>
+                {planet.queue.map((q) => (
+                  <li key={q.id}>
+                    {name(q.building)}
+                    {q.paused && " (paused)"}{" "}
+                    <button
+                      type="button"
+                      disabled={isPending(local, "cancel") || planet.locked}
+                      onClick={() => conn.cancelQueueItem(q.id)}
+                    >
+                      Cancel
+                    </button>
+                    <Progress
+                      item={q}
+                      total={
+                        (content.buildings.get(q.building)?.buildTime ?? 0) *
+                        1000
+                      }
+                      offset={local.clockOffset}
+                    />
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
           {planet.stacks.map((stack, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: the three Stacks are positional
             <section key={i}>
@@ -131,5 +209,37 @@ function PlanetPanel(props: {
         </>
       )}
     </aside>
+  );
+}
+
+/**
+ * A queue item's progress. A running item animates once from where it is
+ * now to 100% over its remaining time; a paused or waiting one is frozen.
+ */
+function Progress(props: { item: QueueItem; total: number; offset: number }) {
+  const { item, total, offset } = props;
+  const bar = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = bar.current;
+    if (!el) return;
+    const left = item.endsAt
+      ? item.endsAt - (performance.now() + offset)
+      : item.remaining;
+    const from =
+      total > 0 ? Math.min(100, Math.max(0, 100 - (left / total) * 100)) : 100;
+    el.style.width = `${from}%`;
+    if (!item.endsAt) return;
+    const a = el.animate([{ width: `${from}%` }, { width: "100%" }], {
+      duration: Math.max(0, left),
+      fill: "forwards",
+    });
+    return () => a.cancel();
+  }, [item.endsAt, item.remaining, total, offset]);
+
+  return (
+    <div style={{ height: 4, background: "#0002" }}>
+      <div ref={bar} style={{ height: "100%", background: "seagreen" }} />
+    </div>
   );
 }

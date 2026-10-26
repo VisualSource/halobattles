@@ -3,6 +3,7 @@ package nakama
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/VisualSource/halobattles/server/internal/game"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
@@ -16,15 +17,18 @@ const (
 	maxCommandBytes    = 4096
 )
 
-var errNotLobby = errors.New("that only works in the lobby")
+var (
+	errNotLobby = errors.New("that only works in the lobby")
+	errNotPlay  = errors.New("that only works during play")
+)
 
 // handleCommands validates and applies this tick's commands against the
 // authoritative state, rejecting each refused one to its sender. It reports
-// whether the lobby changed.
+// whether any command was accepted.
 //
 // Clients settle pending commands by their Seat's last_seq, which relies on
 // every processed command reaching its sender: an accepted one through the
-// LobbyState this change triggers, a refused one through CommandRejected.
+// LobbyState this triggers, a refused one through CommandRejected.
 func (s *matchState) handleCommands(logger runtime.Logger, dispatcher runtime.MatchDispatcher, tick int64, messages []runtime.MatchData) bool {
 	changed := false
 	perUser := map[string]int{}
@@ -56,7 +60,9 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 		}
 	}()
 	user, data := msg.GetUserId(), msg.GetData()
+	doc := &s.content.Doc
 
+	phase := wire.PhaseLobby // the phase the command works in
 	var apply func(l *game.Lobby) error
 	switch wire.Op(msg.GetOpCode()) {
 	case wire.OpSetFaction:
@@ -68,6 +74,21 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 	case wire.OpSetMap:
 		c := wire.GetRootAsSetMap(data, 0)
 		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.SetMap(user, string(c.Map())) }
+	case wire.OpQueueBuilding:
+		c := wire.GetRootAsQueueBuilding(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.QueueBuilding(doc, s.seat(user), string(c.Planet()), int(c.Slot()), string(c.Building()))
+		}
+	case wire.OpCancelQueueItem:
+		c := wire.GetRootAsCancelQueueItem(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.CancelQueueItem(doc, s.seat(user), c.ItemId())
+		}
+	case wire.OpSellBuilding:
+		c := wire.GetRootAsSellBuilding(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.SellBuilding(doc, s.seat(user), string(c.Planet()), int(c.Slot()))
+		}
 	case wire.OpSetStartingResources:
 		c := wire.GetRootAsSetStartingResources(data, 0).UnPack()
 		amounts := map[string]int{}
@@ -92,10 +113,17 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 		return seq, fmt.Errorf("command too large (under %d bytes)", maxCommandBytes)
 	case earlier >= maxCommandsPerTick:
 		return seq, fmt.Errorf("too many commands this tick (at most %d)", maxCommandsPerTick)
-	case s.phase != wire.PhaseLobby:
+	case s.phase != phase && phase == wire.PhaseLobby:
 		return seq, errNotLobby
+	case s.phase != phase:
+		return seq, errNotPlay
 	}
 	return seq, apply(s.lobby)
+}
+
+// seat is user's Seat in the running Match. Only seated users can join it.
+func (s *matchState) seat(user string) int {
+	return slices.IndexFunc(s.play.Players, func(p game.Player) bool { return p.User == user })
 }
 
 func (s *matchState) reject(logger runtime.Logger, dispatcher runtime.MatchDispatcher, to runtime.Presence, seq uint32, err error) {

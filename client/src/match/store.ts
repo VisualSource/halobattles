@@ -22,6 +22,20 @@ export type Lobby = {
 
 export type UnitSlot = { unit: string; count: number };
 
+/**
+ * A building under construction. Only the first in a queue runs: it has
+ * endsAt, or paused when it can't run (debt or Locked). Later items wait.
+ */
+export type QueueItem = {
+  id: number;
+  slot: number; // the Building Slot it will fill
+  building: string;
+  started: boolean;
+  paused: boolean;
+  endsAt: number; // Match Time; 0 unless running
+  remaining: number; // ms left, when not running
+};
+
 /** A Planet in vision. Planets outside vision aren't in the View. */
 export type PlanetView = {
   id: string;
@@ -30,6 +44,7 @@ export type PlanetView = {
   locked: boolean;
   buildings: string[]; // one per Building Slot; "" is empty
   stacks: UnitSlot[][]; // the three Stacks
+  queue: QueueItem[]; // construction, in order; only on your own Planets
 };
 
 /** The public part of every player. */

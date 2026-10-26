@@ -12,6 +12,9 @@ enum Op : int {
   SetMap = 3,
   SetStartingResources = 4,
   StartMatch = 5,
+  QueueBuilding = 6,
+  CancelQueueItem = 7,
+  SellBuilding = 8,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -53,6 +56,24 @@ table StartMatch {       // Host only
   seq: uint32;
 }
 
+table QueueBuilding {     // owner only
+  seq: uint32;
+  planet: string;
+  slot: ubyte;             // an empty Building Slot
+  building: string;
+}
+
+table CancelQueueItem {   // owner only
+  seq: uint32;
+  item_id: uint32;
+}
+
+table SellBuilding {      // owner only
+  seq: uint32;
+  planet: string;
+  slot: ubyte;
+}
+
 // Server messages.
 
 table Seat {
@@ -90,6 +111,19 @@ table Stack {
   slots: [UnitSlot];       // in order
 }
 
+// One item in a Planet's construction queue. Only the first runs: it has
+// ends_at while running, or paused while it can't (debt or Locked). Later
+// items wait with their full remaining time.
+table QueueItem {
+  id: uint32;
+  slot: ubyte;             // the Building Slot it will fill
+  building: string;
+  started: bool;           // cancelling a started item refunds less
+  paused: bool;
+  ends_at: long;           // Match Time; 0 unless running
+  remaining: long;         // ms left, when not running
+}
+
 // A Planet in vision. Planets outside vision are left out; the client has
 // their static data from content.
 table PlanetView {
@@ -99,6 +133,7 @@ table PlanetView {
   locked: bool;
   buildings: [string];     // one per Building Slot; "" is empty
   stacks: [Stack];         // the Planet's three Stacks
+  queue: [QueueItem];      // construction, in order; only on your own Planets
 }
 
 // The public part of every player.

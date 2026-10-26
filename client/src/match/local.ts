@@ -8,7 +8,10 @@ export type CommandKind =
   | "ready"
   | "map"
   | "startingResources"
-  | "start";
+  | "start"
+  | "build"
+  | "cancel"
+  | "sell";
 
 export type LocalState = {
   pending: Map<number, CommandKind>;

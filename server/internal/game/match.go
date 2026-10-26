@@ -33,6 +33,7 @@ type Planet struct {
 	Locked    bool
 	Buildings []string // one per Building Slot; "" is empty
 	Stacks    [StacksPerPlanet]Stack
+	Queue     []QueueItem // construction, in order; only the first runs
 	// From its Planet Type and the map's overrides, fixed at Start.
 	Income            map[string]int
 	CommandPointBonus int
@@ -59,6 +60,7 @@ type State struct {
 	Neighbours  map[string][]string // the static Lanes, both ways
 	PaydayEvery int64               // ms
 	NextPayday  int64               // Match Time
+	LastID      uint32              // Match entity ids come from this one counter
 }
 
 // SeatSetup is one Seat as the lobby left it.

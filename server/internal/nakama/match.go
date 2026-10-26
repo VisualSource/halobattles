@@ -199,7 +199,7 @@ func (s *matchState) isCurrent(p runtime.Presence) bool {
 // sendViews sends each of presences their own ViewFull.
 func (s *matchState) sendViews(logger runtime.Logger, dispatcher runtime.MatchDispatcher, presences []runtime.Presence) {
 	for _, p := range presences {
-		seat := slices.IndexFunc(s.play.Players, func(pl game.Player) bool { return pl.User == p.GetUserId() })
+		seat := s.seat(p.GetUserId())
 		if seat < 0 {
 			continue
 		}
@@ -290,6 +290,12 @@ func planets(ps []game.PlanetView) []*wire.PlanetViewT {
 				ws.Slots = append(ws.Slots, &wire.UnitSlotT{Unit: u.Unit, Count: uint32(u.Count)})
 			}
 			pv.Stacks = append(pv.Stacks, ws)
+		}
+		for i, q := range p.Queue {
+			pv.Queue = append(pv.Queue, &wire.QueueItemT{
+				Id: q.ID, Slot: uint8(q.Slot), Building: q.Building, Started: q.Started,
+				Paused: i == 0 && q.EndsAt == 0, EndsAt: q.EndsAt, Remaining: q.Remaining,
+			})
 		}
 		out = append(out, pv)
 	}

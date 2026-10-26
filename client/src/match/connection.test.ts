@@ -10,6 +10,8 @@ import {
   Phase,
   PlanetViewT,
   PlayerViewT,
+  QueueBuilding,
+  QueueItemT,
   SeatT,
   StackT,
   UnitSlotT,
@@ -166,6 +168,7 @@ describe("MatchConnection", () => {
             locked: false,
             buildings: ["base:hall", ""],
             stacks: [[{ unit: "base:grunt", count: 10 }], [], []],
+            queue: [],
           },
         ],
         [
@@ -177,6 +180,7 @@ describe("MatchConnection", () => {
             locked: false,
             buildings: ["", "", ""],
             stacks: [[], [], []],
+            queue: [],
           },
         ],
       ]),
@@ -278,6 +282,79 @@ describe("MatchConnection", () => {
 
     expect(conn.local.getState().clockOffset).toBe(-3000);
     now.mockRestore();
+  });
+
+  it("decodes a Planet's construction queue", async () => {
+    const { conn, send } = await playing();
+    const planet = new PlanetViewT(
+      "a",
+      0,
+      false,
+      false,
+      ["", ""],
+      [],
+      [
+        new QueueItemT(7, 1, "base:barracks", true, false, 30200n, 0n),
+        new QueueItemT(8, 0, "base:supply-pad", false, false, 0n, 30000n),
+      ],
+    );
+
+    send(Op.ViewDelta, pack(new ViewDeltaT(200n, [], [planet], [], null)));
+
+    expect(conn.store.getState().view?.planets.get("a")?.queue).toEqual([
+      {
+        id: 7,
+        slot: 1,
+        building: "base:barracks",
+        started: true,
+        paused: false,
+        endsAt: 30200,
+        remaining: 0,
+      },
+      {
+        id: 8,
+        slot: 0,
+        building: "base:supply-pad",
+        started: false,
+        paused: false,
+        endsAt: 0,
+        remaining: 30000,
+      },
+    ]);
+  });
+
+  it("sends construction commands, pending until settled", async () => {
+    const { socket } = fakeSocket();
+    const sent: [number, Uint8Array][] = [];
+    socket.sendMatchState = async (_id, op, data) => {
+      sent.push([op, data as Uint8Array]);
+    };
+    const conn = new MatchConnection(socket, { log: false });
+    await conn.open({} as Session, "m1");
+
+    conn.queueBuilding("a", 2, "base:barracks");
+    conn.cancelQueueItem(7);
+    conn.sellBuilding("a", 0);
+
+    expect(sent.map(([op]) => op)).toEqual([
+      Op.QueueBuilding,
+      Op.CancelQueueItem,
+      Op.SellBuilding,
+    ]);
+    const q = QueueBuilding.getRootAsQueueBuilding(
+      new flatbuffers.ByteBuffer(sent[0]?.[1] ?? new Uint8Array()),
+    ).unpack();
+    expect([q.seq, q.planet, q.slot, q.building]).toEqual([
+      1,
+      "a",
+      2,
+      "base:barracks",
+    ]);
+    expect([...conn.local.getState().pending.values()]).toEqual([
+      "build",
+      "cancel",
+      "sell",
+    ]);
   });
 
   it("sends PaydayPaid out as a payday event", async () => {

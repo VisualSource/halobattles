@@ -22,15 +22,20 @@ func lineContent() *cs.Content {
 		return cs.Stacks{cs.Stack{{Unit: cs.ID(unit), Count: n}}}
 	}
 	return &cs.Content{
-		Rulesets: map[string]cs.Ruleset{RulesetID: {PaydaySeconds: 90}},
+		Rulesets:  map[string]cs.Ruleset{RulesetID: {PaydaySeconds: 90, CancelRefundPercent: 50, SellRefundPercent: 50}},
+		Resources: map[string]cs.Resource{"base:credits": {Name: "Credits"}, "base:materials": {Name: "Materials"}},
 		PlanetTypes: map[string]cs.PlanetType{
 			"base:capital":  {BuildingSlots: 4, CommandPointBonus: 20, Income: map[string]int{"base:credits": 300, "base:materials": 100}},
 			"base:standard": {BuildingSlots: 3, CommandPointBonus: 10, Income: map[string]int{"base:credits": 200, "base:materials": 50}},
 		},
 		Buildings: map[string]cs.Building{
-			"base:barracks":   {Upkeep: map[string]int{"base:credits": 10}},
-			"base:supply-pad": {Yield: map[string]int{"base:credits": 100}},
-			"base:air-pad":    {Upkeep: map[string]int{"base:credits": 30}},
+			"base:barracks": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
+				Upkeep: map[string]int{"base:credits": 10}},
+			"base:supply-pad": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 200},
+				Yield: map[string]int{"base:credits": 100}},
+			"base:air-pad": {Faction: "base:unsc", BuildTime: 60, Cost: map[string]int{"base:credits": 300, "base:materials": 150},
+				Upkeep: map[string]int{"base:credits": 30}},
+			"base:hall": {Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150}},
 		},
 		Units: map[string]cs.Unit{
 			"base:marine": {CommandPoints: 1}, "base:warthog": {CommandPoints: 3},
