@@ -1,6 +1,6 @@
 # dev only: Nakama's stock default keys. Never use these anywhere reachable.
 # Production configs live in deploy/*.prod.yml, which is gitignored.
-name: halobattles-local
+name: halobattles
 logger:
   level: DEBUG
 session:
