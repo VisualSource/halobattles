@@ -3,19 +3,24 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
 export { Amount, AmountT } from './wire/amount.js';
+export { ArmyUnits, ArmyUnitsT } from './wire/army-units.js';
+export { ArmyView, ArmyViewT } from './wire/army-view.js';
 export { CancelQueueItem, CancelQueueItemT } from './wire/cancel-queue-item.js';
 export { CommandRejected, CommandRejectedT } from './wire/command-rejected.js';
 export { Economy, EconomyT } from './wire/economy.js';
 export { LobbyState, LobbyStateT } from './wire/lobby-state.js';
 export { MoveUnits, MoveUnitsT } from './wire/move-units.js';
 export { Op } from './wire/op.js';
+export { OrderArmy, OrderArmyT } from './wire/order-army.js';
 export { PaydayPaid, PaydayPaidT } from './wire/payday-paid.js';
 export { Phase } from './wire/phase.js';
+export { PlanetCaptured, PlanetCapturedT } from './wire/planet-captured.js';
 export { PlanetView, PlanetViewT } from './wire/planet-view.js';
 export { PlayerView, PlayerViewT } from './wire/player-view.js';
 export { QueueBuilding, QueueBuildingT } from './wire/queue-building.js';
 export { QueueItem, QueueItemT } from './wire/queue-item.js';
 export { QueueUnit, QueueUnitT } from './wire/queue-unit.js';
+export { ReorderArmy, ReorderArmyT } from './wire/reorder-army.js';
 export { Seat, SeatT } from './wire/seat.js';
 export { SellBuilding, SellBuildingT } from './wire/sell-building.js';
 export { SetFaction, SetFactionT } from './wire/set-faction.js';

@@ -1,0 +1,39 @@
+{
+  "description": "The faster route passes through d, which the player doesn't own, so it takes the slower one through b.",
+  "lanes": [
+    {
+      "from": "a",
+      "to": "b",
+      "time": 30000
+    },
+    {
+      "from": "b",
+      "to": "c",
+      "time": 30000
+    },
+    {
+      "from": "a",
+      "to": "d",
+      "time": 10000
+    },
+    {
+      "from": "d",
+      "to": "c",
+      "time": 10000
+    }
+  ],
+  "owners": {
+    "a": 0,
+    "b": 0,
+    "d": 1
+  },
+  "player": 0,
+  "from": "a",
+  "to": "c",
+  "path": [
+    "a",
+    "b",
+    "c"
+  ],
+  "time": 60000
+}

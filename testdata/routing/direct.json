@@ -1,0 +1,21 @@
+{
+  "description": "One Lane to an unowned neighbour: entering it is the end of the move.",
+  "lanes": [
+    {
+      "from": "a",
+      "to": "b",
+      "time": 30000
+    }
+  ],
+  "owners": {
+    "a": 0
+  },
+  "player": 0,
+  "from": "a",
+  "to": "b",
+  "path": [
+    "a",
+    "b"
+  ],
+  "time": 30000
+}

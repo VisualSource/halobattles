@@ -121,7 +121,7 @@ func TestSellRefundsHalfAndStopsUpkeepAtOnce(t *testing.T) {
 	if got := s.Players[0].Resources["base:credits"]; got != 1075 || s.Planets["a"].Buildings[0] != "" {
 		t.Errorf("Credits %d, slot %q; want 75 back and the slot empty", got, s.Planets["a"].Buildings[0])
 	}
-	paid := s.Advance(c, 90_000)
+	paid := s.Advance(c, 90_000).Paydays
 	if got := paid[0].Net["base:credits"]; got != 400 {
 		t.Errorf("Payday net = %d, want 400 with no Barracks Upkeep", got)
 	}

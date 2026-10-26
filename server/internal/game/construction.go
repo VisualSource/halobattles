@@ -166,7 +166,7 @@ func (s *State) build(c *cs.Content, now int64) {
 		})
 		for slot, q := range p.UnitQueues {
 			p.setUnitQueue(slot, runQueue(q, run, now, func(q QueueItem) bool {
-				return p.addUnits(q.Unit, 1, slots)
+				return p.addUnits(p.Rally, q.Unit, 1, slots)
 			}))
 		}
 	}

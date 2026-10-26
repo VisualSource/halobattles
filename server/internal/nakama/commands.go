@@ -99,6 +99,20 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
 			return s.play.MoveUnits(doc, s.seat(user), string(c.Planet()), int(c.FromStack()), int(c.ToStack()), string(c.Unit()), int(c.Count()))
 		}
+	case wire.OpOrderArmy:
+		c := wire.GetRootAsOrderArmy(data, 0).UnPack()
+		var units []game.ArmyUnits
+		for _, u := range c.Units {
+			units = append(units, game.ArmyUnits{Stack: int(u.Stack), Unit: u.Unit, Count: int(u.Count)})
+		}
+		seq, phase, apply = c.Seq, wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.OrderArmy(s.seat(user), c.FromPlanet, units, c.ToPlanet, int(c.ToStack))
+		}
+	case wire.OpReorderArmy:
+		c := wire.GetRootAsReorderArmy(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.ReorderArmy(s.seat(user), c.Army(), string(c.ToPlanet()), int(c.ToStack()))
+		}
 	case wire.OpSetRallyStack:
 		c := wire.GetRootAsSetRallyStack(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {

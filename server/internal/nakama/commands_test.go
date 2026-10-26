@@ -345,3 +345,36 @@ func TestQueueBuildingWorksOnlyInPlayAndShowsInTheNextDelta(t *testing.T) {
 		t.Errorf("economy = %+v, want 850 Credits after paying 150", last.Economy)
 	}
 }
+
+func TestOrderArmyCapturesTheEmptyPlanetBetweenTheCapitals(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	capital := ""
+	for _, p := range h.d.views[u1.session].Planets {
+		if p.Capital {
+			capital = p.Id
+		}
+	}
+
+	// a-map's Lanes have no length or time, so the Army arrives on this tick.
+	h.loop(cmd(u1, wire.OpOrderArmy, &wire.OrderArmyT{
+		Seq: 103, FromPlanet: capital, ToPlanet: "y", ToStack: 1,
+		Units: []*wire.ArmyUnitsT{{Stack: 0, Unit: "base:grunt", Count: 2}},
+	}))
+
+	if r := h.rejection(u1, 103); r != "" {
+		t.Fatalf("OrderArmy rejected: %s", r)
+	}
+	for _, p := range []presence{u1, u2} { // y is next to both Capitals
+		c := h.d.captured[p.session]
+		if len(c) != 1 || c[0].Planet != "y" || c[0].From != -1 || c[0].To != 0 {
+			t.Errorf("%s got PlanetCaptured %+v, want y going from neutral to Seat 0", p.user, c)
+		}
+	}
+	deltas := h.d.deltas[u1.session]
+	for _, pl := range deltas[len(deltas)-1].Planets {
+		if pl.Id == "y" && (pl.Owner != 0 || pl.Stacks[1].Slots[0].Count != 2) {
+			t.Errorf("y = %+v, want Seat 0's with 2 Grunts in Stack 2", pl)
+		}
+	}
+}

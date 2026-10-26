@@ -4,6 +4,7 @@ import type { ContentLookups } from "../content";
 import { GalaxyScene } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
+import { laneTimes } from "./route";
 import type { PlanetView, QueueItem, UnitSlot } from "./store";
 import { useMatchNow } from "./time";
 
@@ -18,12 +19,18 @@ export function PlayScreen(props: {
 
   useEffect(() => {
     if (!map || !container.current) return;
-    const scene = new GalaxyScene(container.current, map, {
-      store: conn.store,
-      local: conn.local,
-    });
+    const scene = new GalaxyScene(
+      container.current,
+      map,
+      { store: conn.store, local: conn.local },
+      {
+        lanes: laneTimes(map, content.rules),
+        sendStack: (from, stack, to) => sendStack(conn, from, stack, to),
+        moveArmy: (army, to) => conn.reorderArmy(army, to, toStackAt(conn, to)),
+      },
+    );
     return () => scene.dispose();
-  }, [map, conn]);
+  }, [map, conn, content]);
 
   if (!map) return <p>Loading the galaxy…</p>;
   return (
@@ -32,8 +39,71 @@ export function PlayScreen(props: {
       <div style={{ display: "flex", height: "80vh", minHeight: 480 }}>
         <div ref={container} style={{ flex: 1, minWidth: 0 }} />
         <PlanetPanel conn={conn} content={content} />
+        <ArmyPanel conn={conn} content={content} />
       </div>
     </>
+  );
+}
+
+/** Arriving units join your own Planet's Rally Stack, otherwise Stack 1. */
+function toStackAt(conn: MatchConnection, to: string) {
+  const view = conn.store.getState().view;
+  const target = view?.planets.get(to);
+  return target && target.owner === view?.you ? target.rallyStack : 0;
+}
+
+/** Sends a whole Stack to another Planet as an Army. */
+function sendStack(
+  conn: MatchConnection,
+  from: string,
+  stack: number,
+  to: string,
+) {
+  const units =
+    conn.store.getState().view?.planets.get(from)?.stacks[stack] ?? [];
+  if (units.length === 0 || from === to) return;
+  conn.orderArmy(
+    from,
+    units.map((u) => ({ stack, ...u })),
+    to,
+    toStackAt(conn, to),
+  );
+}
+
+/** The selected Army: its units and where it's headed. */
+function ArmyPanel(props: { conn: MatchConnection; content: ContentLookups }) {
+  const { conn, content } = props;
+  const id = useStore(conn.local, (s) => s.selectedArmy);
+  const army = useStore(conn.store, (s) =>
+    id === null ? undefined : s.view?.armies.get(id),
+  );
+  const you = useStore(conn.store, (s) => s.view?.you);
+  const map = useStore(conn.store, (s) => s.view?.map);
+  if (!army) return null;
+  const planet = (p: string) =>
+    content.maps.get(map ?? "")?.planets.find((mp) => mp.id === p)?.name ?? p;
+  return (
+    <aside style={{ width: 280, padding: "0 12px", overflowY: "auto" }}>
+      <h3>Army</h3>
+      <p>
+        {army.waiting
+          ? `In orbit at ${planet(army.to)}`
+          : `${planet(army.from)} → ${planet(army.to)}`}
+        {army.owner === you &&
+          army.destination !== army.to &&
+          `, headed for ${planet(army.destination)}`}
+      </p>
+      <ul>
+        {army.units.map((u) => (
+          <li key={u.unit}>
+            {content.units.get(u.unit)?.name ?? u.unit} × {u.count}
+          </li>
+        ))}
+      </ul>
+      {army.owner === you && (
+        <p>Drag it to a Planet on the map to re-order it.</p>
+      )}
+    </aside>
   );
 }
 
@@ -207,6 +277,9 @@ function PlanetPanel(props: {
               mine={mine}
               conn={conn}
               name={name}
+              targets={(content.maps.get(view.map)?.planets ?? []).filter(
+                (mp) => mp.id !== planet.id,
+              )}
             />
           ))}
         </>
@@ -227,8 +300,9 @@ function StackSection(props: {
   mine: boolean;
   conn: MatchConnection;
   name: (id: string) => string;
+  targets: { id: string; name: string }[]; // every other Planet
 }) {
-  const { index: i, stack, planet, mine, conn, name } = props;
+  const { index: i, stack, planet, mine, conn, name, targets } = props;
   const local = useStore(conn.local);
   const moving = isPending(local, "move");
   const move = (from: number, unit: string, count: number) =>
@@ -266,6 +340,22 @@ function StackSection(props: {
           </label>
         )}
       </h4>
+      {mine && stack.length > 0 && (
+        // The keyboard path for dragging a Stack chip onto a Planet on the map.
+        <select
+          aria-label={`Send Stack ${i + 1} to`}
+          value=""
+          disabled={isPending(local, "order")}
+          onChange={(e) => sendStack(conn, planet.id, i, e.target.value)}
+        >
+          <option value="">Send to…</option>
+          {targets.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      )}
       {stack.length === 0 ? (
         <p>(empty)</p>
       ) : (

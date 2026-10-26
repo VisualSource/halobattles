@@ -1,0 +1,46 @@
+{
+  "description": "Equal times: a-b-c-d beats the shorter a-z-d, since b sorts before z.",
+  "lanes": [
+    {
+      "from": "a",
+      "to": "z",
+      "time": 30000
+    },
+    {
+      "from": "z",
+      "to": "d",
+      "time": 30000
+    },
+    {
+      "from": "a",
+      "to": "b",
+      "time": 20000
+    },
+    {
+      "from": "b",
+      "to": "c",
+      "time": 20000
+    },
+    {
+      "from": "c",
+      "to": "d",
+      "time": 20000
+    }
+  ],
+  "owners": {
+    "a": 0,
+    "b": 0,
+    "c": 0,
+    "z": 0
+  },
+  "player": 0,
+  "from": "a",
+  "to": "d",
+  "path": [
+    "a",
+    "b",
+    "c",
+    "d"
+  ],
+  "time": 60000
+}

@@ -5,7 +5,8 @@ import {
 } from "three/examples/jsm/renderers/CSS2DRenderer.js";
 import type { GalaxyMap } from "../gen/content";
 import type { LocalStore } from "../match/local";
-import type { createMatchStore, PlanetView } from "../match/store";
+import { type Lanes, route } from "../match/route";
+import type { Army, createMatchStore, PlanetView } from "../match/store";
 
 // Player colour comes from Seat order.
 const SEAT_COLOURS = ["#3b82f6", "#ef4444", "#22c55e", "#eab308"];
@@ -27,6 +28,17 @@ type Stores = {
   local: LocalStore;
 };
 
+type Orders = {
+  lanes: Lanes;
+  /** A Stack dropped on another Planet: send it all there as an Army. */
+  sendStack: (from: string, stack: number, to: string) => void;
+  /** An Army dropped on a Planet: re-order it there. */
+  moveArmy: (army: number, to: string) => void;
+};
+
+/** What's being dragged to a Planet: a Stack, or an Army (from its `to`). */
+type Dragged = { from: string; stack?: number; army?: number };
+
 type PlanetObject = {
   mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>;
   label: HTMLDivElement;
@@ -43,12 +55,17 @@ export class GalaxyScene {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(FOV, 1, 1, 5000);
   private readonly planets = new Map<string, PlanetObject>();
+  private readonly armies = new Map<number, THREE.Mesh>();
+  private readonly preview: THREE.Line;
   private readonly ring: THREE.Mesh;
   private readonly target = new THREE.Vector3();
   private distance = 600;
   private readonly keys = new Set<string>();
   private pointer: { x: number; y: number } | null = null;
   private drag: { x: number; y: number; moved: boolean } | null = null;
+  private ordering:
+    | (Dragged & { x: number; y: number; moved: boolean })
+    | null = null;
   private frame = 0;
   private last = 0;
   private readonly cleanup: (() => void)[] = [];
@@ -57,6 +74,7 @@ export class GalaxyScene {
     private readonly container: HTMLElement,
     private readonly map: GalaxyMap,
     private readonly stores: Stores,
+    private readonly orders: Orders,
   ) {
     this.scene.background = new THREE.Color("#0b1020");
     this.scene.add(new THREE.AmbientLight("#ffffff", 0.6));
@@ -72,6 +90,11 @@ export class GalaxyScene {
     this.ring.rotation.x = -Math.PI / 2;
     this.ring.visible = false;
     this.scene.add(this.ring);
+    this.preview = new THREE.Line(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: "#facc15" }),
+    );
+    this.scene.add(this.preview);
 
     this.renderer.setPixelRatio(window.devicePixelRatio);
     container.style.position = "relative";
@@ -86,10 +109,15 @@ export class GalaxyScene {
 
     this.listen();
     this.cleanup.push(
-      stores.store.subscribe(() => this.updatePlanets()),
+      stores.store.subscribe(() => {
+        this.updatePlanets();
+        this.updateArmies();
+        this.updateSelection();
+      }),
       stores.local.subscribe(() => this.updateSelection()),
     );
     this.updatePlanets();
+    this.updateArmies();
     this.updateSelection();
     this.resize();
     this.frame = requestAnimationFrame((t) => this.tick(t));
@@ -175,15 +203,71 @@ export class GalaxyScene {
       if (!obj) continue;
       const seen = view?.planets.get(p.id);
       obj.mesh.material.color.set(colourOf(seen));
-      obj.label.replaceChildren(...labelParts(p.name, seen));
+      const mine = seen?.owner === view?.you && !seen?.locked;
+      obj.label.replaceChildren(
+        ...labelParts(
+          p.name,
+          seen,
+          mine ? (stack, e) => this.startOrder({ from: p.id, stack }, e) : null,
+        ),
+      );
     }
   }
 
+  /** Adds and removes Army markers; tick() places them. */
+  private updateArmies() {
+    const armies = this.stores.store.getState().view?.armies ?? new Map();
+    for (const [id, mesh] of this.armies) {
+      if (armies.has(id)) continue;
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+      this.armies.delete(id);
+    }
+    for (const a of armies.values()) {
+      if (this.armies.has(a.id)) continue;
+      const mesh = new THREE.Mesh(
+        new THREE.ConeGeometry(6, 14, 12),
+        new THREE.MeshStandardMaterial({ color: seatColour(a.owner) }),
+      );
+      mesh.userData.army = a.id;
+      this.armies.set(a.id, mesh);
+      this.scene.add(mesh);
+    }
+  }
+
+  /** The selection ring, the selected Army, and the route preview. */
   private updateSelection() {
-    const id = this.stores.local.getState().selected;
-    const obj = id ? this.planets.get(id) : undefined;
+    const { selected, selectedArmy, hovered } = this.stores.local.getState();
+    const obj = selected ? this.planets.get(selected) : undefined;
     this.ring.visible = !!obj;
     if (obj) this.ring.position.copy(obj.mesh.position);
+    for (const [id, mesh] of this.armies) {
+      mesh.scale.setScalar(id === selectedArmy ? 1.6 : 1);
+    }
+
+    // Preview the route what's being dragged would take to the hovered Planet.
+    const view = this.stores.store.getState().view;
+    const dragged = this.ordering?.moved ? this.ordering : null;
+    const army =
+      dragged?.army === undefined ? undefined : view?.armies.get(dragged.army);
+    const from = dragged?.from;
+    const path =
+      view && from && hovered
+        ? route(
+            this.orders.lanes,
+            (id) => view.planets.get(id)?.owner === view.you,
+            from,
+            hovered,
+          )?.path
+        : undefined;
+    const points = (path ?? [])
+      .map((id) => this.planets.get(id)?.mesh.position.clone().setY(2))
+      .filter((p) => p !== undefined);
+    // A moving Army's preview starts where it is now, mid-Lane.
+    const start = army && !army.waiting && this.armies.get(army.id)?.position;
+    if (start && points.length > 0) points.unshift(start.clone().setY(2));
+    this.preview.geometry.setFromPoints(points.length > 1 ? points : []);
   }
 
   private listen() {
@@ -199,15 +283,60 @@ export class GalaxyScene {
       );
     };
 
-    // Left button only: right-click is for orders.
+    // Left button only. Pressing your own Army drags it; anything else pans.
     on(canvas, "pointerdown", (e) => {
       if (e.button !== 0) return;
+      const view = this.stores.store.getState().view;
+      const id = this.hit(e, [...this.armies.values()])?.userData.army as
+        | number
+        | undefined;
+      const army = id === undefined ? undefined : view?.armies.get(id);
+      if (army && army.owner === view?.you) {
+        this.startOrder({ from: army.to, army: army.id }, e);
+        return;
+      }
       this.drag = { x: e.clientX, y: e.clientY, moved: false };
       canvas.setPointerCapture(e.pointerId);
+    });
+    // An order drag can start on a Stack chip, so it's tracked on the window.
+    on(window, "pointermove", (e) => {
+      const o = this.ordering;
+      if (!o) return;
+      if (Math.hypot(e.clientX - o.x, e.clientY - o.y) > CLICK_SLOP_PX) {
+        o.moved = true;
+        canvas.style.cursor = "grabbing";
+      }
+      const hovered = this.planetAt(e);
+      if (hovered !== this.stores.local.getState().hovered) {
+        this.stores.local.setState({ hovered });
+      } else this.updateSelection();
+    });
+    on(window, "pointerup", (e) => {
+      const o = this.ordering;
+      if (!o || e.button !== 0) return;
+      this.ordering = null;
+      canvas.style.cursor = "";
+      const to = this.planetAt(e);
+      if (!o.moved) {
+        // A click, not a drag: select what was pressed.
+        this.stores.local.setState(
+          o.army === undefined
+            ? { selected: o.from, selectedArmy: null }
+            : { selected: null, selectedArmy: o.army },
+        );
+      } else if (to && o.army !== undefined) this.orders.moveArmy(o.army, to);
+      else if (to && o.stack !== undefined && to !== o.from) {
+        this.orders.sendStack(o.from, o.stack, to);
+      }
+      this.updateSelection();
     });
     on(canvas, "pointermove", (e) => {
       const rect = canvas.getBoundingClientRect();
       this.pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const hovered = this.planetAt(e);
+      if (hovered !== this.stores.local.getState().hovered) {
+        this.stores.local.setState({ hovered });
+      }
       if (!this.drag) return;
       const dx = e.clientX - this.drag.x;
       const dy = e.clientY - this.drag.y;
@@ -230,6 +359,7 @@ export class GalaxyScene {
     });
     on(canvas, "pointerleave", () => {
       this.pointer = null;
+      this.stores.local.setState({ hovered: null });
     });
     on(canvas, "wheel", (e) => {
       e.preventDefault();
@@ -241,6 +371,12 @@ export class GalaxyScene {
     });
     on(window, "keydown", (e) => {
       if (isTyping(e.target)) return;
+      if (e.key === "Escape") {
+        this.ordering = null;
+        canvas.style.cursor = "";
+        this.stores.local.setState({ selected: null, selectedArmy: null });
+        return;
+      }
       this.keys.add(e.key.toLowerCase());
     });
     on(window, "keyup", (e) => this.keys.delete(e.key.toLowerCase()));
@@ -251,8 +387,28 @@ export class GalaxyScene {
     this.cleanup.push(() => observer.disconnect());
   }
 
-  /** Left-click selects the Planet under the pointer, or clears it. */
+  /** Left-click selects the Army or Planet under the pointer, or clears it. */
   private select(e: PointerEvent) {
+    const army = this.hit(e, [...this.armies.values()])?.userData.army as
+      | number
+      | undefined;
+    this.stores.local.setState({
+      selected: army === undefined ? this.planetAt(e) : null,
+      selectedArmy: army ?? null,
+    });
+  }
+
+  private startOrder(d: Dragged, e: PointerEvent) {
+    e.preventDefault(); // no text selection or native drag
+    this.ordering = { ...d, x: e.clientX, y: e.clientY, moved: false };
+  }
+
+  private planetAt(e: MouseEvent): string | null {
+    const meshes = [...this.planets.values()].map((p) => p.mesh);
+    return (this.hit(e, meshes)?.userData.planet as string | undefined) ?? null;
+  }
+
+  private hit(e: MouseEvent, objects: THREE.Object3D[]) {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -260,11 +416,7 @@ export class GalaxyScene {
     );
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this.camera);
-    const meshes = [...this.planets.values()].map((p) => p.mesh);
-    const hit = ray.intersectObjects(meshes)[0];
-    this.stores.local.setState({
-      selected: (hit?.object.userData.planet as string | undefined) ?? null,
-    });
+    return ray.intersectObjects(objects)[0]?.object;
   }
 
   private resize() {
@@ -287,9 +439,28 @@ export class GalaxyScene {
       this.target.z + this.distance * Math.cos(TILT),
     );
     this.camera.lookAt(this.target);
+    this.placeArmies();
     this.renderer.render(this.scene, this.camera);
     this.labels.render(this.scene, this.camera);
     this.frame = requestAnimationFrame((t) => this.tick(t));
+  }
+
+  /** Lerps each Army along its hop by Match Time; a waiting one hovers at `to`. */
+  private placeArmies() {
+    const view = this.stores.store.getState().view;
+    if (!view) return;
+    const now = performance.now() + this.stores.local.getState().clockOffset;
+    for (const [id, mesh] of this.armies) {
+      const a = view.armies.get(id);
+      const from = a && this.planets.get(a.from)?.mesh.position;
+      const to = a && this.planets.get(a.to)?.mesh.position;
+      if (!a || !to) continue;
+      if (a.waiting || !from) {
+        mesh.position.copy(to).add(ORBIT);
+        continue;
+      }
+      mesh.position.lerpVectors(from, to, progress(a, now)).setY(10);
+    }
   }
 
   /** WASD and edge-scroll. */
@@ -322,15 +493,31 @@ function isTyping(target: EventTarget | null) {
   );
 }
 
-function colourOf(p: PlanetView | undefined) {
-  if (!p) return UNSEEN;
-  return p.owner === null
-    ? NEUTRAL
-    : (SEAT_COLOURS[p.owner % SEAT_COLOURS.length] ?? NEUTRAL);
+const ORBIT = new THREE.Vector3(18, 10, -18);
+
+const seatColour = (seat: number) =>
+  SEAT_COLOURS[seat % SEAT_COLOURS.length] ?? NEUTRAL;
+
+/** How far along its hop an Army is, from 0 to 1. */
+export function progress(a: Army, now: number) {
+  const span = a.arrives - a.departed;
+  return span > 0 ? THREE.MathUtils.clamp((now - a.departed) / span, 0, 1) : 1;
 }
 
-/** Name, owner colour, unit-count badge, Locked icon and construction pip. */
-function labelParts(name: string, p: PlanetView | undefined) {
+function colourOf(p: PlanetView | undefined) {
+  if (!p) return UNSEEN;
+  return p.owner === null ? NEUTRAL : seatColour(p.owner);
+}
+
+/**
+ * Name, owner colour, Locked icon, construction pip, and a chip per Stack
+ * with its unit count. onStackDown makes your own non-empty chips draggable.
+ */
+function labelParts(
+  name: string,
+  p: PlanetView | undefined,
+  onStackDown: ((stack: number, e: PointerEvent) => void) | null,
+) {
   const nameEl = document.createElement("div");
   nameEl.textContent = name;
   if (!p) {
@@ -347,9 +534,37 @@ function labelParts(name: string, p: PlanetView | undefined) {
     background: colourOf(p),
     marginRight: "4px",
   });
-  const units = p.stacks.flat().reduce((n, s) => n + s.count, 0);
-  info.append(swatch, `${units}`);
+  info.append(swatch);
   if (p.locked) info.append(" 🔒");
   if (p.queue.length > 0) info.append(" 🔨"); // only ever on your own Planets
-  return [nameEl, info];
+
+  const chips = document.createElement("div");
+  Object.assign(chips.style, {
+    display: "flex",
+    gap: "2px",
+    justifyContent: "center",
+  });
+  p.stacks.forEach((stack, i) => {
+    const units = stack.reduce((n, s) => n + s.count, 0);
+    const chip = document.createElement("div");
+    chip.textContent = units ? `${units}` : "–";
+    chip.title = `Stack ${i + 1}: ${units} units`;
+    Object.assign(chip.style, {
+      minWidth: "18px",
+      padding: "0 3px",
+      border: `1px solid ${colourOf(p)}`,
+      borderRadius: "3px",
+      background: "#0b1020cc",
+    });
+    if (units && onStackDown) {
+      // The label layer ignores the pointer; a chip takes it back to be dragged.
+      chip.style.pointerEvents = "auto";
+      chip.style.cursor = "grab";
+      chip.addEventListener("pointerdown", (e) => {
+        if (e.button === 0) onStackDown(i, e);
+      });
+    }
+    chips.append(chip);
+  });
+  return [nameEl, info, chips];
 }

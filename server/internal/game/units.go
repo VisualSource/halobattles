@@ -90,12 +90,12 @@ func (s *State) SetRallyStack(seat int, planet string, stack int) error {
 	return nil
 }
 
-// addUnits puts units in the Rally Stack, or failing that the first other
+// addUnits puts units in the first Stack, or failing that the next other
 // Stack with room. It reports false if none has room.
-func (p *Planet) addUnits(unit string, count, slots int) bool {
-	order := []int{p.Rally}
+func (p *Planet) addUnits(first int, unit string, count, slots int) bool {
+	order := []int{first}
 	for i := range StacksPerPlanet {
-		if i != p.Rally {
+		if i != first {
 			order = append(order, i)
 		}
 	}

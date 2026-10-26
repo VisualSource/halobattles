@@ -60,10 +60,11 @@ type State struct {
 	Map         string
 	Players     []Player // indexed by Seat
 	Planets     map[string]*Planet
-	Neighbours  map[string][]string // the static Lanes, both ways
-	PaydayEvery int64               // ms
-	NextPayday  int64               // Match Time
-	LastID      uint32              // Match entity ids come from this one counter
+	Lanes       map[string]map[string]int64 // static: from, to, travel ms; both ways
+	PaydayEvery int64                       // ms
+	NextPayday  int64                       // Match Time
+	LastID      uint32                      // Match entity ids come from this one counter
+	Armies      map[uint32]*Army
 }
 
 // SeatSetup is one Seat as the lobby left it.
@@ -87,7 +88,7 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 
 	payday := int64(c.Rulesets[RulesetID].PaydaySeconds) * 1000
 	s := &State{
-		Seed: seed, Map: mapID, Planets: map[string]*Planet{}, Neighbours: map[string][]string{},
+		Seed: seed, Map: mapID, Planets: map[string]*Planet{}, Lanes: map[string]map[string]int64{},
 		PaydayEvery: payday, NextPayday: payday,
 	}
 	for _, mp := range m.Planets {
@@ -111,9 +112,19 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 		p.Stacks = toStacks(m.Garrisons[string(mp.ID)])
 		s.Planets[p.ID] = p
 	}
+	positions := map[string]cs.Position{}
+	for _, mp := range m.Planets {
+		positions[string(mp.ID)] = mp.Position
+	}
 	for _, l := range m.Lanes {
-		s.Neighbours[string(l.From)] = append(s.Neighbours[string(l.From)], string(l.To))
-		s.Neighbours[string(l.To)] = append(s.Neighbours[string(l.To)], string(l.From))
+		from, to := string(l.From), string(l.To)
+		ms := laneTime(l, positions[from], positions[to], c.Rulesets[RulesetID].LaneTypes)
+		for _, end := range [][2]string{{from, to}, {to, from}} {
+			if s.Lanes[end[0]] == nil {
+				s.Lanes[end[0]] = map[string]int64{}
+			}
+			s.Lanes[end[0]][end[1]] = ms
+		}
 	}
 
 	starts := slices.Clone(m.Starts)

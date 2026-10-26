@@ -18,12 +18,15 @@ enum Op : int {
   QueueUnit = 9,
   MoveUnits = 10,
   SetRallyStack = 11,
+  OrderArmy = 12,
+  ReorderArmy = 13,
 
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,
   ViewDelta = 103,
   PaydayPaid = 104,
+  PlanetCaptured = 105,
 }
 
 enum Phase : byte { Lobby, Play, Results }
@@ -100,6 +103,27 @@ table SetRallyStack {     // owner only
   stack: ubyte;
 }
 
+table ArmyUnits {
+  stack: ubyte;
+  unit: string;
+  count: uint32;
+}
+
+table OrderArmy {         // owner only
+  seq: uint32;
+  from_planet: string;
+  units: [ArmyUnits];      // from any of its Stacks
+  to_planet: string;
+  to_stack: ubyte;
+}
+
+table ReorderArmy {       // owner only; finishes its current Lane hop first
+  seq: uint32;
+  army: uint32;
+  to_planet: string;
+  to_stack: ubyte;
+}
+
 // Server messages.
 
 table Seat {
@@ -167,6 +191,21 @@ table PlanetView {
   rally_stack: ubyte;      // where trained units go; own Planets only
 }
 
+// An Army in vision: on its current Lane hop, or waiting in orbit at `to`.
+// Other players' Armies never show where they're headed.
+table ArmyView {
+  id: uint32 (key);
+  owner: byte;
+  units: [UnitSlot];
+  from: string;
+  to: string;
+  departed: long;          // Match Time
+  arrives: long;           // Match Time
+  waiting: bool;
+  destination: string;     // own only
+  to_stack: ubyte;         // own only
+}
+
 // The public part of every player.
 table PlayerView {
   seat: ubyte;
@@ -196,6 +235,7 @@ table ViewFull {
   players: [PlayerView];   // by Seat
   planets: [PlanetView];
   economy: Economy;
+  armies: [ArmyView];
 }
 
 // Sent on a tick when the viewer's View changed since the last one sent.
@@ -206,6 +246,16 @@ table ViewDelta {
   planets: [PlanetView];
   removed_planets: [string];
   economy: Economy;        // absent when unchanged
+  armies: [ArmyView];
+  removed_armies: [uint32];
+}
+
+// Sent to everyone who can see the Planet, and its previous owner.
+table PlanetCaptured {
+  match_time: long;
+  planet: string;
+  from: byte = -1;         // a Seat index; -1 is neutral
+  to: byte;
 }
 
 // Sent to one player at each Payday: what each Resource changed by.

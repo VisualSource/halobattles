@@ -12,6 +12,8 @@ type ViewDeltaT struct {
 	Planets        []*PlanetViewT `json:"planets"`
 	RemovedPlanets []string       `json:"removed_planets"`
 	Economy        *EconomyT      `json:"economy"`
+	Armies         []*ArmyViewT   `json:"armies"`
+	RemovedArmies  []uint32       `json:"removed_armies"`
 }
 
 func (t *ViewDeltaT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -58,12 +60,36 @@ func (t *ViewDeltaT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		removedPlanetsOffset = builder.EndVector(removedPlanetsLength)
 	}
 	economyOffset := t.Economy.Pack(builder)
+	armiesOffset := flatbuffers.UOffsetT(0)
+	if t.Armies != nil {
+		armiesLength := len(t.Armies)
+		armiesOffsets := make([]flatbuffers.UOffsetT, armiesLength)
+		for j := 0; j < armiesLength; j++ {
+			armiesOffsets[j] = t.Armies[j].Pack(builder)
+		}
+		ViewDeltaStartArmiesVector(builder, armiesLength)
+		for j := armiesLength - 1; j >= 0; j-- {
+			builder.PrependUOffsetT(armiesOffsets[j])
+		}
+		armiesOffset = builder.EndVector(armiesLength)
+	}
+	removedArmiesOffset := flatbuffers.UOffsetT(0)
+	if t.RemovedArmies != nil {
+		removedArmiesLength := len(t.RemovedArmies)
+		ViewDeltaStartRemovedArmiesVector(builder, removedArmiesLength)
+		for j := removedArmiesLength - 1; j >= 0; j-- {
+			builder.PrependUint32(t.RemovedArmies[j])
+		}
+		removedArmiesOffset = builder.EndVector(removedArmiesLength)
+	}
 	ViewDeltaStart(builder)
 	ViewDeltaAddMatchTime(builder, t.MatchTime)
 	ViewDeltaAddPlayers(builder, playersOffset)
 	ViewDeltaAddPlanets(builder, planetsOffset)
 	ViewDeltaAddRemovedPlanets(builder, removedPlanetsOffset)
 	ViewDeltaAddEconomy(builder, economyOffset)
+	ViewDeltaAddArmies(builder, armiesOffset)
+	ViewDeltaAddRemovedArmies(builder, removedArmiesOffset)
 	return ViewDeltaEnd(builder)
 }
 
@@ -89,6 +115,18 @@ func (rcv *ViewDelta) UnPackTo(t *ViewDeltaT) {
 		t.RemovedPlanets[j] = string(rcv.RemovedPlanets(j))
 	}
 	t.Economy = rcv.Economy(nil).UnPack()
+	armiesLength := rcv.ArmiesLength()
+	t.Armies = make([]*ArmyViewT, armiesLength)
+	for j := 0; j < armiesLength; j++ {
+		x := ArmyView{}
+		rcv.Armies(&x, j)
+		t.Armies[j] = x.UnPack()
+	}
+	removedArmiesLength := rcv.RemovedArmiesLength()
+	t.RemovedArmies = make([]uint32, removedArmiesLength)
+	for j := 0; j < removedArmiesLength; j++ {
+		t.RemovedArmies[j] = rcv.RemovedArmies(j)
+	}
 }
 
 func (rcv *ViewDelta) UnPack() *ViewDeltaT {
@@ -226,8 +264,63 @@ func (rcv *ViewDelta) Economy(obj *Economy) *Economy {
 	return nil
 }
 
+func (rcv *ViewDelta) Armies(obj *ArmyView, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *ViewDelta) ArmiesByKey(obj *ArmyView, key uint32) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		return obj.LookupByKey(key, x, rcv._tab.Bytes)
+	}
+	return false
+}
+
+func (rcv *ViewDelta) ArmiesLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
+func (rcv *ViewDelta) RemovedArmies(j int) uint32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		a := rcv._tab.Vector(o)
+		return rcv._tab.GetUint32(a + flatbuffers.UOffsetT(j*4))
+	}
+	return 0
+}
+
+func (rcv *ViewDelta) RemovedArmiesLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
+func (rcv *ViewDelta) MutateRemovedArmies(j int, n uint32) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		a := rcv._tab.Vector(o)
+		return rcv._tab.MutateUint32(a+flatbuffers.UOffsetT(j*4), n)
+	}
+	return false
+}
+
 func ViewDeltaStart(builder *flatbuffers.Builder) {
-	builder.StartObject(5)
+	builder.StartObject(7)
 }
 func ViewDeltaAddMatchTime(builder *flatbuffers.Builder, matchTime int64) {
 	builder.PrependInt64Slot(0, matchTime, 0)
@@ -252,6 +345,18 @@ func ViewDeltaStartRemovedPlanetsVector(builder *flatbuffers.Builder, numElems i
 }
 func ViewDeltaAddEconomy(builder *flatbuffers.Builder, economy flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(economy), 0)
+}
+func ViewDeltaAddArmies(builder *flatbuffers.Builder, armies flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(armies), 0)
+}
+func ViewDeltaStartArmiesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func ViewDeltaAddRemovedArmies(builder *flatbuffers.Builder, removedArmies flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(removedArmies), 0)
+}
+func ViewDeltaStartRemovedArmiesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
 }
 func ViewDeltaEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

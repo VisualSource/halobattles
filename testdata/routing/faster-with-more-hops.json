@@ -1,0 +1,33 @@
+{
+  "description": "Two fast hops beat one slow Lane.",
+  "lanes": [
+    {
+      "from": "a",
+      "to": "c",
+      "time": 50000
+    },
+    {
+      "from": "a",
+      "to": "b",
+      "time": 20000
+    },
+    {
+      "from": "b",
+      "to": "c",
+      "time": 20000
+    }
+  ],
+  "owners": {
+    "a": 0,
+    "b": 0
+  },
+  "player": 0,
+  "from": "a",
+  "to": "c",
+  "path": [
+    "a",
+    "b",
+    "c"
+  ],
+  "time": 40000
+}

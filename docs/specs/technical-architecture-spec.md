@@ -271,7 +271,7 @@ Dev builds log the unpacked messages as JSON.
 ### Galaxy scene
 
 - A **perspective camera at a fixed tilt** looks at the map on the XZ plane. It pans by drag, WASD or edge-scroll, zooms with a clamped wheel, and **never rotates**.
-- Planet labels use **CSS2DRenderer** with plain DOM elements the scene creates: name, owner colour, unit-count badge, Locked icon and a construction pip. They aren't interactive.
+- Planet labels use **CSS2DRenderer** with plain DOM elements the scene creates: name, owner colour, Locked icon, a construction pip, and a chip per Stack with its unit count. Only your own Stack chips are interactive: they can be dragged (see [Ordering](#ordering)).
 - A `requestAnimationFrame` loop places Armies on Lanes by lerping each hop's start/end Match Time against `performance.now() + offset`.
 - A Locked marker shows on Planets with a Battle.
 
@@ -290,12 +290,15 @@ React, fixed to the screen, not anchored to 3D.
 
 ### Ordering
 
-1. Left-click an owned Planet to select it and open its panel.
-2. Click Unit Slots in its Stack grids to add them to the order. Shift-click or a count slider takes a partial count.
-3. Right-click a target Planet to send `OrderArmy`. `toStack` is the target's Rally Stack if you own it, otherwise Stack 1.
-4. To re-target, select an Army on its Lane and right-click to send `ReorderArmy`. Escape clears the selection. There is no box-select.
+Empire at War style: the map shows each Planet's three Stacks, and an order is a drag.
 
-- While hovering a target, a **route preview** comes from a client-side TS port of the owned-only Dijkstra over static Lanes and your own Planets. The server's route stays authoritative.
+1. Drag one of your Stack chips onto another Planet to send that whole Stack with `OrderArmy`. To send part of a Stack, first split it with `MoveUnits` in the Planet panel.
+2. Drag one of your Armies onto a Planet to send `ReorderArmy`.
+3. `toStack` is the target's Rally Stack if you own it, otherwise Stack 1.
+4. A click without dragging selects the Planet or Army and opens its panel. Escape cancels a drag and clears the selection. There is no box-select.
+5. The keyboard path is each Stack's "Send to…" picker in the Planet panel.
+
+- While dragging over a target, a **route preview** comes from a client-side TS port of the owned-only Dijkstra over static Lanes and your own Planets. The server's route stays authoritative.
 - **Pending commands:** the affected control shows a pending state (a greyed row or a slot spinner). It clears when the View changes the entity, or turns into a toast with the reason on `CommandRejected`.
 
 ### Content and assets

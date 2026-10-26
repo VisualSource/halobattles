@@ -21,6 +21,7 @@ type fakeDispatcher struct {
 	views    map[string]*wire.ViewFullT          // last ViewFull, by session
 	deltas   map[string][]*wire.ViewDeltaT       // by session
 	paydays  map[string][]*wire.PaydayPaidT      // by session
+	captured map[string][]*wire.PlanetCapturedT  // by session
 }
 
 func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Presence, _ runtime.Presence, _ bool) error {
@@ -44,6 +45,13 @@ func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Pr
 		}
 		sid := to[0].GetSessionId()
 		d.paydays[sid] = append(d.paydays[sid], wire.GetRootAsPaydayPaid(data, 0).UnPack())
+	case op == int64(wire.OpPlanetCaptured):
+		if d.captured == nil {
+			d.captured = map[string][]*wire.PlanetCapturedT{}
+		}
+		for _, p := range to {
+			d.captured[p.GetSessionId()] = append(d.captured[p.GetSessionId()], wire.GetRootAsPlanetCaptured(data, 0).UnPack())
+		}
 	case op == int64(wire.OpCommandRejected) && len(to) == 1:
 		if d.rejected == nil {
 			d.rejected = map[string][]*wire.CommandRejectedT{}
@@ -100,12 +108,14 @@ func testContent() *content.Content {
 			},
 		},
 		PlanetTypes: map[string]contentschema.PlanetType{"base:capital": {BuildingSlots: 2, Income: map[string]int{"base:credits": 300}}},
-		Factions:    map[string]contentschema.Faction{"base:unsc": {}, "base:covenant": {}},
+		Factions: map[string]contentschema.Faction{"base:unsc": {}, "base:covenant": {StartingKit: contentschema.StartingKit{
+			Stacks: contentschema.Stacks{{{Unit: "base:grunt", Count: 5}}},
+		}}},
 		Buildings: map[string]contentschema.Building{"base:hall": {
 			Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
 		}},
 		Resources: map[string]contentschema.Resource{"base:credits": {}},
-		Rulesets:  map[string]contentschema.Ruleset{"base:rules": {PaydaySeconds: 90, StartingResources: map[string]int{"base:credits": 1000}}},
+		Rulesets:  map[string]contentschema.Ruleset{"base:rules": {PaydaySeconds: 90, UnitSlotsPerStack: 10, StartingResources: map[string]int{"base:credits": 1000}}},
 	}}
 }
 

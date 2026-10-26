@@ -1,0 +1,22 @@
+{
+  "description": "A neutral Planet in the way ends the move there, so c can't be reached.",
+  "lanes": [
+    {
+      "from": "a",
+      "to": "b",
+      "time": 30000
+    },
+    {
+      "from": "b",
+      "to": "c",
+      "time": 30000
+    }
+  ],
+  "owners": {
+    "a": 0
+  },
+  "player": 0,
+  "from": "a",
+  "to": "c",
+  "unreachable": true
+}

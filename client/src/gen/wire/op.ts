@@ -15,9 +15,12 @@ export enum Op {
   QueueUnit = 9,
   MoveUnits = 10,
   SetRallyStack = 11,
+  OrderArmy = 12,
+  ReorderArmy = 13,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,
   ViewDelta = 103,
-  PaydayPaid = 104
+  PaydayPaid = 104,
+  PlanetCaptured = 105
 }

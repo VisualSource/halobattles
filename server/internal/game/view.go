@@ -1,6 +1,7 @@
 package game
 
 import (
+	"cmp"
 	"maps"
 	"reflect"
 	"slices"
@@ -16,6 +17,7 @@ type View struct {
 	You     int // the viewer's Seat
 	Players []PlayerView
 	Planets []PlanetView // only Planets in vision, sorted by id
+	Armies  []ArmyView   // only Armies in vision, sorted by id
 	Economy Economy
 }
 
@@ -51,9 +53,40 @@ type PlanetView struct {
 	Rally     int         // own only
 }
 
-// View is the only place vision is enforced: a player sees the Planets they
-// own and every Planet one Lane away. Anything else is left out, so its
-// owner and Capital flag stay hidden.
+// ArmyView is an Army in vision. Other players' show only the current hop,
+// never where they're headed.
+type ArmyView struct {
+	ID          uint32
+	Owner       int
+	Units       []UnitSlot
+	From, To    string
+	Departed    int64
+	Arrives     int64
+	Waiting     bool
+	Destination string // own only
+	ToStack     int    // own only
+}
+
+// visible is the set of Planets a player sees: those they own and every
+// Planet one Lane away.
+func (s *State) visible(seat int) map[string]bool {
+	v := map[string]bool{}
+	for id, p := range s.Planets {
+		if p.Owner == seat {
+			v[id] = true
+			for n := range s.Lanes[id] {
+				v[n] = true
+			}
+		}
+	}
+	return v
+}
+
+func (s *State) sees(seat int, planet string) bool { return s.visible(seat)[planet] }
+
+// View is the only place vision is enforced. Planets outside vision are
+// left out, so their owner and Capital flag stay hidden. An Army is seen
+// while either end of its Lane hop is in vision, or the Planet it waits at.
 func (s *State) View(c *cs.Content, seat int) View {
 	v := View{Time: s.Time, Map: s.Map, You: seat}
 	used, cp := s.commandPoints(c, seat)
@@ -62,16 +95,10 @@ func (s *State) View(c *cs.Content, seat int) View {
 		PaydayStart: s.NextPayday - s.PaydayEvery, PaydayEnd: s.NextPayday,
 	}
 	counts := map[int]int{}
-	visible := map[string]bool{}
-	for id, p := range s.Planets {
+	for _, p := range s.Planets {
 		counts[p.Owner]++
-		if p.Owner == seat {
-			visible[id] = true
-			for _, n := range s.Neighbours[id] {
-				visible[n] = true
-			}
-		}
 	}
+	visible := s.visible(seat)
 	for _, p := range s.Players {
 		v.Players = append(v.Players, PlayerView{
 			Seat: p.Seat, User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: counts[p.Seat],
@@ -94,16 +121,36 @@ func (s *State) View(c *cs.Content, seat int) View {
 		}
 		v.Planets = append(v.Planets, pv)
 	}
+	for _, id := range slices.Sorted(maps.Keys(s.Armies)) {
+		a := s.Armies[id]
+		mine := a.Owner == seat
+		if !mine && !visible[a.To] && (a.Waiting || !visible[a.From]) {
+			continue
+		}
+		av := ArmyView{
+			ID: a.ID, Owner: a.Owner, Units: slices.Clone(a.Units), From: a.From, To: a.To,
+			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting,
+		}
+		if mine {
+			av.Destination, av.ToStack = a.To, a.ToStack
+			if len(a.Path) > 0 {
+				av.Destination = a.Path[len(a.Path)-1]
+			}
+		}
+		v.Armies = append(v.Armies, av)
+	}
 	return v
 }
 
 // Delta is what changed between two Views of the same player: whole
-// upserted entities, plus the ids of Planets that left vision.
+// upserted entities, plus the ids of those that left vision.
 type Delta struct {
 	Time           int64
 	Players        []PlayerView
 	Planets        []PlanetView // sorted by id
 	RemovedPlanets []string     // sorted
+	Armies         []ArmyView   // sorted by id
+	RemovedArmies  []uint32     // sorted
 	Economy        *Economy     // nil when unchanged
 }
 
@@ -116,20 +163,28 @@ func Diff(prev, next View) (Delta, bool) {
 			d.Players = append(d.Players, p)
 		}
 	}
-	old := map[string]PlanetView{}
-	for _, p := range prev.Planets {
-		old[p.ID] = p
-	}
-	for _, p := range next.Planets {
-		if o, ok := old[p.ID]; !ok || !reflect.DeepEqual(o, p) {
-			d.Planets = append(d.Planets, p)
-		}
-		delete(old, p.ID)
-	}
-	d.RemovedPlanets = slices.Sorted(maps.Keys(old))
+	d.Planets, d.RemovedPlanets = diffBy(prev.Planets, next.Planets, func(p PlanetView) string { return p.ID })
+	d.Armies, d.RemovedArmies = diffBy(prev.Armies, next.Armies, func(a ArmyView) uint32 { return a.ID })
 	if !reflect.DeepEqual(prev.Economy, next.Economy) {
 		d.Economy = &next.Economy
 	}
-	changed := len(d.Players)+len(d.Planets)+len(d.RemovedPlanets) > 0 || d.Economy != nil
+	changed := len(d.Players)+len(d.Planets)+len(d.RemovedPlanets)+len(d.Armies)+len(d.RemovedArmies) > 0 ||
+		d.Economy != nil
 	return d, changed
+}
+
+// diffBy compares two id-sorted entity lists: the new or changed ones, and
+// the sorted ids of those gone.
+func diffBy[T any, K cmp.Ordered](prev, next []T, id func(T) K) (upserts []T, removed []K) {
+	old := map[K]T{}
+	for _, e := range prev {
+		old[id(e)] = e
+	}
+	for _, e := range next {
+		if o, ok := old[id(e)]; !ok || !reflect.DeepEqual(o, e) {
+			upserts = append(upserts, e)
+		}
+		delete(old, id(e))
+	}
+	return upserts, slices.Sorted(maps.Keys(old))
 }

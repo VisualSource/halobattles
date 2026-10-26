@@ -9,7 +9,7 @@ import (
 func TestPaydayPaysIncomePlusYieldsMinusUpkeep(t *testing.T) {
 	s := fixedMatch(t) // Seat 0's Capital a has a Barracks and a Supply Pad
 
-	paid := s.Advance(lineContent(), 90_000)
+	paid := s.Advance(lineContent(), 90_000).Paydays
 
 	// Capital 300C 100M, Supply Pad +100C, Barracks -10C.
 	want := map[string]int{"base:credits": 390, "base:materials": 100}
@@ -25,7 +25,7 @@ func TestPaydayPaysNothingForNeutralPlanets(t *testing.T) {
 	s := fixedMatch(t)
 	s.Planets["b"].Owner = 0 // a Standard Planet: +200C 50M
 
-	paid := s.Advance(lineContent(), 90_000)
+	paid := s.Advance(lineContent(), 90_000).Paydays
 
 	if got := paid[0].Net["base:credits"]; got != 590 {
 		t.Errorf("Seat 0's Credits net = %d, want 590 with b", got)
@@ -42,7 +42,7 @@ func TestUpkeepCanPushAPlayerIntoDebt(t *testing.T) {
 	a.Buildings = []string{"base:barracks", "base:air-pad", "base:air-pad", "base:air-pad"}
 	s.Players[0].Resources["base:credits"] = 50
 
-	paid := s.Advance(lineContent(), 90_000)
+	paid := s.Advance(lineContent(), 90_000).Paydays
 
 	if got := paid[0].Net["base:credits"]; got != -100 {
 		t.Errorf("net = %d, want -100 (10 + 3×30 Upkeep)", got)
@@ -56,13 +56,13 @@ func TestPaydayFiresOnTheFirstTickAfterItsDue(t *testing.T) {
 	s := fixedMatch(t)
 	c := lineContent()
 
-	if paid := s.Advance(c, 89_800); paid != nil {
+	if paid := s.Advance(c, 89_800).Paydays; paid != nil {
 		t.Fatalf("paid at 89.8 s, before the 90 s Payday: %+v", paid)
 	}
-	if paid := s.Advance(c, 90_200); len(paid) != 2 {
+	if paid := s.Advance(c, 90_200).Paydays; len(paid) != 2 {
 		t.Fatalf("no Payday on the first tick after 90 s")
 	}
-	if paid := s.Advance(c, 90_400); paid != nil {
+	if paid := s.Advance(c, 90_400).Paydays; paid != nil {
 		t.Errorf("paid twice for one Payday")
 	}
 	if s.NextPayday != 180_000 {

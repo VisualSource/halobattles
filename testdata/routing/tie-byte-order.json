@@ -1,0 +1,39 @@
+{
+  "description": "Byte-wise order: upper case sorts before lower case.",
+  "lanes": [
+    {
+      "from": "a",
+      "to": "b",
+      "time": 10000
+    },
+    {
+      "from": "b",
+      "to": "d",
+      "time": 10000
+    },
+    {
+      "from": "a",
+      "to": "C",
+      "time": 10000
+    },
+    {
+      "from": "C",
+      "to": "d",
+      "time": 10000
+    }
+  ],
+  "owners": {
+    "a": 0,
+    "b": 0,
+    "C": 0
+  },
+  "player": 0,
+  "from": "a",
+  "to": "d",
+  "path": [
+    "a",
+    "C",
+    "d"
+  ],
+  "time": 20000
+}

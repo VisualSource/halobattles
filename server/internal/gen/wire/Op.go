@@ -19,11 +19,14 @@ const (
 	OpQueueUnit            Op = 9
 	OpMoveUnits            Op = 10
 	OpSetRallyStack        Op = 11
+	OpOrderArmy            Op = 12
+	OpReorderArmy          Op = 13
 	OpLobbyState           Op = 100
 	OpCommandRejected      Op = 101
 	OpViewFull             Op = 102
 	OpViewDelta            Op = 103
 	OpPaydayPaid           Op = 104
+	OpPlanetCaptured       Op = 105
 )
 
 var EnumNamesOp = map[Op]string{
@@ -39,11 +42,14 @@ var EnumNamesOp = map[Op]string{
 	OpQueueUnit:            "QueueUnit",
 	OpMoveUnits:            "MoveUnits",
 	OpSetRallyStack:        "SetRallyStack",
+	OpOrderArmy:            "OrderArmy",
+	OpReorderArmy:          "ReorderArmy",
 	OpLobbyState:           "LobbyState",
 	OpCommandRejected:      "CommandRejected",
 	OpViewFull:             "ViewFull",
 	OpViewDelta:            "ViewDelta",
 	OpPaydayPaid:           "PaydayPaid",
+	OpPlanetCaptured:       "PlanetCaptured",
 }
 
 var EnumValuesOp = map[string]Op{
@@ -59,11 +65,14 @@ var EnumValuesOp = map[string]Op{
 	"QueueUnit":            OpQueueUnit,
 	"MoveUnits":            OpMoveUnits,
 	"SetRallyStack":        OpSetRallyStack,
+	"OrderArmy":            OpOrderArmy,
+	"ReorderArmy":          OpReorderArmy,
 	"LobbyState":           OpLobbyState,
 	"CommandRejected":      OpCommandRejected,
 	"ViewFull":             OpViewFull,
 	"ViewDelta":            OpViewDelta,
 	"PaydayPaid":           OpPaydayPaid,
+	"PlanetCaptured":       OpPlanetCaptured,
 }
 
 func (v Op) String() string {

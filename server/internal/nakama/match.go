@@ -144,16 +144,32 @@ func (m *match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 
 // advance fires what's due, then sends each connected player a ViewDelta
 // if their View changed since the last one they were sent.
+// sendTo sends an event to the connected players among seats. Anyone
+// disconnected catches up from their ViewFull.
+func (s *matchState) sendTo(logger runtime.Logger, dispatcher runtime.MatchDispatcher, op wire.Op, data []byte, seats ...int) {
+	var to []runtime.Presence
+	for _, seat := range seats {
+		if p := s.presences[s.play.Players[seat].User]; p != nil {
+			to = append(to, p)
+		}
+	}
+	if len(to) == 0 {
+		return
+	}
+	if err := dispatcher.BroadcastMessage(int64(op), data, to, nil, true); err != nil {
+		logger.Error("send %s: %v", op, err)
+	}
+}
+
 func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDispatcher) {
-	for _, paid := range s.play.Advance(&s.content.Doc, s.play.Time) {
-		p := s.presences[s.play.Players[paid.Seat].User]
-		if p == nil {
-			continue // disconnected: the new totals arrive in their ViewFull
-		}
+	ev := s.play.Advance(&s.content.Doc, s.play.Time)
+	for _, c := range ev.Captures {
+		t := &wire.PlanetCapturedT{MatchTime: s.play.Time, Planet: c.Planet, From: int8(c.From), To: int8(c.To)}
+		s.sendTo(logger, dispatcher, wire.OpPlanetCaptured, finish(t), c.Viewers...)
+	}
+	for _, paid := range ev.Paydays {
 		t := &wire.PaydayPaidT{MatchTime: s.play.Time, Net: amounts(paid.Net)}
-		if err := dispatcher.BroadcastMessage(int64(wire.OpPaydayPaid), finish(t), []runtime.Presence{p}, nil, true); err != nil {
-			logger.Error("send PaydayPaid: %v", err)
-		}
+		s.sendTo(logger, dispatcher, wire.OpPaydayPaid, finish(t), paid.Seat)
 	}
 	for seat, pl := range s.play.Players {
 		p := s.presences[pl.User]
@@ -259,7 +275,7 @@ func (s *matchState) encodeLobby() []byte {
 func encodeView(v game.View, contentHash string) []byte {
 	return finish(&wire.ViewFullT{
 		MatchTime: v.Time, ContentHash: contentHash, Ruleset: game.RulesetID, Map: v.Map, You: uint8(v.You),
-		Players: players(v.Players), Planets: planets(v.Planets), Economy: economy(&v.Economy),
+		Players: players(v.Players), Planets: planets(v.Planets), Economy: economy(&v.Economy), Armies: armies(v.Armies),
 	})
 }
 
@@ -267,7 +283,27 @@ func encodeDelta(d game.Delta) []byte {
 	return finish(&wire.ViewDeltaT{
 		MatchTime: d.Time, Players: players(d.Players), Planets: planets(d.Planets),
 		RemovedPlanets: d.RemovedPlanets, Economy: economy(d.Economy),
+		Armies: armies(d.Armies), RemovedArmies: d.RemovedArmies,
 	})
+}
+
+func armies(as []game.ArmyView) []*wire.ArmyViewT {
+	var out []*wire.ArmyViewT
+	for _, a := range as { // already sorted by id, as the (key) needs
+		out = append(out, &wire.ArmyViewT{
+			Id: a.ID, Owner: int8(a.Owner), Units: unitSlots(a.Units), From: a.From, To: a.To,
+			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting, Destination: a.Destination, ToStack: uint8(a.ToStack),
+		})
+	}
+	return out
+}
+
+func unitSlots(st []game.UnitSlot) []*wire.UnitSlotT {
+	var out []*wire.UnitSlotT
+	for _, u := range st {
+		out = append(out, &wire.UnitSlotT{Unit: u.Unit, Count: uint32(u.Count)})
+	}
+	return out
 }
 
 func players(ps []game.PlayerView) []*wire.PlayerViewT {
@@ -285,11 +321,7 @@ func planets(ps []game.PlanetView) []*wire.PlanetViewT {
 	for _, p := range ps { // already sorted by id, as the (key) needs
 		pv := &wire.PlanetViewT{Id: p.ID, Owner: int8(p.Owner), Capital: p.Capital, Locked: p.Locked, Buildings: p.Buildings}
 		for _, st := range p.Stacks {
-			ws := &wire.StackT{}
-			for _, u := range st {
-				ws.Slots = append(ws.Slots, &wire.UnitSlotT{Unit: u.Unit, Count: uint32(u.Count)})
-			}
-			pv.Stacks = append(pv.Stacks, ws)
+			pv.Stacks = append(pv.Stacks, &wire.StackT{Slots: unitSlots(st)})
 		}
 		pv.Queue, pv.UnitQueue, pv.RallyStack = queueItems(p.Queue), queueItems(p.UnitQueue), uint8(p.Rally)
 		out = append(out, pv)

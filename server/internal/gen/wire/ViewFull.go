@@ -15,6 +15,7 @@ type ViewFullT struct {
 	Players     []*PlayerViewT `json:"players"`
 	Planets     []*PlanetViewT `json:"planets"`
 	Economy     *EconomyT      `json:"economy"`
+	Armies      []*ArmyViewT   `json:"armies"`
 }
 
 func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -60,6 +61,19 @@ func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		planetsOffset = builder.EndVector(planetsLength)
 	}
 	economyOffset := t.Economy.Pack(builder)
+	armiesOffset := flatbuffers.UOffsetT(0)
+	if t.Armies != nil {
+		armiesLength := len(t.Armies)
+		armiesOffsets := make([]flatbuffers.UOffsetT, armiesLength)
+		for j := 0; j < armiesLength; j++ {
+			armiesOffsets[j] = t.Armies[j].Pack(builder)
+		}
+		ViewFullStartArmiesVector(builder, armiesLength)
+		for j := armiesLength - 1; j >= 0; j-- {
+			builder.PrependUOffsetT(armiesOffsets[j])
+		}
+		armiesOffset = builder.EndVector(armiesLength)
+	}
 	ViewFullStart(builder)
 	ViewFullAddMatchTime(builder, t.MatchTime)
 	ViewFullAddContentHash(builder, contentHashOffset)
@@ -69,6 +83,7 @@ func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	ViewFullAddPlayers(builder, playersOffset)
 	ViewFullAddPlanets(builder, planetsOffset)
 	ViewFullAddEconomy(builder, economyOffset)
+	ViewFullAddArmies(builder, armiesOffset)
 	return ViewFullEnd(builder)
 }
 
@@ -93,6 +108,13 @@ func (rcv *ViewFull) UnPackTo(t *ViewFullT) {
 		t.Planets[j] = x.UnPack()
 	}
 	t.Economy = rcv.Economy(nil).UnPack()
+	armiesLength := rcv.ArmiesLength()
+	t.Armies = make([]*ArmyViewT, armiesLength)
+	for j := 0; j < armiesLength; j++ {
+		x := ArmyView{}
+		rcv.Armies(&x, j)
+		t.Armies[j] = x.UnPack()
+	}
 }
 
 func (rcv *ViewFull) UnPack() *ViewFullT {
@@ -249,8 +271,37 @@ func (rcv *ViewFull) Economy(obj *Economy) *Economy {
 	return nil
 }
 
+func (rcv *ViewFull) Armies(obj *ArmyView, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *ViewFull) ArmiesByKey(obj *ArmyView, key uint32) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		return obj.LookupByKey(key, x, rcv._tab.Bytes)
+	}
+	return false
+}
+
+func (rcv *ViewFull) ArmiesLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func ViewFullStart(builder *flatbuffers.Builder) {
-	builder.StartObject(8)
+	builder.StartObject(9)
 }
 func ViewFullAddMatchTime(builder *flatbuffers.Builder, matchTime int64) {
 	builder.PrependInt64Slot(0, matchTime, 0)
@@ -281,6 +332,12 @@ func ViewFullStartPlanetsVector(builder *flatbuffers.Builder, numElems int) flat
 }
 func ViewFullAddEconomy(builder *flatbuffers.Builder, economy flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(economy), 0)
+}
+func ViewFullAddArmies(builder *flatbuffers.Builder, armies flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(8, flatbuffers.UOffsetT(armies), 0)
+}
+func ViewFullStartArmiesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
 }
 func ViewFullEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

@@ -2,6 +2,8 @@ import type { MatchData, Session, Socket } from "@heroiclabs/nakama-js";
 import { Builder, ByteBuffer } from "flatbuffers";
 import {
   AmountT,
+  ArmyUnitsT,
+  type ArmyViewT,
   CancelQueueItemT,
   CommandRejected,
   type EconomyT,
@@ -9,13 +11,16 @@ import {
   type LobbyStateT,
   MoveUnitsT,
   Op,
+  OrderArmyT,
   PaydayPaid,
   Phase,
+  PlanetCaptured,
   type PlanetViewT,
   type PlayerViewT,
   QueueBuildingT,
   type QueueItemT,
   QueueUnitT,
+  ReorderArmyT,
   SellBuildingT,
   SetFactionT,
   SetMapT,
@@ -30,6 +35,7 @@ import {
 } from "../gen/wire";
 import { type CommandKind, createLocalStore } from "./local";
 import {
+  type Army,
   applyDelta,
   createMatchStore,
   type ViewDelta as Delta,
@@ -103,6 +109,19 @@ const toPlanet = (p: PlanetViewT): PlanetView => ({
   rallyStack: p.rallyStack,
 });
 
+const toArmy = (a: ArmyViewT): Army => ({
+  id: a.id,
+  owner: a.owner,
+  units: a.units.map((u) => ({ unit: str(u.unit), count: u.count })),
+  from: str(a.from),
+  to: str(a.to),
+  departed: Number(a.departed),
+  arrives: Number(a.arrives),
+  waiting: a.waiting,
+  destination: str(a.destination),
+  toStack: a.toStack,
+});
+
 const toQueueItem = (q: QueueItemT): QueueItem => ({
   id: q.id,
   slot: q.slot,
@@ -139,6 +158,7 @@ function toView(t: ViewFullT): View {
     you: t.you,
     players: t.players.map(toPlayer),
     planets: new Map(t.planets.map((p) => [str(p.id), toPlanet(p)])),
+    armies: new Map(t.armies.map((a) => [a.id, toArmy(a)])),
     economy: t.economy ? toEconomy(t.economy) : NO_ECONOMY,
   };
 }
@@ -148,6 +168,8 @@ const toDelta = (t: ViewDeltaT): Delta => ({
   players: t.players.map(toPlayer),
   planets: t.planets.map(toPlanet),
   removedPlanets: t.removedPlanets.map(str),
+  armies: t.armies.map(toArmy),
+  removedArmies: [...t.removedArmies],
   economy: t.economy ? toEconomy(t.economy) : null,
 });
 
@@ -156,7 +178,8 @@ const toDelta = (t: ViewDeltaT): Delta => ({
  * at the edge and writes the Match store, and it sends commands, tracking
  * each by seq in the Local store until the server has processed it. One-off
  * events go out on `events`: "rejected" carries a refused command's reason,
- * and "payday" the Map of what each Resource changed by.
+ * "payday" the Map of what each Resource changed by, and "captured" a
+ * Planet that changed hands, as {planet, from, to} (Seats; null is neutral).
  */
 export class MatchConnection {
   readonly store = createMatchStore();
@@ -260,6 +283,28 @@ export class MatchConnection {
     );
   }
 
+  orderArmy(
+    from: string,
+    units: { stack: number; unit: string; count: number }[],
+    to: string,
+    toStack: number,
+  ) {
+    const list = units.map((u) => new ArmyUnitsT(u.stack, u.unit, u.count));
+    this.send(
+      Op.OrderArmy,
+      "order",
+      (seq) => new OrderArmyT(seq, from, list, to, toStack),
+    );
+  }
+
+  reorderArmy(army: number, to: string, toStack: number) {
+    this.send(
+      Op.ReorderArmy,
+      "order",
+      (seq) => new ReorderArmyT(seq, army, to, toStack),
+    );
+  }
+
   setRallyStack(planet: string, stack: number) {
     this.send(
       Op.SetRallyStack,
@@ -326,6 +371,21 @@ export class MatchConnection {
         this.syncClock(Number(t.matchTime));
         this.events.dispatchEvent(
           new CustomEvent("payday", { detail: toAmounts(t.net) }),
+        );
+        return;
+      }
+      case Op.PlanetCaptured: {
+        const t = PlanetCaptured.getRootAsPlanetCaptured(bb).unpack();
+        this.debug("PlanetCaptured", t);
+        this.syncClock(Number(t.matchTime));
+        this.events.dispatchEvent(
+          new CustomEvent("captured", {
+            detail: {
+              planet: str(t.planet),
+              from: t.from < 0 ? null : t.from,
+              to: t.to,
+            },
+          }),
         );
         return;
       }

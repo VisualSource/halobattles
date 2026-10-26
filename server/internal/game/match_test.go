@@ -16,7 +16,7 @@ func lineContent() *cs.Content {
 		return cs.MapPlanet{ID: cs.LocalID(id), Name: cs.Name(id), Type: cs.ID(typ)}
 	}
 	lane := func(from, to string) cs.Lane {
-		return cs.Lane{From: cs.LocalID(from), To: cs.LocalID(to), Type: "fast"}
+		return cs.Lane{From: cs.LocalID(from), To: cs.LocalID(to), Type: "fast", Time: new(30.0)}
 	}
 	stacks := func(unit string, n int) cs.Stacks {
 		return cs.Stacks{cs.Stack{{Unit: cs.ID(unit), Count: n}}}

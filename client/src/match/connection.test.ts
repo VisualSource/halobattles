@@ -3,12 +3,15 @@ import * as flatbuffers from "flatbuffers";
 import { describe, expect, it, vi } from "vitest";
 import {
   AmountT,
+  ArmyViewT,
   EconomyT,
   LobbyStateT,
   MoveUnits,
   Op,
+  OrderArmy,
   PaydayPaidT,
   Phase,
+  PlanetCapturedT,
   PlanetViewT,
   PlayerViewT,
   QueueBuilding,
@@ -133,6 +136,20 @@ describe("MatchConnection", () => {
         new PlanetViewT("jericho", -1, false, false, ["", "", ""], []),
       ],
       new EconomyT([new AmountT("base:credits", -20)], 16, 20, 0n, 90000n),
+      [
+        new ArmyViewT(
+          4,
+          1,
+          [new UnitSlotT("base:grunt", 3)],
+          "harvest",
+          "jericho",
+          1000n,
+          31000n,
+          false,
+          "reach",
+          2,
+        ),
+      ],
     );
     b.finish(view.pack(b));
 
@@ -197,6 +214,23 @@ describe("MatchConnection", () => {
         paydayStart: 0,
         paydayEnd: 90000,
       },
+      armies: new Map([
+        [
+          4,
+          {
+            id: 4,
+            owner: 1,
+            units: [{ unit: "base:grunt", count: 3 }],
+            from: "harvest",
+            to: "jericho",
+            departed: 1000,
+            arrives: 31000,
+            waiting: false,
+            destination: "reach",
+            toStack: 2,
+          },
+        ],
+      ]),
     });
   });
 
@@ -403,6 +437,68 @@ describe("MatchConnection", () => {
       "train",
       "move",
       "rally",
+    ]);
+  });
+
+  it("applies Armies in a ViewDelta: upserts and removals", async () => {
+    const { conn, send } = await playing();
+    const army = (id: number, to: string) =>
+      new ArmyViewT(id, 0, [], "a", to, 0n, 30000n, false, to, 0);
+    send(
+      Op.ViewDelta,
+      pack(
+        new ViewDeltaT(0n, [], [], [], null, [army(1, "b"), army(2, "c")], []),
+      ),
+    );
+
+    send(
+      Op.ViewDelta,
+      pack(new ViewDeltaT(100n, [], [], [], null, [army(2, "b")], [1])),
+    );
+
+    const armies = conn.store.getState().view?.armies;
+    expect([...(armies?.keys() ?? [])]).toEqual([2]);
+    expect(armies?.get(2)?.to).toBe("b");
+  });
+
+  it("sends PlanetCaptured out as a captured event", async () => {
+    const { conn, send } = await playing();
+    const got: unknown[] = [];
+    conn.events.addEventListener("captured", (e) =>
+      got.push((e as CustomEvent).detail),
+    );
+
+    send(Op.PlanetCaptured, pack(new PlanetCapturedT(30000n, "c", -1, 0)));
+
+    expect(got).toEqual([{ planet: "c", from: null, to: 0 }]);
+  });
+
+  it("sends OrderArmy with each Stack and unit", async () => {
+    const { socket } = fakeSocket();
+    const sent: Uint8Array[] = [];
+    socket.sendMatchState = async (_id, _op, data) => {
+      sent.push(data as Uint8Array);
+    };
+    const conn = new MatchConnection(socket, { log: false });
+    await conn.open({} as Session, "m1");
+
+    conn.orderArmy(
+      "a",
+      [
+        { stack: 0, unit: "base:marine", count: 4 },
+        { stack: 2, unit: "base:odst", count: 1 },
+      ],
+      "b",
+      1,
+    );
+
+    const o = OrderArmy.getRootAsOrderArmy(
+      new flatbuffers.ByteBuffer(sent[0] ?? new Uint8Array()),
+    ).unpack();
+    expect([o.fromPlanet, o.toPlanet, o.toStack]).toEqual(["a", "b", 1]);
+    expect(o.units.map((u) => [u.stack, u.unit, u.count])).toEqual([
+      [0, "base:marine", 4],
+      [2, "base:odst", 1],
     ]);
   });
 

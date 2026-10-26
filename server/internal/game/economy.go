@@ -10,15 +10,21 @@ type PaydayPaid struct {
 
 // Advance fires everything due by Match Time now, on the first tick after
 // it's due, and returns the events for players.
-func (s *State) Advance(c *cs.Content, now int64) []PaydayPaid {
+func (s *State) Advance(c *cs.Content, now int64) Events {
 	s.Time = now
-	var paid []PaydayPaid
+	ev := Events{Captures: s.moveArmies(c, now)}
 	for s.NextPayday <= now {
-		paid = append(paid, s.payday(c)...)
+		ev.Paydays = append(ev.Paydays, s.payday(c)...)
 		s.NextPayday += s.PaydayEvery
 	}
 	s.build(c, now) // after Payday, so income that clears a debt resumes queues now
-	return paid
+	return ev
+}
+
+// Events are what Advance tells players.
+type Events struct {
+	Paydays  []PaydayPaid
+	Captures []PlanetCaptured
 }
 
 // payday pays each player, per Resource, their Planets' income plus their
@@ -80,7 +86,7 @@ func (s *State) commandPoints(c *cs.Content, seat int) (used, cap int) {
 }
 
 // units counts a player's units by type, from queue to death: in their
-// Planets' Stacks and in their unit queues.
+// Planets' Stacks, their unit queues and their Armies.
 func (s *State) units(seat int) map[string]int {
 	n := map[string]int{}
 	for _, p := range s.Planets {
@@ -95,6 +101,13 @@ func (s *State) units(seat int) map[string]int {
 		for _, q := range p.UnitQueues {
 			for _, item := range q {
 				n[item.Unit]++
+			}
+		}
+	}
+	for _, a := range s.Armies {
+		if a.Owner == seat {
+			for _, u := range a.Units {
+				n[u.Unit] += u.Count
 			}
 		}
 	}

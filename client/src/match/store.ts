@@ -51,6 +51,23 @@ export type PlanetView = {
   rallyStack: number; // where trained units go; own only
 };
 
+/**
+ * An Army in vision: on a Lane hop from `from` to `to`, or waiting in orbit
+ * at `to`. Other players' never show where they're headed.
+ */
+export type Army = {
+  id: number;
+  owner: number;
+  units: UnitSlot[];
+  from: string;
+  to: string;
+  departed: number; // Match Time
+  arrives: number; // Match Time
+  waiting: boolean;
+  destination: string; // own only
+  toStack: number; // own only
+};
+
 /** The public part of every player. */
 export type PlayerView = {
   seat: number;
@@ -77,6 +94,7 @@ export type View = {
   you: number; // your Seat
   players: PlayerView[]; // by Seat
   planets: Map<string, PlanetView>;
+  armies: Map<number, Army>;
   economy: Economy;
 };
 
@@ -86,6 +104,8 @@ export type ViewDelta = {
   players: PlayerView[]; // changed players only
   planets: PlanetView[];
   removedPlanets: string[];
+  armies: Army[];
+  removedArmies: number[];
   economy: Economy | null; // null when unchanged
 };
 
@@ -95,11 +115,15 @@ export function applyDelta(view: View, d: ViewDelta): View {
   const planets = new Map(view.planets);
   for (const p of d.planets) planets.set(p.id, p);
   for (const id of d.removedPlanets) planets.delete(id);
+  const armies = new Map(view.armies);
+  for (const a of d.armies) armies.set(a.id, a);
+  for (const id of d.removedArmies) armies.delete(id);
   return {
     ...view,
     matchTime: d.matchTime,
     players,
     planets,
+    armies,
     economy: d.economy ?? view.economy,
   };
 }

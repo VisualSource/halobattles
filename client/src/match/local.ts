@@ -14,11 +14,14 @@ export type CommandKind =
   | "sell"
   | "train"
   | "move"
-  | "rally";
+  | "rally"
+  | "order";
 
 export type LocalState = {
   pending: Map<number, CommandKind>;
   selected: string | null; // the selected Planet's id
+  selectedArmy: number | null;
+  hovered: string | null; // the Planet under the pointer
   clockOffset: number; // Match Time = performance.now() + clockOffset
 };
 
@@ -26,6 +29,8 @@ export const createLocalStore = () =>
   createStore<LocalState>(() => ({
     pending: new Map(),
     selected: null,
+    selectedArmy: null,
+    hovered: null,
     clockOffset: 0,
   }));
 
