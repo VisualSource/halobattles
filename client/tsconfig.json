@@ -10,7 +10,13 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    // Its package.json "exports" hides its typings.
+    "paths": {
+      "@heroiclabs/nakama-js-protobuf": [
+        "./node_modules/@heroiclabs/nakama-js-protobuf/dist/nakama-js-protobuf/index.d.ts"
+      ]
+    }
   },
   "include": ["src", "vite.config.ts"]
 }

@@ -1,0 +1,33 @@
+// Match messages between the server and the browser (ADR 0002). Each opcode
+// carries exactly one root table, with no union envelope. Content is referred
+// to by its string id only.
+namespace wire;
+
+// 1–99 are client commands, 100 and up are server messages.
+enum Op : int {
+  None = 0,
+  LobbyState = 100,
+}
+
+enum Phase : byte { Lobby, Play, Results }
+
+table Amount {
+  resource: string (key);
+  amount: uint32;
+}
+
+table Seat {
+  user: string;
+  display_name: string;
+  faction: string;
+  ready: bool;
+}
+
+// Sent whole to everyone on join and on every lobby change.
+table LobbyState {
+  phase: Phase;
+  host: string;            // the Host's user id
+  map: string;
+  starting_resources: [Amount];
+  seats: [Seat];           // in Seat order: longest held first
+}

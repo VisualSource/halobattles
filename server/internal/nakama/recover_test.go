@@ -23,6 +23,27 @@ func TestPanickingRPCReturnsErrorInsteadOfCrashing(t *testing.T) {
 	}
 }
 
+type panickingMatch struct{ runtime.Match }
+
+func (panickingMatch) MatchLoop(context.Context, runtime.Logger, *sql.DB, runtime.NakamaModule, runtime.MatchDispatcher, int64, interface{}, []runtime.MatchData) interface{} {
+	panic("boom")
+}
+
+func (panickingMatch) MatchJoinAttempt(context.Context, runtime.Logger, *sql.DB, runtime.NakamaModule, runtime.MatchDispatcher, int64, interface{}, runtime.Presence, map[string]string) (interface{}, bool, string) {
+	panic("boom")
+}
+
+func TestPanickingMatchEndsThatMatchInsteadOfCrashing(t *testing.T) {
+	m := safeMatch{panickingMatch{}}
+
+	if state := m.MatchLoop(context.Background(), nopLogger{}, nil, nil, nil, 0, "state", nil); state != nil {
+		t.Errorf("MatchLoop after a panic returned %v, want nil to end the Match", state)
+	}
+	if _, ok, _ := m.MatchJoinAttempt(context.Background(), nopLogger{}, nil, nil, nil, 0, "state", nil, nil); ok {
+		t.Error("a panicking join attempt should be rejected")
+	}
+}
+
 func TestSafeRPCPassesThroughNormalReplies(t *testing.T) {
 	rpc := safeRPC(func(_ context.Context, _ runtime.Logger, _ *sql.DB, _ runtime.NakamaModule, payload string) (string, error) {
 		return "echo:" + payload, nil

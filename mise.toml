@@ -8,7 +8,7 @@
 go = "1.27.1"
 node = "24.22.1"
 pnpm = "12.15.0"
-flatc = "25.12.19"
+flatc = "25.9.23" # matches the flatbuffers npm runtime, the newest published
 watchexec = "2.7.3"
 "github:docker/compose" = "5.6.1"
 
@@ -27,6 +27,9 @@ run = [
   "mkdir -p server/internal/gen/contentschema && rm -f server/internal/gen/contentschema/*.schema.json && cp schema/content/*.schema.json server/internal/gen/contentschema/",
   "cd server && go tool go-jsonschema -p contentschema -t --capitalization ID --tags json --only-models --disable-custom-types-for-maps -o internal/gen/contentschema/types.go ../schema/content/content.schema.json ../schema/content/mod.schema.json",
   "pnpm -C client exec json2ts -i ../schema/content/content.schema.json -o src/gen/content.ts --cwd ../schema/content --bannerComment '// Generated from schema/content by mise run gen. Do not edit.'",
+  "rm -rf server/internal/gen/wire client/src/gen/wire client/src/gen/wire.ts",
+  "flatc --go --gen-object-api -o server/internal/gen schema/wire/*.fbs && gofmt -w server/internal/gen/wire",
+  "flatc --ts --gen-object-api -o client/src/gen schema/wire/*.fbs",
 ]
 
 [tasks."gen:diff"]

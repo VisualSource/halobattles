@@ -34,13 +34,23 @@ func Init(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.Nak
 	}
 	logger.Info("content loaded: mods=%s hash=%s", names, c.Hash)
 
-	if err := initializer.RegisterRpc("hello", safeRPC(hello)); err != nil {
+	if err := initializer.RegisterRpc("get_content", safeRPC(getContent(c))); err != nil {
 		return err
 	}
-	return initializer.RegisterRpc("get_content", safeRPC(getContent(c)))
+	if err := initializer.RegisterMatch(matchModule, func(context.Context, runtime.Logger, *sql.DB, runtime.NakamaModule) (runtime.Match, error) {
+		return safeMatch{&match{content: c}}, nil
+	}); err != nil {
+		return err
+	}
+	return initializer.RegisterRpc("create_match", safeRPC(createMatch))
 }
 
-func hello(context.Context, runtime.Logger, *sql.DB, runtime.NakamaModule, string) (string, error) {
-	b, err := json.Marshal(map[string]string{"message": "Hello from the Halo Battles server"})
+// createMatch starts an empty Match; its first joiner becomes Host.
+func createMatch(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string) (string, error) {
+	id, err := nk.MatchCreate(ctx, matchModule, nil)
+	if err != nil {
+		return "", err
+	}
+	b, err := json.Marshal(map[string]string{"matchId": id})
 	return string(b), err
 }

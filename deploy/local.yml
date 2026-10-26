@@ -10,6 +10,10 @@ socket:
   server_key: defaultkey
 runtime:
   http_key: defaulthttpkey
+match:
+  # Refresh the open list's label index every tick (default 1000 ms), so a
+  # lobby someone just left doesn't linger in the menu.
+  label_update_interval_ms: 200
 console:
   username: admin
   password: password

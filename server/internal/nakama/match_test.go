@@ -1,0 +1,156 @@
+package nakama
+
+import (
+	"context"
+	"encoding/json"
+	"testing"
+
+	"github.com/VisualSource/halobattles/server/internal/content"
+	"github.com/VisualSource/halobattles/server/internal/gen/contentschema"
+	"github.com/VisualSource/halobattles/server/internal/gen/wire"
+	"github.com/heroiclabs/nakama-common/api"
+	"github.com/heroiclabs/nakama-common/runtime"
+)
+
+type fakeDispatcher struct {
+	runtime.MatchDispatcher
+	lobby  *wire.LobbyStateT // last LobbyState broadcast
+	label  map[string]any
+	kicked []string
+}
+
+func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Presence, _ runtime.Presence, _ bool) error {
+	if op == int64(wire.OpLobbyState) && to == nil {
+		d.lobby = wire.GetRootAsLobbyState(data, 0).UnPack()
+	}
+	return nil
+}
+
+func (d *fakeDispatcher) MatchLabelUpdate(label string) error {
+	return json.Unmarshal([]byte(label), &d.label)
+}
+
+func (d *fakeDispatcher) MatchKick(ps []runtime.Presence) error {
+	for _, p := range ps {
+		d.kicked = append(d.kicked, p.GetSessionId())
+	}
+	return nil
+}
+
+type fakeNK struct{ runtime.NakamaModule }
+
+func (fakeNK) UsersGetId(_ context.Context, ids, _ []string) ([]*api.User, error) {
+	var users []*api.User
+	for _, id := range ids {
+		users = append(users, &api.User{Id: id, DisplayName: "name-" + id})
+	}
+	return users, nil
+}
+
+type presence struct {
+	runtime.Presence
+	user, session string
+}
+
+func (p presence) GetUserId() string    { return p.user }
+func (p presence) GetSessionId() string { return p.session }
+
+func testContent() *content.Content {
+	return &content.Content{Doc: contentschema.Content{
+		Maps: map[string]contentschema.GalaxyMap{
+			"base:b-map": {Starts: []contentschema.LocalID{"x", "y", "z"}},
+			"base:a-map": {Starts: []contentschema.LocalID{"x", "y"}},
+		},
+		Factions: map[string]contentschema.Faction{"base:unsc": {}, "base:covenant": {}},
+		Rulesets: map[string]contentschema.Ruleset{"base:rules": {StartingResources: map[string]int{"base:credits": 1000}}},
+	}}
+}
+
+func seatNames(l *wire.LobbyStateT) []string {
+	var names []string
+	for _, s := range l.Seats {
+		names = append(names, s.DisplayName)
+	}
+	return names
+}
+
+func TestLobbyJoinLeaveAndHostHandoff(t *testing.T) {
+	ctx, log, nk := context.Background(), nopLogger{}, fakeNK{}
+	d := &fakeDispatcher{}
+	m := &match{content: testContent()}
+
+	state, rate, label := m.MatchInit(ctx, log, nil, nk, nil)
+	if rate != 5 || label != `{"phase":"lobby","map":"base:a-map","seats":0,"max":2}` {
+		t.Fatalf("init: rate %d, label %s", rate, label)
+	}
+	join := func(p presence) {
+		t.Helper()
+		var ok bool
+		var reason string
+		if state, ok, reason = m.MatchJoinAttempt(ctx, log, nil, nk, d, 0, state, p, nil); !ok {
+			t.Fatalf("join attempt %v rejected: %s", p, reason)
+		}
+		state = m.MatchJoin(ctx, log, nil, nk, d, 0, state, []runtime.Presence{p})
+	}
+	leave := func(p presence) {
+		state = m.MatchLeave(ctx, log, nil, nk, d, 0, state, []runtime.Presence{p})
+	}
+
+	join(presence{user: "u1", session: "s1"})
+	if d.lobby.Host != "u1" || d.lobby.Map != "base:a-map" || d.lobby.Seats[0].Faction != "base:covenant" ||
+		d.lobby.StartingResources[0].Resource != "base:credits" {
+		t.Errorf("first LobbyState = %+v, seats %v", d.lobby, seatNames(d.lobby))
+	}
+	join(presence{user: "u2", session: "s2"})
+
+	// The lobby is full: u3 is turned away.
+	if _, ok, _ := m.MatchJoinAttempt(ctx, log, nil, nk, d, 0, state, presence{user: "u3", session: "s3"}, nil); ok {
+		t.Error("join attempt with every Seat taken was accepted")
+	}
+
+	// u1 reloads: the new session joins before the old one's leave arrives.
+	join(presence{user: "u1", session: "s1b"})
+	leave(presence{user: "u1", session: "s1"})
+	if d.lobby.Host != "u1" || len(d.lobby.Seats) != 2 {
+		t.Errorf("after reload: host %q, seats %v; u1 should keep their Seat", d.lobby.Host, seatNames(d.lobby))
+	}
+
+	leave(presence{user: "u1", session: "s1b"})
+	if d.lobby.Host != "u2" || d.label["seats"] != 1.0 {
+		t.Errorf("after Host leaves: host %q, label %v", d.lobby.Host, d.label)
+	}
+
+	leave(presence{user: "u2", session: "s2"})
+	if m.MatchLoop(ctx, log, nil, nk, d, 1, state, nil) != nil {
+		t.Error("an emptied lobby should close the Match")
+	}
+}
+
+func TestLobbyKicksTheLoserOfARaceForTheLastSeat(t *testing.T) {
+	ctx, log, nk := context.Background(), nopLogger{}, fakeNK{}
+	d := &fakeDispatcher{}
+	m := &match{content: testContent()}
+	state, _, _ := m.MatchInit(ctx, log, nil, nk, nil)
+	state = m.MatchJoin(ctx, log, nil, nk, d, 0, state, []runtime.Presence{presence{user: "u1", session: "s1"}})
+
+	// Both were admitted while one Seat was free.
+	state = m.MatchJoin(ctx, log, nil, nk, d, 0, state, []runtime.Presence{
+		presence{user: "u2", session: "s2"}, presence{user: "u3", session: "s3"}})
+
+	if len(d.kicked) != 1 || d.kicked[0] != "s3" || len(d.lobby.Seats) != 2 {
+		t.Errorf("kicked %v, seats %v", d.kicked, seatNames(d.lobby))
+	}
+}
+
+func TestNewMatchWaitsForItsCreator(t *testing.T) {
+	ctx, log, nk := context.Background(), nopLogger{}, fakeNK{}
+	m := &match{content: testContent()}
+	state, _, _ := m.MatchInit(ctx, log, nil, nk, nil)
+
+	if m.MatchLoop(ctx, log, nil, nk, &fakeDispatcher{}, 10, state, nil) == nil {
+		t.Error("a new Match closed before its creator could join")
+	}
+	if m.MatchLoop(ctx, log, nil, nk, &fakeDispatcher{}, creatorGraceTicks+1, state, nil) != nil {
+		t.Error("a Match nobody joined should close after the grace period")
+	}
+}

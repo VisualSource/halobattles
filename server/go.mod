@@ -3,6 +3,7 @@ module github.com/VisualSource/halobattles/server
 go 1.27.1
 
 require (
+	github.com/google/flatbuffers v25.9.23+incompatible
 	github.com/heroiclabs/nakama-common v1.48.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/tailscale/hujson v0.0.0-20260727124030-b80ff77dac4f
