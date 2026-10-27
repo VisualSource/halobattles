@@ -1,0 +1,38 @@
+{
+  "description": "Equal times: through the player's own m beats through the neutral b, though b sorts first.",
+  "lanes": [
+    {
+      "from": "a",
+      "to": "b",
+      "time": 20000
+    },
+    {
+      "from": "b",
+      "to": "c",
+      "time": 20000
+    },
+    {
+      "from": "a",
+      "to": "m",
+      "time": 20000
+    },
+    {
+      "from": "m",
+      "to": "c",
+      "time": 20000
+    }
+  ],
+  "owners": {
+    "a": 0,
+    "m": 0
+  },
+  "player": 0,
+  "from": "a",
+  "to": "c",
+  "path": [
+    "a",
+    "m",
+    "c"
+  ],
+  "time": 40000
+}

@@ -219,6 +219,7 @@ table ArmyView {
   waiting: bool;
   destination: string;     // own only
   to_stack: ubyte;         // own only
+  path: [string];          // own only: the Planets after to, in order
 }
 
 // One unit or armed building in a Battle, tracked on its own.

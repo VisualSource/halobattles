@@ -12,6 +12,7 @@ import type { ContentLookups } from "../content";
 import { progress, seatColour } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
+import { laneTimes } from "./route";
 import { freeCell, moveSlot } from "./stacks";
 import type { PlanetView, QueueItem, UnitSlot, View } from "./store";
 import { formatAge, useMatchNow } from "./time";
@@ -1237,6 +1238,7 @@ export function sendStack(
   from: string,
   stack: number,
   to: string,
+  toStack = toStackAt(conn, to),
 ) {
   const units =
     conn.store.getState().view?.planets.get(from)?.stacks[stack] ?? [];
@@ -1245,11 +1247,21 @@ export function sendStack(
     from,
     units.map((u) => ({ stack, ...u })),
     to,
-    toStackAt(conn, to),
+    toStack,
   );
 }
 
-/** The selected Army: its route, its units, and what happens on arrival. */
+/** Opens at the bottom left, above the Players button. */
+const bottomLeft = (map: HTMLElement, self: HTMLElement) => ({
+  x: 16,
+  y: Math.max(16, map.clientHeight - self.offsetHeight - 64),
+});
+
+/**
+ * The selected Army: every stop on its route with when it gets there and
+ * what it does there, then its units. Other players' Armies show only the
+ * hop they're on.
+ */
 export function ArmyWindow(props: {
   conn: MatchConnection;
   content: ContentLookups;
@@ -1257,20 +1269,46 @@ export function ArmyWindow(props: {
   const { conn, content } = props;
   const id = useStore(conn.local, (s) => s.selectedArmy);
   const view = useStore(conn.store, (s) => s.view);
+  const lastSeen = useStore(conn.local, (s) => s.lastSeen);
   const now = useMatchNow(conn.local);
   const army = id === null ? undefined : view?.armies.get(id);
-  if (!army || !view) return null;
-  const planets = content.maps.get(view.map)?.planets ?? [];
-  const planet = (p: string) => planets.find((mp) => mp.id === p)?.name ?? p;
+  const map = view && content.maps.get(view.map);
+  if (!army || !view || !map) return null;
+  const planet = (p: string) =>
+    map.planets.find((mp) => mp.id === p)?.name ?? p;
+  // As the player knows it: live, else as last seen, else neutral.
+  const ownerOf = (p: string) => {
+    const live = view.planets.get(p);
+    return live ? live.owner : (lastSeen.get(p)?.planet.owner ?? null);
+  };
   const mine = army.owner === view.you;
-  const end = mine ? army.destination : army.to;
-  const endOwner = view.planets.get(end)?.owner;
-  const attacks = mine && endOwner !== view.you;
+  const lanes = laneTimes(map, content.rules);
+  const route = mine ? [army.to, ...army.path] : [army.to];
+  let at = army.waiting ? now : army.arrives;
+  const stops = route.map((p, i) => {
+    if (i > 0) at += lanes.get(route[i - 1] ?? "")?.get(p) ?? 0;
+    const owner = ownerOf(p);
+    const last = i === route.length - 1;
+    const enemy = owner !== null && owner !== army.owner;
+    const does = !mine
+      ? ""
+      : enemy
+        ? last
+          ? "attacks"
+          : "attacks · stops here"
+        : last
+          ? owner === army.owner
+            ? "lands"
+            : "attacks"
+          : "passes";
+    return { id: p, owner, at, does, fight: does.startsWith("attacks") };
+  });
 
   return (
     <Floating
       label="Army"
-      start={{ x: 16, y: 16 }}
+      start={bottomLeft}
+      remember="army"
       onClose={() => conn.local.setState({ selectedArmy: null })}
       className="w-84"
       title={
@@ -1287,32 +1325,35 @@ export function ArmyWindow(props: {
       }
     >
       <div className="flex flex-col gap-2.5 p-3">
-        {army.waiting ? (
-          <p className="text-ink-2">In orbit at {planet(army.to)}</p>
-        ) : (
-          <div>
-            <p className="text-ink-2">
-              {planet(army.from)} → {planet(army.to)}
-              {mine && army.destination !== army.to && (
-                <span className="text-ink-3">
-                  , then on to {planet(army.destination)}
-                </span>
-              )}
-            </p>
-            <div className="mt-2 h-1 rounded-sm bg-well">
-              <div
-                className="h-full rounded-sm"
-                style={{
-                  width: `${progress(army, now) * 100}%`,
-                  background: seatColour(army.owner),
-                }}
-              />
-            </div>
-            <p className="mt-1.5 text-right font-mono text-ink-3 text-xs">
-              arrives in {Math.max(0, Math.ceil((army.arrives - now) / 1000))} s
-            </p>
-          </div>
-        )}
+        <span className={label}>{army.waiting ? "In orbit" : "Route"}</span>
+        {/* About five stops tall, scrolling past that: the window keeps its size. */}
+        <ol className="flex max-h-40 flex-col overflow-y-auto">
+          {!army.waiting && (
+            <RouteStop
+              name={planet(army.from)}
+              colour={dotColour(ownerOf(army.from))}
+              note="left"
+              done
+              progress={progress(army, now)}
+            />
+          )}
+          {stops.map((st, i) => (
+            <RouteStop
+              key={st.id} // a route never visits a Planet twice
+              name={planet(st.id)}
+              colour={dotColour(st.owner)}
+              note={st.does}
+              danger={st.fight}
+              eta={
+                army.waiting && i === 0
+                  ? "here"
+                  : `${Math.max(0, Math.ceil((st.at - now) / 1000))} s`
+              }
+              last={i === stops.length - 1}
+              next={i === 0}
+            />
+          ))}
+        </ol>
         <ul className="grid grid-cols-5 gap-1.25">
           {army.units.map((u) => (
             <li key={u.unit}>
@@ -1323,11 +1364,6 @@ export function ArmyWindow(props: {
             </li>
           ))}
         </ul>
-        {attacks && (
-          <p className="rounded-md bg-accent-wash px-2.5 py-2 text-host text-sm">
-            Attacks {planet(end)} on arrival.
-          </p>
-        )}
         {mine && (
           <p className="text-ink-4 text-xs">
             Drag the Army onto a Planet to re-order it. It finishes this Lane
@@ -1336,6 +1372,75 @@ export function ArmyWindow(props: {
         )}
       </div>
     </Floating>
+  );
+}
+
+const dotColour = (owner: number | null) =>
+  owner === null ? "#9ca3af" : seatColour(owner);
+
+/**
+ * One Planet on an Army's route, joined to the next by a line. The line out
+ * of the Planet it just left fills, in the route's yellow, as it travels.
+ */
+function RouteStop(props: {
+  name: string;
+  colour: string;
+  note: string;
+  eta?: string;
+  done?: boolean;
+  danger?: boolean;
+  progress?: number; // of the hop out of here, for the Planet just left
+  last?: boolean;
+  next?: boolean; // the stop the Army is heading to: kept in view
+}) {
+  const ref = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    // Scroll only the list, one stop above this one so the last is in view
+    // too; scrollIntoView would scroll the map behind the window as well.
+    const li = ref.current;
+    const list = li?.parentElement;
+    if (props.next && li && list) {
+      list.scrollTop = Math.max(
+        0,
+        li.offsetTop - list.offsetTop - li.offsetHeight,
+      );
+    }
+  }, [props.next]);
+  return (
+    <li ref={ref} className={`flex gap-2.5 ${props.done ? "text-ink-3" : ""}`}>
+      <div className="flex w-2.5 flex-none flex-col items-center">
+        <span
+          aria-hidden="true"
+          className="mt-1.5 size-2.5 flex-none rounded-full"
+          style={{ background: props.colour }}
+        />
+        {!props.last && (
+          <span aria-hidden="true" className="relative w-0.5 flex-1 bg-line">
+            {props.progress !== undefined && (
+              <span
+                className="absolute inset-x-0 top-0 bg-[#facc15]"
+                style={{ height: `${props.progress * 100}%` }}
+              />
+            )}
+          </span>
+        )}
+      </div>
+      <div className="flex min-h-8 flex-1 items-start gap-2 pb-2 text-sm">
+        <span className="flex-1">
+          {props.name}
+          {props.note && (
+            <span
+              className={`ml-1.5 text-xs ${props.danger ? "text-danger" : "text-ink-3"}`}
+            >
+              {props.note}
+            </span>
+          )}
+        </span>
+        {props.eta && (
+          <span className="font-mono text-ink-3 text-xs">{props.eta}</span>
+        )}
+      </div>
+    </li>
   );
 }
 

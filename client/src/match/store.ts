@@ -69,6 +69,7 @@ export type Army = {
   waiting: boolean;
   destination: string; // own only
   toStack: number; // own only
+  path: string[]; // own only: the Planets after `to`, in order
 };
 
 export type Combatant = {

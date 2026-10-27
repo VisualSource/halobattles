@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
 // The line map a - b - c - d - e has 30 s Lanes. In fixedMatch, Seat 0 holds
@@ -57,12 +59,8 @@ func TestAnArmyCapturesAnEmptyNeutralPlanet(t *testing.T) {
 	}
 }
 
-func TestAnArmyPassesOnlyThroughItsOwnersPlanets(t *testing.T) {
+func TestAnArmyHopsOnThroughItsOwnersPlanets(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
-	if err := s.OrderArmy(0, "a", marines(1), "c", 0); err == nil || !strings.Contains(err.Error(), "no route") {
-		t.Fatalf("through neutral b: err = %v, want no route", err)
-	}
-
 	s.Planets["b"].Owner = 0
 	if err := s.OrderArmy(0, "a", marines(1), "c", 0); err != nil {
 		t.Fatal(err)
@@ -152,13 +150,14 @@ func TestReorderFinishesTheCurrentHopFirst(t *testing.T) {
 	}
 }
 
-func TestReorderMidLaneIntoAnUnownedPlanetMustStopThere(t *testing.T) {
+func TestReorderMidLaneIntoAnEnemyPlanetMustStopThere(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
-	_ = s.OrderArmy(0, "a", marines(4), "b", 0) // b is garrisoned
+	s.Planets["b"].Owner = 1
+	_ = s.OrderArmy(0, "a", marines(4), "b", 0)
 	a := onlyArmy(t, s)
 
 	if err := s.ReorderArmy(0, a.ID, "a", 0); err == nil {
-		t.Error("an Army entering neutral b was re-routed beyond it")
+		t.Error("an Army entering enemy b was re-routed beyond it")
 	}
 
 	s.Planets["b"].Locked = true // as if another Battle were on
@@ -171,6 +170,62 @@ func TestReorderMidLaneIntoAnUnownedPlanetMustStopThere(t *testing.T) {
 	}
 	if err := s.ReorderArmy(1, a.ID, "a", 0); err == nil {
 		t.Error("Seat 1 re-ordered Seat 0's Army")
+	}
+}
+
+// In the line map, b and c are garrisoned neutral Planets, d an empty one,
+// and every Lane takes 30 s.
+
+func TestArmiesPassStraightThroughNeutralPlanets(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	if err := s.OrderArmy(0, "a", marines(4), "d", 0); err != nil {
+		t.Fatal(err)
+	}
+	a := onlyArmy(t, s)
+
+	s.Advance(c, 30_000) // through garrisoned b
+	if len(s.Battles) != 0 || a.Waiting || a.To != "c" || s.Planets["b"].Owner != Neutral {
+		t.Fatalf("at b: Army %+v, %d Battles; want it passing through", a, len(s.Battles))
+	}
+	if err := s.ReorderArmy(0, a.ID, "d", 0); err != nil {
+		t.Errorf("mid-Lane into neutral c, a re-order can still go beyond it: %v", err)
+	}
+
+	s.Advance(c, 90_000) // through c to empty d, which it takes
+	if len(s.Battles) != 0 || len(s.Armies) != 0 || s.Planets["d"].Owner != 0 {
+		t.Errorf("at d: %d Battles, %d Armies, d's owner %d; want d captured", len(s.Battles), len(s.Armies), s.Planets["d"].Owner)
+	}
+}
+
+func TestALockedPlanetOnTheWayIsWaitedOut(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	b := s.Planets["b"]
+	b.Locked = true // as if another Battle were on
+	_ = s.OrderArmy(0, "a", marines(4), "d", 0)
+	a := onlyArmy(t, s)
+
+	s.Advance(c, 30_000)
+	if !a.Waiting || a.To != "b" || !slices.Equal(a.Path, []string{"c", "d"}) {
+		t.Fatalf("Army = %+v, want it in orbit at b, keeping its route", a)
+	}
+	b.Locked = false
+	s.Advance(c, 30_200)
+	if a.Waiting || a.From != "b" || a.To != "c" || a.Departed != 30_200 {
+		t.Errorf("Army = %+v, want it going on to c once the Battle is over", a)
+	}
+}
+
+func TestAPlanetOnTheWayTakenByAnEnemyEndsTheMoveInABattle(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	b := s.Planets["b"]
+	b.Locked = true
+	_ = s.OrderArmy(0, "a", marines(4), "d", 0)
+	s.Advance(c, 30_000) // waiting in orbit at b
+
+	b.Owner, b.Locked = 1, false // Seat 1 won the Battle there
+	ev := s.Advance(c, 30_200)
+	if len(ev.Started) != 1 || ev.Started[0].Planet != "b" {
+		t.Errorf("Battles started %+v, want one at b", ev.Started)
 	}
 }
 
@@ -262,5 +317,45 @@ func TestOthersSeeOnlyTheCurrentHopOfArmiesInVision(t *testing.T) {
 	}
 	if own := s.View(c, 1).Armies; len(own) != 1 || own[0].Destination != "c" {
 		t.Errorf("Seat 1 sees its own Army as %+v, want destination c", own)
+	}
+}
+
+func TestArmiesSightThePlanetsTheyReach(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	c.Rulesets[RulesetID] = withRuleset(c, func(r *cs.Ruleset) { r.ArmyVisionSeconds = 15 })
+	s.Planets["c"].Stacks = [StacksPerPlanet]Stack{} // empty: passed straight through
+	if s.sees(0, "c") || s.sees(0, "d") {
+		t.Fatal("c and d start out of Seat 0's vision")
+	}
+	s.Planets["d"].Stacks = [StacksPerPlanet]Stack{{{Unit: "base:grunt", Count: 6}}}
+	_ = s.OrderArmy(0, "a", marines(4), "d", 0)
+
+	s.Advance(c, 60_000) // passing through c
+	s.Advance(c, 70_000) // on the Lane to d
+	if !s.sees(0, "c") || s.sees(0, "d") {
+		t.Errorf("10 s after passing c: sees c %v, d %v; want c only, not its neighbours", s.sees(0, "c"), s.sees(0, "d"))
+	}
+	s.Advance(c, 76_000)
+	if s.sees(0, "c") {
+		t.Error("c is still seen 16 s after the Army left it")
+	}
+	s.Advance(c, 90_000) // attacking d
+	if len(s.Battles) != 1 || !s.sees(0, "d") {
+		t.Errorf("attacking d: %d Battles, sees d %v; want it seen", len(s.Battles), s.sees(0, "d"))
+	}
+}
+
+func TestRetreatingArmiesSightNothing(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	c.Rulesets[RulesetID] = withRuleset(c, func(r *cs.Ruleset) { r.ArmyVisionSeconds = 15 })
+	s.LastID++
+	s.Armies = map[uint32]*Army{s.LastID: {
+		ID: s.LastID, Owner: 0, Units: Stack{{Unit: "base:marine", Count: 1}},
+		From: "d", To: "c", Arrives: 30_000, Path: []string{"b", "a"}, Retreating: true,
+	}}
+
+	s.Advance(c, 30_000) // through c on the way home
+	if s.sees(0, "c") {
+		t.Error("a Retreating Army sighted c")
 	}
 }

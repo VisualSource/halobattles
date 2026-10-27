@@ -125,6 +125,10 @@ export interface Ruleset {
    */
   gracePeriodSeconds: number;
   /**
+   * How long a player keeps seeing a Planet after their Army there leaves or is destroyed.
+   */
+  armyVisionSeconds: number;
+  /**
    * How long a Match stays in results.
    */
   resultsSeconds: number;

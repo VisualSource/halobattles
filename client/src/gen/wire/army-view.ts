@@ -86,8 +86,20 @@ toStack():number {
   return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
 }
 
+path(index: number):string
+path(index: number,optionalEncoding:flatbuffers.Encoding):string|Uint8Array
+path(index: number,optionalEncoding?:any):string|Uint8Array|null {
+  const offset = this.bb!.__offset(this.bb_pos, 24);
+  return offset ? this.bb!.__string(this.bb!.__vector(this.bb_pos + offset) + index * 4, optionalEncoding) : null;
+}
+
+pathLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 24);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
 static startArmyView(builder:flatbuffers.Builder) {
-  builder.startObject(10);
+  builder.startObject(11);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -142,12 +154,28 @@ static addToStack(builder:flatbuffers.Builder, toStack:number) {
   builder.addFieldInt8(9, toStack, 0);
 }
 
+static addPath(builder:flatbuffers.Builder, pathOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(10, pathOffset, 0);
+}
+
+static createPathVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startPathVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
 static endArmyView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createArmyView(builder:flatbuffers.Builder, id:number, owner:number, unitsOffset:flatbuffers.Offset, fromOffset:flatbuffers.Offset, toOffset:flatbuffers.Offset, departed:bigint, arrives:bigint, waiting:boolean, destinationOffset:flatbuffers.Offset, toStack:number):flatbuffers.Offset {
+static createArmyView(builder:flatbuffers.Builder, id:number, owner:number, unitsOffset:flatbuffers.Offset, fromOffset:flatbuffers.Offset, toOffset:flatbuffers.Offset, departed:bigint, arrives:bigint, waiting:boolean, destinationOffset:flatbuffers.Offset, toStack:number, pathOffset:flatbuffers.Offset):flatbuffers.Offset {
   ArmyView.startArmyView(builder);
   ArmyView.addId(builder, id);
   ArmyView.addOwner(builder, owner);
@@ -159,6 +187,7 @@ static createArmyView(builder:flatbuffers.Builder, id:number, owner:number, unit
   ArmyView.addWaiting(builder, waiting);
   ArmyView.addDestination(builder, destinationOffset);
   ArmyView.addToStack(builder, toStack);
+  ArmyView.addPath(builder, pathOffset);
   return ArmyView.endArmyView(builder);
 }
 
@@ -173,7 +202,8 @@ unpack(): ArmyViewT {
     this.arrives(),
     this.waiting(),
     this.destination(),
-    this.toStack()
+    this.toStack(),
+    this.bb!.createScalarList<string>(this.path.bind(this), this.pathLength())
   );
 }
 
@@ -189,6 +219,7 @@ unpackTo(_o: ArmyViewT): void {
   _o.waiting = this.waiting();
   _o.destination = this.destination();
   _o.toStack = this.toStack();
+  _o.path = this.bb!.createScalarList<string>(this.path.bind(this), this.pathLength());
 }
 }
 
@@ -203,7 +234,8 @@ constructor(
   public arrives: bigint = BigInt('0'),
   public waiting: boolean = false,
   public destination: string|Uint8Array|null = null,
-  public toStack: number = 0
+  public toStack: number = 0,
+  public path: (string)[] = []
 ){}
 
 
@@ -212,6 +244,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const from = (this.from !== null ? builder.createString(this.from!) : 0);
   const to = (this.to !== null ? builder.createString(this.to!) : 0);
   const destination = (this.destination !== null ? builder.createString(this.destination!) : 0);
+  const path = ArmyView.createPathVector(builder, builder.createObjectOffsetList(this.path));
 
   return ArmyView.createArmyView(builder,
     this.id,
@@ -223,7 +256,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.arrives,
     this.waiting,
     destination,
-    this.toStack
+    this.toStack,
+    path
   );
 }
 }

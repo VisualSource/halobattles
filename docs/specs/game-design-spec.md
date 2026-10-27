@@ -9,7 +9,7 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 - Real-time, online PvP grand strategy for 2–4 players. Galaxy-map play in the style of Empire at War, with Stellaris-style resource management, in the Halo setting.
 - Two Factions: **UNSC** and **Covenant**.
 - Players build on Planets and send Armies along Lanes to capture enemy Planets. A **Battle** is ground only, automatic and round-based, and its Planet is **Locked** while it runs. Players only watch.
-- **Vision**: a player sees the Planets they own plus their neighbours one Lane away.
+- **Vision**: a player sees the Planets they own plus their neighbours one Lane away. They also see a Planet one of their Armies is at (passing through, waiting in orbit, landed, or attacking it), and for `armyVisionSeconds` after it leaves or is destroyed; only that Planet, not its neighbours, and never from a Retreating Army. When vision of a Planet ends, its client keeps it as last seen.
 - **Winning**: hold more than a map-set share of Planets for a set time, or be the last player not eliminated. Losing your Capital eliminates you.
 - There is no tech tree, no research, no bots, no Pops and no space Battles. See [Out of scope](#out-of-scope).
 
@@ -53,15 +53,18 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 ## Travel
 
 - A Lane's travel time is its length × its Lane-type multiplier: `fast` 1.0, `slow` 2.0. One length unit is 1 s. Map data may set an explicit `time` on a Lane, which overrides that.
-- Routes are found automatically with Dijkstra, by shortest time, and pass **only through Planets the player owns**. Entering any other Planet ends the move there as an attack.
-- An Army in transit can be re-ordered at any time. It finishes its current Lane hop, then follows the new route. It never turns back mid-Lane.
+- An Army can be ordered to any Planet. Its route is found automatically with Dijkstra and goes **straight through the player's own Planets and neutral ones**, with no Battle and no capture. Entering an **enemy** Planet ends the move there with a Battle; if the Army wins, it stays on the Planet it took.
+- The route enters as few enemy Planets as it can, whatever the time; then it's the fastest; then, on equal times, it passes the fewest neutral Planets. Remaining ties go to the lowest Planet-id sequence.
+- A route is fixed once ordered. Each Planet on it is judged as the Army reaches it: one that has turned enemy ends the move there with a Battle, and a **Locked** one makes the Army wait in orbit until its Battle ends, then go on or, if the Planet is now an enemy's, fight there.
+- An Army in transit can be re-ordered at any time. It finishes its current Lane hop, then follows the new route, which is then fixed in turn. It never turns back mid-Lane.
+- Later, a building may stop Armies passing through a Planet. Nothing does in the MVP.
 - Hostile Armies on the same Lane pass each other without a fight. Battles happen only at Planets.
 
 ## Arrival
 
 - An Army arriving at its owner's Planet merges into the named Stack (subject to overflow).
-- An Army arriving at **any other** Planet attacks it, including a Planet that changed hands while the Army was travelling.
-- An Army arriving at a **Locked** Planet waits in orbit until the Battle ends, then resolves its arrival against whoever owns the Planet at that point. Waiting Armies can be re-ordered.
+- An Army arriving at **any other** Planet as its destination attacks it, including a Planet that changed hands while the Army was travelling.
+- An Army arriving at a **Locked** destination waits in orbit until the Battle ends, then resolves its arrival against whoever owns the Planet at that point. Waiting Armies can be re-ordered.
 - If two hostile Armies arrive in the same tick, the player with the lower Seat index attacks and the other waits in orbit.
 - **Neutral Planets** start with a garrison set in map data, which may be empty.
   - An empty neutral Planet is captured on arrival, with no Battle.
@@ -297,6 +300,7 @@ The single `base:rules` definition.
 | Round cap | 40 |
 | `startingResources` | 1000 Credits, 300 Materials |
 | `gracePeriodSeconds` | 180 (3 min) |
+| `armyVisionSeconds` | 15 |
 | `resultsSeconds` | 60 |
 
 ## Out of scope

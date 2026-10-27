@@ -17,6 +17,7 @@ const rules = {
   roundCap: 40,
   startingResources: { "base:credits": 1000 },
   gracePeriodSeconds: 180,
+  armyVisionSeconds: 15,
   resultsSeconds: 60,
 };
 

@@ -23,6 +23,7 @@ const baseRules = `{
 	"roundCap": 40,
 	"startingResources": {"credits": 1000},
 	"gracePeriodSeconds": 180,
+	"armyVisionSeconds": 15,
 	"resultsSeconds": 60,
 }`
 

@@ -57,8 +57,10 @@ export function PlayScreen(props: {
       { store: conn.store, local: conn.local },
       {
         lanes: laneTimes(map, content.rules),
-        sendStack: (from, stack, to) => sendStack(conn, from, stack, to),
-        moveArmy: (army, to) => conn.reorderArmy(army, to, toStackAt(conn, to)),
+        sendStack: (from, stack, to, toStack) =>
+          sendStack(conn, from, stack, to, toStack),
+        moveArmy: (army, to, toStack) =>
+          conn.reorderArmy(army, to, toStack ?? toStackAt(conn, to)),
       },
     );
     return () => scene.dispose();
@@ -446,7 +448,7 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
           : view()?.players[seat]?.displayName || `Player ${seat + 1}`;
     const show = (id: string) => ({
       label: "Show",
-      onClick: () => conn.local.setState({ selected: id, selectedArmy: null }),
+      onClick: () => conn.local.setState({ selected: id }),
     });
     const detail = <T,>(e: Event) => (e as CustomEvent<T>).detail;
 
@@ -491,7 +493,7 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
           onClick: () =>
             view()?.battles.has(battle)
               ? conn.local.setState({ watching: battle })
-              : conn.local.setState({ selected: id, selectedArmy: null }),
+              : conn.local.setState({ selected: id }),
         });
       },
       battleEnded: (e) => {

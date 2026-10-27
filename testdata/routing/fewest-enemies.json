@@ -1,0 +1,45 @@
+{
+  "description": "Through one enemy Planet, however slow, beats a faster route through two.",
+  "lanes": [
+    {
+      "from": "a",
+      "to": "e",
+      "time": 10000
+    },
+    {
+      "from": "e",
+      "to": "f",
+      "time": 10000
+    },
+    {
+      "from": "f",
+      "to": "c",
+      "time": 10000
+    },
+    {
+      "from": "a",
+      "to": "g",
+      "time": 50000
+    },
+    {
+      "from": "g",
+      "to": "c",
+      "time": 50000
+    }
+  ],
+  "owners": {
+    "a": 0,
+    "e": 1,
+    "f": 1,
+    "g": 1
+  },
+  "player": 0,
+  "from": "a",
+  "to": "c",
+  "path": [
+    "a",
+    "g",
+    "c"
+  ],
+  "time": 100000
+}

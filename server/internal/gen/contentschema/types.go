@@ -301,6 +301,10 @@ type Ruleset struct {
 	// Schema corresponds to the JSON schema field "$schema".
 	Schema *string `json:"$schema,omitempty,omitzero"`
 
+	// How long a player keeps seeing a Planet after their Army there leaves or is
+	// destroyed.
+	ArmyVisionSeconds int `json:"armyVisionSeconds"`
+
 	// Refund for cancelling a queue item after it started.
 	CancelRefundPercent int `json:"cancelRefundPercent"`
 

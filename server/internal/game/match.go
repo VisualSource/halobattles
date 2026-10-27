@@ -55,6 +55,8 @@ type Player struct {
 	Disconnected bool
 	GraceEnds    int64
 	Forfeiting   bool // eliminated on the next tick
+	// Planets seen through Armies, and the Match Time each sighting ends.
+	Sighted map[string]int64
 }
 
 // State is the full, authoritative state of a running Match. It is plain

@@ -12,14 +12,14 @@ const PLANET_RADIUS = 900;
 const STAR_DISTANCE = 8000;
 
 /** A seeded generator, so the backdrop looks the same every visit. */
-function random(seed: number) {
+export function random(seed: number) {
   return () => {
     seed = (seed * 16807) % 2147483647;
     return seed / 2147483647;
   };
 }
 
-function canvasTexture(
+export function canvasTexture(
   w: number,
   h: number,
   draw: (g: CanvasRenderingContext2D) => void,
@@ -34,7 +34,7 @@ function canvasTexture(
   return texture;
 }
 
-const rgb = (c: number[]) => `rgb(${c.join(",")})`;
+export const rgb = (c: number[]) => `rgb(${c.join(",")})`;
 
 export class RingScene {
   private readonly renderer = new THREE.WebGLRenderer({ antialias: true });

@@ -15,5 +15,6 @@
   "roundCap": 40,
   "startingResources": { "credits": 1000, "materials": 300 },
   "gracePeriodSeconds": 180,
+  "armyVisionSeconds": 15,
   "resultsSeconds": 60
 }

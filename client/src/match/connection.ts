@@ -147,6 +147,7 @@ const toArmy = (a: ArmyViewT): Army => ({
   waiting: a.waiting,
   destination: str(a.destination),
   toStack: a.toStack,
+  path: a.path.map(str),
 });
 
 const toCombatant = (c: CombatantT): Combatant => ({

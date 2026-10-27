@@ -156,6 +156,7 @@ describe("MatchConnection", () => {
           false,
           "reach",
           2,
+          ["reach"],
         ),
       ],
     );
@@ -242,6 +243,7 @@ describe("MatchConnection", () => {
             waiting: false,
             destination: "reach",
             toStack: 2,
+            path: ["reach"],
           },
         ],
       ]),
