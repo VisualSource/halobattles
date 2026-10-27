@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Oxanium", sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-ground: #0d1217;
+  --color-bar: #10171d;
+  --color-panel: #141c23;
+  --color-well: #0f151a;
+  --color-raised: #1f2a33;
+  --color-line: #26313b;
+  --color-edge: #3a4652;
+  --color-ink: #e6ebef;
+  --color-ink-2: #c3ccd4;
+  --color-ink-3: #9aa7b2;
+  --color-ink-4: #7d8a95;
+  --color-accent: #f0a93b;
+  --color-accent-ink: #1a1206;
+  --color-accent-wash: #231d12;
+  --color-ok: #7fdca0;
+  --color-ok-wash: #12301f;
+  --color-ok-edge: #2f6b45;
+
+  --color-divider: #1f2830; /* between list rows */
+  --color-item: #161f27; /* a row in a list */
+  --color-tile: #1a242d; /* behind an icon */
+  --color-highlight: #18232c; /* your own Seat row */
+  --color-open-seat: #2f3a44; /* an open Seat's stripe */
+  --color-host: #f0c27a;
+  --color-host-wash: #3a2c12;
+  --color-idle: #b8c2cb; /* not ready, unavailable */
+  --color-idle-wash: #2a2f35;
+  --color-void: #090d11; /* full-screen dialogs */
+  --color-scrim: #05080b; /* behind a modal */
+  --color-hero: #0f1a26; /* the Faction picker's showcase */
+  --color-ink-bright: #f2f5f7;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-ground font-sans text-ink;
+  }
+
+  /* shortcut: keeps the screens without a UI pass usable under preflight; drop it once they all have one. */
+  button,
+  input,
+  select {
+    @apply rounded border border-edge bg-well px-2 py-1;
+  }
+  button:not(:disabled) {
+    @apply cursor-pointer;
+  }
+  button:disabled {
+    @apply opacity-50;
+  }
+  h1 {
+    @apply text-2xl font-semibold;
+  }
+  h2 {
+    @apply text-xl font-semibold;
+  }
+  h3 {
+    @apply font-semibold;
+  }
+  a {
+    @apply text-accent hover:underline;
+  }
+}

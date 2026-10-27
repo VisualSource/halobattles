@@ -512,7 +512,7 @@ function isTyping(target: EventTarget | null) {
 
 const ORBIT = new THREE.Vector3(18, 10, -18);
 
-const seatColour = (seat: number) =>
+export const seatColour = (seat: number) =>
   SEAT_COLOURS[seat % SEAT_COLOURS.length] ?? NEUTRAL;
 
 /** How far along its hop an Army is, from 0 to 1. */

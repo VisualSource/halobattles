@@ -1,5 +1,14 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "files": { "includes": ["**", "!src/gen", "!pnpm-lock.yaml", "!dist"] },
-  "formatter": { "indentStyle": "space" }
+  "files": {
+    "includes": [
+      "**",
+      "!src/gen",
+      "!src/routeTree.gen.ts",
+      "!pnpm-lock.yaml",
+      "!dist"
+    ]
+  },
+  "formatter": { "indentStyle": "space" },
+  "css": { "parser": { "tailwindDirectives": true } }
 }
