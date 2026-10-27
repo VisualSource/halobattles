@@ -74,7 +74,7 @@ describe("pending commands", () => {
     await conn.open(session, "m1");
 
     conn.setReady(true);
-    // The Host changed the map in the same tick, clearing every ready flag.
+    // A Faction change landed in the same tick, clearing the ready flag.
     lobby(1, false);
 
     expect(pending()).toEqual([]);

@@ -21,7 +21,7 @@ export function LobbyScreen(props: {
   const isHost = lobby.host === userId;
   const canStart =
     isHost &&
-    lobby.seats.every((s) => s.ready) &&
+    lobby.seats.every((s) => s.ready || s.user === lobby.host) &&
     lobby.seats.length >= (map?.minPlayers ?? Number.POSITIVE_INFINITY);
   const byId = <T,>(m: Map<string, T>) =>
     [...m.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
@@ -37,8 +37,8 @@ export function LobbyScreen(props: {
           <li key={s.user}>
             {s.displayName || "(no name)"}
             {s.user === lobby.host && " (Host)"} ·{" "}
-            {content.factions.get(s.faction)?.name ?? s.faction} ·{" "}
-            {s.ready ? "ready" : "not ready"}
+            {content.factions.get(s.faction)?.name ?? s.faction}
+            {s.user !== lobby.host && (s.ready ? " · ready" : " · not ready")}
           </li>
         ))}
       </ol>
@@ -59,15 +59,17 @@ export function LobbyScreen(props: {
               ))}
             </select>
           </label>{" "}
-          <label>
-            <input
-              type="checkbox"
-              checked={me.ready}
-              disabled={isPending(local, "ready")}
-              onChange={(e) => conn.setReady(e.target.checked)}
-            />{" "}
-            Ready
-          </label>
+          {!isHost && (
+            <label>
+              <input
+                type="checkbox"
+                checked={me.ready}
+                disabled={isPending(local, "ready")}
+                onChange={(e) => conn.setReady(e.target.checked)}
+              />{" "}
+              Ready
+            </label>
+          )}
         </fieldset>
       )}
       <fieldset disabled={!isHost}>

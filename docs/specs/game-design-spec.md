@@ -252,11 +252,12 @@ A Match moves through the phases `lobby` → `play` → `results`.
 - **Defaults:** the first map by id, the Ruleset's `startingResources`, and each joiner on the first Faction by id, not ready. Maps carry no starting resources of their own.
 - Each player picks their own Faction. Mirror matches are allowed. Player colour comes from Seat order.
 - Starting resources must name every Resource, each a whole number from 0 to 1,000,000.
-- Settings stay editable until Start. Any setting change clears every Seat's ready flag.
+- Settings stay editable until Start. Changing your Faction clears only your own ready flag; map and starting-resource changes clear none.
+- The Host has no ready toggle: they ready up by pressing Start.
 
 ### Starting
 
-- The Host can Start only when every Seat is ready and the Seat count is at least the map's `minPlayers`.
+- The Host can Start only when every other Seat is ready and the Seat count is at least the map's `minPlayers`.
 - The phase goes straight to `play` at Match Time 0, with no countdown.
 - The map's starts are shuffled and assigned to Seats at random. Unused starts become garrisoned neutrals.
 - After Start, only returning Seats can join. There are no new players and no spectators.

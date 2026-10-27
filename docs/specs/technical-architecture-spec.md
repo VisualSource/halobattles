@@ -242,7 +242,7 @@ React 19, Vite, strict TypeScript, TanStack Router, and Zustand **vanilla** stor
 - `/`: the main menu. Device auth runs silently in the root route's `beforeLoad`; there is no login screen, only a display-name prompt the first time. From here a player creates a Match (`create_match`, no form), opens one from the list, or joins by id.
 - `/match/$matchId`: a layout route that owns the `MatchConnection`. It opens the connection in its loader and closes it on leave, so the lobby and play share one socket. A reload rejoins through this loader.
   - Child routes: `lobby` → `play` → `results`. **The server's phase drives navigation**: a phase change redirects to the matching child, and a URL that doesn't match the phase redirects back.
-  - **`lobby`:** one plain screen with no map preview. It has the Seat list (name, Faction, ready), your own Faction picker and ready toggle, Host-only map and resource controls, and a Start button that stays disabled until Start is allowed.
+  - **`lobby`:** one plain screen with no map preview. It has the Seat list (name, Faction, ready), your own Faction picker and ready toggle (not shown to the Host), Host-only map and resource controls, and a Start button that stays disabled until Start is allowed.
   - **`results`:** the winner, the reason and "Back to menu".
 
 ### State: three stores, one writer each

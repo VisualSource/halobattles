@@ -144,47 +144,31 @@ func TestStartingResourcesMustNameEveryResourceInRange(t *testing.T) {
 	}
 }
 
-func TestAnySettingChangeClearsEveryReadyFlag(t *testing.T) {
-	changes := map[string]func(l *Lobby) error{
-		"map": func(l *Lobby) error { return l.SetMap("u1", "base:quadrant") },
-		"resources": func(l *Lobby) error {
-			return l.SetStartingResources("u1", map[string]int{"base:credits": 1, "base:materials": 2})
-		},
-		"faction": func(l *Lobby) error { return l.SetFaction("u2", "base:unsc") },
-	}
-	for name, change := range changes {
-		t.Run(name, func(t *testing.T) {
-			l := joined(t, "u1", "u2")
-			_ = l.SetReady("u1", true)
-			_ = l.SetReady("u2", true)
-
-			if err := change(l); err != nil {
-				t.Fatal(err)
-			}
-			if l.Seats[0].Ready || l.Seats[1].Ready {
-				t.Errorf("ready flags survived a %s change: %+v", name, l.Seats)
-			}
-		})
-	}
-}
-
-func TestPickingTheCurrentValueKeepsReadyFlags(t *testing.T) {
+func TestOnlyAFactionChangeClearsAReadyFlagAndOnlyTheChangers(t *testing.T) {
 	l := joined(t, "u1", "u2")
-	_ = l.SetReady("u1", true)
 	_ = l.SetReady("u2", true)
+	if err := l.SetMap("u1", "base:quadrant"); err != nil {
+		t.Fatal(err)
+	}
+	_ = l.Join("u3", "u3")
+	_ = l.SetReady("u3", true)
 
-	_ = l.SetFaction("u2", "base:covenant")
-	_ = l.SetMap("u1", "base:duel")
-	_ = l.SetStartingResources("u1", map[string]int{"base:credits": 1000, "base:materials": 300})
+	_ = l.SetStartingResources("u1", map[string]int{"base:credits": 1, "base:materials": 2})
+	_ = l.SetFaction("u2", "base:covenant") // the current value
+	if !l.Seats[1].Ready || !l.Seats[2].Ready {
+		t.Errorf("a game setting or no-op change cleared ready flags: %+v", l.Seats)
+	}
 
-	if !l.Seats[0].Ready || !l.Seats[1].Ready {
-		t.Errorf("a no-op change cleared ready flags: %+v", l.Seats)
+	if err := l.SetFaction("u2", "base:unsc"); err != nil {
+		t.Fatal(err)
+	}
+	if l.Seats[1].Ready || !l.Seats[2].Ready {
+		t.Errorf("u2's Faction change should clear only u2: %+v", l.Seats)
 	}
 }
 
-func TestStartNeedsEveryoneReadyAndMinPlayers(t *testing.T) {
+func TestStartNeedsEveryoneButTheHostReadyAndMinPlayers(t *testing.T) {
 	l := joined(t, "u1")
-	_ = l.SetReady("u1", true)
 	wantReject(t, l.Start("u1"), "needs at least 2 players")
 
 	_ = l.Join("u2", "u2")
@@ -192,6 +176,16 @@ func TestStartNeedsEveryoneReadyAndMinPlayers(t *testing.T) {
 
 	_ = l.SetReady("u2", true)
 	if err := l.Start("u1"); err != nil {
-		t.Errorf("Start with everyone ready: %v", err)
+		t.Errorf("Start with everyone but the unready Host ready: %v", err)
+	}
+
+	// The role passes on, and the new Host's flag stops counting.
+	_ = l.SetMap("u1", "base:quadrant")
+	_ = l.Join("u3", "u3")
+	_ = l.SetReady("u3", true)
+	_ = l.SetReady("u2", false)
+	l.Leave("u1")
+	if err := l.Start("u2"); err != nil {
+		t.Errorf("Start by an unready new Host: %v", err)
 	}
 }

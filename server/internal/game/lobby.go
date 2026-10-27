@@ -100,14 +100,6 @@ func (l *Lobby) Leave(user string) {
 	}
 }
 
-// settingsChanged clears every ready flag, so nobody is held to a matchup
-// that changed under them.
-func (l *Lobby) settingsChanged() {
-	for i := range l.Seats {
-		l.Seats[i].Ready = false
-	}
-}
-
 func (l *Lobby) mustBeHost(user string) error {
 	if l.seatIndex(user) < 0 {
 		return errNoSeat
@@ -118,7 +110,8 @@ func (l *Lobby) mustBeHost(user string) error {
 	return nil
 }
 
-// SetFaction picks user's own Faction. Mirror matches are allowed.
+// SetFaction picks user's own Faction and clears only their ready flag.
+// Mirror matches are allowed.
 func (l *Lobby) SetFaction(user, faction string) error {
 	i := l.seatIndex(user)
 	if i < 0 {
@@ -129,7 +122,7 @@ func (l *Lobby) SetFaction(user, faction string) error {
 	}
 	if l.Seats[i].Faction != faction {
 		l.Seats[i].Faction = faction
-		l.settingsChanged()
+		l.Seats[i].Ready = false
 	}
 	return nil
 }
@@ -160,10 +153,7 @@ func (l *Lobby) SetMap(user, id string) error {
 		}
 		return fmt.Errorf("%s has %d %s, but %d players are seated", id, m.Starts, starts, len(l.Seats))
 	}
-	if l.Map != id {
-		l.Map = id
-		l.settingsChanged()
-	}
+	l.Map = id
 	return nil
 }
 
@@ -186,15 +176,12 @@ func (l *Lobby) SetStartingResources(user string, amounts map[string]int) error 
 			return fmt.Errorf("starting resources are missing %s", r)
 		}
 	}
-	if !maps.Equal(l.StartingResources, amounts) {
-		l.StartingResources = maps.Clone(amounts)
-		l.settingsChanged()
-	}
+	l.StartingResources = maps.Clone(amounts)
 	return nil
 }
 
-// Start is Host only, once every Seat is ready and the map's minPlayers
-// are seated.
+// Start is Host only, once every other Seat is ready and the map's
+// minPlayers are seated. The Host's own flag doesn't count.
 func (l *Lobby) Start(user string) error {
 	if err := l.mustBeHost(user); err != nil {
 		return err
@@ -202,7 +189,7 @@ func (l *Lobby) Start(user string) error {
 	if min := l.content.Maps[l.Map].MinPlayers; len(l.Seats) < min {
 		return fmt.Errorf("%s needs at least %d players", l.Map, min)
 	}
-	if slices.ContainsFunc(l.Seats, func(s Seat) bool { return !s.Ready }) {
+	if slices.ContainsFunc(l.Seats[1:], func(s Seat) bool { return !s.Ready }) {
 		return errors.New("not every Seat is ready")
 	}
 	return nil
