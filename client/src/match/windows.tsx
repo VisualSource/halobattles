@@ -933,7 +933,7 @@ export function StacksWindow(props: {
       {editable && (
         <p className="mx-3 mt-2 text-ink-4 text-xs">
           Drag a slot to any cell, in this Stack or another. Right-click one to
-          split it in half or move it. Drag a Stack's chip on the map onto a
+          split it in half or move it. Drag a Stack's pile on the map onto a
           Planet to send it.
         </p>
       )}
