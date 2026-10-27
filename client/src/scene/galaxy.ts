@@ -7,6 +7,7 @@ import type { GalaxyMap } from "../gen/content";
 import type { LocalStore } from "../match/local";
 import { type Lanes, route } from "../match/route";
 import type { Army, createMatchStore, PlanetView } from "../match/store";
+import { formatAge } from "../match/time";
 
 // Player colour comes from Seat order.
 const SEAT_COLOURS = ["#3b82f6", "#ef4444", "#22c55e", "#eab308"];
@@ -114,8 +115,14 @@ export class GalaxyScene {
         this.updateArmies();
         this.updateSelection();
       }),
-      stores.local.subscribe(() => this.updateSelection()),
+      stores.local.subscribe((st, prev) => {
+        if (st.lastSeen !== prev.lastSeen) this.updatePlanets();
+        this.updateSelection();
+      }),
     );
+    // Last-seen labels show their age, so they're redrawn once a second.
+    const ages = setInterval(() => this.updatePlanets(), 1000);
+    this.cleanup.push(() => clearInterval(ages));
     this.updatePlanets();
     this.updateArmies();
     this.updateSelection();
@@ -198,19 +205,29 @@ export class GalaxyScene {
   /** Redraws each Planet's colour and label from the current View. */
   private updatePlanets() {
     const view = this.stores.store.getState().view;
+    const { lastSeen, clockOffset } = this.stores.local.getState();
+    const now = performance.now() + clockOffset;
     for (const p of this.map.planets) {
       const obj = this.planets.get(p.id);
       if (!obj) continue;
       const seen = view?.planets.get(p.id);
-      obj.mesh.material.color.set(colourOf(seen));
+      const last = seen ? undefined : lastSeen.get(p.id);
+      obj.mesh.material.color.set(last ? UNSEEN : colourOf(seen));
       const mine = seen?.owner === view?.you && !seen?.locked;
-      obj.label.replaceChildren(
-        ...labelParts(
-          p.name,
-          seen,
-          mine ? (stack, e) => this.startOrder({ from: p.id, stack }, e) : null,
-        ),
+      const parts = labelParts(
+        p.name,
+        seen ?? last?.planet,
+        mine ? (stack, e) => this.startOrder({ from: p.id, stack }, e) : null,
       );
+      if (last) {
+        // Out of vision: what was last seen there, greyed, with its age.
+        for (const el of parts.slice(1)) el.style.opacity = "0.5";
+        const age = document.createElement("div");
+        age.textContent = `seen ${formatAge(now - last.seenAt)} ago`;
+        age.style.opacity = "0.5";
+        parts.push(age);
+      }
+      obj.label.replaceChildren(...parts);
     }
   }
 

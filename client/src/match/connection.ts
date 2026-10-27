@@ -42,7 +42,7 @@ import {
   type ViewFullT,
   type WinHoldT,
 } from "../gen/wire";
-import { type CommandKind, createLocalStore } from "./local";
+import { type CommandKind, createLocalStore, updateLastSeen } from "./local";
 import {
   type Army,
   applyDelta,
@@ -410,6 +410,15 @@ export class MatchConnection {
         this.debug("ViewFull", view);
         this.syncClock(view.matchTime);
         this.store.setState({ view });
+        this.local.setState((s) => ({
+          lastSeen: updateLastSeen(
+            s.lastSeen,
+            undefined,
+            [],
+            view.planets.keys(),
+            view.matchTime,
+          ),
+        }));
         return;
       }
       case Op.ViewDelta: {
@@ -417,7 +426,17 @@ export class MatchConnection {
         this.debug("ViewDelta", delta);
         this.syncClock(delta.matchTime);
         const { view } = this.store.getState();
-        if (view) this.store.setState({ view: applyDelta(view, delta) });
+        if (!view) return;
+        this.store.setState({ view: applyDelta(view, delta) });
+        this.local.setState((s) => ({
+          lastSeen: updateLastSeen(
+            s.lastSeen,
+            view.planets,
+            delta.removedPlanets,
+            delta.planets.map((p) => p.id),
+            delta.matchTime,
+          ),
+        }));
         return;
       }
       case Op.PaydayPaid: {

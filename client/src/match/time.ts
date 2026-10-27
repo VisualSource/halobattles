@@ -12,3 +12,9 @@ export function useMatchNow(local: LocalStore) {
   }, []);
   return now + offset;
 }
+
+/** "45 s", "3 min": how long ago something was seen. */
+export function formatAge(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min`;
+}

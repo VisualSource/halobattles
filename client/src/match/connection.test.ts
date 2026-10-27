@@ -589,6 +589,72 @@ describe("MatchConnection", () => {
     expect(ended).toEqual([{ winner: 0, reason: "hold" }]);
   });
 
+  it("keeps a last-seen copy of a Planet that leaves vision", async () => {
+    const { conn, send } = await playing();
+    const c = conn.store.getState().view?.planets.get("c");
+
+    send(Op.ViewDelta, pack(new ViewDeltaT(42000n, [], [], ["c"], null)));
+
+    expect(conn.store.getState().view?.planets.has("c")).toBe(false);
+    expect(conn.local.getState().lastSeen.get("c")).toEqual({
+      planet: c,
+      seenAt: 42000,
+    });
+  });
+
+  it("leaves a lost Planet's queues out of its last-seen copy", async () => {
+    const { conn, send } = await playing();
+    const mine = new PlanetViewT(
+      "b",
+      0,
+      false,
+      false,
+      [""],
+      [],
+      [new QueueItemT(7, 0, "base:barracks", "", true, false, 30000n, 0n)],
+    );
+    send(Op.ViewDelta, pack(new ViewDeltaT(1000n, [], [mine], [], null)));
+
+    send(Op.ViewDelta, pack(new ViewDeltaT(2000n, [], [], ["b"], null)));
+
+    const copy = conn.local.getState().lastSeen.get("b")?.planet;
+    expect(copy?.owner).toBe(0);
+    expect(copy?.queue).toEqual([]);
+  });
+
+  it("drops the copy when the Planet comes back into vision", async () => {
+    const { conn, send } = await playing();
+    send(Op.ViewDelta, pack(new ViewDeltaT(1000n, [], [], ["c"], null)));
+
+    const back = new PlanetViewT("c", 1, false, false, [""], []);
+    send(Op.ViewDelta, pack(new ViewDeltaT(5000n, [], [back], [], null)));
+
+    expect(conn.local.getState().lastSeen.has("c")).toBe(false);
+    expect(conn.store.getState().view?.planets.get("c")?.owner).toBe(1);
+  });
+
+  it("drops copies a ViewFull brings back into vision", async () => {
+    const { conn, send } = await playing();
+    send(Op.ViewDelta, pack(new ViewDeltaT(1000n, [], [], ["c"], null)));
+
+    send(
+      Op.ViewFull,
+      pack(
+        new ViewFullT(
+          2000n,
+          "hash1",
+          "base:rules",
+          "base:quadrant",
+          0,
+          [],
+          [new PlanetViewT("c", -1, false, false, [""], [])],
+        ),
+      ),
+    );
+
+    expect(conn.local.getState().lastSeen.size).toBe(0);
+  });
+
   it("sends PlanetCaptured out as a captured event", async () => {
     const { conn, send } = await playing();
     const got: unknown[] = [];

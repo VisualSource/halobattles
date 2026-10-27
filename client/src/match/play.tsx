@@ -10,7 +10,7 @@ import { inMatch } from "./phase";
 import { laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import type { PlanetView, QueueItem, UnitSlot } from "./store";
-import { useMatchNow } from "./time";
+import { formatAge, useMatchNow } from "./time";
 
 export function PlayScreen(props: {
   conn: MatchConnection;
@@ -231,7 +231,10 @@ function PlanetPanel(props: {
   const mapPlanet = content.maps
     .get(view.map)
     ?.planets.find((p) => p.id === selected);
-  const planet = view.planets.get(selected);
+  // Out of vision, the panel shows the last-seen copy, read-only.
+  const live = view.planets.get(selected);
+  const last = live ? undefined : local.lastSeen.get(selected);
+  const planet = live ?? last?.planet;
   const name = (id: string) =>
     content.units.get(id)?.name ?? content.buildings.get(id)?.name ?? id;
   const cost = (c: Record<string, number>) =>
@@ -242,7 +245,7 @@ function PlanetPanel(props: {
   const buildable = [...content.buildings.values()].filter(
     (b) => b.faction === faction,
   );
-  const mine = planet?.owner === view.you && !planet.locked;
+  const mine = live?.owner === view.you && !live.locked;
   const ownerName = (seat: number | null) =>
     seat === null
       ? "Neutral"
@@ -255,7 +258,13 @@ function PlanetPanel(props: {
       {!planet ? (
         <p>Outside your vision.</p>
       ) : (
-        <>
+        <div style={last ? { opacity: 0.5 } : undefined}>
+          {last && (
+            <p>
+              Out of vision: last seen{" "}
+              <LastSeenAge conn={conn} seenAt={last.seenAt} /> ago.
+            </p>
+          )}
           <p>
             {ownerName(planet.owner)}
             {planet.capital && " · Capital"}
@@ -366,7 +375,7 @@ function PlanetPanel(props: {
               )}
             />
           ))}
-        </>
+        </div>
       )}
     </aside>
   );
@@ -486,6 +495,11 @@ function StackSection(props: {
       )}
     </section>
   );
+}
+
+/** How long ago a last-seen copy was seen, ticking once a second. */
+function LastSeenAge(props: { conn: MatchConnection; seenAt: number }) {
+  return <>{formatAge(useMatchNow(props.conn.local) - props.seenAt)}</>;
 }
 
 /** One queue: each item with its progress and a cancel button. */
