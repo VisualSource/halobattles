@@ -17,13 +17,15 @@ const RulesetID = "base:rules"
 
 const StacksPerPlanet = 3
 
-// UnitSlot holds any number of one unit type.
+// UnitSlot holds any number of one unit type, in one cell of its Stack's grid.
 type UnitSlot struct {
 	Unit  string
 	Count int
+	Cell  int // 0 to the Ruleset's unitSlotsPerStack-1; unique in its Stack
 }
 
-// Stack is a Planet's garrison group: its Unit Slots in order.
+// Stack is a Planet's garrison group: its Unit Slots, each in its own cell.
+// The slice's order means nothing; Cell places a slot.
 type Stack []UnitSlot
 
 type Planet struct {
@@ -120,7 +122,7 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 			ID: string(mp.ID), Owner: Neutral, Buildings: make([]string, slots),
 			Income: maps.Clone(income), CommandPointBonus: cp,
 		}
-		p.Stacks = toStacks(m.Garrisons[string(mp.ID)])
+		p.Stacks = toStacks(c, m.Garrisons[string(mp.ID)])
 		s.Planets[p.ID] = p
 	}
 	positions := map[string]cs.Position{}
@@ -152,7 +154,7 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 		for i, b := range kit.Buildings {
 			p.Buildings[i] = string(b)
 		}
-		p.Stacks = toStacks(kit.Stacks) // replaces the unused-start garrison
+		p.Stacks = toStacks(c, kit.Stacks) // replaces the unused-start garrison
 		s.Players = append(s.Players, Player{
 			Seat: seat, User: setup.User, DisplayName: setup.DisplayName, Faction: setup.Faction,
 			Resources: maps.Clone(startingResources),
@@ -161,11 +163,11 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 	return s, nil
 }
 
-func toStacks(in cs.Stacks) [StacksPerPlanet]Stack {
+func toStacks(c *cs.Content, in cs.Stacks) [StacksPerPlanet]Stack {
 	var out [StacksPerPlanet]Stack
 	for i, st := range in {
 		for _, e := range st {
-			out[i] = append(out[i], UnitSlot{Unit: string(e.Unit), Count: e.Count})
+			out[i] = out[i].add(string(e.Unit), e.Count, slotLimit(c, string(e.Unit)))
 		}
 	}
 	return out

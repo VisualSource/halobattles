@@ -157,7 +157,6 @@ func (p *Player) inDebt() bool {
 // build runs every queue. Queues pause while their owner is in debt or the
 // Planet is Locked.
 func (s *State) build(c *cs.Content, now int64) {
-	slots := c.Rulesets[RulesetID].UnitSlotsPerStack
 	for _, p := range s.Planets {
 		run := p.Owner != Neutral && !s.Players[p.Owner].inDebt() && !p.Locked
 		p.Queue = runQueue(p.Queue, run, now, func(q QueueItem) bool {
@@ -166,7 +165,7 @@ func (s *State) build(c *cs.Content, now int64) {
 		})
 		for slot, q := range p.UnitQueues {
 			p.setUnitQueue(slot, runQueue(q, run, now, func(q QueueItem) bool {
-				return p.addUnits(p.Rally, q.Unit, 1, slots)
+				return p.addUnits(c, p.Rally, q.Unit, 1)
 			}))
 		}
 	}

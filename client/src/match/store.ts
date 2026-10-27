@@ -22,7 +22,8 @@ export type Lobby = {
   endReason: string; // in results: "hold", "last-standing", ...
 };
 
-export type UnitSlot = { unit: string; count: number };
+/** One unit type in a Stack, in its cell of the Stack's grid. */
+export type UnitSlot = { unit: string; count: number; cell: number };
 
 /**
  * A building under construction or a unit in training. Only the first in a

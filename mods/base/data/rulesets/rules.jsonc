@@ -7,7 +7,7 @@
   "paydaySeconds": 90,
   "cancelRefundPercent": 50,
   "sellRefundPercent": 50,
-  "unitSlotsPerStack": 10,
+  "unitSlotsPerStack": 15,
   "tiers": { "none": 0, "weak": 0.6, "average": 1.0, "strong": 1.4 },
   "laneTypes": { "fast": 1.0, "slow": 2.0 },
   "initiativeDie": 20,

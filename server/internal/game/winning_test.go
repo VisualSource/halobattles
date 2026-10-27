@@ -62,6 +62,25 @@ func TestTheLastPlayerStandingWins(t *testing.T) {
 	}
 }
 
+func TestASoloMatchHasNoLastPlayerStanding(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	// Started alone, as on a one-player map: Seat 1's Planets are neutral.
+	for _, p := range s.Planets {
+		if p.Owner == 1 {
+			p.Owner = Neutral
+		}
+	}
+	s.Players = s.Players[:1]
+
+	if ev := s.Advance(c, 200); ev.MatchEnded != nil {
+		t.Fatalf("ended = %+v, want a solo Match to go on", ev.MatchEnded)
+	}
+	s.Forfeit(0)
+	if ev := s.Advance(c, 400); ev.MatchEnded == nil || ev.MatchEnded.Reason != ReasonAbandoned {
+		t.Errorf("ended = %+v, want surrendering to end it", ev.MatchEnded)
+	}
+}
+
 func TestHoldingTheShareForTheHoldTimeWins(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	for _, id := range []string{"b", "c", "d"} {

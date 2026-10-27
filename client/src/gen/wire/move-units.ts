@@ -58,8 +58,18 @@ count():number {
   return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
 }
 
+toCell():number {
+  const offset = this.bb!.__offset(this.bb_pos, 16);
+  return offset ? this.bb!.readInt16(this.bb_pos + offset) : -1;
+}
+
+fromCell():number {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+}
+
 static startMoveUnits(builder:flatbuffers.Builder) {
-  builder.startObject(6);
+  builder.startObject(8);
 }
 
 static addSeq(builder:flatbuffers.Builder, seq:number) {
@@ -86,12 +96,20 @@ static addCount(builder:flatbuffers.Builder, count:number) {
   builder.addFieldInt32(5, count, 0);
 }
 
+static addToCell(builder:flatbuffers.Builder, toCell:number) {
+  builder.addFieldInt16(6, toCell, -1);
+}
+
+static addFromCell(builder:flatbuffers.Builder, fromCell:number) {
+  builder.addFieldInt8(7, fromCell, 0);
+}
+
 static endMoveUnits(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createMoveUnits(builder:flatbuffers.Builder, seq:number, planetOffset:flatbuffers.Offset, fromStack:number, toStack:number, unitOffset:flatbuffers.Offset, count:number):flatbuffers.Offset {
+static createMoveUnits(builder:flatbuffers.Builder, seq:number, planetOffset:flatbuffers.Offset, fromStack:number, toStack:number, unitOffset:flatbuffers.Offset, count:number, toCell:number, fromCell:number):flatbuffers.Offset {
   MoveUnits.startMoveUnits(builder);
   MoveUnits.addSeq(builder, seq);
   MoveUnits.addPlanet(builder, planetOffset);
@@ -99,6 +117,8 @@ static createMoveUnits(builder:flatbuffers.Builder, seq:number, planetOffset:fla
   MoveUnits.addToStack(builder, toStack);
   MoveUnits.addUnit(builder, unitOffset);
   MoveUnits.addCount(builder, count);
+  MoveUnits.addToCell(builder, toCell);
+  MoveUnits.addFromCell(builder, fromCell);
   return MoveUnits.endMoveUnits(builder);
 }
 
@@ -109,7 +129,9 @@ unpack(): MoveUnitsT {
     this.fromStack(),
     this.toStack(),
     this.unit(),
-    this.count()
+    this.count(),
+    this.toCell(),
+    this.fromCell()
   );
 }
 
@@ -121,6 +143,8 @@ unpackTo(_o: MoveUnitsT): void {
   _o.toStack = this.toStack();
   _o.unit = this.unit();
   _o.count = this.count();
+  _o.toCell = this.toCell();
+  _o.fromCell = this.fromCell();
 }
 }
 
@@ -131,7 +155,9 @@ constructor(
   public fromStack: number = 0,
   public toStack: number = 0,
   public unit: string|Uint8Array|null = null,
-  public count: number = 0
+  public count: number = 0,
+  public toCell: number = -1,
+  public fromCell: number = 0
 ){}
 
 
@@ -145,7 +171,9 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.fromStack,
     this.toStack,
     unit,
-    this.count
+    this.count,
+    this.toCell,
+    this.fromCell
   );
 }
 }

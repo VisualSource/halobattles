@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -103,9 +104,15 @@ func TestTrainedUnitsJoinTheRallyStackOneAtATime(t *testing.T) {
 
 // fill gives a Stack n Unit Slots of filler units, keeping what it has.
 func fill(st *Stack, n int) {
-	for i := len(*st); i < n; i++ {
-		*st = append(*st, UnitSlot{Unit: fmt.Sprintf("base:filler-%d", i), Count: 1})
+	for i := 0; len(*st) < n; i++ {
+		if name := fmt.Sprintf("base:filler-%d", i); !has(*st, name) {
+			*st = st.add(name, 1, 0)
+		}
 	}
+}
+
+func has(st Stack, unit string) bool {
+	return slices.ContainsFunc(st, func(u UnitSlot) bool { return u.Unit == unit })
 }
 
 func TestTrainedUnitsOverflowThenBlockTheQueue(t *testing.T) {
@@ -145,26 +152,26 @@ func TestTrainedUnitsOverflowThenBlockTheQueue(t *testing.T) {
 
 	a.Stacks[2] = a.Stacks[2][:9] // make room
 	s.Advance(c, 90_200)
-	if len(a.UnitQueues) != 0 || a.Stacks[0][9].Unit != "base:filler-9" || a.Stacks[2][9].Unit != "base:odst" {
+	if len(a.UnitQueues) != 0 || has(a.Stacks[0], "base:odst") || a.Stacks[2][9].Unit != "base:odst" {
 		t.Errorf("after making room: queues %+v, Stack 3 %+v", a.UnitQueues, a.Stacks[2])
 	}
 }
 
 func TestMoveUnitsBetweenStacks(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
-	a := s.Planets["a"]
+	a := s.Planets["a"] // Stack 1: 10 Marines in cell 0, 2 Warthogs in cell 1
 
-	if err := s.MoveUnits(c, 0, "a", 0, 1, "base:marine", 4); err != nil {
+	if err := s.MoveUnits(c, 0, "a", 0, 0, 1, -1, "base:marine", 4); err != nil {
 		t.Fatal(err)
 	}
 	if a.Stacks[0][0].Count != 6 || a.Stacks[1][0] != (UnitSlot{Unit: "base:marine", Count: 4}) {
 		t.Fatalf("after moving 4: %+v", a.Stacks)
 	}
-	if err := s.MoveUnits(c, 0, "a", 0, 1, "base:marine", 6); err != nil {
+	if err := s.MoveUnits(c, 0, "a", 0, 0, 1, -1, "base:marine", 6); err != nil {
 		t.Fatal(err)
 	}
-	if a.Stacks[0][0].Unit != "base:warthog" || a.Stacks[1][0].Count != 10 {
-		t.Errorf("moving the rest should empty and drop the Unit Slot, merging: %+v", a.Stacks)
+	if a.Stacks[0][0].Unit != "base:warthog" || len(a.Stacks[1]) != 1 || a.Stacks[1][0].Count != 10 {
+		t.Errorf("moving the rest should empty and drop the Unit Slot, topping up the other: %+v", a.Stacks)
 	}
 
 	for _, tc := range []struct {
@@ -175,16 +182,97 @@ func TestMoveUnitsBetweenStacks(t *testing.T) {
 		want     string
 	}{
 		{"more than there are", nil, 1, 2, 11, "doesn't have"},
-		{"same Stack", nil, 1, 1, 1, "two different"},
-		{"full target", func() { fill(&a.Stacks[2], 10) }, 1, 2, 1, "no free Unit Slot"},
+		{"no such Stack", nil, 1, 3, 1, "no such Stack"},
+		{"full target", func() { fill(&a.Stacks[2], 15) }, 1, 2, 1, "no room"},
 		{"Locked", func() { a.Locked = true }, 1, 0, 1, "Locked"},
 	} {
 		if tc.setup != nil {
 			tc.setup()
 		}
-		if err := s.MoveUnits(c, 0, "a", tc.from, tc.to, "base:marine", tc.count); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if err := s.MoveUnits(c, 0, "a", tc.from, 0, tc.to, -1, "base:marine", tc.count); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: err = %v, want %q", tc.name, err, tc.want)
 		}
+	}
+}
+
+func TestMoveUnitsPlacesSplitsAndMergesUnitSlots(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	a := s.Planets["a"] // Stack 1: 10 Marines in cell 0, 2 Warthogs in cell 1
+	move := func(from, fromCell, to, toCell int, unit string, count int) {
+		t.Helper()
+		if err := s.MoveUnits(c, 0, "a", from, fromCell, to, toCell, unit, count); err != nil {
+			t.Fatal(err)
+		}
+	}
+	slot := func(stack, cell int) UnitSlot {
+		if i := a.Stacks[stack].at(cell); i >= 0 {
+			return a.Stacks[stack][i]
+		}
+		return UnitSlot{Cell: -1}
+	}
+
+	move(0, 0, 0, 7, "base:marine", 10) // to an empty cell
+	move(0, 1, 0, 7, "base:warthog", 2) // onto another unit: they swap
+	if slot(0, 7).Unit != "base:warthog" || slot(0, 1).Unit != "base:marine" {
+		t.Fatalf("swap within a Stack: %+v", a.Stacks[0])
+	}
+
+	move(0, 1, 0, 2, "base:marine", 5) // a split: a second Marine slot in the same Stack
+	if slot(0, 1).Count != 5 || slot(0, 2) != (UnitSlot{Unit: "base:marine", Count: 5, Cell: 2}) {
+		t.Fatalf("split: %+v", a.Stacks[0])
+	}
+	move(0, 2, 0, 1, "base:marine", 5) // onto the same unit: they merge
+	if slot(0, 1).Count != 10 || slot(0, 2).Cell != -1 {
+		t.Fatalf("merge: %+v", a.Stacks[0])
+	}
+
+	move(0, 1, 2, 4, "base:marine", 10) // a whole slot into a cell of another Stack
+	if slot(2, 4).Count != 10 || len(a.Stacks[0]) != 1 {
+		t.Fatalf("to another Stack: %+v", a.Stacks)
+	}
+
+	for _, tc := range []struct {
+		name                       string
+		from, fromCell, to, toCell int
+		unit                       string
+		count                      int
+	}{
+		{"part of a slot onto another unit", 2, 4, 0, 7, "base:marine", 1},
+		{"a cell past the grid", 0, 7, 1, 15, "base:warthog", 1},
+		{"the wrong unit for the cell", 0, 7, 1, 0, "base:marine", 1},
+	} {
+		if err := s.MoveUnits(c, 0, "a", tc.from, tc.fromCell, tc.to, tc.toCell, tc.unit, tc.count); err == nil {
+			t.Errorf("%s was accepted", tc.name)
+		}
+	}
+}
+
+func TestSlotLimitsCapEachUnitSlot(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	m := c.Units["base:marine"]
+	four := 4
+	m.SlotLimit = &four
+	c.Units["base:marine"] = m
+	a := s.Planets["a"] // Stack 1: 10 Marines in cell 0 (more than the limit, from before it)
+
+	a.Stacks[1] = Stack{{Unit: "base:marine", Count: 3, Cell: 0}}
+	if err := s.MoveUnits(c, 0, "a", 0, 0, 1, 0, "base:marine", 3); err != nil {
+		t.Fatal(err)
+	}
+	if a.Stacks[1][0].Count != 4 || a.Stacks[0][0].Count != 9 {
+		t.Errorf("a merge takes only up to the limit, the rest stay: %+v", a.Stacks)
+	}
+	if err := s.MoveUnits(c, 0, "a", 0, 0, 1, 5, "base:marine", 5); err == nil || !strings.Contains(err.Error(), "at most 4") {
+		t.Errorf("a new slot over the limit: err = %v", err)
+	}
+
+	a.Stacks[2] = Stack{{Unit: "base:marine", Count: 2, Cell: 3}}
+	if !a.addUnits(c, 2, "base:marine", 7) {
+		t.Fatal("no room")
+	}
+	want := Stack{{Unit: "base:marine", Count: 4, Cell: 3}, {Unit: "base:marine", Count: 4, Cell: 0}, {Unit: "base:marine", Count: 1, Cell: 1}}
+	if !slices.Equal(a.Stacks[2], want) {
+		t.Errorf("arrivals top up, then fill free cells: %+v, want %+v", a.Stacks[2], want)
 	}
 }
 

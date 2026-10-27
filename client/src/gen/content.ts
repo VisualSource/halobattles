@@ -206,6 +206,10 @@ export interface Unit {
    * Per-player limit, counted from queue to death.
    */
   maxCount?: number;
+  /**
+   * The most of this unit one Unit Slot holds; more take another slot. Unset is no limit.
+   */
+  slotLimit?: number;
   combat: Combat;
   /**
    * An asset in a Mod's assets/ folder, written `__mod__/path`.

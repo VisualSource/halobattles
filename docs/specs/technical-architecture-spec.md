@@ -85,7 +85,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 
 - **Resource:** a stockpile only, with an optional `icon`. Command Points is **not** a Resource; it is carried by `commandPoints` and `commandPointBonus` fields.
 - **Faction:** an optional `icon` and a **Starting Kit**: the buildings and Stacks (`[{unit, count}]` per Stack) placed on its Capital. Starting resources are not part of the kit.
-- **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), `combat` (required), optional `icon`.
+- **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), optional `slotLimit` (the most one Unit Slot holds), `combat` (required), optional `icon`.
 - **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `icon`. There are no build limits or prerequisites.
 - **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `initiative`, and `tiers: {unitClassId: tierName}`. A Unit Class missing from `tiers` counts as `average`.
 - **Unit Class:** an id and a name.
@@ -274,7 +274,7 @@ Dev builds log the unpacked messages as JSON.
 React, fixed to the screen, not anchored to 3D.
 
 - **Planet panel:**
-  - **Owned:** Building Slots (an empty slot opens a building picker for `QueueBuilding`; a filled slot can be sold), the construction queue, one unit queue per production building (`QueueUnit` with a count, plus cancel), the 3 Stack grids of Unit Slots with drag-to-move between them (`MoveUnits`), and a Rally Stack toggle.
+  - **Owned:** Building Slots (an empty slot opens a building picker for `QueueBuilding`; a filled slot can be sold), the construction queue, one unit queue per production building (`QueueUnit` with a count, plus cancel), the 3 Stack grids of Unit Slots with drag-to-any-cell, in the same Stack or another (`MoveUnits` with a target cell), and a right-click split, and a Rally Stack toggle.
   - **Visible, not owned:** read-only owner, buildings and Stacks. Queues are hidden.
   - **Out of vision:** the last-seen copy, greyed, with its age.
   - **Locked:** commands are disabled, and "Watch Battle" is offered if you are a side.

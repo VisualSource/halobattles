@@ -78,6 +78,8 @@ func (s *State) checkWin(c *cs.Content, now int64, ev *Events) {
 	case len(alive) == 0:
 		s.end(Result{Winner: Neutral, Reason: ReasonAbandoned}, ev)
 		return
+	case len(s.Players) == 1:
+		// A Match started alone has no one to outlast: only the hold, or a Forfeit, ends it.
 	case len(alive) == 1 && !s.Players[alive[0]].Disconnected:
 		s.end(Result{Winner: alive[0], Reason: ReasonLastStanding}, ev)
 		return

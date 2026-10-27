@@ -412,7 +412,7 @@ func armies(as []game.ArmyView) []*wire.ArmyViewT {
 func unitSlots(st []game.UnitSlot) []*wire.UnitSlotT {
 	var out []*wire.UnitSlotT
 	for _, u := range st {
-		out = append(out, &wire.UnitSlotT{Unit: u.Unit, Count: uint32(u.Count)})
+		out = append(out, &wire.UnitSlotT{Unit: u.Unit, Count: uint32(u.Count), Cell: uint8(u.Cell)})
 	}
 	return out
 }

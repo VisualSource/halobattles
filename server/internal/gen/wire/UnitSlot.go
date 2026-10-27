@@ -9,6 +9,7 @@ import (
 type UnitSlotT struct {
 	Unit  string `json:"unit"`
 	Count uint32 `json:"count"`
+	Cell  byte   `json:"cell"`
 }
 
 func (t *UnitSlotT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -22,12 +23,14 @@ func (t *UnitSlotT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	UnitSlotStart(builder)
 	UnitSlotAddUnit(builder, unitOffset)
 	UnitSlotAddCount(builder, t.Count)
+	UnitSlotAddCell(builder, t.Cell)
 	return UnitSlotEnd(builder)
 }
 
 func (rcv *UnitSlot) UnPackTo(t *UnitSlotT) {
 	t.Unit = string(rcv.Unit())
 	t.Count = rcv.Count()
+	t.Cell = rcv.Cell()
 }
 
 func (rcv *UnitSlot) UnPack() *UnitSlotT {
@@ -94,14 +97,29 @@ func (rcv *UnitSlot) MutateCount(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(6, n)
 }
 
+func (rcv *UnitSlot) Cell() byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
+	if o != 0 {
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *UnitSlot) MutateCell(n byte) bool {
+	return rcv._tab.MutateByteSlot(8, n)
+}
+
 func UnitSlotStart(builder *flatbuffers.Builder) {
-	builder.StartObject(2)
+	builder.StartObject(3)
 }
 func UnitSlotAddUnit(builder *flatbuffers.Builder, unit flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(unit), 0)
 }
 func UnitSlotAddCount(builder *flatbuffers.Builder, count uint32) {
 	builder.PrependUint32Slot(1, count, 0)
+}
+func UnitSlotAddCell(builder *flatbuffers.Builder, cell byte) {
+	builder.PrependByteSlot(2, cell, 0)
 }
 func UnitSlotEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

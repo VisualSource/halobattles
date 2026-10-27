@@ -124,7 +124,7 @@ func TestAnArmyArrivingHomeMergesOrWaitsForRoom(t *testing.T) {
 
 	b.Stacks[0] = b.Stacks[0][:9]
 	s.Advance(c, 30_200)
-	if len(s.Armies) != 0 || b.Stacks[0][9] != (UnitSlot{Unit: "base:marine", Count: 4}) {
+	if len(s.Armies) != 0 || b.Stacks[0][9] != (UnitSlot{Unit: "base:marine", Count: 4, Cell: 9}) {
 		t.Errorf("after making room: Armies %d, Stack 1 %+v", len(s.Armies), b.Stacks[0])
 	}
 }

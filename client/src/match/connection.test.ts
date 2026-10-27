@@ -136,7 +136,7 @@ describe("MatchConnection", () => {
           false,
           ["base:hall", ""],
           [
-            new StackT([new UnitSlotT("base:grunt", 10)]),
+            new StackT([new UnitSlotT("base:grunt", 10, 4)]),
             new StackT([]),
             new StackT([]),
           ],
@@ -200,7 +200,7 @@ describe("MatchConnection", () => {
             capital: true,
             locked: false,
             buildings: ["base:hall", ""],
-            stacks: [[{ unit: "base:grunt", count: 10 }], [], []],
+            stacks: [[{ unit: "base:grunt", count: 10, cell: 4 }], [], []],
             queue: [],
             unitQueue: [],
             rallyStack: 0,
@@ -234,7 +234,7 @@ describe("MatchConnection", () => {
           {
             id: 4,
             owner: 1,
-            units: [{ unit: "base:grunt", count: 3 }],
+            units: [{ unit: "base:grunt", count: 3, cell: 0 }],
             from: "harvest",
             to: "jericho",
             departed: 1000,
@@ -410,7 +410,13 @@ describe("MatchConnection", () => {
     conn.cancelQueueItem(7);
     conn.sellBuilding("a", 0);
     conn.queueUnit("a", 0, "base:marine", 5);
-    conn.moveUnits("a", 0, 2, "base:marine", 3);
+    conn.moveUnits(
+      "a",
+      { stack: 0, cell: 0 },
+      { stack: 2, cell: -1 },
+      "base:marine",
+      3,
+    );
     conn.setRallyStack("a", 1);
     conn.surrender();
 

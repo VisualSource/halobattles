@@ -68,14 +68,26 @@ func (s *State) OrderArmy(seat int, from string, units []ArmyUnits, to string, t
 		if u.Stack < 0 || u.Stack >= StacksPerPlanet || u.Count < 1 {
 			return errors.New("pick units from the Planet's Stacks")
 		}
-		st := stacks[u.Stack]
-		i := slices.IndexFunc(st, func(sl UnitSlot) bool { return sl.Unit == u.Unit })
-		if i < 0 || st[i].Count < u.Count {
+		// A Stack can hold the unit in several Unit Slots: take from each.
+		st, have := stacks[u.Stack], 0
+		for _, sl := range st {
+			if sl.Unit == u.Unit {
+				have += sl.Count
+			}
+		}
+		if have < u.Count {
 			return fmt.Errorf("Stack %d doesn't have %d of %s", u.Stack+1, u.Count, u.Unit)
 		}
-		st[i].Count -= u.Count
+		left := u.Count
+		for k := range st {
+			if st[k].Unit == u.Unit {
+				take := min(left, st[k].Count)
+				st[k].Count -= take
+				left -= take
+			}
+		}
 		stacks[u.Stack] = slices.DeleteFunc(st, func(sl UnitSlot) bool { return sl.Count == 0 })
-		army = army.add(u.Unit, u.Count)
+		army = army.add(u.Unit, u.Count, 0)
 	}
 	if len(army) == 0 {
 		return errors.New("pick some units")
@@ -189,8 +201,7 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 // land merges an Army into its Stack, with overflow. Units that don't fit
 // wait in orbit.
 func (s *State) land(c *cs.Content, a *Army, p *Planet) {
-	slots := c.Rulesets[RulesetID].UnitSlotsPerStack
-	a.Units = slices.DeleteFunc(a.Units, func(u UnitSlot) bool { return p.addUnits(a.ToStack, u.Unit, u.Count, slots) })
+	a.Units = slices.DeleteFunc(a.Units, func(u UnitSlot) bool { return p.addUnits(c, a.ToStack, u.Unit, u.Count) })
 	if len(a.Units) == 0 {
 		delete(s.Armies, a.ID)
 	}

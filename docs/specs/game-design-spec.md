@@ -40,10 +40,11 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 ## Stacks, Unit Slots and Armies
 
 - Each Planet has **three Stacks**. A Stack holds units only. Buildings sit in Building Slots but still fight in Battles.
-- A Stack has **10 Unit Slots**. Each holds one unit type with an uncapped count (for example, Marine × 50), like the EaW grid. Within a Stack, a unit type always merges into its existing Unit Slot.
-- Moving units between Stacks on the same Planet is instant, in any count. Unit Slots can be reordered.
+- A Stack has **15 Unit Slots**, three rows of five, like the EaW grid. Each holds one unit type, and a Stack can hold a unit type in several slots. A slot's count is uncapped (for example, Marine × 50) unless the unit sets an optional `slotLimit`, the most one slot holds. No base-Mod unit sets one.
+- Arriving units (trained, an Army landing, a Battle's survivors) top up the Stack's slots of their type, up to the limit, then take new slots in the first free cells. Survivors go back to the slot they fought from.
+- Moving units between Stacks on the same Planet is instant, in any count. A Stack's Unit Slots sit in a grid, and a slot can be moved to any cell of any of the Planet's Stacks. Moved onto a slot of the same unit, it merges, up to the limit. Moved onto another unit's slot, a whole slot swaps places with it. Splitting a slot puts half its units in a new slot in the same Stack.
 - Trained units join the Planet's **Rally Stack**. By default it is the first Stack, and the player can change it.
-- **Overflow:** units that find no free Unit Slot spill into the Planet's other Stacks. If nothing fits:
+- **Overflow:** units that find no room spill into the Planet's other Stacks. If nothing fits:
   - a trained unit stays finished at the head of its queue, which blocks that building's queue;
   - an arriving Army waits in orbit until the player makes room or re-orders it;
   - a winning attacker taking over a captured Planet follows the same rule.
@@ -137,7 +138,7 @@ The Battle runs Round after Round until one of these happens:
   - their Armies, whether travelling, waiting or Retreating, are destroyed.
 - **Win conditions:**
   - hold more than the map's `planetShare` of Planets for `holdSeconds` (the share must be over 0.5; the default hold is one Payday); or
-  - be the last player not eliminated.
+  - be the last player not eliminated. A Match started alone (a one-player map) has no last-standing win: only the hold or a Forfeit ends it.
 - Every player's Planet count and any running win-hold countdown are public.
 
 ## The MVP roster
@@ -288,7 +289,7 @@ The single `base:rules` definition.
 | Payday interval | 90 s |
 | Cancel-after-start refund | 50% |
 | Sell refund | 50% |
-| Unit Slots per Stack | 10 |
+| Unit Slots per Stack | 15 |
 | Tiers | `none` 0, `weak` 0.6, `average` 1.0, `strong` 1.4 |
 | Lane types | `fast` 1.0, `slow` 2.0 |
 | Initiative die | 20 |

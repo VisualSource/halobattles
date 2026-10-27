@@ -405,6 +405,10 @@ type Unit struct {
 
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// The most of this unit one Unit Slot holds; more take another slot. Unset is no
+	// limit.
+	SlotLimit *int `json:"slotLimit,omitempty,omitzero"`
 }
 
 // A combat category that attackers are more or less effective against.
