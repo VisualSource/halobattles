@@ -12,7 +12,26 @@ type Result struct {
 const (
 	ReasonHold         = "hold"          // held the map's share of Planets for its hold time
 	ReasonLastStanding = "last-standing" // everyone else was eliminated
+	ReasonAbandoned    = "abandoned"     // every remaining player ran out their Grace Period
 )
+
+// Disconnect starts a player's Grace Period. The Match never pauses: their
+// queues, Payday and Armies carry on.
+func (s *State) Disconnect(seat int, graceMs int64) {
+	p := &s.Players[seat]
+	p.Disconnected, p.GraceEnds = true, s.Time+graceMs
+}
+
+// Reconnect puts a returning player back in their Seat.
+func (s *State) Reconnect(seat int) {
+	p := &s.Players[seat]
+	p.Disconnected, p.GraceEnds = false, 0
+}
+
+// Forfeit eliminates a player on the next tick: they surrendered or left.
+func (s *State) Forfeit(seat int) {
+	s.Players[seat].Forfeiting = true
+}
 
 // eliminate takes a player out: their Planets turn neutral, keeping their
 // garrisons and buildings, and their Armies are destroyed, whether
@@ -38,20 +57,32 @@ func (s *State) eliminate(seat int, ev *Events) {
 // checkWin ends the Match when one player is left, or when one has held more
 // than the map's share of Planets for its hold time. Dropping below the
 // share cancels the hold.
+//
+// A Forfeit (surrendering, leaving, or running out the Grace Period)
+// eliminates the player first. The last player standing must be connected
+// to win; while they're away the Match waits for them to return or run out,
+// and with no one left it's abandoned.
 func (s *State) checkWin(c *cs.Content, now int64, ev *Events) {
+	for i, p := range s.Players {
+		if !p.Eliminated && (p.Forfeiting || p.Disconnected && p.GraceEnds <= now) {
+			s.eliminate(i, ev)
+		}
+	}
 	var alive []int
 	for _, p := range s.Players {
 		if !p.Eliminated {
 			alive = append(alive, p.Seat)
 		}
 	}
-	if len(alive) <= 1 {
-		winner := Neutral
-		if len(alive) == 1 {
-			winner = alive[0]
-		}
-		s.end(Result{Winner: winner, Reason: ReasonLastStanding}, ev)
+	switch {
+	case len(alive) == 0:
+		s.end(Result{Winner: Neutral, Reason: ReasonAbandoned}, ev)
 		return
+	case len(alive) == 1 && !s.Players[alive[0]].Disconnected:
+		s.end(Result{Winner: alive[0], Reason: ReasonLastStanding}, ev)
+		return
+	case len(alive) == 1:
+		return // waiting for the last player to return, or run out their grace
 	}
 
 	win := c.Maps[s.Map].Win

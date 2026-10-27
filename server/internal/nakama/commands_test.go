@@ -463,3 +463,77 @@ func TestResultsCloseOnceEveryoneLeaves(t *testing.T) {
 		t.Error("an empty results phase should close the Match")
 	}
 }
+
+func TestADroppedPlayerForfeitsWhenTheirGraceRunsOut(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+
+	h.leave(u2) // the socket dropped
+	h.loop()
+	var p1 *wire.PlayerViewT
+	deltas := h.d.deltas[u1.session]
+	for _, p := range deltas[len(deltas)-1].Players {
+		if p.Seat == 1 {
+			p1 = p
+		}
+	}
+	if p1 == nil || p1.Connected || p1.GraceEnds != 180_000 {
+		t.Fatalf("u1 sees u2 as %+v, want disconnected with a 180 s Grace Period", p1)
+	}
+
+	for range 180 * tickRate {
+		h.loop()
+	}
+	if h.d.lobby.Phase != wire.PhaseResults || h.d.lobby.Winner != 0 || h.d.lobby.EndReason != "last-standing" {
+		t.Errorf("after the Grace Period: phase %v, winner %d, reason %q", h.d.lobby.Phase, h.d.lobby.Winner, h.d.lobby.EndReason)
+	}
+}
+
+func TestRejoiningWithinTheGracePeriodGetsAViewFull(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	h.leave(u2)
+	for range 60 * tickRate {
+		h.loop()
+	}
+
+	back := presence{user: "u2", session: "s2b"}
+	if !h.join(back) {
+		t.Fatal("a returning Seat was refused")
+	}
+	for range 180 * tickRate {
+		h.loop()
+	}
+
+	if v := h.d.views[back.session]; v == nil || v.You != 1 || !v.Players[1].Connected {
+		t.Errorf("rejoin ViewFull = %+v, want Seat 1, connected", v)
+	}
+	if h.d.lobby.Phase != wire.PhasePlay {
+		t.Errorf("phase %v: the returning player shouldn't have forfeited", h.d.lobby.Phase)
+	}
+}
+
+func TestLeavingOrSurrenderingInPlayIsAForfeit(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		quit func(h *lobbyHarness)
+	}{
+		{"leave", func(h *lobbyHarness) {
+			h.leave(presence{user: "u2", session: "s2", reason: runtime.PresenceReasonLeave})
+		}},
+		{"surrender", func(h *lobbyHarness) { h.loop(cmd(u2, wire.OpSurrender, &wire.SurrenderT{Seq: 102})) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newLobbyHarness(t)
+			h.start()
+
+			tc.quit(h)
+			h.loop()
+
+			if !slices.Contains(h.d.toAll, wire.OpPlayerEliminated) || h.d.lobby.Phase != wire.PhaseResults || h.d.lobby.Winner != 0 {
+				t.Errorf("broadcasts %v, phase %v, winner %d; want u2 eliminated and u1 the winner",
+					h.d.toAll, h.d.lobby.Phase, h.d.lobby.Winner)
+			}
+		})
+	}
+}

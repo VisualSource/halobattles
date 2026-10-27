@@ -109,6 +109,8 @@ export type PlayerView = {
   faction: string;
   planetCount: number;
   eliminated: boolean;
+  connected: boolean;
+  graceEnds: number; // Match Time a disconnected player forfeits at
 };
 
 /** The running win-hold countdown, public to everyone. */

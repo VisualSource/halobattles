@@ -103,3 +103,83 @@ func TestDroppingBelowTheShareCancelsTheHold(t *testing.T) {
 		t.Errorf("hold ends at %d, want a fresh 90 s from 50 s", s.HoldEnds)
 	}
 }
+
+const grace = 180_000
+
+func TestRunningOutTheGracePeriodIsAForfeit(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Advance(c, 10_000)
+	s.Disconnect(1, grace)
+
+	if p := s.View(c, 0).Players[1]; p.Connected || p.GraceEnds != 190_000 {
+		t.Errorf("Seat 1 in Seat 0's View = %+v, want disconnected until 190 s", p)
+	}
+	if ev := s.Advance(c, 189_800); len(ev.Eliminated) != 0 {
+		t.Fatal("eliminated before the Grace Period ran out")
+	}
+	ev := s.Advance(c, 190_000)
+	if !slices.Equal(ev.Eliminated, []int{1}) || ev.MatchEnded == nil || ev.MatchEnded.Winner != 0 {
+		t.Errorf("eliminated %v, ended %+v; want Seat 1 out and Seat 0 last standing", ev.Eliminated, ev.MatchEnded)
+	}
+}
+
+func TestRejoiningWithinTheGracePeriodKeepsTheSeat(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Disconnect(1, grace)
+	_ = s.QueueBuilding(c, 1, "e", 2, "base:barracks")
+	s.Advance(c, 30_000) // the queue carries on while they're away
+	s.Reconnect(1)
+
+	ev := s.Advance(c, 200_000)
+
+	if len(ev.Eliminated) != 0 || s.Players[1].Eliminated {
+		t.Errorf("a returning player was eliminated: %v", ev.Eliminated)
+	}
+	if s.Planets["e"].Buildings[2] != "base:barracks" {
+		t.Error("the disconnected player's queue didn't carry on")
+	}
+	if p := s.View(c, 0).Players[1]; !p.Connected || p.GraceEnds != 0 {
+		t.Errorf("Seat 1 = %+v, want connected again", p)
+	}
+}
+
+func TestSurrenderingIsAForfeitOnTheNextTick(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Forfeit(0)
+
+	ev := s.Advance(c, 200)
+
+	if !slices.Equal(ev.Eliminated, []int{0}) || ev.MatchEnded == nil || ev.MatchEnded.Winner != 1 {
+		t.Errorf("eliminated %v, ended %+v; want Seat 0 out and Seat 1 the winner", ev.Eliminated, ev.MatchEnded)
+	}
+}
+
+func TestTheLastPlayerMustBeConnectedToWin(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Disconnect(0, grace)
+	s.Forfeit(1)
+
+	if ev := s.Advance(c, 200); ev.MatchEnded != nil {
+		t.Fatalf("a disconnected player won: %+v", ev.MatchEnded)
+	}
+	s.Reconnect(0)
+	if ev := s.Advance(c, 400); ev.MatchEnded == nil || ev.MatchEnded.Winner != 0 {
+		t.Errorf("ended %+v, want Seat 0 to win once back", ev.MatchEnded)
+	}
+}
+
+func TestEveryoneRunningOutTheirGraceAbandonsTheMatch(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Disconnect(0, grace)
+	s.Advance(c, 60_000)
+	s.Disconnect(1, grace)
+
+	ev := s.Advance(c, 180_000) // Seat 0 runs out first; Seat 1 is away too
+	if ev.MatchEnded != nil {
+		t.Fatalf("ended %+v while Seat 1 could still return", ev.MatchEnded)
+	}
+	ev = s.Advance(c, 240_000)
+	if ev.MatchEnded == nil || *ev.MatchEnded != (Result{Winner: Neutral, Reason: ReasonAbandoned}) {
+		t.Errorf("ended %+v, want no winner, abandoned", ev.MatchEnded)
+	}
+}

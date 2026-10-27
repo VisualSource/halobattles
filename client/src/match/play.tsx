@@ -1,3 +1,4 @@
+import { useBlocker } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
@@ -5,7 +6,9 @@ import { GalaxyScene } from "../scene/galaxy";
 import { BattlePanel } from "./battle";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
+import { inMatch } from "./phase";
 import { laneTimes } from "./route";
+import { useMatchContext } from "./screen";
 import type { PlanetView, QueueItem, UnitSlot } from "./store";
 import { useMatchNow } from "./time";
 
@@ -14,6 +17,17 @@ export function PlayScreen(props: {
   content: ContentLookups;
 }) {
   const { conn, content } = props;
+  const { matchId } = useMatchContext();
+  // Leaving a Match in play is a final Forfeit. A reload only drops the
+  // connection, which keeps the Seat for the Grace Period, so it isn't asked.
+  useBlocker({
+    shouldBlockFn: ({ next }) =>
+      !inMatch(next.pathname, matchId) &&
+      !confirm(
+        "Leaving forfeits the Match: you'll be eliminated. Leave anyway?",
+      ),
+    enableBeforeUnload: false,
+  });
   const mapId = useStore(conn.store, (s) => s.view?.map);
   const map = mapId ? content.maps.get(mapId) : undefined;
   const container = useRef<HTMLDivElement>(null);
@@ -152,6 +166,7 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
 function Players(props: { conn: MatchConnection; content: ContentLookups }) {
   const { conn, content } = props;
   const view = useStore(conn.store, (s) => s.view);
+  const local = useStore(conn.local);
   const now = useMatchNow(conn.local);
   if (!view) return null;
   const map = content.maps.get(view.map);
@@ -171,6 +186,13 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
           {name(p.seat)}
           {p.seat === view.you && " (you)"}:{" "}
           {p.eliminated ? "eliminated" : `${p.planetCount} / ${total} Planets`}
+          {!p.eliminated && !p.connected && (
+            <strong>
+              {" "}
+              · disconnected, forfeits in{" "}
+              {Math.max(0, Math.ceil((p.graceEnds - now) / 1000))} s
+            </strong>
+          )}
         </span>
       ))}
       <span>
@@ -178,6 +200,17 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
           ? `Hold ${needed} Planets to start the win countdown`
           : `${name(hold.seat)} wins in ${Math.max(0, Math.ceil((hold.ends - now) / 1000))} s`}
       </span>
+      {!view.players[view.you]?.eliminated && (
+        <button
+          type="button"
+          disabled={isPending(local, "surrender")}
+          onClick={() =>
+            confirm("Surrender? You'll be eliminated.") && conn.surrender()
+          }
+        >
+          Surrender
+        </button>
+      )}
     </section>
   );
 }

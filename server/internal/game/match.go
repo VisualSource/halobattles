@@ -49,6 +49,10 @@ type Player struct {
 	Faction     string
 	Resources   map[string]int
 	Eliminated  bool
+	// A disconnected player keeps their Seat until GraceEnds (Match Time).
+	Disconnected bool
+	GraceEnds    int64
+	Forfeiting   bool // eliminated on the next tick
 }
 
 // State is the full, authoritative state of a running Match. It is plain

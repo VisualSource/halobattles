@@ -101,6 +101,11 @@ func (m *match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB
 	s.lobbyChanged(logger, dispatcher)
 	if s.play != nil {
 		s.setTime(tick)
+		for _, p := range presences {
+			if seat := s.seat(p.GetUserId()); seat >= 0 {
+				s.play.Reconnect(seat) // back within the Grace Period
+			}
+		}
 		s.sendViews(logger, dispatcher, presences)
 	}
 	return s
@@ -113,9 +118,19 @@ func (m *match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.D
 			continue
 		}
 		delete(s.presences, p.GetUserId())
-		// After Start a player keeps their Seat; Forfeits come later.
-		if s.phase == wire.PhaseLobby {
+		switch s.phase {
+		case wire.PhaseLobby:
 			s.lobby.Leave(p.GetUserId())
+		case wire.PhasePlay:
+			// An explicit leave is a final Forfeit; a dropped connection
+			// keeps the Seat for the Grace Period.
+			s.setTime(tick)
+			seat := s.seat(p.GetUserId())
+			if p.GetReason() == runtime.PresenceReasonLeave {
+				s.play.Forfeit(seat)
+			} else {
+				s.play.Disconnect(seat, int64(s.content.Doc.Rulesets[game.RulesetID].GracePeriodSeconds)*1000)
+			}
 		}
 	}
 	s.lobbyChanged(logger, dispatcher)
@@ -407,7 +422,7 @@ func players(ps []game.PlayerView) []*wire.PlayerViewT {
 	for _, p := range ps {
 		out = append(out, &wire.PlayerViewT{
 			Seat: uint8(p.Seat), User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: uint16(p.PlanetCount),
-			Eliminated: p.Eliminated,
+			Eliminated: p.Eliminated, Connected: p.Connected, GraceEnds: p.GraceEnds,
 		})
 	}
 	return out

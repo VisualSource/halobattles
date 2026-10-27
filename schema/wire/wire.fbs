@@ -20,6 +20,7 @@ enum Op : int {
   SetRallyStack = 11,
   OrderArmy = 12,
   ReorderArmy = 13,
+  Surrender = 14,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -127,6 +128,10 @@ table ReorderArmy {       // owner only; finishes its current Lane hop first
   army: uint32;
   to_planet: string;
   to_stack: ubyte;
+}
+
+table Surrender {         // any Seat, in play: a Forfeit
+  seq: uint32;
 }
 
 // Server messages.
@@ -255,6 +260,8 @@ table PlayerView {
   faction: string;
   planet_count: uint16;
   eliminated: bool;
+  connected: bool;
+  grace_ends: long;        // Match Time a disconnected player forfeits at
 }
 
 // The running win-hold countdown, public to everyone.

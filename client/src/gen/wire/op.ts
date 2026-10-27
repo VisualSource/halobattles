@@ -17,6 +17,7 @@ export enum Op {
   SetRallyStack = 11,
   OrderArmy = 12,
   ReorderArmy = 13,
+  Surrender = 14,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,

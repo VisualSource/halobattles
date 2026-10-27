@@ -13,6 +13,8 @@ type PlayerViewT struct {
 	Faction     string `json:"faction"`
 	PlanetCount uint16 `json:"planet_count"`
 	Eliminated  bool   `json:"eliminated"`
+	Connected   bool   `json:"connected"`
+	GraceEnds   int64  `json:"grace_ends"`
 }
 
 func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -38,6 +40,8 @@ func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	PlayerViewAddFaction(builder, factionOffset)
 	PlayerViewAddPlanetCount(builder, t.PlanetCount)
 	PlayerViewAddEliminated(builder, t.Eliminated)
+	PlayerViewAddConnected(builder, t.Connected)
+	PlayerViewAddGraceEnds(builder, t.GraceEnds)
 	return PlayerViewEnd(builder)
 }
 
@@ -48,6 +52,8 @@ func (rcv *PlayerView) UnPackTo(t *PlayerViewT) {
 	t.Faction = string(rcv.Faction())
 	t.PlanetCount = rcv.PlanetCount()
 	t.Eliminated = rcv.Eliminated()
+	t.Connected = rcv.Connected()
+	t.GraceEnds = rcv.GraceEnds()
 }
 
 func (rcv *PlayerView) UnPack() *PlayerViewT {
@@ -154,8 +160,32 @@ func (rcv *PlayerView) MutateEliminated(n bool) bool {
 	return rcv._tab.MutateBoolSlot(14, n)
 }
 
+func (rcv *PlayerView) Connected() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *PlayerView) MutateConnected(n bool) bool {
+	return rcv._tab.MutateBoolSlot(16, n)
+}
+
+func (rcv *PlayerView) GraceEnds() int64 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		return rcv._tab.GetInt64(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *PlayerView) MutateGraceEnds(n int64) bool {
+	return rcv._tab.MutateInt64Slot(18, n)
+}
+
 func PlayerViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(6)
+	builder.StartObject(8)
 }
 func PlayerViewAddSeat(builder *flatbuffers.Builder, seat byte) {
 	builder.PrependByteSlot(0, seat, 0)
@@ -174,6 +204,12 @@ func PlayerViewAddPlanetCount(builder *flatbuffers.Builder, planetCount uint16) 
 }
 func PlayerViewAddEliminated(builder *flatbuffers.Builder, eliminated bool) {
 	builder.PrependBoolSlot(5, eliminated, false)
+}
+func PlayerViewAddConnected(builder *flatbuffers.Builder, connected bool) {
+	builder.PrependBoolSlot(6, connected, false)
+}
+func PlayerViewAddGraceEnds(builder *flatbuffers.Builder, graceEnds int64) {
+	builder.PrependInt64Slot(7, graceEnds, 0)
 }
 func PlayerViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

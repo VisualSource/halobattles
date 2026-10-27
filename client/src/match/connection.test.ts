@@ -177,6 +177,8 @@ describe("MatchConnection", () => {
           faction: "base:unsc",
           planetCount: 1,
           eliminated: false,
+          connected: false,
+          graceEnds: 0,
         },
         {
           seat: 1,
@@ -185,6 +187,8 @@ describe("MatchConnection", () => {
           faction: "base:covenant",
           planetCount: 1,
           eliminated: false,
+          connected: false,
+          graceEnds: 0,
         },
       ],
       planets: new Map([
@@ -408,6 +412,7 @@ describe("MatchConnection", () => {
     conn.queueUnit("a", 0, "base:marine", 5);
     conn.moveUnits("a", 0, 2, "base:marine", 3);
     conn.setRallyStack("a", 1);
+    conn.surrender();
 
     expect(sent.map(([op]) => op)).toEqual([
       Op.QueueBuilding,
@@ -416,6 +421,7 @@ describe("MatchConnection", () => {
       Op.QueueUnit,
       Op.MoveUnits,
       Op.SetRallyStack,
+      Op.Surrender,
     ]);
     const bb = (i: number) =>
       new flatbuffers.ByteBuffer(sent[i]?.[1] ?? new Uint8Array());
@@ -449,6 +455,7 @@ describe("MatchConnection", () => {
       "train",
       "move",
       "rally",
+      "surrender",
     ]);
   });
 

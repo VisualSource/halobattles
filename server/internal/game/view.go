@@ -47,6 +47,8 @@ type PlayerView struct {
 	Faction     string
 	PlanetCount int
 	Eliminated  bool
+	Connected   bool
+	GraceEnds   int64 // Match Time; 0 while connected
 }
 
 // PlanetView is a Planet in vision. Other players' queues stay hidden.
@@ -124,7 +126,7 @@ func (s *State) View(c *cs.Content, seat int) View {
 	for _, p := range s.Players {
 		v.Players = append(v.Players, PlayerView{
 			Seat: p.Seat, User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: counts[p.Seat],
-			Eliminated: p.Eliminated,
+			Eliminated: p.Eliminated, Connected: !p.Disconnected, GraceEnds: p.GraceEnds,
 		})
 	}
 	for _, id := range slices.Sorted(maps.Keys(visible)) {

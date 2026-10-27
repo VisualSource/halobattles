@@ -38,6 +38,7 @@ export { SetReady, SetReadyT } from './wire/set-ready.js';
 export { SetStartingResources, SetStartingResourcesT } from './wire/set-starting-resources.js';
 export { Stack, StackT } from './wire/stack.js';
 export { StartMatch, StartMatchT } from './wire/start-match.js';
+export { Surrender, SurrenderT } from './wire/surrender.js';
 export { UnitSlot, UnitSlotT } from './wire/unit-slot.js';
 export { ViewDelta, ViewDeltaT } from './wire/view-delta.js';
 export { ViewFull, ViewFullT } from './wire/view-full.js';

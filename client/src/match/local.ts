@@ -15,7 +15,8 @@ export type CommandKind =
   | "train"
   | "move"
   | "rally"
-  | "order";
+  | "order"
+  | "surrender";
 
 export type LocalState = {
   pending: Map<number, CommandKind>;

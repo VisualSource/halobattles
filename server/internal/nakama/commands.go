@@ -113,6 +113,12 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
 			return s.play.ReorderArmy(s.seat(user), c.Army(), string(c.ToPlanet()), int(c.ToStack()))
 		}
+	case wire.OpSurrender:
+		c := wire.GetRootAsSurrender(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			s.play.Forfeit(s.seat(user))
+			return nil
+		}
 	case wire.OpSetRallyStack:
 		c := wire.GetRootAsSetRallyStack(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {

@@ -5,6 +5,7 @@ import type { MatchConnection } from "./connection";
 const REASONS: Record<string, string> = {
   hold: "held the winning share of Planets",
   "last-standing": "was the last player standing",
+  abandoned: "everyone left or ran out their Grace Period",
 };
 
 /** Who won and why. There's no rematch: players start a new Match. */

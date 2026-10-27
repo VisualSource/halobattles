@@ -35,6 +35,7 @@ import {
   SetReadyT,
   SetStartingResourcesT,
   StartMatchT,
+  SurrenderT,
   ViewDelta,
   type ViewDeltaT,
   ViewFull,
@@ -109,6 +110,8 @@ const toPlayer = (p: PlayerViewT): PlayerView => ({
   faction: str(p.faction),
   planetCount: p.planetCount,
   eliminated: p.eliminated,
+  connected: p.connected,
+  graceEnds: Number(p.graceEnds),
 });
 
 const toPlanet = (p: PlanetViewT): PlanetView => ({
@@ -350,6 +353,11 @@ export class MatchConnection {
       "order",
       (seq) => new ReorderArmyT(seq, army, to, toStack),
     );
+  }
+
+  /** A Forfeit: it eliminates you. */
+  surrender() {
+    this.send(Op.Surrender, "surrender", (seq) => new SurrenderT(seq));
   }
 
   setRallyStack(planet: string, stack: number) {

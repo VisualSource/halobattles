@@ -97,10 +97,12 @@ func (fakeNK) UsersGetId(_ context.Context, ids, _ []string) ([]*api.User, error
 type presence struct {
 	runtime.Presence
 	user, session string
+	reason        runtime.PresenceReason // why it left; the zero value is a dropped connection
 }
 
-func (p presence) GetUserId() string    { return p.user }
-func (p presence) GetSessionId() string { return p.session }
+func (p presence) GetUserId() string                 { return p.user }
+func (p presence) GetSessionId() string              { return p.session }
+func (p presence) GetReason() runtime.PresenceReason { return p.reason }
 
 func testContent() *content.Content {
 	planets := func(ids ...string) []contentschema.MapPlanet {
@@ -127,7 +129,7 @@ func testContent() *content.Content {
 			Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
 		}},
 		Resources: map[string]contentschema.Resource{"base:credits": {}},
-		Rulesets:  map[string]contentschema.Ruleset{"base:rules": {PaydaySeconds: 90, UnitSlotsPerStack: 10, ResultsSeconds: 60, StartingResources: map[string]int{"base:credits": 1000}}},
+		Rulesets:  map[string]contentschema.Ruleset{"base:rules": {PaydaySeconds: 90, UnitSlotsPerStack: 10, ResultsSeconds: 60, GracePeriodSeconds: 180, StartingResources: map[string]int{"base:credits": 1000}}},
 	}}
 }
 
