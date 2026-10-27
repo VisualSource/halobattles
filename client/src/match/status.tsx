@@ -1,5 +1,6 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
+import { useRingBackdrop } from "../backdrop";
 import type { LocalStore } from "./local";
 import type { Phase } from "./store";
 import { useMatchNow } from "./time";
@@ -11,6 +12,7 @@ const secondary =
 
 /** Shown while joining a Match, until its first LobbyState lands. */
 export function Joining(props: { matchId?: string }) {
+  useRingBackdrop();
   return (
     <div className="flex flex-1 items-center justify-center p-8">
       <div
@@ -55,7 +57,7 @@ function AlertCard(props: {
     <div className="flex flex-1 items-center justify-center p-8">
       <div
         role="alert"
-        className="flex w-full max-w-140 flex-col gap-6 rounded-xl border border-line bg-panel p-8"
+        className="flex w-full max-w-140 flex-col gap-6 rounded-xl border border-edge/80 bg-panel/85 p-8 backdrop-blur-sm"
       >
         <div className="flex items-center gap-4">
           <span
@@ -103,6 +105,7 @@ const joinFailures = [
 
 /** Joining was rejected or failed. */
 export function CantJoin(props: { error: unknown }) {
+  useRingBackdrop();
   const router = useRouter();
   const reason =
     props.error instanceof Error ? props.error.message : String(props.error);
@@ -170,6 +173,7 @@ export function LostConnection(props: {
   local: LocalStore;
   graceMs: number;
 }) {
+  useRingBackdrop();
   const router = useRouter();
   const now = useMatchNow(props.local);
   const [graceEnds] = useState(() => now + props.graceMs);

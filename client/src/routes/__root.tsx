@@ -1,23 +1,33 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { RingBackdrop, useHeaderWanted, useRingWanted } from "../backdrop";
 import { rootContext } from "../session";
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => rootContext(location.pathname),
-  component: () => (
-    <>
-      <div className="flex min-h-screen flex-col max-lg:hidden">
-        <header className="border-line border-b bg-bar px-8 py-4">
-          <h1 className="font-bold font-display text-xl tracking-[0.12em]">
-            HALO BATTLES
-          </h1>
-        </header>
-        <main className="flex flex-1 flex-col">
-          <Outlet />
-        </main>
-      </div>
-      <TooSmall />
-    </>
-  ),
+  component: function Root() {
+    const ring = useRingWanted();
+    const header = useHeaderWanted();
+    return (
+      <>
+        <div className="isolate flex min-h-screen flex-col max-lg:hidden">
+          {ring && <RingBackdrop />}
+          {header && (
+            <header
+              className={`border-b px-8 py-4 ${ring ? "border-line/70 bg-bar/55 backdrop-blur-md" : "border-line bg-bar"}`}
+            >
+              <h1 className="font-bold font-display text-xl tracking-[0.12em]">
+                HALO BATTLES
+              </h1>
+            </header>
+          )}
+          <main className="flex flex-1 flex-col">
+            <Outlet />
+          </main>
+        </div>
+        <TooSmall />
+      </>
+    );
+  },
 });
 
 // Phones and narrow windows aren't supported; lg is 1024px.

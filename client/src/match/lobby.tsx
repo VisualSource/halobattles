@@ -7,11 +7,13 @@ import {
   useState,
 } from "react";
 import { useStore } from "zustand";
+import { useRingBackdrop } from "../backdrop";
 import type { ContentLookups } from "../content";
 import type { Faction, GalaxyMap } from "../gen/content";
 import { seatColour } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
+import { inviteUrl } from "./phase";
 import { Joining } from "./status";
 import type { Lobby } from "./store";
 
@@ -33,6 +35,7 @@ export function LobbyScreen(props: {
   const lobby = useStore(conn.store, (s) => s.lobby);
   const local = useStore(conn.local);
   const [dialog, setDialog] = useState<"map" | "faction" | null>(null);
+  useRingBackdrop();
   if (!lobby) return <Joining matchId={props.matchId} />;
 
   const map = content.maps.get(lobby.map);
@@ -45,6 +48,11 @@ export function LobbyScreen(props: {
 
   return (
     <>
+      {/* Sits above the ring (later in the DOM, same z) so the lobby stays readable. */}
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 -z-10 bg-ground/70 backdrop-blur-md"
+      />
       <div className="mx-auto flex w-full max-w-300 flex-1 flex-col gap-6 p-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
@@ -205,16 +213,19 @@ function status(lobby: Lobby, map: GalaxyMap | undefined, userId: string) {
 
 function Invite(props: { matchId: string }) {
   const [copied, setCopied] = useState(false);
-  // The URL is the invite. The clipboard needs a secure context.
+  const url = inviteUrl(location.origin, props.matchId);
+  // The clipboard needs a secure context.
   const copy = () =>
     navigator.clipboard
-      ?.writeText(location.href)
+      ?.writeText(url)
       .then(() => setCopied(true))
       .catch(() => {});
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-line bg-panel py-1.5 pr-1.5 pl-4">
+    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-line bg-panel py-1.5 pr-1.5 pl-4">
       <span className="text-ink-3 text-sm">Invite</span>
-      <code className="font-mono text-sm">{props.matchId}</code>
+      <code title={url} className="max-w-80 truncate font-mono text-sm">
+        {url}
+      </code>
       <button
         type="button"
         onClick={copy}
@@ -344,7 +355,7 @@ function CloseButton(props: { onClick: () => void; children?: ReactNode }) {
 }
 
 /** The map's Planets and Lanes in miniature, with its starts in the accent. */
-function MapGlyph(props: { map: GalaxyMap }) {
+export function MapGlyph(props: { map: GalaxyMap }) {
   const { planets, lanes, starts } = props.map;
   const xs = planets.map((p) => p.position.x);
   const ys = planets.map((p) => p.position.y);

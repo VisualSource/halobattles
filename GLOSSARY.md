@@ -16,6 +16,10 @@ _Avoid_: Slot (a Slot belongs to a Planet or Stack), player position
 The Seat that controls a Match's lobby settings and starts it; the creator, passing to the longest-held Seat if they leave the lobby.
 _Avoid_: Owner, admin
 
+**Invite**:
+A Match's URL, shared to bring a player into its lobby; there are no separate codes.
+_Avoid_: Invite code, join code, Match id (the id is part of the URL, not something players share)
+
 **Grace Period**:
 How long a disconnected player keeps their Seat in a running Match before they Forfeit.
 _Avoid_: Timeout, reconnect window

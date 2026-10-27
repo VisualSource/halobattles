@@ -239,7 +239,7 @@ React 19, Vite, strict TypeScript, TanStack Router, and Zustand **vanilla** stor
 
 ### Routes
 
-- `/`: the main menu. Device auth runs silently in the root route's `beforeLoad`; there is no login screen, only a display-name prompt the first time. From here a player creates a Match (`create_match`, no form), opens one from the list, or joins by id.
+- `/`: the main menu. Device auth runs silently in the root route's `beforeLoad`; there is no login screen, only a display-name prompt the first time. From here a player creates a Match (`create_match`, no form), opens one from the list, or pastes an Invite (a bare Match id works too). A three.js flyover of a Halo ring and a gas giant runs behind the menu, the name prompt and the joining and connection screens.
 - `/match/$matchId`: a layout route that owns the `MatchConnection`. It opens the connection in its loader and closes it on leave, so the lobby and play share one socket. A reload rejoins through this loader.
   - Child routes: `lobby` → `play` → `results`. **The server's phase drives navigation**: a phase change redirects to the matching child, and a URL that doesn't match the phase redirects back.
   - **`lobby`:** one screen with the Seat list (name, Faction, ready, and open Seats), your own Faction, Host-only map and resource controls, and a bottom bar with the Host's Start button, which stays disabled until Start is allowed, or everyone else's ready toggle. The Faction opens a full-screen picker that previews each Faction's starting kit; the map opens a dialog listing every map with a miniature of its Planets and Lanes.

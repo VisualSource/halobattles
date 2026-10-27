@@ -6,6 +6,16 @@ export const phaseRoutes = {
   results: "/match/$matchId/results",
 } as const;
 
+/** A Match's Invite: its URL, which lands on whichever screen its phase shows. */
+export const inviteUrl = (origin: string, matchId: string) =>
+  `${origin}/match/${encodeURIComponent(matchId)}`;
+
+/** The Match id in a pasted Invite, which may also be a bare id. */
+export function matchIdFromInvite(text: string) {
+  const path = text.match(/\/match\/([^/?#\s]+)/);
+  return path?.[1] ? decodeURIComponent(path[1]) : text.trim();
+}
+
 export const inMatch = (pathname: string, matchId: string) =>
   pathname === `/match/${matchId}` || pathname.startsWith(`/match/${matchId}/`);
 
