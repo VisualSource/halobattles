@@ -14,6 +14,8 @@ let content: Promise<ContentLookups> | undefined;
 // Seat is free before the menu lists Matches. (A route's onLeave runs only
 // after the next route has loaded, and left routes stay cached.)
 let active: { matchId: string; conn: MatchConnection } | undefined;
+// The Match being joined, cleared by navigating away (Cancel) mid-join.
+let joining: string | undefined;
 
 async function closeActive() {
   const conn = active?.conn;
@@ -29,6 +31,7 @@ async function closeActive() {
 
 /** The root route's context: closes a left Match, signs in, loads content. */
 export async function rootContext(pathname: string) {
+  if (joining && !inMatch(pathname, joining)) joining = undefined;
   if (active && !inMatch(pathname, active.matchId)) {
     await closeActive();
   }
@@ -64,6 +67,7 @@ export async function joinMatch(session: Session, matchId: string) {
     active.conn.store.getState().disconnected
   ) {
     await closeActive();
+    joining = matchId;
     const conn = new MatchConnection(createSocket());
     try {
       await conn.open(session, matchId);
@@ -71,6 +75,12 @@ export async function joinMatch(session: Session, matchId: string) {
       await conn.close();
       throw new Error((e as { message?: string }).message ?? "Couldn't join");
     }
+    if (joining !== matchId) {
+      // Left while joining: give the Seat straight back.
+      await conn.close();
+      throw new Error("cancelled");
+    }
+    joining = undefined;
     active = { matchId, conn };
   }
   return active.conn;

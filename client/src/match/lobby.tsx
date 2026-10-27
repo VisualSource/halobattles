@@ -12,6 +12,7 @@ import type { Faction, GalaxyMap } from "../gen/content";
 import { seatColour } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
+import { Joining } from "./status";
 import type { Lobby } from "./store";
 
 const byId = <T,>(m: Map<string, T>) =>
@@ -32,7 +33,7 @@ export function LobbyScreen(props: {
   const lobby = useStore(conn.store, (s) => s.lobby);
   const local = useStore(conn.local);
   const [dialog, setDialog] = useState<"map" | "faction" | null>(null);
-  if (!lobby) return <p className="p-8">Joining…</p>;
+  if (!lobby) return <Joining matchId={props.matchId} />;
 
   const map = content.maps.get(lobby.map);
   const me = lobby.seats.find((s) => s.user === userId);

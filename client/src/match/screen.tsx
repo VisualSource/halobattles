@@ -1,13 +1,14 @@
 import {
-  Link,
   Outlet,
   useNavigate,
+  useRouteContext,
   useRouterState,
 } from "@tanstack/react-router";
 import { createContext, useContext, useEffect } from "react";
 import { useStore } from "zustand";
 import type { MatchConnection } from "./connection";
 import { phaseRedirect } from "./phase";
+import { LostConnection } from "./status";
 import { Toasts } from "./toasts";
 
 // The open Match, for the lobby, play and results screens. They read it from
@@ -35,6 +36,7 @@ export function MatchScreen(props: { conn: MatchConnection; matchId: string }) {
     select: (st) => st.resolvedLocation?.pathname ?? "",
   });
   const navigate = useNavigate();
+  const { rules } = useRouteContext({ from: "__root__" }).content;
 
   // The server's phase drives navigation: a phase change moves to the
   // matching screen, and a URL for another phase is sent back.
@@ -45,13 +47,11 @@ export function MatchScreen(props: { conn: MatchConnection; matchId: string }) {
 
   if (disconnected) {
     return (
-      <>
-        <p role="alert">
-          Lost the connection to the server. If it restarted, this Match is
-          gone.
-        </p>
-        <Link to="/">Back to menu</Link>
-      </>
+      <LostConnection
+        phase={phase}
+        local={conn.local}
+        graceMs={rules.gracePeriodSeconds * 1000}
+      />
     );
   }
   return (

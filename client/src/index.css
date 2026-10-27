@@ -22,6 +22,8 @@
   --color-ok: #7fdca0;
   --color-ok-wash: #12301f;
   --color-ok-edge: #2f6b45;
+  --color-danger: #f08a7a;
+  --color-danger-wash: #3a1a17;
 
   --color-divider: #1f2830; /* between list rows */
   --color-item: #161f27; /* a row in a list */
