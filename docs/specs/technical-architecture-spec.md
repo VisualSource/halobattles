@@ -85,7 +85,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 
 - **Resource:** a stockpile only, with an optional `icon`. Command Points is **not** a Resource; it is carried by `commandPoints` and `commandPointBonus` fields.
 - **Faction:** an optional `icon` and a **Starting Kit**: the buildings and Stacks (`[{unit, count}]` per Stack) placed on its Capital. Starting resources are not part of the kit.
-- **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), `combat` (required), optional `icon`.
+- **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), optional `slotLimit` (the most one Unit Slot holds), `combat` (required), optional `icon`.
 - **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `icon`. There are no build limits or prerequisites.
 - **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `initiative`, and `tiers: {unitClassId: tierName}`. A Unit Class missing from `tiers` counts as `average`.
 - **Unit Class:** an id and a name.
@@ -99,7 +99,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
   - Lane types and their multipliers;
   - the Initiative die size, the Round duration and the Round cap;
   - `startingResources`, the defaults the lobby fills in (maps have none of their own);
-  - `gracePeriodSeconds` and `resultsSeconds`, in whole seconds and converted to Match Time ms by the server.
+  - `gracePeriodSeconds`, `resultsSeconds` and `armyVisionSeconds`, in whole seconds and converted to Match Time ms by the server.
 
   Defaults are in the game-design spec's [Ruleset defaults](game-design-spec.md#ruleset-defaults).
 - **Map:**
@@ -264,8 +264,10 @@ Dev builds log the unpacked messages as JSON.
 
 ### Galaxy scene
 
-- A **perspective camera at a fixed tilt** looks at the map on the XZ plane. It pans by drag, WASD or edge-scroll, zooms with a clamped wheel, and **never rotates**.
-- Planet labels use **CSS2DRenderer** with plain DOM elements the scene creates: name, owner colour, Locked icon, a construction pip, and a chip per Stack with its unit count. Only your own Stack chips are interactive: they can be dragged (see [Ordering](#ordering)).
+- A **perspective camera at a fixed tilt** (30° from the horizontal, a narrow 17° field of view from far back, like EaW's galaxy map) looks at the map on the XZ plane, for a 2.5D view. It opens zoomed to fit the whole map, but never closer than a view 690 world units tall, so a small map sits in open space and Planets stay small markers; zooms with the wheel by moving closer or further, from 0.6× that fit up to 4×, pans by drag, WASD or the arrow keys, and **never rotates**. Panning stops where the view would leave the map: the point it looks at stays within the map's bounds plus a margin of half the map or half the minimum view, whichever is larger.
+- Under the map lies a **galaxy disc**: a generated spiral, seeded by the map's id, lying flat far below the map (350 units, on the line of sight through its centre), so the Planets float over it and slide across it when panning. A low ambient light and a strong side sun give each Planet a lit and a dark side.
+- Behind the map, a **backdrop** of stars and faint nebulae, seeded by the map's id and coloured from the theme, sits in screen space: it ignores zoom and pans with parallax (stars at 30% of the map's speed, nebulae at 15%).
+- Planet labels use **CSS2DRenderer** with plain DOM elements the scene creates: name, owner colour, Locked icon, a construction pip, and a pile per Stack (ovals stacked by unit count, the three in a triangle with the middle one raised). Only your own Stack piles are interactive: they can be dragged (see [Ordering](#ordering)).
 - A `requestAnimationFrame` loop places Armies on Lanes by lerping each hop's start/end Match Time against `performance.now() + offset`.
 - A Locked marker shows on Planets with a Battle.
 
@@ -274,7 +276,7 @@ Dev builds log the unpacked messages as JSON.
 React, fixed to the screen, not anchored to 3D.
 
 - **Planet panel:**
-  - **Owned:** Building Slots (an empty slot opens a building picker for `QueueBuilding`; a filled slot can be sold), the construction queue, one unit queue per production building (`QueueUnit` with a count, plus cancel), the 3 Stack grids of Unit Slots with drag-to-move between them (`MoveUnits`), and a Rally Stack toggle.
+  - **Owned:** Building Slots (an empty slot opens a building picker for `QueueBuilding`; a filled slot can be sold), the construction queue, one unit queue per production building (`QueueUnit` with a count, plus cancel), the 3 Stack grids of Unit Slots with drag-to-any-cell, in the same Stack or another (`MoveUnits` with a target cell), and a right-click split, and a Rally Stack toggle.
   - **Visible, not owned:** read-only owner, buildings and Stacks. Queues are hidden.
   - **Out of vision:** the last-seen copy, greyed, with its age.
   - **Locked:** commands are disabled, and "Watch Battle" is offered if you are a side.
@@ -286,13 +288,13 @@ React, fixed to the screen, not anchored to 3D.
 
 Empire at War style: the map shows each Planet's three Stacks, and an order is a drag.
 
-1. Drag one of your Stack chips onto another Planet to send that whole Stack with `OrderArmy`. To send part of a Stack, first split it with `MoveUnits` in the Planet panel.
+1. Drag one of your Stack piles onto another Planet to send that whole Stack with `OrderArmy`. Dropped on one of that Planet's piles, it lands in that Stack (`toStack`); dropped on the Planet itself, it lands in the Rally Stack, or Stack 1 when attacking. The same goes for re-ordering an Army. To send part of a Stack, first split it in the Stacks window.
 2. Drag one of your Armies onto a Planet to send `ReorderArmy`.
 3. `toStack` is the target's Rally Stack if you own it, otherwise Stack 1.
 4. A click without dragging selects the Planet or Army and opens its panel. Escape cancels a drag and clears the selection. There is no box-select.
 5. The keyboard path is each Stack's "Send to…" picker in the Planet panel.
 
-- While dragging over a target, a **route preview** comes from a client-side TS port of the owned-only Dijkstra over static Lanes and your own Planets. The server's route stays authoritative.
+- While dragging over a target, a **route preview** comes from a client-side TS port of the server's Dijkstra over static Lanes, using the owners you can see (out of vision: as last seen, else neutral). A ring on the target shows a move (green), an attack (red) or no route (grey). The server's route stays authoritative.
 - **Pending commands:** the affected control shows a pending state (a greyed row or a slot spinner). It clears when the View changes the entity, or turns into a toast with the reason on `CommandRejected`.
 
 ### Content and assets

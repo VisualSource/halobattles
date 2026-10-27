@@ -1,5 +1,5 @@
 {
-  "description": "One Lane to an unowned neighbour: entering it is the end of the move.",
+  "description": "One Lane to a neutral neighbour: the route ends there.",
   "lanes": [
     {
       "from": "a",

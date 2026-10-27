@@ -51,9 +51,14 @@ func TestRoutingFixtures(t *testing.T) {
 					lanes[e[0]][e[1]] = l.Time
 				}
 			}
-			owned := func(p string) bool { o, ok := tc.Owners[p]; return ok && o == tc.Player }
+			owner := func(p string) int {
+				if o, ok := tc.Owners[p]; ok {
+					return o
+				}
+				return Neutral // no owner listed
+			}
 
-			path, ms, ok := Route(lanes, owned, tc.From, tc.To)
+			path, ms, ok := Route(lanes, owner, tc.Player, tc.From, tc.To)
 
 			switch {
 			case tc.Unreachable && ok:

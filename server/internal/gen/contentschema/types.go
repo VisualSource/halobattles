@@ -301,6 +301,10 @@ type Ruleset struct {
 	// Schema corresponds to the JSON schema field "$schema".
 	Schema *string `json:"$schema,omitempty,omitzero"`
 
+	// How long a player keeps seeing a Planet after their Army there leaves or is
+	// destroyed.
+	ArmyVisionSeconds int `json:"armyVisionSeconds"`
+
 	// Refund for cancelling a queue item after it started.
 	CancelRefundPercent int `json:"cancelRefundPercent"`
 
@@ -405,6 +409,10 @@ type Unit struct {
 
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// The most of this unit one Unit Slot holds; more take another slot. Unset is no
+	// limit.
+	SlotLimit *int `json:"slotLimit,omitempty,omitzero"`
 }
 
 // A combat category that attackers are more or less effective against.

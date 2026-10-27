@@ -104,6 +104,10 @@ _Avoid_: Damage type
 The state of a Planet while a Battle is in progress on it.
 _Avoid_: Contested, in-battle
 
+**Vision**:
+The Planets a player can see right now: those they own and their neighbours one Lane away, plus any Planet one of their Armies is at, and for a short time after it leaves or is destroyed. Retreating Armies give none.
+_Avoid_: Fog of war, line of sight
+
 **View**:
 One player's picture of a Match, limited to what their vision reveals; the only state a player is ever sent.
 _Avoid_: Snapshot, game state (the full state only the server holds)

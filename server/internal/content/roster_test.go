@@ -143,7 +143,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	counts := map[string][2]int{
 		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 12},
 		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
-		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 1}, "resources": {len(d.Resources), 2},
+		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 2},
 	}
 	for kind, n := range counts {
 		if n[0] != n[1] {

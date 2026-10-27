@@ -24,6 +24,16 @@ export function useRingBackdrop(opts: { header?: boolean } = {}) {
   }, [hideHeader]);
 }
 
+/** Hides the header while this screen is up, for screens with their own. */
+export function useHideHeader() {
+  useEffect(() => {
+    const bump = (by: number) =>
+      useBackdrop.setState((s) => ({ noHeader: s.noHeader + by }));
+    bump(1);
+    return () => bump(-1);
+  }, []);
+}
+
 export const useRingWanted = () => useBackdrop((s) => s.ring > 0);
 export const useHeaderWanted = () => useBackdrop((s) => s.noHeader === 0);
 

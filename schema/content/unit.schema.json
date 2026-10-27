@@ -14,6 +14,7 @@
     "buildTime": { "description": "Seconds to train one.", "$ref": "defs.schema.json#/definitions/seconds" },
     "commandPoints": { "description": "Command Points one unit occupies, from queue to death.", "type": "integer", "minimum": 0 },
     "maxCount": { "description": "Per-player limit, counted from queue to death.", "type": "integer", "minimum": 1 },
+    "slotLimit": { "description": "The most of this unit one Unit Slot holds; more take another slot. Unset is no limit.", "type": "integer", "minimum": 1 },
     "combat": { "$ref": "defs.schema.json#/definitions/combat" },
     "icon": { "$ref": "defs.schema.json#/definitions/asset" }
   }

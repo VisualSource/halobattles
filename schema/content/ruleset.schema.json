@@ -18,6 +18,7 @@
     "roundCap",
     "startingResources",
     "gracePeriodSeconds",
+    "armyVisionSeconds",
     "resultsSeconds"
   ],
   "properties": {
@@ -54,6 +55,7 @@
       "$ref": "defs.schema.json#/definitions/resourceMap"
     },
     "gracePeriodSeconds": { "description": "How long a disconnected player keeps their Seat.", "type": "integer", "minimum": 0 },
+    "armyVisionSeconds": { "description": "How long a player keeps seeing a Planet after their Army there leaves or is destroyed.", "type": "integer", "minimum": 0 },
     "resultsSeconds": { "description": "How long a Match stays in results.", "type": "integer", "minimum": 0 }
   }
 }

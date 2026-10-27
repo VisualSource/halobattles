@@ -2,6 +2,7 @@
 
 - Specs: `docs/specs/game-design-spec.md` (rules) and `docs/specs/technical-architecture-spec.md` (architecture).
 - Priority: gameplay and data-driven content come before infrastructure. Earlier versions stalled on infra and auth churn before any gameplay existed, and never loaded maps from files.
+- UI: windows and panels keep a steady size. A list of items scrolls inside a fixed-height area rather than growing its window (virtualize very long ones with `@tanstack/react-virtual`), and a control with nothing to act on stays in place, disabled.
 - Earlier versions are read-only reference: v1 (Node, tRPC, three.js SVG; the only one with a playable loop) at github.com/VisualSource/halobattles, v2 (Nakama Go, lobby only) and v3 (Nakama Go, data structures only). Their archives, `/home/collinb/repos/archive/halobattles.rar` and `halowars.rar`, hold keys (`rsakey.pem`, `nakama/local.yml`): take ideas and code from them, and keep every key and config file out of this repo.
 
 ## Agent skills

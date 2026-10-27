@@ -124,6 +124,7 @@ const toPlanet = (p: PlanetViewT): PlanetView => ({
     (p.stacks[i]?.slots ?? []).map((u) => ({
       unit: str(u.unit),
       count: u.count,
+      cell: u.cell,
     })),
   ),
   queue: p.queue.map(toQueueItem),
@@ -134,7 +135,11 @@ const toPlanet = (p: PlanetViewT): PlanetView => ({
 const toArmy = (a: ArmyViewT): Army => ({
   id: a.id,
   owner: a.owner,
-  units: a.units.map((u) => ({ unit: str(u.unit), count: u.count })),
+  units: a.units.map((u) => ({
+    unit: str(u.unit),
+    count: u.count,
+    cell: u.cell,
+  })),
   from: str(a.from),
   to: str(a.to),
   departed: Number(a.departed),
@@ -142,6 +147,7 @@ const toArmy = (a: ArmyViewT): Army => ({
   waiting: a.waiting,
   destination: str(a.destination),
   toStack: a.toStack,
+  path: a.path.map(str),
 });
 
 const toCombatant = (c: CombatantT): Combatant => ({
@@ -319,17 +325,32 @@ export class MatchConnection {
     );
   }
 
+  /**
+   * Moves count units out of the Unit Slot in fromCell into toCell of a
+   * Stack. A toCell of -1 tops up that Stack's slots of the unit, then
+   * fills free cells.
+   */
   moveUnits(
     planet: string,
-    from: number,
-    to: number,
+    from: { stack: number; cell: number },
+    to: { stack: number; cell: number },
     unit: string,
     count: number,
   ) {
     this.send(
       Op.MoveUnits,
       "move",
-      (seq) => new MoveUnitsT(seq, planet, from, to, unit, count),
+      (seq) =>
+        new MoveUnitsT(
+          seq,
+          planet,
+          from.stack,
+          to.stack,
+          unit,
+          count,
+          to.cell,
+          from.cell,
+        ),
     );
   }
 
@@ -552,8 +573,13 @@ export class MatchConnection {
 
   private debug(name: string, value: unknown) {
     if (!this.log) return;
+    // FlatBuffers hands 64-bit fields (Match Times) over as bigint.
     const json = JSON.stringify(value, (_k, v) =>
-      v instanceof Map ? Object.fromEntries(v) : v,
+      v instanceof Map
+        ? Object.fromEntries(v)
+        : typeof v === "bigint"
+          ? Number(v)
+          : v,
     );
     console.debug(`[match] ${name}`, json);
   }

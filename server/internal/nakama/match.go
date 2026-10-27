@@ -403,7 +403,7 @@ func armies(as []game.ArmyView) []*wire.ArmyViewT {
 	for _, a := range as { // already sorted by id, as the (key) needs
 		out = append(out, &wire.ArmyViewT{
 			Id: a.ID, Owner: int8(a.Owner), Units: unitSlots(a.Units), From: a.From, To: a.To,
-			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting, Destination: a.Destination, ToStack: uint8(a.ToStack),
+			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting, Destination: a.Destination, ToStack: uint8(a.ToStack), Path: a.Path,
 		})
 	}
 	return out
@@ -412,7 +412,7 @@ func armies(as []game.ArmyView) []*wire.ArmyViewT {
 func unitSlots(st []game.UnitSlot) []*wire.UnitSlotT {
 	var out []*wire.UnitSlotT
 	for _, u := range st {
-		out = append(out, &wire.UnitSlotT{Unit: u.Unit, Count: uint32(u.Count)})
+		out = append(out, &wire.UnitSlotT{Unit: u.Unit, Count: uint32(u.Count), Cell: uint8(u.Cell)})
 	}
 	return out
 }

@@ -25,7 +25,9 @@ type Battle struct {
 	Origins []Origin
 }
 
-type Origin struct{ Stack, Slot int }
+// Origin is a Stack and the cell of its Unit Slot, or a Building Slot when
+// Stack is -1.
+type Origin struct{ Stack, Cell, Slot int }
 
 // BattleRound is one Round being played out.
 type BattleRound struct {
@@ -55,7 +57,7 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 		for _, u := range st {
 			units = append(units, u)
 			for range u.Count {
-				b.Origins = append(b.Origins, Origin{Stack: i})
+				b.Origins = append(b.Origins, Origin{Stack: i, Cell: u.Cell})
 			}
 		}
 	}
@@ -105,7 +107,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	for _, cb := range b.Result.Roster {
 		if cb.Side == Attacker {
 			if alive[cb.ID] {
-				attackers = attackers.add(cb.Unit, 1)
+				attackers = attackers.add(cb.Unit, 1, 0)
 			}
 			continue
 		}
@@ -113,7 +115,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 		d++
 		switch {
 		case o.Stack >= 0 && alive[cb.ID]:
-			stacks[o.Stack] = stacks[o.Stack].add(cb.Unit, 1)
+			stacks[o.Stack] = stacks[o.Stack].addToCell(cb.Unit, o.Cell) // back to its own slot
 		case o.Stack < 0 && !alive[cb.ID]:
 			p.Buildings[o.Slot] = ""
 		}

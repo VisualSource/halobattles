@@ -13,6 +13,8 @@ type MoveUnitsT struct {
 	ToStack   byte   `json:"to_stack"`
 	Unit      string `json:"unit"`
 	Count     uint32 `json:"count"`
+	ToCell    int16  `json:"to_cell"`
+	FromCell  byte   `json:"from_cell"`
 }
 
 func (t *MoveUnitsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -34,6 +36,8 @@ func (t *MoveUnitsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	MoveUnitsAddToStack(builder, t.ToStack)
 	MoveUnitsAddUnit(builder, unitOffset)
 	MoveUnitsAddCount(builder, t.Count)
+	MoveUnitsAddToCell(builder, t.ToCell)
+	MoveUnitsAddFromCell(builder, t.FromCell)
 	return MoveUnitsEnd(builder)
 }
 
@@ -44,6 +48,8 @@ func (rcv *MoveUnits) UnPackTo(t *MoveUnitsT) {
 	t.ToStack = rcv.ToStack()
 	t.Unit = string(rcv.Unit())
 	t.Count = rcv.Count()
+	t.ToCell = rcv.ToCell()
+	t.FromCell = rcv.FromCell()
 }
 
 func (rcv *MoveUnits) UnPack() *MoveUnitsT {
@@ -154,8 +160,32 @@ func (rcv *MoveUnits) MutateCount(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(14, n)
 }
 
+func (rcv *MoveUnits) ToCell() int16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		return rcv._tab.GetInt16(o + rcv._tab.Pos)
+	}
+	return -1
+}
+
+func (rcv *MoveUnits) MutateToCell(n int16) bool {
+	return rcv._tab.MutateInt16Slot(16, n)
+}
+
+func (rcv *MoveUnits) FromCell() byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *MoveUnits) MutateFromCell(n byte) bool {
+	return rcv._tab.MutateByteSlot(18, n)
+}
+
 func MoveUnitsStart(builder *flatbuffers.Builder) {
-	builder.StartObject(6)
+	builder.StartObject(8)
 }
 func MoveUnitsAddSeq(builder *flatbuffers.Builder, seq uint32) {
 	builder.PrependUint32Slot(0, seq, 0)
@@ -174,6 +204,12 @@ func MoveUnitsAddUnit(builder *flatbuffers.Builder, unit flatbuffers.UOffsetT) {
 }
 func MoveUnitsAddCount(builder *flatbuffers.Builder, count uint32) {
 	builder.PrependUint32Slot(5, count, 0)
+}
+func MoveUnitsAddToCell(builder *flatbuffers.Builder, toCell int16) {
+	builder.PrependInt16Slot(6, toCell, -1)
+}
+func MoveUnitsAddFromCell(builder *flatbuffers.Builder, fromCell byte) {
+	builder.PrependByteSlot(7, fromCell, 0)
 }
 func MoveUnitsEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

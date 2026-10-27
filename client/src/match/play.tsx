@@ -1,16 +1,30 @@
 import { useBlocker } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useNotificationCenter } from "react-toastify/addons/use-notification-center";
 import { useStore } from "zustand";
+import { useHideHeader } from "../backdrop";
 import type { ContentLookups } from "../content";
-import { GalaxyScene } from "../scene/galaxy";
+import { GalaxyScene, seatColour } from "../scene/galaxy";
 import { BattlePanel } from "./battle";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
 import { inMatch } from "./phase";
 import { laneTimes } from "./route";
 import { useMatchContext } from "./screen";
-import type { PlanetView, QueueItem, UnitSlot } from "./store";
 import { formatAge, useMatchNow } from "./time";
+import { notify } from "./toasts";
+import {
+  ArmyWindow,
+  PlanetWindow,
+  StacksWindow,
+  sendStack,
+  toStackAt,
+  useDismiss,
+} from "./windows";
+
+const label = "font-mono text-[11px] text-ink-3 uppercase tracking-[0.08em]";
+const popover =
+  "absolute z-20 rounded-lg border border-edge bg-panel shadow-[0_12px_32px_#000a]";
 
 export function PlayScreen(props: {
   conn: MatchConnection;
@@ -28,9 +42,12 @@ export function PlayScreen(props: {
       ),
     enableBeforeUnload: false,
   });
+  useHideHeader();
+  usePlayNotes(conn, content);
   const mapId = useStore(conn.store, (s) => s.view?.map);
   const map = mapId ? content.maps.get(mapId) : undefined;
   const container = useRef<HTMLDivElement>(null);
+  const [stacksOpen, setStacksOpen] = useState(true);
 
   useEffect(() => {
     if (!map || !container.current) return;
@@ -40,94 +57,63 @@ export function PlayScreen(props: {
       { store: conn.store, local: conn.local },
       {
         lanes: laneTimes(map, content.rules),
-        sendStack: (from, stack, to) => sendStack(conn, from, stack, to),
-        moveArmy: (army, to) => conn.reorderArmy(army, to, toStackAt(conn, to)),
+        sendStack: (from, stack, to, toStack) =>
+          sendStack(conn, from, stack, to, toStack),
+        moveArmy: (army, to, toStack) =>
+          conn.reorderArmy(army, to, toStack ?? toStackAt(conn, to)),
       },
     );
     return () => scene.dispose();
   }, [map, conn, content]);
 
-  if (!map) return <p>Loading the galaxy…</p>;
+  if (!map) return <p className="p-8">Loading the galaxy…</p>;
   return (
-    <>
+    <div className="flex h-screen flex-col">
       <Hud conn={conn} content={content} />
-      <Players conn={conn} content={content} />
-      <div style={{ display: "flex", height: "80vh", minHeight: 480 }}>
-        <div ref={container} style={{ flex: 1, minWidth: 0 }} />
-        <PlanetPanel conn={conn} content={content} />
-        <ArmyPanel conn={conn} content={content} />
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div ref={container} className="size-full" />
+        <Players conn={conn} content={content} />
+        <PlanetWindow
+          conn={conn}
+          content={content}
+          stacksOpen={stacksOpen}
+          onOpenStacks={() => setStacksOpen(true)}
+        />
+        {stacksOpen && (
+          <StacksWindow
+            conn={conn}
+            content={content}
+            onClose={() => setStacksOpen(false)}
+          />
+        )}
+        <ArmyWindow conn={conn} content={content} />
         <BattlePanel conn={conn} content={content} />
       </div>
-    </>
+    </div>
   );
 }
 
-/** Arriving units join your own Planet's Rally Stack, otherwise Stack 1. */
-function toStackAt(conn: MatchConnection, to: string) {
-  const view = conn.store.getState().view;
-  const target = view?.planets.get(to);
-  return target && target.owner === view?.you ? target.rallyStack : 0;
+/** A popover's open state; a click outside it or Escape closes it. */
+function usePopover() {
+  const [open, setOpen] = useState(false);
+  const ref = useDismiss<HTMLDivElement>(open, () => setOpen(false));
+  return { open, toggle: () => setOpen((o) => !o), ref };
 }
 
-/** Sends a whole Stack to another Planet as an Army. */
-function sendStack(
-  conn: MatchConnection,
-  from: string,
-  stack: number,
-  to: string,
-) {
-  const units =
-    conn.store.getState().view?.planets.get(from)?.stacks[stack] ?? [];
-  if (units.length === 0 || from === to) return;
-  conn.orderArmy(
-    from,
-    units.map((u) => ({ stack, ...u })),
-    to,
-    toStackAt(conn, to),
-  );
-}
+/** "0:42" */
+const clock = (ms: number) => {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
 
-/** The selected Army: its units and where it's headed. */
-function ArmyPanel(props: { conn: MatchConnection; content: ContentLookups }) {
-  const { conn, content } = props;
-  const id = useStore(conn.local, (s) => s.selectedArmy);
-  const army = useStore(conn.store, (s) =>
-    id === null ? undefined : s.view?.armies.get(id),
-  );
-  const you = useStore(conn.store, (s) => s.view?.you);
-  const map = useStore(conn.store, (s) => s.view?.map);
-  if (!army) return null;
-  const planet = (p: string) =>
-    content.maps.get(map ?? "")?.planets.find((mp) => mp.id === p)?.name ?? p;
-  return (
-    <aside style={{ width: 280, padding: "0 12px", overflowY: "auto" }}>
-      <h3>Army</h3>
-      <p>
-        {army.waiting
-          ? `In orbit at ${planet(army.to)}`
-          : `${planet(army.from)} → ${planet(army.to)}`}
-        {army.owner === you &&
-          army.destination !== army.to &&
-          `, headed for ${planet(army.destination)}`}
-      </p>
-      <ul>
-        {army.units.map((u) => (
-          <li key={u.unit}>
-            {content.units.get(u.unit)?.name ?? u.unit} × {u.count}
-          </li>
-        ))}
-      </ul>
-      {army.owner === you && (
-        <p>Drag it to a Planet on the map to re-order it.</p>
-      )}
-    </aside>
-  );
-}
-
-/** Your Resources, Command Points and the countdown to the next Payday. */
+/**
+ * Your Resources and Command Points, the Payday countdown, the game mode,
+ * any running win-hold countdown, notifications and Surrender.
+ */
 function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
   const { conn, content } = props;
-  const economy = useStore(conn.store, (s) => s.view?.economy);
+  const view = useStore(conn.store, (s) => s.view);
+  const local = useStore(conn.local);
   const now = useMatchNow(conn.local);
   const [lastNet, setLastNet] = useState<Map<string, number> | null>(null);
 
@@ -138,68 +124,87 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
     return () => conn.events.removeEventListener("payday", onPayday);
   }, [conn]);
 
-  if (!economy) return null;
-  const name = (id: string) => content.resources.get(id)?.name ?? id;
-  const signed = (n: number) => (n < 0 ? `${n}` : `+${n}`);
-  const secs = Math.max(0, Math.ceil((economy.paydayEnd - now) / 1000));
-
-  return (
-    <header style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-      {[...economy.resources].map(([id, amount]) => (
-        <span key={id} style={amount < 0 ? { color: "crimson" } : undefined}>
-          {name(id)}: {amount}
-          {lastNet?.has(id) && ` (${signed(lastNet.get(id) ?? 0)})`}
-        </span>
-      ))}
-      <span>
-        Command Points: {economy.commandPointsUsed} / {economy.commandPointsCap}
-      </span>
-      <span>Next Payday in {secs} s</span>
-    </header>
-  );
-}
-
-/**
- * Every player's Planet count and whether they're out, plus any running
- * win-hold countdown: all public.
- */
-function Players(props: { conn: MatchConnection; content: ContentLookups }) {
-  const { conn, content } = props;
-  const view = useStore(conn.store, (s) => s.view);
-  const local = useStore(conn.local);
-  const now = useMatchNow(conn.local);
   if (!view) return null;
-  const map = content.maps.get(view.map);
-  const total = map?.planets.length ?? 0;
-  // More than the share wins, so this many is enough.
-  const needed = Math.floor((map?.win.planetShare ?? 1) * total) + 1;
+  const { economy, winHold } = view;
+  const span = economy.paydayEnd - economy.paydayStart;
+  const done = span > 0 ? Math.min(1, (now - economy.paydayStart) / span) : 0;
+  const ring = 2 * Math.PI * 12;
   const name = (seat: number) =>
     view.players[seat]?.displayName || `Player ${seat + 1}`;
-  const hold = view.winHold;
+
   return (
-    <section
-      aria-label="Players"
-      style={{ display: "flex", gap: 16, flexWrap: "wrap" }}
-    >
-      {view.players.map((p) => (
-        <span key={p.seat} style={p.eliminated ? { opacity: 0.5 } : undefined}>
-          {name(p.seat)}
-          {p.seat === view.you && " (you)"}:{" "}
-          {p.eliminated ? "eliminated" : `${p.planetCount} / ${total} Planets`}
-          {!p.eliminated && !p.connected && (
-            <strong>
-              {" "}
-              · disconnected, forfeits in{" "}
-              {Math.max(0, Math.ceil((p.graceEnds - now) / 1000))} s
-            </strong>
-          )}
-        </span>
-      ))}
-      <span>
-        {hold.seat === null
-          ? `Hold ${needed} Planets to start the win countdown`
-          : `${name(hold.seat)} wins in ${Math.max(0, Math.ceil((hold.ends - now) / 1000))} s`}
+    <header className="flex h-14 flex-none items-center gap-7 border-line border-b bg-bar px-5">
+      <span className="font-bold font-display text-lg tracking-[0.06em]">
+        HALO BATTLES
       </span>
+      <span aria-hidden="true" className="h-7 w-px bg-line" />
+      {[...economy.resources].map(([id, amount]) => {
+        const net = lastNet?.get(id);
+        return (
+          <div key={id} className="flex flex-col gap-0.5">
+            <span className={label}>
+              {content.resources.get(id)?.name ?? id}
+            </span>
+            <span className={`font-mono ${amount < 0 ? "text-danger" : ""}`}>
+              {amount}
+              {amount < 0 ? (
+                <span className="text-xs"> in debt</span>
+              ) : (
+                net !== undefined && (
+                  <span
+                    className={`text-xs ${net < 0 ? "text-danger" : "text-ok"}`}
+                  >
+                    {" "}
+                    {net < 0 ? net : `+${net}`}
+                  </span>
+                )
+              )}
+            </span>
+          </div>
+        );
+      })}
+      <div className="flex flex-col gap-0.5">
+        <span className={label}>Command Points</span>
+        <span className="font-mono">
+          {economy.commandPointsUsed}{" "}
+          <span className="text-ink-3">/ {economy.commandPointsCap}</span>
+        </span>
+      </div>
+      <div className="flex items-center gap-2.5">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          <circle
+            cx="15"
+            cy="15"
+            r="12"
+            fill="none"
+            stroke="var(--color-line)"
+            strokeWidth="4"
+          />
+          <circle
+            cx="15"
+            cy="15"
+            r="12"
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeWidth="4"
+            strokeDasharray={`${done * ring} ${ring}`}
+            transform="rotate(-90 15 15)"
+          />
+        </svg>
+        <div className="flex flex-col gap-0.5">
+          <span className={label}>Next Payday</span>
+          <span className="font-mono">{clock(economy.paydayEnd - now)}</span>
+        </div>
+      </div>
+      <span className="flex-1" />
+      {winHold.seat !== null && (
+        <span className="rounded-md bg-danger-wash px-3 py-1.5 text-danger text-sm">
+          {winHold.seat === view.you ? "You win" : `${name(winHold.seat)} wins`}{" "}
+          in {Math.max(0, Math.ceil((winHold.ends - now) / 1000))} s
+        </span>
+      )}
+      <Mode conn={conn} content={content} />
+      <Notifications />
       {!view.players[view.you]?.eliminated && (
         <button
           type="button"
@@ -207,416 +212,318 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
           onClick={() =>
             confirm("Surrender? You'll be eliminated.") && conn.surrender()
           }
+          className="min-h-9 rounded-md bg-transparent px-3.5 text-danger"
         >
           Surrender
         </button>
       )}
-    </section>
+    </header>
   );
 }
 
-const DRAG_TYPE = "application/x-halobattles-units";
-
-/** The selected Planet: read-only, plus orders on your own. */
-function PlanetPanel(props: {
-  conn: MatchConnection;
-  content: ContentLookups;
-}) {
-  const { conn, content } = props;
-  const selected = useStore(conn.local, (s) => s.selected);
-  const view = useStore(conn.store, (s) => s.view);
-  const local = useStore(conn.local);
-  if (!selected || !view) return null;
-
-  const mapPlanet = content.maps
-    .get(view.map)
-    ?.planets.find((p) => p.id === selected);
-  // Out of vision, the panel shows the last-seen copy, read-only.
-  const live = view.planets.get(selected);
-  const last = live ? undefined : local.lastSeen.get(selected);
-  const planet = live ?? last?.planet;
-  const name = (id: string) =>
-    content.units.get(id)?.name ?? content.buildings.get(id)?.name ?? id;
-  const cost = (c: Record<string, number>) =>
-    Object.entries(c)
-      .map(([r, a]) => `${a} ${content.resources.get(r)?.name ?? r}`)
-      .join(", ");
-  const faction = view.players[view.you]?.faction;
-  const buildable = [...content.buildings.values()].filter(
-    (b) => b.faction === faction,
-  );
-  const mine = live?.owner === view.you && !live.locked;
-  const ownerName = (seat: number | null) =>
-    seat === null
-      ? "Neutral"
-      : view.players[seat]?.displayName || `Player ${seat + 1}`;
+/** The Ruleset's name; it opens the win rules and the hold countdown. */
+function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
+  const view = useStore(props.conn.store, (s) => s.view);
+  const now = useMatchNow(props.conn.local);
+  const pop = usePopover();
+  const map = view && props.content.maps.get(view.map);
+  if (!view || !map) return null;
+  const mode = props.content.rulesets.get(view.ruleset)?.name ?? view.ruleset;
+  const total = map.planets.length;
+  // More than the share wins, so this many is enough.
+  const needed = Math.floor(map.win.planetShare * total) + 1;
+  const hold = view.winHold;
+  const holder =
+    hold.seat === null
+      ? null
+      : hold.seat === view.you
+        ? "You"
+        : view.players[hold.seat]?.displayName || `Player ${hold.seat + 1}`;
 
   return (
-    <aside style={{ width: 280, padding: "0 12px", overflowY: "auto" }}>
-      <h3>{mapPlanet?.name ?? selected}</h3>
-      <p>{content.planetTypes.get(mapPlanet?.type ?? "")?.name}</p>
-      {!planet ? (
-        <p>Outside your vision.</p>
-      ) : (
-        <div style={last ? { opacity: 0.5 } : undefined}>
-          {last && (
-            <p>
-              Out of vision: last seen{" "}
-              <LastSeenAge conn={conn} seenAt={last.seenAt} /> ago.
-            </p>
-          )}
-          <p>
-            {ownerName(planet.owner)}
-            {planet.capital && " · Capital"}
-            {planet.locked && " · Locked"}
+    <div ref={pop.ref} className="relative">
+      <button
+        type="button"
+        aria-expanded={pop.open}
+        onClick={pop.toggle}
+        className="flex min-h-9 items-center gap-2 rounded-md border-line bg-panel px-3"
+      >
+        <span className={label}>Mode</span>
+        {mode}
+      </button>
+      {pop.open && (
+        <div
+          className={`${popover} top-11 right-0 flex w-75 flex-col gap-2.5 p-3.5 text-sm`}
+        >
+          <h2 className="font-display font-semibold text-base">{mode}</h2>
+          <p className="text-ink-2">Win either way:</p>
+          <p className="flex gap-2">
+            <span className="font-mono text-accent">1</span>
+            <span>
+              Hold more than {Math.round(map.win.planetShare * 100)}% of the
+              Planets (<b className="font-mono">{needed}</b> of {total}) for{" "}
+              <b className="font-mono">{map.win.holdSeconds} s</b>.
+            </span>
           </p>
-          {[...view.battles.values()]
-            .filter((b) => b.planet === planet.id)
-            .map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => conn.local.setState({ watching: b.id })}
-              >
-                Watch Battle
-              </button>
-            ))}
-          <h4>Buildings</h4>
-          <ol>
-            {planet.buildings.map((b, i) => {
-              const queued = planet.queue.find((q) => q.slot === i);
-              return (
-                // biome-ignore lint/suspicious/noArrayIndexKey: Building Slots are positional
-                <li key={i}>
-                  {b ? (
-                    <>
-                      {name(b)}{" "}
-                      {mine && (
-                        <button
-                          type="button"
-                          disabled={isPending(local, "sell")}
-                          onClick={() => conn.sellBuilding(planet.id, i)}
-                        >
-                          Sell
-                        </button>
-                      )}
-                    </>
-                  ) : queued ? (
-                    `Building ${name(queued.building)}…`
-                  ) : mine ? (
-                    <select
-                      aria-label={`Build in slot ${i + 1}`}
-                      value=""
-                      disabled={isPending(local, "build")}
-                      onChange={(e) =>
-                        conn.queueBuilding(planet.id, i, e.target.value)
-                      }
-                    >
-                      <option value="">Build…</option>
-                      {buildable.map((bd) => (
-                        <option key={bd.id} value={bd.id}>
-                          {bd.name} ({cost(bd.cost)})
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    "(empty)"
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-          {mine && (
-            <QueueList
-              title="Construction"
-              conn={conn}
-              content={content}
-              items={planet.queue}
-            />
-          )}
-          {mine &&
-            planet.buildings.map((b, slot) => {
-              const trains = content.buildings.get(b)?.trains ?? [];
-              if (trains.length === 0) return null;
-              return (
-                // biome-ignore lint/suspicious/noArrayIndexKey: Building Slots are positional
-                <section key={slot}>
-                  <TrainForm
-                    building={name(b)}
-                    units={trains.map((u) => ({
-                      id: u,
-                      label: `${name(u)} (${cost(content.units.get(u)?.cost ?? {})})`,
-                    }))}
-                    disabled={isPending(local, "train")}
-                    onTrain={(unit, count) =>
-                      conn.queueUnit(planet.id, slot, unit, count)
-                    }
-                  />
-                  <QueueList
-                    conn={conn}
-                    content={content}
-                    items={planet.unitQueue.filter((q) => q.slot === slot)}
-                  />
-                </section>
-              );
-            })}
-          {planet.stacks.map((stack, i) => (
-            <StackSection
-              // biome-ignore lint/suspicious/noArrayIndexKey: the three Stacks are positional
-              key={i}
-              index={i}
-              stack={stack}
-              planet={planet}
-              mine={mine}
-              conn={conn}
-              name={name}
-              targets={(content.maps.get(view.map)?.planets ?? []).filter(
-                (mp) => mp.id !== planet.id,
-              )}
-            />
-          ))}
+          <p className="flex gap-2">
+            <span className="font-mono text-accent">2</span>
+            <span>Be the last player not eliminated.</span>
+          </p>
+          <p className="rounded-md bg-well px-2.5 py-2 text-ink-2">
+            Losing your Capital eliminates you.
+          </p>
+          <p className="flex justify-between border-line border-t pt-2 text-ink-3">
+            <span>Hold countdown</span>
+            <span>
+              {holder === null
+                ? `nobody holds ${needed} yet`
+                : `${holder}: ${Math.max(0, Math.ceil((hold.ends - now) / 1000))} s left`}
+            </span>
+          </p>
         </div>
       )}
-    </aside>
+    </div>
+  );
+}
+
+/** Every toast so far, newest first, since toasts vanish after a while. */
+function Notifications() {
+  const { notifications, unreadCount, markAllAsRead, clear } =
+    useNotificationCenter();
+  const pop = usePopover();
+  return (
+    <div ref={pop.ref} className="relative">
+      <button
+        type="button"
+        aria-label={`Notifications, ${unreadCount} unread`}
+        aria-expanded={pop.open}
+        onClick={pop.toggle}
+        className="relative flex h-9 w-10 items-center justify-center rounded-md border-line bg-panel p-0"
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+          <path
+            d="M4 13V8a5 5 0 0 1 10 0v5l1.5 1.5h-13zM7.5 16h3"
+            fill="none"
+            stroke="var(--color-ink-2)"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+        {unreadCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-accent px-1 font-mono font-semibold text-[11px] text-accent-ink">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+      {pop.open && (
+        <div className={`${popover} top-11 right-0 flex w-90 flex-col`}>
+          <div className="flex items-center gap-1 border-line border-b px-3.5 py-2.5">
+            <h2 className="flex-1 font-display font-semibold text-base">
+              Notifications
+            </h2>
+            <button
+              type="button"
+              onClick={() => markAllAsRead()}
+              className="min-h-7 border-0 bg-transparent text-accent text-xs"
+            >
+              Mark all read
+            </button>
+            <button
+              type="button"
+              onClick={clear}
+              className="min-h-7 border-0 bg-transparent text-ink-3 text-xs"
+            >
+              Clear
+            </button>
+          </div>
+          {notifications.length === 0 ? (
+            <p className="p-3.5 text-ink-3 text-sm">Nothing yet.</p>
+          ) : (
+            <ol className="max-h-105 overflow-y-auto">
+              {notifications.map((n) => (
+                <li
+                  key={n.id}
+                  className={`flex gap-2.5 border-divider border-b px-3.5 py-2.5 ${n.read ? "text-ink-2" : "bg-highlight"}`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`mt-1.5 size-1.5 flex-none rounded-full ${n.read ? "" : "bg-accent"}`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    {typeof n.content === "function" ? null : n.content}
+                  </div>
+                  <span className="font-mono text-[11px] text-ink-3">
+                    {formatAge(Date.now() - n.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
 /**
- * One Stack's Unit Slots. Your own can be dragged onto another Stack, or
- * moved with the "Move to" picker (Shift-drop asks for a partial count),
- * and the Rally toggle picks where trained units go.
+ * Every player's Planet count and whether they're out, all public. Closed by
+ * default; it opens upward from the map's corner.
  */
-function StackSection(props: {
-  index: number;
-  stack: UnitSlot[];
-  planet: PlanetView;
-  mine: boolean;
-  conn: MatchConnection;
-  name: (id: string) => string;
-  targets: { id: string; name: string }[]; // every other Planet
-}) {
-  const { index: i, stack, planet, mine, conn, name, targets } = props;
-  const local = useStore(conn.local);
-  const moving = isPending(local, "move");
-  const move = (from: number, unit: string, count: number) =>
-    count > 0 && conn.moveUnits(planet.id, from, i, unit, count);
-  const others = [0, 1, 2].filter((j) => j !== i);
-
+function Players(props: { conn: MatchConnection; content: ContentLookups }) {
+  const { conn, content } = props;
+  const view = useStore(conn.store, (s) => s.view);
+  const now = useMatchNow(conn.local);
+  const pop = usePopover();
+  if (!view) return null;
+  const total = content.maps.get(view.map)?.planets.length ?? 0;
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: a drop target for the mouse; the "Move to" picker is the keyboard path
-    <section
-      onDragOver={(e) => mine && e.preventDefault()}
-      onDrop={(e) => {
-        const data = e.dataTransfer.getData(DRAG_TYPE); // "" for anything else dropped
-        if (!data) return;
-        const d = JSON.parse(data);
-        if (d.from === i) return;
-        move(
-          d.from,
-          d.unit,
-          e.shiftKey ? Number(prompt("How many?", `${d.count}`)) : d.count,
-        );
-      }}
-    >
-      <h4>
-        Stack {i + 1}{" "}
-        {mine && (
-          <label>
-            <input
-              type="radio"
-              name={`rally-${planet.id}`}
-              checked={planet.rallyStack === i}
-              disabled={isPending(local, "rally")}
-              onChange={() => conn.setRallyStack(planet.id, i)}
-            />{" "}
-            Rally
-          </label>
-        )}
-      </h4>
-      {mine && stack.length > 0 && (
-        // The keyboard path for dragging a Stack chip onto a Planet on the map.
-        <select
-          aria-label={`Send Stack ${i + 1} to`}
-          value=""
-          disabled={isPending(local, "order")}
-          onChange={(e) => sendStack(conn, planet.id, i, e.target.value)}
-        >
-          <option value="">Send to…</option>
-          {targets.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
+    <div ref={pop.ref} className="absolute bottom-4 left-4 z-10">
+      <button
+        type="button"
+        aria-expanded={pop.open}
+        onClick={pop.toggle}
+        className="flex min-h-9 items-center gap-2 rounded-md border-line bg-bar/95 px-3"
+      >
+        <span aria-hidden="true" className="flex gap-0.75">
+          {view.players.map((p) => (
+            <span
+              key={p.seat}
+              className="size-2 rounded-xs"
+              style={{ background: seatColour(p.seat) }}
+            />
           ))}
-        </select>
-      )}
-      {stack.length === 0 ? (
-        <p>(empty)</p>
-      ) : (
-        <ul>
-          {stack.map((u) => (
+        </span>
+        Players
+      </button>
+      {pop.open && (
+        <ul
+          className={`${popover} bottom-11 left-0 flex w-75 flex-col gap-1 p-3`}
+        >
+          {view.players.map((p) => (
             <li
-              key={u.unit}
-              draggable={mine && !moving}
-              onDragStart={(e) =>
-                e.dataTransfer.setData(
-                  DRAG_TYPE,
-                  JSON.stringify({ from: i, ...u }),
-                )
-              }
-              style={mine ? { cursor: "grab" } : undefined}
+              key={p.seat}
+              className={`flex items-center gap-2 rounded px-1.5 py-1 ${p.seat === view.you ? "bg-highlight" : ""} ${p.eliminated ? "opacity-50" : ""}`}
             >
-              {name(u.unit)} × {u.count}{" "}
-              {mine && (
-                <select
-                  aria-label={`Move ${name(u.unit)} to`}
-                  value=""
-                  disabled={moving}
-                  onChange={(e) =>
-                    conn.moveUnits(
-                      planet.id,
-                      i,
-                      Number(e.target.value),
-                      u.unit,
-                      u.count,
-                    )
-                  }
-                >
-                  <option value="">Move to…</option>
-                  {others.map((j) => (
-                    <option key={j} value={j}>
-                      Stack {j + 1}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <span
+                aria-hidden="true"
+                className="size-2.5 rounded-sm"
+                style={{ background: seatColour(p.seat) }}
+              />
+              <span className="flex-1">
+                {p.displayName || `Player ${p.seat + 1}`}
+                {p.seat === view.you && (
+                  <span className="text-ink-3"> (you)</span>
+                )}
+                {!p.eliminated && !p.connected && (
+                  <span className="text-danger text-xs">
+                    {" "}
+                    offline · forfeits in{" "}
+                    {Math.max(0, Math.ceil((p.graceEnds - now) / 1000))} s
+                  </span>
+                )}
+              </span>
+              <span className="font-mono text-sm">
+                {p.eliminated ? "out" : `${p.planetCount} / ${total}`}
+              </span>
             </li>
           ))}
         </ul>
       )}
-    </section>
-  );
-}
-
-/** How long ago a last-seen copy was seen, ticking once a second. */
-function LastSeenAge(props: { conn: MatchConnection; seenAt: number }) {
-  return <>{formatAge(useMatchNow(props.conn.local) - props.seenAt)}</>;
-}
-
-/** One queue: each item with its progress and a cancel button. */
-function QueueList(props: {
-  title?: string;
-  conn: MatchConnection;
-  content: ContentLookups;
-  items: QueueItem[];
-}) {
-  const { conn, content, items } = props;
-  const local = useStore(conn.local);
-  if (items.length === 0) return null;
-  const now = performance.now() + local.clockOffset;
-  return (
-    <>
-      {props.title && <h4>{props.title}</h4>}
-      <ol>
-        {items.map((q) => {
-          const def = q.unit
-            ? content.units.get(q.unit)
-            : content.buildings.get(q.building);
-          return (
-            <li key={q.id}>
-              {def?.name ?? (q.unit || q.building)}
-              {q.paused && " (paused)"}
-              {q.endsAt > 0 && q.endsAt <= now && " (no room in any Stack)"}{" "}
-              <button
-                type="button"
-                disabled={isPending(local, "cancel")}
-                onClick={() => conn.cancelQueueItem(q.id)}
-              >
-                Cancel
-              </button>
-              <Progress
-                item={q}
-                total={(def?.buildTime ?? 0) * 1000}
-                offset={local.clockOffset}
-              />
-            </li>
-          );
-        })}
-      </ol>
-    </>
-  );
-}
-
-/** Picks a unit and a count to train at one production building. */
-function TrainForm(props: {
-  building: string;
-  units: { id: string; label: string }[];
-  disabled: boolean;
-  onTrain: (unit: string, count: number) => void;
-}) {
-  const [unit, setUnit] = useState(props.units[0]?.id ?? "");
-  const [count, setCount] = useState(1);
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        props.onTrain(unit, count);
-      }}
-    >
-      <h4>{props.building}</h4>
-      <select
-        aria-label="Unit"
-        value={unit}
-        onChange={(e) => setUnit(e.target.value)}
-      >
-        {props.units.map((u) => (
-          <option key={u.id} value={u.id}>
-            {u.label}
-          </option>
-        ))}
-      </select>{" "}
-      <input
-        aria-label="Count"
-        type="number"
-        min={1}
-        value={count}
-        onChange={(e) => setCount(Math.max(1, Number(e.target.value) || 1))}
-        style={{ width: 48 }}
-      />{" "}
-      <button type="submit" disabled={props.disabled || !unit}>
-        Train
-      </button>
-    </form>
-  );
-}
-
-/**
- * A queue item's progress. A running item animates once from where it is
- * now to 100% over its remaining time; a paused or waiting one is frozen.
- */
-function Progress(props: { item: QueueItem; total: number; offset: number }) {
-  const { item, total, offset } = props;
-  const bar = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = bar.current;
-    if (!el) return;
-    const left = item.endsAt
-      ? item.endsAt - (performance.now() + offset)
-      : item.remaining;
-    const from =
-      total > 0 ? Math.min(100, Math.max(0, 100 - (left / total) * 100)) : 100;
-    el.style.width = `${from}%`;
-    if (!item.endsAt) return;
-    const a = el.animate([{ width: `${from}%` }, { width: "100%" }], {
-      duration: Math.max(0, left),
-      fill: "forwards",
-    });
-    return () => a.cancel();
-  }, [item.endsAt, item.remaining, total, offset]);
-
-  return (
-    <div style={{ height: 4, background: "#0002" }}>
-      <div ref={bar} style={{ height: "100%", background: "seagreen" }} />
     </div>
   );
+}
+
+/** Toasts for what happens in play: Paydays, captures, Battles, eliminations. */
+function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
+  useEffect(() => {
+    const view = () => conn.store.getState().view;
+    const planet = (id: string) =>
+      content.maps.get(view()?.map ?? "")?.planets.find((p) => p.id === id)
+        ?.name ?? id;
+    const who = (seat: number | null) =>
+      seat === null
+        ? "Neutral"
+        : seat === view()?.you
+          ? "You"
+          : view()?.players[seat]?.displayName || `Player ${seat + 1}`;
+    const show = (id: string) => ({
+      label: "Show",
+      onClick: () => conn.local.setState({ selected: id }),
+    });
+    const detail = <T,>(e: Event) => (e as CustomEvent<T>).detail;
+
+    const handlers: Record<string, (e: Event) => void> = {
+      payday: (e) =>
+        notify(
+          "payday",
+          [...detail<Map<string, number>>(e)]
+            .map(
+              ([r, n]) =>
+                `${n < 0 ? n : `+${n}`} ${content.resources.get(r)?.name ?? r}`,
+            )
+            .join(" · "),
+        ),
+      captured: (e) => {
+        const {
+          planet: id,
+          from,
+          to,
+        } = detail<{
+          planet: string;
+          from: number | null;
+          to: number;
+        }>(e);
+        const you = view()?.you;
+        const text =
+          to === you
+            ? `You took ${planet(id)}${from === null ? "" : ` from ${who(from)}`}`
+            : from === you
+              ? `${who(to)} took ${planet(id)} from you`
+              : `${who(to)} took ${planet(id)}`;
+        notify("captured", text, show(id));
+      },
+      battleStarted: (e) => {
+        const { battle, planet: id } = detail<{
+          battle: number;
+          planet: string;
+        }>(e);
+        notify("battle", `Battle at ${planet(id)}`, {
+          label: "Watch",
+          // Only the two sides can watch; others just hear of it.
+          onClick: () =>
+            view()?.battles.has(battle)
+              ? conn.local.setState({ watching: battle })
+              : conn.local.setState({ selected: id }),
+        });
+      },
+      battleEnded: (e) => {
+        const { planet: id, winner } = detail<{
+          planet: string;
+          winner: number | null;
+        }>(e);
+        notify(
+          "battle",
+          `Battle at ${planet(id)} is over: ${who(winner)} won`,
+          show(id),
+        );
+      },
+      eliminated: (e) => {
+        const { seat } = detail<{ seat: number }>(e);
+        notify(
+          "player",
+          seat === view()?.you
+            ? "You were eliminated"
+            : `${who(seat)} was eliminated`,
+        );
+      },
+    };
+    for (const [type, fn] of Object.entries(handlers)) {
+      conn.events.addEventListener(type, fn);
+    }
+    return () => {
+      for (const [type, fn] of Object.entries(handlers)) {
+        conn.events.removeEventListener(type, fn);
+      }
+    };
+  }, [conn, content]);
 }

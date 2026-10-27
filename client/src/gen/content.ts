@@ -125,6 +125,10 @@ export interface Ruleset {
    */
   gracePeriodSeconds: number;
   /**
+   * How long a player keeps seeing a Planet after their Army there leaves or is destroyed.
+   */
+  armyVisionSeconds: number;
+  /**
    * How long a Match stays in results.
    */
   resultsSeconds: number;
@@ -206,6 +210,10 @@ export interface Unit {
    * Per-player limit, counted from queue to death.
    */
   maxCount?: number;
+  /**
+   * The most of this unit one Unit Slot holds; more take another slot. Unset is no limit.
+   */
+  slotLimit?: number;
   combat: Combat;
   /**
    * An asset in a Mod's assets/ folder, written `__mod__/path`.

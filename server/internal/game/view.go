@@ -74,8 +74,9 @@ type ArmyView struct {
 	Departed    int64
 	Arrives     int64
 	Waiting     bool
-	Destination string // own only
-	ToStack     int    // own only
+	Destination string   // own only
+	ToStack     int      // own only
+	Path        []string // own only: the Planets after To, in order
 }
 
 // BattleView is a Battle the viewer is a side of, as it stands after the
@@ -91,10 +92,15 @@ type BattleView struct {
 	Roster   []Combatant // with each one's Shield, Armor and HP now
 }
 
-// visible is the set of Planets a player sees: those they own and every
-// Planet one Lane away.
+// visible is the set of Planets a player sees: those they own, every Planet
+// one Lane away, and any their Armies have sighted lately.
 func (s *State) visible(seat int) map[string]bool {
 	v := map[string]bool{}
+	for id, until := range s.Players[seat].Sighted {
+		if until > s.Time {
+			v[id] = true
+		}
+	}
 	for id, p := range s.Planets {
 		if p.Owner == seat {
 			v[id] = true
@@ -157,7 +163,7 @@ func (s *State) View(c *cs.Content, seat int) View {
 			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting,
 		}
 		if mine {
-			av.Destination, av.ToStack = a.destination(), a.ToStack
+			av.Destination, av.ToStack, av.Path = a.destination(), a.ToStack, slices.Clone(a.Path)
 		}
 		v.Armies = append(v.Armies, av)
 	}

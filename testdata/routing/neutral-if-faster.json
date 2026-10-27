@@ -1,0 +1,38 @@
+{
+  "description": "Through the neutral n is faster than through the player's own b, so it goes through n.",
+  "lanes": [
+    {
+      "from": "a",
+      "to": "b",
+      "time": 30000
+    },
+    {
+      "from": "b",
+      "to": "c",
+      "time": 30000
+    },
+    {
+      "from": "a",
+      "to": "n",
+      "time": 10000
+    },
+    {
+      "from": "n",
+      "to": "c",
+      "time": 10000
+    }
+  ],
+  "owners": {
+    "a": 0,
+    "b": 0
+  },
+  "player": 0,
+  "from": "a",
+  "to": "c",
+  "path": [
+    "a",
+    "n",
+    "c"
+  ],
+  "time": 20000
+}

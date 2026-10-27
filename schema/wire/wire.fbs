@@ -94,13 +94,15 @@ table QueueUnit {         // owner only; expands into count queue items
   count: uint16;
 }
 
-table MoveUnits {         // owner only
+table MoveUnits {         // owner only; from_stack = to_stack moves within it
   seq: uint32;
   planet: string;
   from_stack: ubyte;
   to_stack: ubyte;
   unit: string;
   count: uint32;
+  to_cell: short = -1;    // the target cell; -1 tops up, then free cells
+  from_cell: ubyte;        // the Unit Slot moved from; unit must match it
 }
 
 table SetRallyStack {     // owner only
@@ -167,10 +169,11 @@ table CommandRejected {
 table UnitSlot {
   unit: string;
   count: uint32;
+  cell: ubyte;             // its place in the Stack's grid; one slot per cell
 }
 
 table Stack {
-  slots: [UnitSlot];       // in order
+  slots: [UnitSlot];       // in no order: cell places each
 }
 
 // One item in a queue: a Planet's construction queue, or a production
@@ -216,6 +219,7 @@ table ArmyView {
   waiting: bool;
   destination: string;     // own only
   to_stack: ubyte;         // own only
+  path: [string];          // own only: the Planets after to, in order
 }
 
 // One unit or armed building in a Battle, tracked on its own.

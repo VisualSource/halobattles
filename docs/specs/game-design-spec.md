@@ -9,7 +9,7 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 - Real-time, online PvP grand strategy for 2–4 players. Galaxy-map play in the style of Empire at War, with Stellaris-style resource management, in the Halo setting.
 - Two Factions: **UNSC** and **Covenant**.
 - Players build on Planets and send Armies along Lanes to capture enemy Planets. A **Battle** is ground only, automatic and round-based, and its Planet is **Locked** while it runs. Players only watch.
-- **Vision**: a player sees the Planets they own plus their neighbours one Lane away.
+- **Vision**: a player sees the Planets they own plus their neighbours one Lane away. They also see a Planet one of their Armies is at (passing through, waiting in orbit, landed, or attacking it), and for `armyVisionSeconds` after it leaves or is destroyed; only that Planet, not its neighbours, and never from a Retreating Army. When vision of a Planet ends, its client keeps it as last seen.
 - **Winning**: hold more than a map-set share of Planets for a set time, or be the last player not eliminated. Losing your Capital eliminates you.
 - There is no tech tree, no research, no bots, no Pops and no space Battles. See [Out of scope](#out-of-scope).
 
@@ -40,10 +40,11 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 ## Stacks, Unit Slots and Armies
 
 - Each Planet has **three Stacks**. A Stack holds units only. Buildings sit in Building Slots but still fight in Battles.
-- A Stack has **10 Unit Slots**. Each holds one unit type with an uncapped count (for example, Marine × 50), like the EaW grid. Within a Stack, a unit type always merges into its existing Unit Slot.
-- Moving units between Stacks on the same Planet is instant, in any count. Unit Slots can be reordered.
+- A Stack has **15 Unit Slots**, three rows of five, like the EaW grid. Each holds one unit type, and a Stack can hold a unit type in several slots. A slot's count is uncapped (for example, Marine × 50) unless the unit sets an optional `slotLimit`, the most one slot holds. No base-Mod unit sets one.
+- Arriving units (trained, an Army landing, a Battle's survivors) top up the Stack's slots of their type, up to the limit, then take new slots in the first free cells. Survivors go back to the slot they fought from.
+- Moving units between Stacks on the same Planet is instant, in any count. A Stack's Unit Slots sit in a grid, and a slot can be moved to any cell of any of the Planet's Stacks. Moved onto a slot of the same unit, it merges, up to the limit. Moved onto another unit's slot, a whole slot swaps places with it. Splitting a slot puts half its units in a new slot in the same Stack.
 - Trained units join the Planet's **Rally Stack**. By default it is the first Stack, and the player can change it.
-- **Overflow:** units that find no free Unit Slot spill into the Planet's other Stacks. If nothing fits:
+- **Overflow:** units that find no room spill into the Planet's other Stacks. If nothing fits:
   - a trained unit stays finished at the head of its queue, which blocks that building's queue;
   - an arriving Army waits in orbit until the player makes room or re-orders it;
   - a winning attacker taking over a captured Planet follows the same rule.
@@ -52,15 +53,18 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 ## Travel
 
 - A Lane's travel time is its length × its Lane-type multiplier: `fast` 1.0, `slow` 2.0. One length unit is 1 s. Map data may set an explicit `time` on a Lane, which overrides that.
-- Routes are found automatically with Dijkstra, by shortest time, and pass **only through Planets the player owns**. Entering any other Planet ends the move there as an attack.
-- An Army in transit can be re-ordered at any time. It finishes its current Lane hop, then follows the new route. It never turns back mid-Lane.
+- An Army can be ordered to any Planet. Its route is found automatically with Dijkstra and goes **straight through the player's own Planets and neutral ones**, with no Battle and no capture. Entering an **enemy** Planet ends the move there with a Battle; if the Army wins, it stays on the Planet it took.
+- The route enters as few enemy Planets as it can, whatever the time; then it's the fastest; then, on equal times, it passes the fewest neutral Planets. Remaining ties go to the lowest Planet-id sequence.
+- A route is fixed once ordered. Each Planet on it is judged as the Army reaches it: one that has turned enemy ends the move there with a Battle, and a **Locked** one makes the Army wait in orbit until its Battle ends, then go on or, if the Planet is now an enemy's, fight there.
+- An Army in transit can be re-ordered at any time. It finishes its current Lane hop, then follows the new route, which is then fixed in turn. It never turns back mid-Lane.
+- Later, a building may stop Armies passing through a Planet. Nothing does in the MVP.
 - Hostile Armies on the same Lane pass each other without a fight. Battles happen only at Planets.
 
 ## Arrival
 
 - An Army arriving at its owner's Planet merges into the named Stack (subject to overflow).
-- An Army arriving at **any other** Planet attacks it, including a Planet that changed hands while the Army was travelling.
-- An Army arriving at a **Locked** Planet waits in orbit until the Battle ends, then resolves its arrival against whoever owns the Planet at that point. Waiting Armies can be re-ordered.
+- An Army arriving at **any other** Planet as its destination attacks it, including a Planet that changed hands while the Army was travelling.
+- An Army arriving at a **Locked** destination waits in orbit until the Battle ends, then resolves its arrival against whoever owns the Planet at that point. Waiting Armies can be re-ordered.
 - If two hostile Armies arrive in the same tick, the player with the lower Seat index attacks and the other waits in orbit.
 - **Neutral Planets** start with a garrison set in map data, which may be empty.
   - An empty neutral Planet is captured on arrival, with no Battle.
@@ -137,7 +141,7 @@ The Battle runs Round after Round until one of these happens:
   - their Armies, whether travelling, waiting or Retreating, are destroyed.
 - **Win conditions:**
   - hold more than the map's `planetShare` of Planets for `holdSeconds` (the share must be over 0.5; the default hold is one Payday); or
-  - be the last player not eliminated.
+  - be the last player not eliminated. A Match started alone (a one-player map) has no last-standing win: only the hold or a Forfeit ends it.
 - Every player's Planet count and any running win-hold countdown are public.
 
 ## The MVP roster
@@ -288,7 +292,7 @@ The single `base:rules` definition.
 | Payday interval | 90 s |
 | Cancel-after-start refund | 50% |
 | Sell refund | 50% |
-| Unit Slots per Stack | 10 |
+| Unit Slots per Stack | 15 |
 | Tiers | `none` 0, `weak` 0.6, `average` 1.0, `strong` 1.4 |
 | Lane types | `fast` 1.0, `slow` 2.0 |
 | Initiative die | 20 |
@@ -296,6 +300,7 @@ The single `base:rules` definition.
 | Round cap | 40 |
 | `startingResources` | 1000 Credits, 300 Materials |
 | `gracePeriodSeconds` | 180 (3 min) |
+| `armyVisionSeconds` | 15 |
 | `resultsSeconds` | 60 |
 
 ## Out of scope

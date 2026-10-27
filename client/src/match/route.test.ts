@@ -39,7 +39,8 @@ describe("route", () => {
       }
       const got = route(
         lanes,
-        (p) => tc.owners[p] === tc.player,
+        (p) => tc.owners[p] ?? null, // no owner listed: neutral
+        tc.player,
         tc.from,
         tc.to,
       );

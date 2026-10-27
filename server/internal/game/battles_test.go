@@ -101,7 +101,7 @@ func TestABeatenAttackerRetreatsToItsNearestPlanet(t *testing.T) {
 	// One Round: the defender holds at the Round cap, and 10 Grunts can't get
 	// through two Warthogs' Armor and HP in one Round, so both survive.
 	c.Rulesets[RulesetID] = withRuleset(c, func(r *cs.Ruleset) { r.RoundCap = 1 })
-	s.Planets["b"].Stacks = [StacksPerPlanet]Stack{{{Unit: "base:grunt", Count: 10}}}
+	s.Planets["b"].Stacks = [StacksPerPlanet]Stack{{{Unit: "base:grunt", Count: 10, Cell: 4}}} // survivors keep cell 4
 	a := s.Planets["a"]
 	_ = s.OrderArmy(0, "a", []ArmyUnits{{0, "base:warthog", 2}}, "b", 0)
 	s.Advance(c, 30_000)
@@ -111,7 +111,7 @@ func TestABeatenAttackerRetreatsToItsNearestPlanet(t *testing.T) {
 	if len(ev.Ended) != 1 || ev.Ended[0].Winner != Neutral || s.Planets["b"].Owner != Neutral {
 		t.Fatalf("ended %+v, want the neutral garrison to hold", ev.Ended)
 	}
-	if got := s.Planets["b"].Stacks[0][0]; got.Unit != "base:grunt" || got.Count > 10 {
+	if got := s.Planets["b"].Stacks[0][0]; got.Unit != "base:grunt" || got.Count > 10 || got.Cell != 4 {
 		t.Errorf("b's garrison = %+v, want its surviving Grunts back", got)
 	}
 	r := onlyArmy(t, s)

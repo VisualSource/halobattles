@@ -36,8 +36,13 @@ count():number {
   return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
 }
 
+cell():number {
+  const offset = this.bb!.__offset(this.bb_pos, 8);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+}
+
 static startUnitSlot(builder:flatbuffers.Builder) {
-  builder.startObject(2);
+  builder.startObject(3);
 }
 
 static addUnit(builder:flatbuffers.Builder, unitOffset:flatbuffers.Offset) {
@@ -48,22 +53,28 @@ static addCount(builder:flatbuffers.Builder, count:number) {
   builder.addFieldInt32(1, count, 0);
 }
 
+static addCell(builder:flatbuffers.Builder, cell:number) {
+  builder.addFieldInt8(2, cell, 0);
+}
+
 static endUnitSlot(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createUnitSlot(builder:flatbuffers.Builder, unitOffset:flatbuffers.Offset, count:number):flatbuffers.Offset {
+static createUnitSlot(builder:flatbuffers.Builder, unitOffset:flatbuffers.Offset, count:number, cell:number):flatbuffers.Offset {
   UnitSlot.startUnitSlot(builder);
   UnitSlot.addUnit(builder, unitOffset);
   UnitSlot.addCount(builder, count);
+  UnitSlot.addCell(builder, cell);
   return UnitSlot.endUnitSlot(builder);
 }
 
 unpack(): UnitSlotT {
   return new UnitSlotT(
     this.unit(),
-    this.count()
+    this.count(),
+    this.cell()
   );
 }
 
@@ -71,13 +82,15 @@ unpack(): UnitSlotT {
 unpackTo(_o: UnitSlotT): void {
   _o.unit = this.unit();
   _o.count = this.count();
+  _o.cell = this.cell();
 }
 }
 
 export class UnitSlotT implements flatbuffers.IGeneratedObject {
 constructor(
   public unit: string|Uint8Array|null = null,
-  public count: number = 0
+  public count: number = 0,
+  public cell: number = 0
 ){}
 
 
@@ -86,7 +99,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
 
   return UnitSlot.createUnitSlot(builder,
     unit,
-    this.count
+    this.count,
+    this.cell
   );
 }
 }

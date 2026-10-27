@@ -97,7 +97,7 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 	case wire.OpMoveUnits:
 		c := wire.GetRootAsMoveUnits(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
-			return s.play.MoveUnits(doc, s.seat(user), string(c.Planet()), int(c.FromStack()), int(c.ToStack()), string(c.Unit()), int(c.Count()))
+			return s.play.MoveUnits(doc, s.seat(user), string(c.Planet()), int(c.FromStack()), int(c.FromCell()), int(c.ToStack()), int(c.ToCell()), string(c.Unit()), int(c.Count()))
 		}
 	case wire.OpOrderArmy:
 		c := wire.GetRootAsOrderArmy(data, 0).UnPack()

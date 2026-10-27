@@ -18,6 +18,7 @@ func (s *State) Advance(c *cs.Content, now int64) Events {
 	}
 	s.moveArmies(c, now, &ev)
 	s.fightBattles(c, now, &ev)
+	s.sightPlanets(c, now)
 	s.checkWin(c, now, &ev)
 	for s.NextPayday <= now {
 		ev.Paydays = append(ev.Paydays, s.payday(c)...)

@@ -1,0 +1,31 @@
+{
+  // A one-player map for trying out the play screen: an empty Planet to take
+  // without a fight, two garrisons to Battle, and a Rich Planet past them.
+  // Holding 4 of its 5 Planets for 90 s wins.
+  "$schema": "../../../../schema/content/map.schema.json",
+  "id": "sandbox",
+  "name": "Sandbox (1 player)",
+  "planets": [
+    { "id": "home", "name": "Home", "type": "capital", "position": { "x": 0, "y": 0 } },
+    { "id": "outpost", "name": "Outpost", "type": "standard", "position": { "x": 150, "y": 0 } },
+    { "id": "ridge", "name": "Ridge", "type": "fortress", "position": { "x": 0, "y": 150 } },
+    { "id": "depot", "name": "Depot", "type": "standard", "position": { "x": 150, "y": 150 } },
+    { "id": "vault", "name": "Vault", "type": "rich", "position": { "x": 300, "y": 75 } }
+  ],
+  "lanes": [
+    { "from": "home", "to": "outpost", "type": "fast", "length": 30 },
+    { "from": "home", "to": "ridge", "type": "fast", "length": 30 },
+    { "from": "outpost", "to": "depot", "type": "fast", "length": 30 },
+    { "from": "ridge", "to": "depot", "type": "fast", "length": 30 },
+    { "from": "outpost", "to": "vault", "type": "slow", "length": 30 },
+    { "from": "depot", "to": "vault", "type": "slow", "length": 30 }
+  ],
+  "garrisons": {
+    "ridge": [[{ "unit": "grunt", "count": 6 }]],
+    "depot": [[{ "unit": "marine", "count": 4 }]],
+    "vault": [[{ "unit": "grunt", "count": 10 }, { "unit": "wraith", "count": 1 }]]
+  },
+  "starts": ["home"],
+  "minPlayers": 1,
+  "win": { "planetShare": 0.6, "holdSeconds": 90 }
+}

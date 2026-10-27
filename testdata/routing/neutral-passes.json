@@ -1,5 +1,5 @@
 {
-  "description": "A neutral Planet in the way ends the move there, so c can't be reached.",
+  "description": "A neutral Planet in the way is passed straight through.",
   "lanes": [
     {
       "from": "a",
@@ -18,5 +18,10 @@
   "player": 0,
   "from": "a",
   "to": "c",
-  "unreachable": true
+  "path": [
+    "a",
+    "b",
+    "c"
+  ],
+  "time": 60000
 }

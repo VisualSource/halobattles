@@ -40,6 +40,20 @@
   --color-ink-bright: #f2f5f7;
 }
 
+/* react-toastify's dark theme, in the app's colours; toasts clear the play HUD. */
+.Toastify__toast-container {
+  --toastify-color-dark: var(--color-panel);
+  --toastify-text-color-dark: var(--color-ink);
+  --toastify-color-progress-dark: var(--color-accent);
+  --toastify-font-family: var(--font-sans);
+  --toastify-toast-width: 300px;
+  --toastify-toast-top: 72px;
+  --toastify-z-index: 15; /* over the map's windows, under the header's popovers */
+}
+.Toastify__toast {
+  border: 1px solid var(--color-edge);
+}
+
 @layer base {
   html {
     color-scheme: dark;
@@ -57,8 +71,9 @@
   button:not(:disabled) {
     @apply cursor-pointer;
   }
-  button:disabled {
-    @apply opacity-50;
+  button:disabled,
+  select:disabled {
+    @apply cursor-default opacity-50;
   }
   h1 {
     @apply text-2xl font-semibold;

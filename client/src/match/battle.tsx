@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
+import { seatColour } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
-import type { BattleAction, Combatant } from "./store";
+import type { BattleAction, Combatant, View } from "./store";
+import { Floating, label, Tag, Tile, windowTitle } from "./windows";
 
 type RoundEvent = { battle: number; round: number; actions: BattleAction[] };
 type EndEvent = { battle: number; winner: number | null };
@@ -10,11 +12,24 @@ type EndEvent = { battle: number; winner: number | null };
 /** Where a Round's playback has got to: the first `shown` actions. */
 type Playback = { round: number; actions: BattleAction[]; shown: number };
 
+const NEUTRAL = "#9ca3af";
+
+const sideName = (view: View | null, seat: number | null) =>
+  seat === null
+    ? "Neutral"
+    : view?.players[seat]?.displayName || `Player ${seat + 1}`;
+
+/** Opens centred at the top of the map. */
+const topCentre = (map: HTMLElement, self: HTMLElement) => ({
+  x: Math.max(0, (map.clientWidth - self.offsetWidth) / 2),
+  y: 16,
+});
+
 /**
- * The Battle you're watching, as both sides' Unit Slot grids with Shield,
- * Armor and HP bars. Each Round's actions play out in order across the Round
- * duration, on top of the View's roster as of the last completed Round.
- * Units are grouped by type, never shown one by one.
+ * The Battle you're watching, in a window: both sides' units grouped by
+ * type, with Shield, Armor and HP bars. Each Round's actions play out in
+ * order across the Round duration, on top of the View's roster as of the
+ * last completed Round. Units are grouped by type, never shown one by one.
  */
 export function BattlePanel(props: {
   conn: MatchConnection;
@@ -25,7 +40,7 @@ export function BattlePanel(props: {
   const battle = useStore(conn.store, (s) =>
     id === null ? undefined : s.view?.battles.get(id),
   );
-  const players = useStore(conn.store, (s) => s.view?.players);
+  const view = useStore(conn.store, (s) => s.view);
   const [play, setPlay] = useState<Playback | null>(null);
   const [winner, setWinner] = useState<{ seat: number | null } | null>(null);
   const roundMs = battle?.roundMs ?? 3000;
@@ -63,20 +78,24 @@ export function BattlePanel(props: {
 
   if (id === null) return null;
   const close = () => conn.local.setState({ watching: null });
-  const name = (seat: number | null) =>
-    seat === null
-      ? "Neutral"
-      : players?.[seat]?.displayName || `Player ${seat + 1}`;
+  const planetName = (p: string) =>
+    content.maps.get(view?.map ?? "")?.planets.find((mp) => mp.id === p)
+      ?.name ?? p;
 
   if (!battle) {
     return (
-      <aside style={panelStyle}>
-        <h3>Battle over</h3>
-        {winner && <p>{name(winner.seat)} won.</p>}
-        <button type="button" onClick={close}>
-          Close
-        </button>
-      </aside>
+      <Floating
+        label="Battle"
+        start={topCentre}
+        remember="battle"
+        onClose={close}
+        className="w-100"
+        title={<h2 className={windowTitle}>Battle over</h2>}
+      >
+        <p className="p-4">
+          {winner ? `${sideName(view, winner.seat)} won.` : "It has ended."}
+        </p>
+      </Floating>
     );
   }
 
@@ -86,36 +105,127 @@ export function BattlePanel(props: {
   const shown = current?.actions.slice(0, current.shown) ?? [];
   const roster = applyActions(battle.roster, shown);
   const last = shown.at(-1);
+  const unitOf = new Map(battle.roster.map((c) => [c.id, c.unit]));
+  const name = (unit: string | undefined) =>
+    content.units.get(unit ?? "")?.name ??
+    content.buildings.get(unit ?? "")?.name ??
+    unit ??
+    "?";
+  const done = current
+    ? current.shown / Math.max(1, current.actions.length)
+    : 0;
 
   return (
-    <aside style={panelStyle}>
-      <h3>
-        Battle: {name(battle.attacker)} attacks {name(battle.defender)}
-      </h3>
-      <p>Round {current ? current.round : battle.round}</p>
-      {(["attacker", "defender"] as const).map((side) => (
-        <section key={side}>
-          <h4>{side === "attacker" ? "Attackers" : "Defenders"}</h4>
-          <UnitGrid
-            roster={roster.filter((c) => c.side === side)}
-            content={content}
-            actor={last?.actor}
-            target={last?.target}
-          />
-        </section>
-      ))}
-      <button type="button" onClick={close}>
-        Close
-      </button>
-    </aside>
+    <Floating
+      label="Battle"
+      start={topCentre}
+      remember="battle"
+      onClose={close}
+      className="w-200"
+      title={
+        <>
+          <h2 className={windowTitle}>
+            {sideName(view, battle.attacker)} attacks{" "}
+            {planetName(battle.planet)}
+          </h2>
+          <Tag className="bg-accent-wash text-accent">Locked</Tag>
+        </>
+      }
+      tools={
+        <span className="mr-2 font-mono">
+          <span className={label}>Round </span>
+          {current ? current.round : battle.round}
+          <span className="text-ink-3"> / {content.rules.roundCap}</span>
+        </span>
+      }
+    >
+      <div className="h-0.75 bg-well">
+        <div
+          className="h-full bg-accent transition-[width] duration-200"
+          style={{ width: `${done * 100}%` }}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-5 p-4">
+        {(["attacker", "defender"] as const).map((side) => {
+          const seat = side === "attacker" ? battle.attacker : battle.defender;
+          const faction = seat === null ? "" : view?.players[seat]?.faction;
+          return (
+            <section key={side} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="size-2.5 rounded-sm"
+                  style={{
+                    background: seat === null ? NEUTRAL : seatColour(seat),
+                  }}
+                />
+                <h3 className="font-semibold">
+                  {side === "attacker" ? "Attackers" : "Defenders"}
+                </h3>
+                <span className="text-ink-3 text-sm">
+                  {sideName(view, seat)}
+                  {faction &&
+                    ` · ${content.factions.get(faction)?.name ?? faction}`}
+                </span>
+              </div>
+              <UnitGrid
+                roster={roster.filter((c) => c.side === side)}
+                content={content}
+                name={name}
+                actor={last?.actor}
+                target={last?.target}
+              />
+            </section>
+          );
+        })}
+      </div>
+      <div className="mx-4 flex flex-col gap-1.5 rounded-md bg-well px-3.5 py-3 text-sm">
+        <span className={label}>This Round</span>
+        {shown.length === 0 ? (
+          <span className="text-ink-3">Waiting for the next Round…</span>
+        ) : (
+          // The newest three, newest first; n is its place in the Round.
+          shown
+            .map((a, n) => ({ a, n }))
+            .slice(-3)
+            .reverse()
+            .map(({ a, n }) => (
+              <span
+                key={n}
+                className={n === shown.length - 1 ? "" : "text-ink-3"}
+              >
+                {name(unitOf.get(a.actor))} hits {name(unitOf.get(a.target))} ·{" "}
+                <span className="font-mono">{damage(a)}</span>
+                {a.killed && (
+                  <span className="text-danger">
+                    {" "}
+                    · {name(unitOf.get(a.target))} down
+                  </span>
+                )}
+              </span>
+            ))
+        )}
+      </div>
+      <p className="px-4 py-3 text-ink-3 text-sm">
+        {planetName(battle.planet)} is Locked: its queues are paused and its
+        Stacks are frozen until the Battle ends.
+      </p>
+    </Floating>
   );
 }
 
-const panelStyle = {
-  width: 320,
-  padding: "0 12px",
-  overflowY: "auto",
-} as const;
+/** "15 SH, 13 HP": the damage one hit did to each layer. */
+function damage(a: BattleAction) {
+  const layers: [number, string][] = [
+    [a.shieldDmg, "SH"],
+    [a.armorDmg, "AR"],
+    [a.hpDmg, "HP"],
+  ];
+  const parts = layers
+    .filter(([n]) => n > 0)
+    .map(([n, l]) => `${Math.round(n)} ${l}`);
+  return parts.join(", ") || "no damage";
+}
 
 function applyActions(roster: Combatant[], actions: BattleAction[]) {
   const out = new Map(roster.map((c) => [c.id, { ...c }]));
@@ -130,13 +240,14 @@ function applyActions(roster: Combatant[], actions: BattleAction[]) {
 }
 
 /**
- * One side's units as Unit Slots: one row per unit type with the living
- * count and the summed Shield, Armor and HP left out of the starting total.
- * The row of the unit acting or being hit is highlighted.
+ * One side's units as rows, one per unit type: the living count out of how
+ * many started, and the summed Shield, Armor and HP left. The row of the
+ * unit acting is outlined in blue, the one being hit in red.
  */
 function UnitGrid(props: {
   roster: Combatant[];
   content: ContentLookups;
+  name: (unit: string) => string;
   actor?: string;
   target?: string;
 }) {
@@ -144,7 +255,7 @@ function UnitGrid(props: {
   const slots = new Map<string, Combatant[]>();
   for (const c of roster) slots.set(c.unit, [...(slots.get(c.unit) ?? []), c]);
   return (
-    <ul style={{ listStyle: "none", padding: 0 }}>
+    <ul className="flex flex-col gap-2">
       {[...slots].map(([unit, cs]) => {
         const def = content.units.get(unit) ?? content.buildings.get(unit);
         const stats = def?.combat;
@@ -152,29 +263,46 @@ function UnitGrid(props: {
         const sum = (f: (c: Combatant) => number) =>
           cs.reduce((n, c) => n + f(c), 0);
         const ids = new Set(cs.map((c) => c.id));
-        const background = ids.has(props.target ?? "")
-          ? "#7f1d1d"
-          : ids.has(props.actor ?? "")
-            ? "#1e3a8a"
-            : undefined;
+        const hit = ids.has(props.target ?? "");
+        const acting = ids.has(props.actor ?? "");
         return (
-          <li key={unit} style={{ background, padding: 2 }}>
-            {def?.name ?? unit} × {alive}
-            <Bar
-              label="Shield"
-              value={sum((c) => c.shield)}
-              max={cs.length * (stats?.shield ?? 0)}
-            />
-            <Bar
-              label="Armor"
-              value={sum((c) => c.armor)}
-              max={cs.length * (stats?.armor ?? 0)}
-            />
-            <Bar
-              label="HP"
-              value={sum((c) => c.hp)}
-              max={cs.length * (stats?.hp ?? 0)}
-            />
+          <li
+            key={unit}
+            className={`grid grid-cols-[44px_minmax(0,1fr)_160px] items-center gap-3 rounded-md border p-2.5 ${hit ? "border-danger bg-danger-wash" : acting ? "border-[#5fb4f0] bg-[#12212e]" : "border-line bg-item"}`}
+          >
+            <Tile name={props.name(unit)} size="size-11" />
+            <div className="min-w-0">
+              <div className="truncate">
+                {props.name(unit)}{" "}
+                {acting && (
+                  <span className={`${label} text-[#5fb4f0]`}>acting</span>
+                )}
+                {hit && <span className={`${label} text-danger`}>hit</span>}
+              </div>
+              <div className="font-mono text-ink-3 text-xs">
+                {alive} of {cs.length} left
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.25">
+              <Bar
+                label="SH"
+                colour="bg-[#5fb4f0]"
+                value={sum((c) => c.shield)}
+                max={cs.length * (stats?.shield ?? 0)}
+              />
+              <Bar
+                label="AR"
+                colour="bg-idle"
+                value={sum((c) => c.armor)}
+                max={cs.length * (stats?.armor ?? 0)}
+              />
+              <Bar
+                label="HP"
+                colour="bg-ok"
+                value={sum((c) => c.hp)}
+                max={cs.length * (stats?.hp ?? 0)}
+              />
+            </div>
           </li>
         );
       })}
@@ -182,16 +310,31 @@ function UnitGrid(props: {
   );
 }
 
-function Bar(props: { label: string; value: number; max: number }) {
+function Bar(props: {
+  label: string;
+  colour: string;
+  value: number;
+  max: number;
+}) {
   if (props.max <= 0) return null; // e.g. no Shield at all
   return (
-    <meter
+    // biome-ignore lint/a11y/useSemanticElements: a <meter>'s bar can't be coloured per layer across browsers
+    <div
+      role="meter"
       aria-label={props.label}
+      aria-valuemin={0}
+      aria-valuemax={props.max}
+      aria-valuenow={props.value}
       title={`${props.label} ${Math.round(props.value)} / ${Math.round(props.max)}`}
-      min={0}
-      max={props.max}
-      value={props.value}
-      style={{ display: "block", width: "100%", height: 6 }}
-    />
+      className="grid grid-cols-[22px_minmax(0,1fr)] items-center gap-1.5 font-mono text-[10px] text-ink-3"
+    >
+      {props.label}
+      <div className="h-1.5 overflow-hidden rounded-sm bg-well">
+        <div
+          className={`h-full ${props.colour}`}
+          style={{ width: `${(props.value / props.max) * 100}%` }}
+        />
+      </div>
+    </div>
   );
 }

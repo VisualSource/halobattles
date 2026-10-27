@@ -109,7 +109,7 @@ func TestStartPlacesEachSeatOnAStartWithItsKit(t *testing.T) {
 		if want := []string{"base:barracks", "base:supply-pad", "", ""}; !slices.Equal(c.Buildings, want) {
 			t.Errorf("Capital buildings = %q, want %q (4 Building Slots)", c.Buildings, want)
 		}
-		if want := (Stack{{Unit: "base:marine", Count: 10}, {Unit: "base:warthog", Count: 2}}); !slices.Equal(c.Stacks[0], want) ||
+		if want := (Stack{{Unit: "base:marine", Count: 10}, {Unit: "base:warthog", Count: 2, Cell: 1}}); !slices.Equal(c.Stacks[0], want) ||
 			len(c.Stacks[1]) != 0 {
 			t.Errorf("Capital Stacks = %+v, want the Starting Kit (not the garrison)", c.Stacks)
 		}

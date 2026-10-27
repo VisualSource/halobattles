@@ -45,6 +45,21 @@ func (s *State) owns(seat int) func(string) bool {
 	return func(id string) bool { return s.Planets[id] != nil && s.Planets[id].Owner == seat }
 }
 
+// ownerOf is a Planet's owner, for Route.
+func (s *State) ownerOf(id string) int {
+	if p := s.Planets[id]; p != nil {
+		return p.Owner
+	}
+	return Neutral
+}
+
+// passable reports whether an Army of seat may go on through p rather than
+// end its move there: its own Planets and neutral ones. A Locked one makes
+// it wait in orbit first.
+func passable(seat int, p *Planet) bool {
+	return p.Owner == seat || p.Owner == Neutral
+}
+
 // OrderArmy forms an Army from units on one of the player's Planets, taken
 // from any of its Stacks, and sends it on the fastest route to another.
 func (s *State) OrderArmy(seat int, from string, units []ArmyUnits, to string, toStack int) error {
@@ -55,7 +70,7 @@ func (s *State) OrderArmy(seat int, from string, units []ArmyUnits, to string, t
 	if err := s.checkTarget(to, toStack); err != nil {
 		return err
 	}
-	route, _, ok := Route(s.Lanes, s.owns(seat), from, to)
+	route, _, ok := Route(s.Lanes, s.ownerOf, seat, from, to)
 	if !ok || len(route) < 2 {
 		return fmt.Errorf("no route from %s to %s", from, to)
 	}
@@ -68,14 +83,26 @@ func (s *State) OrderArmy(seat int, from string, units []ArmyUnits, to string, t
 		if u.Stack < 0 || u.Stack >= StacksPerPlanet || u.Count < 1 {
 			return errors.New("pick units from the Planet's Stacks")
 		}
-		st := stacks[u.Stack]
-		i := slices.IndexFunc(st, func(sl UnitSlot) bool { return sl.Unit == u.Unit })
-		if i < 0 || st[i].Count < u.Count {
+		// A Stack can hold the unit in several Unit Slots: take from each.
+		st, have := stacks[u.Stack], 0
+		for _, sl := range st {
+			if sl.Unit == u.Unit {
+				have += sl.Count
+			}
+		}
+		if have < u.Count {
 			return fmt.Errorf("Stack %d doesn't have %d of %s", u.Stack+1, u.Count, u.Unit)
 		}
-		st[i].Count -= u.Count
+		left := u.Count
+		for k := range st {
+			if st[k].Unit == u.Unit {
+				take := min(left, st[k].Count)
+				st[k].Count -= take
+				left -= take
+			}
+		}
 		stacks[u.Stack] = slices.DeleteFunc(st, func(sl UnitSlot) bool { return sl.Count == 0 })
-		army = army.add(u.Unit, u.Count)
+		army = army.add(u.Unit, u.Count, 0)
 	}
 	if len(army) == 0 {
 		return errors.New("pick some units")
@@ -105,9 +132,9 @@ func (s *State) ReorderArmy(seat int, id uint32, to string, toStack int) error {
 	if err := s.checkTarget(to, toStack); err != nil {
 		return err
 	}
-	route, _, ok := Route(s.Lanes, s.owns(seat), a.To, to)
-	// Mid-Lane into a Planet it doesn't own, the Army must stop there.
-	if !ok || !a.Waiting && len(route) > 1 && !s.owns(seat)(a.To) {
+	route, _, ok := Route(s.Lanes, s.ownerOf, seat, a.To, to)
+	// Mid-Lane into an enemy Planet, the Army must stop there.
+	if !ok || !a.Waiting && len(route) > 1 && !passable(seat, s.Planets[a.To]) {
 		return fmt.Errorf("no route to %s", to)
 	}
 	a.Path, a.ToStack = route[1:], toStack
@@ -151,17 +178,22 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 	})
 	for _, a := range armies {
 		for !a.Waiting && a.Arrives <= now {
+			if !a.Retreating {
+				s.sight(c, a.Owner, a.To, a.Arrives) // passing through or arriving
+			}
 			switch {
 			case a.Retreating && !s.owns(a.Owner)(a.destination()):
 				// Its target fell on the way: pick a new one from here.
 				if !s.retreat(a, a.Arrives) {
 					delete(s.Armies, a.ID) // its owner has no Planets left
 				}
-			// Pass through only a Planet the owner still holds; anything else
-			// ends the move there, even if it changed hands on the way. A
-			// Retreat passes through anything.
-			case len(a.Path) > 0 && (a.Retreating || s.owns(a.Owner)(a.To)):
+			// Pass through the owner's Planets and neutral ones, as they stand
+			// on arrival; an enemy Planet ends the move there, even one that
+			// changed hands on the way. A Retreat passes through anything.
+			case len(a.Path) > 0 && (a.Retreating || passable(a.Owner, s.Planets[a.To]) && !s.Planets[a.To].Locked):
 				a.hop(s.Lanes, a.Arrives)
+			case len(a.Path) > 0 && passable(a.Owner, s.Planets[a.To]):
+				a.Waiting = true // Locked on the way: wait out the Battle, keeping the route
 			default:
 				a.Waiting, a.Retreating, a.Path = true, false, nil
 			}
@@ -173,9 +205,19 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 			continue
 		}
 		p := s.Planets[a.To]
-		switch {
-		case p.Locked:
+		if p.Locked {
 			continue // waits until the Battle ends, then resolves against the new owner
+		}
+		if len(a.Path) > 0 {
+			// It waited out a Battle on the way: go on if it still may.
+			if passable(a.Owner, p) {
+				a.Waiting = false
+				a.hop(s.Lanes, now)
+				continue
+			}
+			a.Path = nil // taken by an enemy: the move ends here
+		}
+		switch {
 		case p.Owner == Neutral && p.empty():
 			s.capture(p, a.Owner, ev)
 		case p.Owner != a.Owner:
@@ -189,8 +231,7 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 // land merges an Army into its Stack, with overflow. Units that don't fit
 // wait in orbit.
 func (s *State) land(c *cs.Content, a *Army, p *Planet) {
-	slots := c.Rulesets[RulesetID].UnitSlotsPerStack
-	a.Units = slices.DeleteFunc(a.Units, func(u UnitSlot) bool { return p.addUnits(a.ToStack, u.Unit, u.Count, slots) })
+	a.Units = slices.DeleteFunc(a.Units, func(u UnitSlot) bool { return p.addUnits(c, a.ToStack, u.Unit, u.Count) })
 	if len(a.Units) == 0 {
 		delete(s.Armies, a.ID)
 	}
@@ -226,5 +267,32 @@ func (s *State) capture(p *Planet, to int, ev *Events) {
 		if from != Neutral {
 			s.eliminate(from, ev)
 		}
+	}
+}
+
+// sight lets seat see planet until armyVisionSeconds after at.
+func (s *State) sight(c *cs.Content, seat int, planet string, at int64) {
+	until := at + int64(c.Rulesets[RulesetID].ArmyVisionSeconds)*1000
+	p := &s.Players[seat]
+	if p.Sighted == nil {
+		p.Sighted = map[string]int64{}
+	}
+	p.Sighted[planet] = max(p.Sighted[planet], until)
+}
+
+// sightPlanets keeps vision of every Planet an Army is waiting at, or its
+// owner is attacking, so it runs out armyVisionSeconds after they're gone,
+// and drops sightings that have run out.
+func (s *State) sightPlanets(c *cs.Content, now int64) {
+	for _, a := range s.Armies {
+		if a.Waiting {
+			s.sight(c, a.Owner, a.To, now)
+		}
+	}
+	for _, b := range s.Battles {
+		s.sight(c, b.Attacker, b.Planet, now)
+	}
+	for i := range s.Players {
+		maps.DeleteFunc(s.Players[i].Sighted, func(_ string, until int64) bool { return until <= now })
 	}
 }

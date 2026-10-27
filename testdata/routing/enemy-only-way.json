@@ -1,0 +1,28 @@
+{
+  "description": "The only way runs through the enemy e: the route takes it, and the Army will stop there to fight.",
+  "lanes": [
+    {
+      "from": "a",
+      "to": "e",
+      "time": 10000
+    },
+    {
+      "from": "e",
+      "to": "c",
+      "time": 10000
+    }
+  ],
+  "owners": {
+    "a": 0,
+    "e": 1
+  },
+  "player": 0,
+  "from": "a",
+  "to": "c",
+  "path": [
+    "a",
+    "e",
+    "c"
+  ],
+  "time": 20000
+}

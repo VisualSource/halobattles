@@ -1,5 +1,5 @@
 {
-  "description": "The faster route passes through d, which the player doesn't own, so it takes the slower one through b.",
+  "description": "The faster route enters d, an enemy Planet, so it takes the slower one through b.",
   "lanes": [
     {
       "from": "a",

@@ -31,7 +31,7 @@ export function laneTimes(map: GalaxyMap, rules: Ruleset): Lanes {
   return lanes;
 }
 
-type Label = { ms: number; path: string[] };
+type Label = { enemies: number; neutrals: number; ms: number; path: string[] };
 
 // Element by element, in byte-wise order; ids are ASCII, so < on strings is.
 function comparePaths(a: string[], b: string[]) {
@@ -43,23 +43,33 @@ function comparePaths(a: string[], b: string[]) {
   return a.length - b.length;
 }
 
+// Fewest enemy Planets, then fastest, then fewest neutrals, then lowest ids.
 const better = (a: Label, b: Label) =>
-  a.ms < b.ms || (a.ms === b.ms && comparePaths(a.path, b.path) < 0);
+  (a.enemies - b.enemies ||
+    a.ms - b.ms ||
+    a.neutrals - b.neutrals ||
+    comparePaths(a.path, b.path)) < 0;
 
 /**
  * A port of the server's game.Route, for the route preview; the server's
- * route stays authoritative. The fastest route passes only through Planets
- * the player owns, so any other can only be the last. Both pass
+ * route stays authoritative. owner gives each Planet's owner as the player
+ * knows it, null for neutral. The route goes straight through the player's
+ * own Planets and neutral ones, and entering an enemy Planet ends the move
+ * there, so it enters as few as it can, whatever the time; then it's the
+ * fastest; then, on equal times, it passes the fewest neutrals. Both pass
  * testdata/routing.
  */
 export function route(
   lanes: Lanes,
-  owned: (planet: string) => boolean,
+  owner: (planet: string) => number | null,
+  you: number,
   from: string,
   to: string,
-): Label | null {
+): { ms: number; path: string[] } | null {
   if (from === to) return { ms: 0, path: [from] };
-  const best = new Map<string, Label>([[from, { ms: 0, path: [from] }]]);
+  const best = new Map<string, Label>([
+    [from, { enemies: 0, neutrals: 0, ms: 0, path: [from] }],
+  ]);
   const done = new Set<string>();
   for (;;) {
     let cur: string | null = null;
@@ -69,11 +79,16 @@ export function route(
     }
     if (cur === null) return null;
     const here = best.get(cur) as Label;
-    if (cur === to) return here;
+    if (cur === to) return { ms: here.ms, path: here.path };
     done.add(cur);
-    if (cur !== from && !owned(cur)) continue; // an attack ends here
     for (const [next, ms] of lanes.get(cur) ?? []) {
-      const l = { ms: here.ms + ms, path: [...here.path, next] };
+      const o = owner(next);
+      const l = {
+        enemies: here.enemies + (o !== null && o !== you ? 1 : 0),
+        neutrals: here.neutrals + (o === null ? 1 : 0),
+        ms: here.ms + ms,
+        path: [...here.path, next],
+      };
       const old = best.get(next);
       if (!done.has(next) && (!old || better(l, old))) best.set(next, l);
     }
