@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/terrain.schema.json",
+  "id": "open",
+  "name": "Open ground",
+  "colour": "#7a9a4f",
+  "cover": 0,
+  "movement": { "infantry": 1, "vehicle": 1, "aircraft": 1 }
+}

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 
+	"github.com/VisualSource/halobattles/server/internal/battle"
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
@@ -79,17 +80,16 @@ type ArmyView struct {
 	Path        []string // own only: the Planets after To, in order
 }
 
-// BattleView is a Battle the viewer is a side of, as it stands after the
-// Rounds played out so far. Others see only the Planet's Locked flag.
+// BattleView is a Battle the viewer is a side of, as their side sees it.
+// Others see only the Planet's Locked flag.
 type BattleView struct {
 	ID       uint32
 	Planet   string
 	Attacker int
 	Defender int
 	Started  int64
-	RoundMs  int64
-	Round    int         // Rounds completed
-	Roster   []Combatant // with each one's Shield, Armor and HP now
+	Field    *battle.Field // the same for the whole Battle
+	battle.Snapshot
 }
 
 // visible is the set of Planets a player sees: those they own, every Planet
@@ -169,32 +169,20 @@ func (s *State) View(c *cs.Content, seat int) View {
 	}
 	for _, id := range slices.Sorted(maps.Keys(s.Battles)) {
 		if b := s.Battles[id]; b.Attacker == seat || b.Defender == seat {
-			v.Battles = append(v.Battles, b.view(s.Time))
+			v.Battles = append(v.Battles, b.view(seat))
 		}
 	}
 	return v
 }
 
-// view replays the Rounds whose Round duration has passed onto the roster.
-func (b *Battle) view(now int64) BattleView {
-	done := 0
-	for done < b.Sent && b.Started+int64(done+1)*b.RoundMs <= now {
-		done++
-	}
-	roster := slices.Clone(b.Result.Roster)
-	at := map[string]int{}
-	for i, cb := range roster {
-		at[cb.ID] = i
-	}
-	for _, round := range b.Result.Rounds[:done] {
-		for _, a := range round {
-			t := &roster[at[a.Target]]
-			t.Shield, t.Armor, t.HP = t.Shield-a.ShieldDmg, t.Armor-a.ArmorDmg, t.HP-a.HPDmg
-		}
+func (b *Battle) view(seat int) BattleView {
+	side := battle.Attacker
+	if seat != b.Attacker {
+		side = battle.Defender
 	}
 	return BattleView{
-		ID: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender,
-		Started: b.Started, RoundMs: b.RoundMs, Round: done, Roster: roster,
+		ID: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender, Started: b.Started,
+		Field: b.Sim.Field, Snapshot: b.Sim.Snapshot(side),
 	}
 }
 

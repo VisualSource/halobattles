@@ -13,8 +13,7 @@ type BattleStartedT struct {
 	Attacker  int8          `json:"attacker"`
 	Defender  int8          `json:"defender"`
 	Started   int64         `json:"started"`
-	RoundMs   uint32        `json:"round_ms"`
-	Roster    []*CombatantT `json:"roster"`
+	Field     *BattlefieldT `json:"field"`
 }
 
 func (t *BattleStartedT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -25,19 +24,7 @@ func (t *BattleStartedT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT
 	if t.Planet != "" {
 		planetOffset = builder.CreateString(t.Planet)
 	}
-	rosterOffset := flatbuffers.UOffsetT(0)
-	if t.Roster != nil {
-		rosterLength := len(t.Roster)
-		rosterOffsets := make([]flatbuffers.UOffsetT, rosterLength)
-		for j := 0; j < rosterLength; j++ {
-			rosterOffsets[j] = t.Roster[j].Pack(builder)
-		}
-		BattleStartedStartRosterVector(builder, rosterLength)
-		for j := rosterLength - 1; j >= 0; j-- {
-			builder.PrependUOffsetT(rosterOffsets[j])
-		}
-		rosterOffset = builder.EndVector(rosterLength)
-	}
+	fieldOffset := t.Field.Pack(builder)
 	BattleStartedStart(builder)
 	BattleStartedAddMatchTime(builder, t.MatchTime)
 	BattleStartedAddBattle(builder, t.Battle)
@@ -45,8 +32,7 @@ func (t *BattleStartedT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT
 	BattleStartedAddAttacker(builder, t.Attacker)
 	BattleStartedAddDefender(builder, t.Defender)
 	BattleStartedAddStarted(builder, t.Started)
-	BattleStartedAddRoundMs(builder, t.RoundMs)
-	BattleStartedAddRoster(builder, rosterOffset)
+	BattleStartedAddField(builder, fieldOffset)
 	return BattleStartedEnd(builder)
 }
 
@@ -57,14 +43,7 @@ func (rcv *BattleStarted) UnPackTo(t *BattleStartedT) {
 	t.Attacker = rcv.Attacker()
 	t.Defender = rcv.Defender()
 	t.Started = rcv.Started()
-	t.RoundMs = rcv.RoundMs()
-	rosterLength := rcv.RosterLength()
-	t.Roster = make([]*CombatantT, rosterLength)
-	for j := 0; j < rosterLength; j++ {
-		x := Combatant{}
-		rcv.Roster(&x, j)
-		t.Roster[j] = x.UnPack()
-	}
+	t.Field = rcv.Field(nil).UnPack()
 }
 
 func (rcv *BattleStarted) UnPack() *BattleStartedT {
@@ -179,40 +158,21 @@ func (rcv *BattleStarted) MutateStarted(n int64) bool {
 	return rcv._tab.MutateInt64Slot(14, n)
 }
 
-func (rcv *BattleStarted) RoundMs() uint32 {
+func (rcv *BattleStarted) Field(obj *Battlefield) *Battlefield {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
-	}
-	return 0
-}
-
-func (rcv *BattleStarted) MutateRoundMs(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(16, n)
-}
-
-func (rcv *BattleStarted) Roster(obj *Combatant, j int) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
-	if o != 0 {
-		x := rcv._tab.Vector(o)
-		x += flatbuffers.UOffsetT(j) * 4
-		x = rcv._tab.Indirect(x)
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(Battlefield)
+		}
 		obj.Init(rcv._tab.Bytes, x)
-		return true
+		return obj
 	}
-	return false
-}
-
-func (rcv *BattleStarted) RosterLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
-	if o != 0 {
-		return rcv._tab.VectorLen(o)
-	}
-	return 0
+	return nil
 }
 
 func BattleStartedStart(builder *flatbuffers.Builder) {
-	builder.StartObject(8)
+	builder.StartObject(7)
 }
 func BattleStartedAddMatchTime(builder *flatbuffers.Builder, matchTime int64) {
 	builder.PrependInt64Slot(0, matchTime, 0)
@@ -232,14 +192,8 @@ func BattleStartedAddDefender(builder *flatbuffers.Builder, defender int8) {
 func BattleStartedAddStarted(builder *flatbuffers.Builder, started int64) {
 	builder.PrependInt64Slot(5, started, 0)
 }
-func BattleStartedAddRoundMs(builder *flatbuffers.Builder, roundMs uint32) {
-	builder.PrependUint32Slot(6, roundMs, 0)
-}
-func BattleStartedAddRoster(builder *flatbuffers.Builder, roster flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(roster), 0)
-}
-func BattleStartedStartRosterVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
-	return builder.StartVector(4, numElems, 4)
+func BattleStartedAddField(builder *flatbuffers.Builder, field flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(field), 0)
 }
 func BattleStartedEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

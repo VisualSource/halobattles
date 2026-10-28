@@ -11,11 +11,43 @@
   // An attack hits on a d20 roll of this or more: 90%.
   "toHit": 3,
   "laneTypes": { "fast": 0.6, "slow": 2.0 },
-  "initiativeDie": 20,
-  "roundSeconds": 3,
-  "roundCap": 40,
   "startingResources": { "credits": 1000, "materials": 300 },
   "gracePeriodSeconds": 180,
   "armyVisionSeconds": 15,
-  "resultsSeconds": 60
+  "resultsSeconds": 60,
+  // docs/specs/tactical-battle-spec.md
+  "battlefield": {
+    "width": 64,
+    "height": 48,
+    "terrainPreset": "temperate",
+    "pathClass": "infantry",
+    "controlPoints": 3,
+    "controlPointSpacing": 10,
+    "deployDepth": 4,
+    "buildPads": 4
+  },
+  "battle": {
+    // Seconds to open the Battle before the fighting starts.
+    "startDelay": 30,
+    "timeCap": 180,
+    "padBuildSeconds": 10,
+    // A neutral garrison's budget for pad turrets, having no economy: two
+    // turrets' worth (each costs 200 Credits and 50 Materials).
+    "neutralFunds": { "credits": 400, "materials": 100 },
+    "captureRadius": 2,
+    "captureSeconds": 5,
+    "holdPoints": 2,
+    "holdSeconds": 30,
+    "highGroundToHit": 2,
+    "heightSight": 1,
+    "retreatCountdown": 10,
+    // Buildings without a combat block: targets that never fire.
+    "structure": { "unitClass": "structure", "shield": 0, "armor": 20, "hp": 30 },
+    "classDefaults": {
+      "infantry": { "speed": 1.5, "range": 5, "fireInterval": 1.5, "sight": 8 },
+      "vehicle": { "speed": 2.5, "range": 7, "fireInterval": 2, "sight": 9 },
+      "aircraft": { "speed": 4, "range": 6, "fireInterval": 1.5, "sight": 11 },
+      "structure": { "speed": 0, "range": 8, "fireInterval": 2, "sight": 10 }
+    }
+  }
 }

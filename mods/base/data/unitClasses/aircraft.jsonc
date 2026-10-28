@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../schema/content/unit-class.schema.json",
   "id": "aircraft",
-  "name": "Aircraft"
+  "name": "Aircraft",
+  "air": true
 }

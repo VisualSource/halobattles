@@ -35,15 +35,17 @@ type kind struct {
 
 // kinds maps each data/<kind> folder, which is also its key in Content.
 var kinds = map[string]kind{
-	"resources":   {"resource.schema.json", "Resource"},
-	"rulesets":    {"ruleset.schema.json", "Ruleset"},
-	"factions":    {"faction.schema.json", "Faction"},
-	"units":       {"unit.schema.json", "Unit"},
-	"buildings":   {"building.schema.json", "Building"},
-	"unitClasses": {"unit-class.schema.json", "Unit Class"},
-	"weaponTypes": {"weapon-type.schema.json", "Weapon Type"},
-	"planetTypes": {"planet-type.schema.json", "Planet Type"},
-	"maps":        {"map.schema.json", "Map"},
+	"resources":      {"resource.schema.json", "Resource"},
+	"rulesets":       {"ruleset.schema.json", "Ruleset"},
+	"factions":       {"faction.schema.json", "Faction"},
+	"units":          {"unit.schema.json", "Unit"},
+	"buildings":      {"building.schema.json", "Building"},
+	"unitClasses":    {"unit-class.schema.json", "Unit Class"},
+	"weaponTypes":    {"weapon-type.schema.json", "Weapon Type"},
+	"planetTypes":    {"planet-type.schema.json", "Planet Type"},
+	"maps":           {"map.schema.json", "Map"},
+	"terrains":       {"terrain.schema.json", "Terrain"},
+	"terrainPresets": {"terrain-preset.schema.json", "Terrain Preset"},
 }
 
 // Problems lists every content error found. Manifest and dependency

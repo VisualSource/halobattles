@@ -85,13 +85,13 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 
 - **Resource:** a stockpile only, with an optional `icon`. Command Points is **not** a Resource; it is carried by `commandPoints` and `commandPointBonus` fields.
 - **Faction:** an optional `icon`, an optional `ai` weight block for the Battle AI ([AI](tactical-battle-spec.md#ai)), and a **Starting Kit**: the buildings and Stacks (`[{unit, count}]` per Stack) placed on its Capital. Starting resources are not part of the kit.
-- **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), optional `slotLimit` (the most one Unit Slot holds), `combat` (required), optional `icon`.
-- **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `icon`. There are no build limits or prerequisites.
+- **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), optional `slotLimit` (the most one Unit Slot holds), optional `roles` (Battle AI hints: `scout`, `skirmisher`), `combat` (required), optional `icon`.
+- **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `padTurret` (it can be built on a build pad in Battle; needs `combat`), optional `icon`. There are no build limits or prerequisites.
 - **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `tiers: {unitClassId: tier}`, and optional `speed`, `range`, `minRange`, `fireInterval` and `sight`, which default from the Ruleset's `classDefaults` ([Stats](tactical-battle-spec.md#stats)). `damage` is dice notation, `NdM` or `NdM+K`, checked by a schema pattern; a tier is `advantage`, `normal`, `disadvantage` or `none`, and a Unit Class missing from `tiers` counts as `normal` ([ADR 0003](../adr/0003-dice-damage.md)).
-- **Unit Class:** an id and a name.
+- **Unit Class:** an id, a name, and an optional `air` flag: it flies, ignores cover and high ground, and shares a cell with one ground unit.
 - **Weapon Type:** a multiplier for each layer (`shield`, `armor`, `hp`).
-- **Terrain:** `cover`, `colour`, and per Unit Class `{passable, cost}`.
-- **Terrain Preset:** noise parameters, elevation and moisture thresholds, and the Terrain for each band × moisture cell ([Generation](tactical-battle-spec.md#generation)).
+- **Terrain:** `cover`, `colour`, and `movement`, a cost per Unit Class; a Unit Class missing from it can't enter.
+- **Terrain Preset:** `noise`, elevation `bands` each with moisture-split `terrains`, and the `clear` Terrain ([Generation](tactical-battle-spec.md#generation)).
 - **Planet Type:** `income` (resource map), `buildingSlots`, `commandPointBonus`, optional `sprite`.
 - **Ruleset:** exactly one definition, `base:rules`, which later Mods Patch. Its fields are:
   - the Payday interval;
@@ -105,7 +105,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 
   Defaults are in the game-design spec's [Ruleset defaults](game-design-spec.md#ruleset-defaults).
 - **Map:**
-  - `planets`: a local id, `name`, `type` (a Planet Type), 2D `position {x, y}`, an optional `overrides` (a Patch on its type's values), an optional `model`: `planet` (the default) or `ring`, which the client draws as a Halo ring, and an optional `battlefield {preset, width, height}`.
+  - `planets`: a local id, `name`, `type` (a Planet Type), 2D `position {x, y}`, an optional `overrides` (a Patch on its type's values), an optional `model`: `planet` (the default) or `ring`, which the client draws as a Halo ring, and an optional `battlefield {terrainPreset, width, height}`.
   - `lanes`: `{from, to, type}`. Optional `length` defaults to the straight-line distance; optional `time` overrides length × multiplier.
   - `garrisons`: neutral starting forces per Planet, as up to 3 Stacks of `[{unit, count}]`, from any Faction. A garrison on a `starts` Planet applies only when that start is unused.
   - `starts`: a list of Planet ids. Its length is the maximum player count; a used start is its player's Capital. There is also `minPlayers`.
@@ -165,8 +165,8 @@ These one-off messages travel on a side channel, alongside the View:
 |---|---|
 | `CommandRejected {seq, reason}` | the sender |
 | `PaydayPaid {net per Resource}` | that player |
-| `BattleStarted {planet, battlefield, controlPoints, squads}` (filtered per side) | the two sides |
-| `BattleTick {planet, tick, ...}` (filtered per side) | the two sides |
+| `BattleStarted {planet, battle, attacker, defender, started, field}` | the two sides |
+| `BattleTick {planet, battle, tick, volleys}` (filtered per side) | each side, on ticks with fire it may know about |
 | `BattleEnded {planet, winner}` | viewers who can see the Planet |
 | `PlanetCaptured {planet, from, to}` | viewers who can see the Planet |
 | `PlayerEliminated {player}` | everyone |
@@ -201,6 +201,7 @@ Every command carries a client-assigned `seq`.
 | `ReorderArmy {army, toPlanet, toStack}` | play | owner |
 | `BattleRetreat {planet}` | play | a side of that Battle, not neutral |
 | `BattleCancelRetreat {planet}` | play | a side of that Battle, during the countdown |
+| `BattleBuildTurret {planet, pad, building}` | play | a side of that Battle holding the pad; pays the turret's cost |
 | `Surrender` | play | any Seat |
 
 - In `QueueUnit`, `count` expands into that many queue items, each reserving its own Command Points.
@@ -226,8 +227,8 @@ Every command carries a client-assigned `seq`.
 Messages and commands are listed in the tactical spec's [On the wire](tactical-battle-spec.md#on-the-wire). Decision: [ADR 0004](../adr/0004-real-time-battle-sim.md).
 
 - **Sim loop:** each running Battle steps once per match tick inside `MatchLoop`, after commands are applied and before Views are computed. The sim is its own Go package with no Nakama imports. It takes orders and returns events, and it owns all Battle state.
-- **Controllers:** each step, a side's Controller is given that side's filtered Battle view and returns orders. The AI Controller and player orders (`BattleRetreat`, `BattleCancelRetreat`) take the same path.
-- **Per-side filter:** `battleView(battle, side)` is a pure function and the only place Battle fog is enforced, just as `view(state, player)` is for galaxy Vision. `BattleTick` is the diff of that view against the last one sent, so hidden enemies never leave the server.
+- **Controllers:** each step, a side's Controller is given that side's filtered Battle view and returns orders. Player orders (`BattleRetreat`, `BattleCancelRetreat`) are the same `battle.Order` values the AI returns. They go in through `Sim.Command`, which applies them between ticks, after the AI's, and adds them to the input log.
+- **Per-side filter:** the sim's `Snapshot(side)` and `VolleysFor(side)` are the only places Battle fog is enforced, just as `view(state, player)` is for galaxy Vision. The snapshot rides in each side's View as its `BattleView`, diffed like any other entity, so hidden enemies never leave the server.
 - **Determinism:** each Battle's RNG is seeded from the Match seed plus the Battle id, and its Battlefield from the Match seed plus the Planet id. A Battle is a pure function of (Battlefield, forces, seed, player orders by tick), and the server keeps that input log until the Match ends.
 - **Budget:** ≤ 2 ms per Battle step, enforced by a Go benchmark. If it's exceeded, Battles step in parallel goroutines joined before the tick returns.
 - A side that reconnects mid-Battle sees where the Battle stands now, from its View. It doesn't get a replay.

@@ -1,0 +1,29 @@
+{
+  // Dry: sand and rough ground, rare oases, more rock.
+  "$schema": "../../../../schema/content/terrain-preset.schema.json",
+  "id": "desert",
+  "name": "Desert",
+  "noise": { "frequency": 2.5, "octaves": 4, "persistence": 0.55 },
+  "bands": [
+    { "upTo": 0.03, "height": 0, "terrains": [{ "upTo": 1, "terrain": "water" }] },
+    {
+      "upTo": 0.6,
+      "height": 0,
+      "terrains": [
+        { "upTo": 0.6, "terrain": "sand" },
+        { "upTo": 0.95, "terrain": "rough" },
+        { "upTo": 1, "terrain": "open" }
+      ]
+    },
+    {
+      "upTo": 0.88,
+      "height": 1,
+      "terrains": [
+        { "upTo": 0.5, "terrain": "rough" },
+        { "upTo": 1, "terrain": "sand" }
+      ]
+    },
+    { "upTo": 1, "height": 2, "terrains": [{ "upTo": 1, "terrain": "peak" }] }
+  ],
+  "clear": { "terrain": "sand", "height": 0 }
+}

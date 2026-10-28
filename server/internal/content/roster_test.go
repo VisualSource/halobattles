@@ -17,7 +17,7 @@ func rosterFiles() map[string]string {
 		"base/data/units/marine.jsonc": `{"id": "marine", "name": "Marine", "faction": "unsc",
 			"cost": {"credits": 50}, "buildTime": 15, "commandPoints": 1,
 			"combat": {"unitClass": "infantry", "weaponType": "kinetic", "shield": 0, "armor": 0, "hp": 100,
-				"damage": "1d4", "initiative": 10, "tiers": {"infantry": "advantage"}}}`,
+				"damage": "1d4", "tiers": {"infantry": "advantage"}}}`,
 		"base/data/buildings/barracks.jsonc": `{"id": "barracks", "name": "Barracks", "faction": "unsc",
 			"cost": {"credits": 150}, "buildTime": 30, "upkeep": {"credits": 10}, "yield": {},
 			"commandPointBonus": 0, "trains": ["marine"]}`,
@@ -63,7 +63,7 @@ func TestDanglingReferencesAreReported(t *testing.T) {
 	files["base/data/units/marine.jsonc"] = `{"id": "marine", "name": "Marine", "faction": "innie",
 		"cost": {"gold": 1}, "buildTime": 15, "commandPoints": 1,
 		"combat": {"unitClass": "robot", "weaponType": "laser", "shield": 0, "armor": 0, "hp": 100,
-			"damage": "1d4", "initiative": 10, "tiers": {"ghost": "advantage"}},
+			"damage": "1d4", "tiers": {"ghost": "advantage"}},
 		"icon": "__base__/marine.png"}`
 	files["base/data/buildings/barracks.jsonc"] = `{"id": "barracks", "name": "Barracks", "faction": "unsc",
 		"cost": {}, "buildTime": 30, "upkeep": {}, "yield": {}, "commandPointBonus": 0, "trains": ["spartan"]}`
@@ -101,12 +101,12 @@ func TestDanglingReferencesAreReported(t *testing.T) {
 
 func TestBrokenRulesetStillListsOtherProblems(t *testing.T) {
 	files := rosterFiles()
-	files["base/data/rulesets/rules.jsonc"] = strings.Replace(baseRules, `"roundCap": 40`, `"roundCap": "lots"`, 1)
+	files["base/data/rulesets/rules.jsonc"] = strings.Replace(baseRules, `"toHit": 3`, `"toHit": "lots"`, 1)
 	files["base/data/factions/unsc.jsonc"] = `{"id": "unsc", "name": "UNSC", "startingKit": {"buildings": ["bunker"], "stacks": []}}`
 
 	// Tier and Lane type checks need the Ruleset; without it they're skipped.
 	wantErr(t, writeMods(t, files, "base"),
-		"rulesets base:rules (from base/data/rulesets/rules.jsonc): at /roundCap",
+		"rulesets base:rules (from base/data/rulesets/rules.jsonc): at /toHit",
 		"factions base:unsc: startingKit: unknown Building base:bunker")
 }
 
@@ -121,7 +121,7 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 			"unitClasses base:infanterí (from base/data/unitClasses/infantry.jsonc): at /id: 'base:infanterí' does not match pattern"},
 		"unmarked redefinition": {"base/data/units/marine2.jsonc",
 			`{"id": "marine", "name": "Marine II", "faction": "unsc", "cost": {}, "buildTime": 1, "commandPoints": 1,
-				"combat": {"unitClass": "infantry", "weaponType": "kinetic", "shield": 0, "armor": 0, "hp": 1, "damage": "1d1", "initiative": 1}}`,
+				"combat": {"unitClass": "infantry", "weaponType": "kinetic", "shield": 0, "armor": 0, "hp": 1, "damage": "1d1"}}`,
 			`base/data/units/marine2.jsonc: redefines base:marine; add "replace": true or write a Patch`},
 		"unknown tier": {"base/data/units/marine.jsonc",
 			strings.Replace(rosterFiles()["base/data/units/marine.jsonc"], `"advantage"`, `"mighty"`, 1),
@@ -129,6 +129,11 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 		"bad dice": {"base/data/units/marine.jsonc",
 			strings.Replace(rosterFiles()["base/data/units/marine.jsonc"], `"1d4"`, `"d4"`, 1),
 			"units base:marine (from base/data/units/marine.jsonc): at /combat/damage"},
+		"pad turret that can't fight": {"base/data/buildings/barracks.jsonc",
+			strings.Replace(rosterFiles()["base/data/buildings/barracks.jsonc"], `"trains": ["marine"]`, `"trains": ["marine"], "padTurret": true`, 1),
+			"buildings base:barracks: a padTurret needs a combat block"},
+		"class without Battle stats": {"base/data/unitClasses/vehicle.jsonc", `{"id": "vehicle", "name": "Vehicle"}`,
+			"rulesets base:rules: battle classDefaults has no entry for Unit Class base:vehicle"},
 		"dangling reference": {"base/data/buildings/barracks.jsonc",
 			strings.Replace(rosterFiles()["base/data/buildings/barracks.jsonc"], `["marine"]`, `["spartan"]`, 1),
 			"buildings base:barracks: trains: unknown Unit base:spartan"},
@@ -149,6 +154,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 12},
 		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
 		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 2},
+		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
 	}
 	for kind, n := range counts {
 		if n[0] != n[1] {
@@ -173,7 +179,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 		s.Combat.Tiers["base:aircraft"] != "none" || s.Cost["base:materials"] != 100 || s.CommandPoints != 4 {
 		t.Errorf("scorpion = %+v", s)
 	}
-	if b := d.Units["base:banshee"]; b.Combat.Shield != 13 || b.Combat.Initiative != 18 || b.BuildTime != 50 {
+	if b := d.Units["base:banshee"]; b.Combat.Shield != 13 || b.Combat.Hp != 20 || b.BuildTime != 50 {
 		t.Errorf("banshee = %+v", b)
 	}
 	if w := d.WeaponTypes["base:plasma"]; w.Shield != 1.5 || w.Armor != 0.75 || w.Hp != 1 {
@@ -196,4 +202,26 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 			t.Errorf("start %s has no unused-start garrison", s)
 		}
 	}
+}
+
+func TestTerrainReferencesAndBandsAreChecked(t *testing.T) {
+	files := rosterFiles()
+	files["base/data/terrains/open.jsonc"] = `{"id": "open", "name": "Open", "colour": "#00ff00", "cover": 0, "movement": {"hover": 1}}`
+	files["base/data/terrainPresets/plain.jsonc"] = `{"id": "plain", "name": "Plain",
+		"noise": {"frequency": 2, "octaves": 1, "persistence": 0.5},
+		"bands": [
+			{"upTo": 0.5, "height": 0, "terrains": [{"upTo": 0.9, "terrain": "lava"}]},
+			{"upTo": 0.4, "height": 1, "terrains": [{"upTo": 1, "terrain": "open"}]},
+		],
+		"clear": {"terrain": "open", "height": 0}}`
+	files["base/data/maps/duel.jsonc"] = strings.Replace(files["base/data/maps/duel.jsonc"],
+		`"position": {"x": 0, "y": 0}}`, `"position": {"x": 0, "y": 0}, "battlefield": {"terrainPreset": "swamp"}}`, 1)
+
+	wantErr(t, writeMods(t, files, "base"),
+		"terrains base:open: movement: unknown Unit Class base:hover",
+		"terrainPresets base:plain: band 1: unknown Terrain base:lava",
+		"terrainPresets base:plain: band 1 terrains: the last upTo is 0.9; it must be 1",
+		"terrainPresets base:plain: bands: upTo 0.4 doesn't rise above 0.5",
+		"terrainPresets base:plain: bands: the last upTo is 0.4; it must be 1",
+		"maps base:duel: planet a: battlefield: unknown Terrain Preset base:swamp")
 }

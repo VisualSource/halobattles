@@ -22,6 +22,9 @@ const (
 	OpOrderArmy            Op = 12
 	OpReorderArmy          Op = 13
 	OpSurrender            Op = 14
+	OpBattleRetreat        Op = 15
+	OpBattleCancelRetreat  Op = 16
+	OpBattleBuildTurret    Op = 17
 	OpLobbyState           Op = 100
 	OpCommandRejected      Op = 101
 	OpViewFull             Op = 102
@@ -29,7 +32,7 @@ const (
 	OpPaydayPaid           Op = 104
 	OpPlanetCaptured       Op = 105
 	OpBattleStarted        Op = 106
-	OpBattleRound          Op = 107
+	OpBattleTick           Op = 107
 	OpBattleEnded          Op = 108
 	OpPlayerEliminated     Op = 109
 	OpMatchEnded           Op = 110
@@ -51,6 +54,9 @@ var EnumNamesOp = map[Op]string{
 	OpOrderArmy:            "OrderArmy",
 	OpReorderArmy:          "ReorderArmy",
 	OpSurrender:            "Surrender",
+	OpBattleRetreat:        "BattleRetreat",
+	OpBattleCancelRetreat:  "BattleCancelRetreat",
+	OpBattleBuildTurret:    "BattleBuildTurret",
 	OpLobbyState:           "LobbyState",
 	OpCommandRejected:      "CommandRejected",
 	OpViewFull:             "ViewFull",
@@ -58,7 +64,7 @@ var EnumNamesOp = map[Op]string{
 	OpPaydayPaid:           "PaydayPaid",
 	OpPlanetCaptured:       "PlanetCaptured",
 	OpBattleStarted:        "BattleStarted",
-	OpBattleRound:          "BattleRound",
+	OpBattleTick:           "BattleTick",
 	OpBattleEnded:          "BattleEnded",
 	OpPlayerEliminated:     "PlayerEliminated",
 	OpMatchEnded:           "MatchEnded",
@@ -80,6 +86,9 @@ var EnumValuesOp = map[string]Op{
 	"OrderArmy":            OpOrderArmy,
 	"ReorderArmy":          OpReorderArmy,
 	"Surrender":            OpSurrender,
+	"BattleRetreat":        OpBattleRetreat,
+	"BattleCancelRetreat":  OpBattleCancelRetreat,
+	"BattleBuildTurret":    OpBattleBuildTurret,
 	"LobbyState":           OpLobbyState,
 	"CommandRejected":      OpCommandRejected,
 	"ViewFull":             OpViewFull,
@@ -87,7 +96,7 @@ var EnumValuesOp = map[string]Op{
 	"PaydayPaid":           OpPaydayPaid,
 	"PlanetCaptured":       OpPlanetCaptured,
 	"BattleStarted":        OpBattleStarted,
-	"BattleRound":          OpBattleRound,
+	"BattleTick":           OpBattleTick,
 	"BattleEnded":          OpBattleEnded,
 	"PlayerEliminated":     OpPlayerEliminated,
 	"MatchEnded":           OpMatchEnded,

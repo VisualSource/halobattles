@@ -6,6 +6,7 @@
   "cost": { "credits": 150, "materials": 50 },
   "buildTime": 30,
   "commandPoints": 3,
+  "roles": ["scout"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "kinetic",
@@ -13,7 +14,6 @@
     "armor": 12,
     "hp": 25,
     "damage": "2d4",
-    "initiative": 14,
     "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "normal", "structure": "disadvantage" }
   }
 }

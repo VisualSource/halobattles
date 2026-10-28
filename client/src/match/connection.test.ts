@@ -4,12 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 import {
   AmountT,
   ArmyViewT,
-  BattleActionT,
   BattleEndedT,
-  BattleRoundT,
+  BattlefieldT,
+  BattleSquadT,
   BattleStartedT,
+  BattleTickT,
   BattleViewT,
-  CombatantT,
+  BuildPadT,
+  ControlPointT,
   EconomyT,
   LobbyStateT,
   MatchEndedT,
@@ -29,6 +31,7 @@ import {
   UnitSlotT,
   ViewDeltaT,
   ViewFullT,
+  VolleyT,
   WinHoldT,
 } from "../gen/wire";
 import { MatchConnection, type SocketLike } from "./connection";
@@ -74,6 +77,9 @@ function lobbyBytes(): Uint8Array {
   b.finish(state.pack(b));
   return b.asUint8Array();
 }
+
+/** A 2 × 1 Battlefield: open ground, the second cell higher. */
+const field = () => new BattlefieldT(2, 1, ["base:open"], [0, 0], [0, 1]);
 
 describe("MatchConnection", () => {
   it("connects, then joins the Match; close leaves and disconnects", async () => {
@@ -490,36 +496,47 @@ describe("MatchConnection", () => {
     expect(armies?.get(2)?.to).toBe("b");
   });
 
-  it("applies Battles in a ViewDelta and sends Rounds out as events", async () => {
+  it("applies Battles in a ViewDelta, keeping the Battlefield from BattleStarted", async () => {
     const { conn, send } = await playing();
-    const rounds: unknown[] = [];
-    conn.events.addEventListener("battleRound", (e) =>
-      rounds.push((e as CustomEvent).detail),
+    const ticks: unknown[] = [];
+    conn.events.addEventListener("battleTick", (e) =>
+      ticks.push((e as CustomEvent).detail),
     );
-    const battle = new BattleViewT(5, "c", 0, -1, 3000n, 3000, 1, [
-      new CombatantT("a0001", 0, "base:marine", 0, 0, 100),
-      new CombatantT("d0001", 1, "base:grunt", 9.5, 0, 70),
-    ]);
+    send(
+      Op.BattleStarted,
+      pack(new BattleStartedT(3000n, 5, "c", 0, -1, 3000n, field())),
+    );
+    const battle = new BattleViewT(
+      5,
+      "c",
+      0,
+      -1,
+      3000n,
+      10,
+      2,
+      null, // deltas leave the Battlefield out
+      [
+        new BattleSquadT(1, 0, "base:marine", false, 3, 4, 8, 10, 0, 0, 12),
+        new BattleSquadT(2, 1, "base:grunt", false, 6, 1, 5, 5, 9.5, 0, 70),
+      ],
+      [new ControlPointT(2, 1, 1, 0, 3)],
+      [new BuildPadT(5, 6, 1, 0, 2, 0, "base:plasma-turret", 60)],
+      0,
+      true,
+      60,
+      false,
+      true,
+    );
 
     send(
       Op.ViewDelta,
-      pack(new ViewDeltaT(3000n, [], [], [], null, [], [], [battle], [])),
+      pack(new ViewDeltaT(5000n, [], [], [], null, [], [], [battle], [])),
     );
     send(
-      Op.BattleRound,
+      Op.BattleTick,
       pack(
-        new BattleRoundT(3000n, 5, "c", 2, [
-          new BattleActionT(
-            "a0001",
-            "d0001",
-            "base:kinetic",
-            9.5,
-            0,
-            5,
-            false,
-            true,
-            12,
-          ),
+        new BattleTickT(5000n, 5, "c", 10, [
+          new VolleyT(0, 1, 5, 4, 1, 0, 0, 12),
         ]),
       ),
     );
@@ -530,42 +547,77 @@ describe("MatchConnection", () => {
       attacker: 0,
       defender: null,
       started: 3000,
-      roundMs: 3000,
-      round: 1,
-      roster: [
+      tick: 10,
+      edge: 2,
+      field: {
+        width: 2,
+        height: 1,
+        terrains: ["base:open"],
+        terrain: [0, 0],
+        heights: [0, 1],
+      },
+      squads: [
         {
-          id: "a0001",
+          id: 1,
           side: "attacker",
           unit: "base:marine",
+          building: false,
+          x: 3,
+          y: 4,
+          count: 8,
+          start: 10,
           shield: 0,
           armor: 0,
-          hp: 100,
+          hp: 12,
         },
         {
-          id: "d0001",
+          id: 2,
           side: "defender",
           unit: "base:grunt",
+          building: false,
+          x: 6,
+          y: 1,
+          count: 5,
+          start: 5,
           shield: 9.5,
           armor: 0,
           hp: 70,
         },
       ],
+      points: [
+        { x: 2, y: 1, owner: "defender", taker: "attacker", progress: 3 },
+      ],
+      pads: [
+        {
+          x: 5,
+          y: 6,
+          owner: "defender",
+          taker: "attacker",
+          progress: 2,
+          turret: 0,
+          building: "base:plasma-turret",
+          readyAt: 60,
+        },
+      ],
+      hold: 0,
+      holdPaused: true,
+      retreatAt: 60,
+      retreating: { attacker: false, defender: true },
     });
-    expect(rounds).toEqual([
+    expect(ticks).toEqual([
       {
         battle: 5,
-        round: 2,
-        actions: [
+        tick: 10,
+        volleys: [
           {
-            actor: "a0001",
-            target: "d0001",
-            weapon: "base:kinetic",
-            shieldDmg: 9.5,
+            actor: 0,
+            target: 1,
+            shots: 5,
+            hits: 4,
+            kills: 1,
+            shieldDmg: 0,
             armorDmg: 0,
-            hpDmg: 5,
-            killed: false,
-            hit: true,
-            roll: 12,
+            hpDmg: 12,
           },
         ],
       },
@@ -681,51 +733,69 @@ describe("MatchConnection", () => {
     const { conn, send } = await playing();
     send(
       Op.BattleStarted,
+      pack(new BattleStartedT(0n, 5, "c", 0, -1, 0n, field())),
+    );
+    const squads = [
+      new BattleSquadT(1, 0, "base:marine", false, 0, 0, 10, 10),
+      new BattleSquadT(2, 1, "base:grunt", false, 1, 0, 3, 3),
+    ];
+    send(
+      Op.ViewDelta,
       pack(
-        new BattleStartedT(0n, 5, "c", 0, -1, 0n, 3000, [
-          new CombatantT("a0001", 0, "base:marine", 0, 0, 100),
-          new CombatantT("d0001", 1, "base:grunt", 20, 0, 70),
+        new ViewDeltaT(
+          0n,
+          [],
+          [],
+          [],
+          null,
+          [],
+          [],
+          [new BattleViewT(5, "c", 0, -1, 0n, 1, 0, null, squads)],
+          [],
+        ),
+      ),
+    );
+    send(
+      Op.BattleTick,
+      pack(
+        new BattleTickT(1000n, 5, "c", 5, [
+          new VolleyT(1, 2, 10, 9, 2, 20, 0, 50),
+          new VolleyT(2, 1, 3, 3, 0, 0, 0, 9),
         ]),
       ),
     );
-    const hit = (actor: string, target: string, hp: number, killed: boolean) =>
-      new BattleActionT(actor, target, "base:kinetic", 0, 0, hp, killed);
-
     send(
-      Op.BattleRound,
+      Op.BattleTick,
       pack(
-        new BattleRoundT(0n, 5, "c", 1, [
-          new BattleActionT("a0001", "d0001", "base:kinetic", 20, 0, 50, false),
-          hit("d0001", "a0001", 9, false),
+        new BattleTickT(2000n, 5, "c", 10, [
+          new VolleyT(1, 2, 10, 9, 1, 0, 0, 20),
         ]),
       ),
     );
-    send(
-      Op.BattleRound,
-      pack(
-        new BattleRoundT(3000n, 5, "c", 2, [hit("a0001", "d0001", 20, true)]),
-      ),
-    );
-    send(Op.BattleEnded, pack(new BattleEndedT(6000n, 5, "c", 0)));
+    send(Op.BattleEnded, pack(new BattleEndedT(2000n, 5, "c", 0)));
 
     const r = conn.local.getState().reports.get(5);
     expect(r).toMatchObject({
       planet: "c",
       attacker: 0,
       defender: null,
-      rounds: 2,
+      ticks: 10,
       damage: { attacker: 90, defender: 9 },
       winner: 0,
-      endedAt: 6000,
+      endedAt: 2000,
     });
-    expect(r?.roster.map((c) => c.hp)).toEqual([91, 0]);
+    expect(
+      [...(r?.squads.values() ?? [])].map((q) => [q.start, q.count]),
+    ).toEqual([
+      [10, 10],
+      [3, 0],
+    ]);
   });
 
   it("starts a report from the View after a reconnect", async () => {
     const { conn, send } = await playing();
-    const battle = new BattleViewT(5, "c", 0, -1, 0n, 3000, 3, [
-      new CombatantT("a0001", 0, "base:marine", 0, 0, 40),
-      new CombatantT("d0001", 1, "base:grunt", 0, 0, 0),
+    const battle = new BattleViewT(5, "c", 0, -1, 0n, 15, 0, field(), [
+      new BattleSquadT(1, 0, "base:marine", false, 0, 0, 4, 10),
     ]);
 
     send(
@@ -734,11 +804,9 @@ describe("MatchConnection", () => {
     );
     send(Op.BattleEnded, pack(new BattleEndedT(12000n, 5, "c", 0)));
 
-    expect(conn.local.getState().reports.get(5)).toMatchObject({
-      rounds: 3,
-      winner: 0,
-      roster: [{ hp: 40 }, { hp: 0 }],
-    });
+    const r = conn.local.getState().reports.get(5);
+    expect(r).toMatchObject({ ticks: 15, winner: 0 });
+    expect(r?.squads.get(1)).toMatchObject({ count: 4, start: 10 });
   });
 
   it("sends PlanetCaptured out as a captured event", async () => {

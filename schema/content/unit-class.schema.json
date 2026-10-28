@@ -9,6 +9,10 @@
     "$schema": { "type": "string" },
     "replace": { "description": "Replace an existing definition with this id.", "type": "boolean" },
     "id": { "$ref": "defs.schema.json#/definitions/id" },
-    "name": { "$ref": "defs.schema.json#/definitions/name" }
+    "name": { "$ref": "defs.schema.json#/definitions/name" },
+    "air": {
+      "description": "Flies: ignores cover and high ground both ways, and shares a cell with one ground unit.",
+      "type": "boolean"
+    }
   }
 }

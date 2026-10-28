@@ -97,7 +97,7 @@ How a Battle plays out (the Battlefield, Squads, movement, fog of war, Control P
 
 The win conditions (Control Points, elimination, the time cap and Retreat) are in [Winning](tactical-battle-spec.md#winning). Then:
 
-- **Attacker wins:** the Planet is captured (see [Ownership](#ownership-elimination-and-winning)).
+- **Attacker wins:** the Planet is captured (see [Ownership](#ownership-elimination-and-winning)). The defender's surviving units Retreat, unless they're a neutral garrison, which loses them.
 - **Defender wins:** the surviving attackers Retreat.
 - **Mutual wipe-out:** the defender keeps the Planet. A neutral Planet stays neutral with an empty garrison.
 - Either side can order a Retreat mid-Battle; a neutral garrison can't ([Retreat in Battle](tactical-battle-spec.md#retreat-in-battle)).
@@ -119,7 +119,7 @@ The win conditions (Control Points, elimination, the time cap and Retreat) are i
 
 ### Pacing and watching
 
-- The server runs the Battle live on the match tick. The time cap (3 min) bounds the Lock. Mods or maps should keep it within 1–3 minutes.
+- The server runs the Battle live on the match tick, after a 30 s start delay that lets players open it. The delay plus the time cap (3 min) bound the Lock to 3.5 minutes. The fighting itself should take 1–3 minutes.
 - **The two sides** watch it live in the Battle window, which can go full-screen ([Watching](tactical-battle-spec.md#watching)).
 - **Other players with vision** see only that a Battle is in progress, and its outcome.
 - The roster's pacing target: two forces of similar size should fight for about 1–3 minutes.
@@ -161,7 +161,7 @@ The base Mod ships **no icons or sprites**; the client draws placeholders.
 
 The rosters mirror each other's roles and costs. Covenant units put part of their durability into Shields; UNSC units carry more Armor and HP. Movement, range, fire-rate and Sight come from the [Unit Class defaults](tactical-battle-spec.md#stats) until playtests give units their own.
 
-Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 45–55% of the time) and fight for 1–3 minutes; a Go test keeps both. They were first balanced for round-based Battles and need re-tuning for tactical ones.
+Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 45–55% of the time) and fight for 1–3 minutes; a Go test keeps both (see [Pacing](tactical-battle-spec.md#pacing)).
 
 | Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Tiers Inf/Veh/Air/Str | Cost | Time | CP | Trained at |
 |---|---|---|---|---|---|---|---|---|---|---|

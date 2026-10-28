@@ -72,37 +72,84 @@ export type Army = {
   path: string[]; // own only: the Planets after `to`, in order
 };
 
-export type Combatant = {
-  id: string;
-  side: "attacker" | "defender";
+export type Side = "attacker" | "defender";
+
+/** A Unit Slot or building in a Battle, as your side sees it. */
+export type Squad = {
+  id: number;
+  side: Side;
   unit: string; // a unit or building id
-  shield: number;
+  building: boolean;
+  x: number;
+  y: number;
+  count: number; // members left
+  start: number; // members at the start
+  shield: number; // the front member's layers: it takes the hits
   armor: number;
   hp: number;
 };
 
-export type BattleAction = {
-  actor: string;
-  target: string;
-  weapon: string;
+export type ControlPoint = {
+  x: number;
+  y: number;
+  owner: Side;
+  taker: Side; // taking it while progress > 0
+  progress: number; // sim ticks the taker has held it alone
+};
+
+/** A build pad: whoever holds it can build a turret on it. */
+export type BuildPad = {
+  x: number;
+  y: number;
+  owner: Side | null; // null is nobody
+  taker: Side | null;
+  progress: number; // sim ticks the taker has held it alone
+  turret: number; // the turret squad on it, or 0
+  building: string; // a turret under construction, or ""
+  readyAt: number; // the tick it's built
+};
+
+/** A Battle's grid, row by row; it never changes. */
+export type Battlefield = {
+  width: number;
+  height: number;
+  terrains: string[]; // Terrain ids; a cell holds an index into this
+  terrain: number[];
+  heights: number[];
+};
+
+/** One squad's fire in one sim tick, added up. */
+export type Volley = {
+  actor: number; // 0: a shooter your side can't see
+  target: number;
+  shots: number;
+  hits: number;
+  kills: number;
   shieldDmg: number;
   armorDmg: number;
   hpDmg: number;
-  killed: boolean;
-  hit: boolean; // false: the to-hit roll missed
-  roll: number; // the damage roll, before the layer multipliers
 };
 
-/** A Battle you're a side of, as it stands after the Rounds completed. */
+/** Sim ticks per second. */
+export const BATTLE_TICKS = 5;
+
+/** A Battle you're a side of, as your side sees it. */
 export type Battle = {
   id: number;
   planet: string;
   attacker: number;
   defender: number | null; // null is neutral
-  started: number; // Match Time of Round 1
-  roundMs: number;
-  round: number; // Rounds completed
-  roster: Combatant[];
+  started: number; // Match Time of tick 0
+  tick: number;
+  edge: number; // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
+  field: Battlefield | null; // null until it arrives
+  squads: Squad[]; // your own, and enemies in Sight
+  points: ControlPoint[];
+  pads: BuildPad[];
+  hold: number; // sim ticks the attacker has held enough points
+  holdPaused: boolean; // a defender stands on one of them: the hold waits
+  retreatAt: number; // the tick your side's Retreat countdown ends; 0 is none
+  retreating: Record<Side, boolean>; // public: you see a side turn and run
 };
 
 /** The public part of every player. */
@@ -194,65 +241,61 @@ export const createMatchStore = () =>
     disconnected: false,
   }));
 
-/** A roster after some actions: each hit taken off its target's layers. */
-export function applyActions(roster: Combatant[], actions: BattleAction[]) {
-  const out = new Map(roster.map((c) => [c.id, { ...c }]));
-  for (const a of actions) {
-    const t = out.get(a.target);
-    if (!t) continue;
-    t.shield = Math.max(0, t.shield - a.shieldDmg);
-    t.armor = Math.max(0, t.armor - a.armorDmg);
-    t.hp = Math.max(0, t.hp - a.hpDmg);
-  }
-  return [...out.values()];
-}
-
 /**
  * One of your Battles as this client saw it, kept after it ends for its
- * report. The roster holds every combatant, dead ones at 0 HP, so it gives
- * both how many started and how many are left. Damage counts only the
- * Rounds this client received.
+ * report. Squads holds every squad it ever saw, as last seen, so it gives
+ * both how many started and how many are left. Damage counts only the fire
+ * this client was told about.
  */
 export type BattleReport = {
   id: number;
   planet: string;
   attacker: number;
   defender: number | null;
-  roundMs: number;
-  roster: Combatant[]; // as it stands now
-  rounds: number; // Rounds played so far
+  squads: Map<number, Squad>;
+  ticks: number; // sim ticks run so far
   damage: { attacker: number; defender: number }; // dealt by each side
   winner?: number | null; // set when it ends; null is neutral
   endedAt?: number; // Match Time
 };
 
-export function reportRound(
-  r: BattleReport,
-  round: number,
-  actions: BattleAction[],
+const other = (s: Side): Side => (s === "attacker" ? "defender" : "attacker");
+
+/** A report brought up to date with the Battle as the View has it now. */
+export function reportView(
+  r: BattleReport | undefined,
+  b: Battle,
 ): BattleReport {
-  const side = new Map(r.roster.map((c) => [c.id, c.side]));
-  const damage = { ...r.damage };
-  for (const a of actions) {
-    const s = side.get(a.actor);
-    if (s) damage[s] += a.shieldDmg + a.armorDmg + a.hpDmg;
-  }
+  const squads = new Map(r?.squads);
+  for (const sq of b.squads) squads.set(sq.id, sq);
   return {
+    id: b.id,
+    planet: b.planet,
+    attacker: b.attacker,
+    defender: b.defender,
+    damage: { attacker: 0, defender: 0 },
     ...r,
-    roster: applyActions(r.roster, actions),
-    rounds: Math.max(r.rounds, round),
-    damage,
+    squads,
+    ticks: Math.max(r?.ticks ?? 0, b.tick),
   };
 }
 
-/** A report for a Battle first seen in a View, as after a reconnect. */
-export const reportFromView = (b: Battle): BattleReport => ({
-  id: b.id,
-  planet: b.planet,
-  attacker: b.attacker,
-  defender: b.defender,
-  roundMs: b.roundMs,
-  roster: b.roster,
-  rounds: b.round,
-  damage: { attacker: 0, defender: 0 },
-});
+/** A report after a tick's volleys: damage to the side firing, kills off. */
+export function reportVolleys(
+  r: BattleReport,
+  tick: number,
+  volleys: Volley[],
+): BattleReport {
+  const squads = new Map(r.squads);
+  const damage = { ...r.damage };
+  for (const v of volleys) {
+    const target = squads.get(v.target);
+    if (!target) continue;
+    damage[other(target.side)] += v.shieldDmg + v.armorDmg + v.hpDmg;
+    squads.set(v.target, {
+      ...target,
+      count: Math.max(0, target.count - v.kills),
+    });
+  }
+  return { ...r, squads, damage, ticks: Math.max(r.ticks, tick) };
+}

@@ -18,13 +18,15 @@ const baseRules = `{
 	"unitSlotsPerStack": 10,
 	"toHit": 3,
 	"laneTypes": {"fast": 1, "slow": 2},
-	"initiativeDie": 20,
-	"roundSeconds": 3,
-	"roundCap": 40,
 	"startingResources": {"credits": 1000},
 	"gracePeriodSeconds": 180,
 	"armyVisionSeconds": 15,
 	"resultsSeconds": 60,
+	"battlefield": {"width": 32, "height": 24, "terrainPreset": "plain", "pathClass": "infantry",
+		"controlPoints": 3, "controlPointSpacing": 6, "deployDepth": 3, "buildPads": 2},
+	"battle": {"startDelay": 30, "timeCap": 180, "padBuildSeconds": 10, "neutralFunds": {"credits": 400}, "captureRadius": 2, "captureSeconds": 5, "holdPoints": 2, "holdSeconds": 30,
+		"highGroundToHit": 2, "heightSight": 1, "retreatCountdown": 10, "structure": {"unitClass": "infantry", "shield": 0, "armor": 20, "hp": 30},
+		"classDefaults": {"infantry": {"speed": 1.5, "range": 5, "fireInterval": 1.5, "sight": 8}}},
 }`
 
 // writeMods lays out files under a temp dir, keyed "mod/relative/path", and
@@ -50,9 +52,15 @@ func writeMods(t *testing.T, files map[string]string, names ...string) []string 
 
 func baseFiles() map[string]string {
 	return map[string]string{
-		"base/mod.jsonc":                    `{"name": "base", "version": "1.0.0", "title": "Halo Battles"}`,
-		"base/data/resources/credits.jsonc": `{"id": "credits", "name": "Credits"}`,
-		"base/data/rulesets/rules.jsonc":    baseRules,
+		"base/mod.jsonc":                       `{"name": "base", "version": "1.0.0", "title": "Halo Battles"}`,
+		"base/data/resources/credits.jsonc":    `{"id": "credits", "name": "Credits"}`,
+		"base/data/rulesets/rules.jsonc":       baseRules,
+		"base/data/unitClasses/infantry.jsonc": `{"id": "infantry", "name": "Infantry"}`,
+		"base/data/terrains/open.jsonc":        `{"id": "open", "name": "Open", "colour": "#00ff00", "cover": 0, "movement": {"infantry": 1}}`,
+		"base/data/terrainPresets/plain.jsonc": `{"id": "plain", "name": "Plain",
+			"noise": {"frequency": 2, "octaves": 1, "persistence": 0.5},
+			"bands": [{"upTo": 1, "height": 0, "terrains": [{"upTo": 1, "terrain": "open"}]}],
+			"clear": {"terrain": "open", "height": 0}}`,
 	}
 }
 
@@ -98,8 +106,8 @@ func TestPatchMergesFieldsAndNullDeletes(t *testing.T) {
 
 	rules := mustLoad(t, dirs).Doc.Rulesets["base:rules"]
 
-	if rules.PaydaySeconds != 60 || rules.RoundCap != 40 {
-		t.Errorf("patched field should change and others stay: payday=%d roundCap=%d", rules.PaydaySeconds, rules.RoundCap)
+	if rules.PaydaySeconds != 60 || rules.ToHit != 3 {
+		t.Errorf("patched field should change and others stay: payday=%d toHit=%d", rules.PaydaySeconds, rules.ToHit)
 	}
 	want := map[string]int{"base:credits": 5000}
 	if len(rules.StartingResources) != 1 || rules.StartingResources["base:credits"] != 5000 {
@@ -123,7 +131,7 @@ func TestReplaceMustBeExplicit(t *testing.T) {
 
 func TestPatchCannotCarryReplace(t *testing.T) {
 	files := with(baseFiles(), map[string]string{
-		"base/data/rulesets/tweak.jsonc": `{"patch": "rules", "replace": true, "roundCap": 1}`,
+		"base/data/rulesets/tweak.jsonc": `{"patch": "rules", "replace": true, "toHit": 1}`,
 	})
 	wantErr(t, writeMods(t, files, "base"), `base/data/rulesets/tweak.jsonc: a Patch can't "replace"`)
 }
@@ -200,7 +208,7 @@ func TestEveryContentProblemIsListedAtOnce(t *testing.T) {
 		"base/data/resources/bad-id.jsonc":   `{"id": "Not Valid", "name": "x"}`,
 		"base/data/resources/extra.jsonc":    `{"id": "extra", "name": "x", "colour": "red"}`,
 		"base/data/resources/dupe.jsonc":     `{"id": "credits", "name": "Dupe"}`,
-		"base/data/rulesets/bad-patch.jsonc": `{"patch": "nope", "roundCap": 1}`,
+		"base/data/rulesets/bad-patch.jsonc": `{"patch": "nope", "toHit": 1}`,
 	})
 	files["base/data/rulesets/rules.jsonc"] = strings.Replace(baseRules, `{"credits": 1000}`, `{"gold": 5}`, 1)
 

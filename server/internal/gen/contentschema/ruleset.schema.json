@@ -13,13 +13,12 @@
     "unitSlotsPerStack",
     "toHit",
     "laneTypes",
-    "initiativeDie",
-    "roundSeconds",
-    "roundCap",
     "startingResources",
     "gracePeriodSeconds",
     "armyVisionSeconds",
-    "resultsSeconds"
+    "resultsSeconds",
+    "battlefield",
+    "battle"
   ],
   "properties": {
     "$schema": { "type": "string" },
@@ -47,15 +46,68 @@
       "propertyNames": { "pattern": "^[a-z0-9_-]+$" },
       "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }
     },
-    "initiativeDie": { "description": "Sides on the Initiative die.", "type": "integer", "minimum": 1 },
-    "roundSeconds": { "description": "Duration of one Battle Round.", "type": "integer", "minimum": 1 },
-    "roundCap": { "description": "Most Rounds a Battle can run.", "type": "integer", "minimum": 1 },
     "startingResources": {
       "description": "Defaults the lobby fills in.",
       "$ref": "defs.schema.json#/definitions/resourceMap"
     },
     "gracePeriodSeconds": { "description": "How long a disconnected player keeps their Seat.", "type": "integer", "minimum": 0 },
     "armyVisionSeconds": { "description": "How long a player keeps seeing a Planet after their Army there leaves or is destroyed.", "type": "integer", "minimum": 0 },
-    "resultsSeconds": { "description": "How long a Match stays in results.", "type": "integer", "minimum": 0 }
+    "resultsSeconds": { "description": "How long a Match stays in results.", "type": "integer", "minimum": 0 },
+    "battlefield": {
+      "title": "Battlefield Rules",
+      "description": "How Battlefields are generated. A map's Planet can override the size and preset.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "terrainPreset", "pathClass", "controlPoints", "controlPointSpacing", "deployDepth", "buildPads"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 16, "maximum": 256 },
+        "height": { "type": "integer", "minimum": 16, "maximum": 256 },
+        "terrainPreset": { "description": "The Terrain Preset a Planet uses unless it names its own.", "$ref": "defs.schema.json#/definitions/id" },
+        "pathClass": { "description": "The Unit Class whose movement decides which ground must connect: every Control Point and every edge's deployment strip.", "$ref": "defs.schema.json#/definitions/id" },
+        "controlPoints": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "controlPointSpacing": { "description": "The fewest cells between two Control Points, where the map has room.", "type": "integer", "minimum": 0 },
+        "deployDepth": { "description": "Depth in cells of the strip along each edge an attacker can deploy in.", "type": "integer", "minimum": 1 },
+        "buildPads": { "description": "Build pads the generator places: spots a side can capture and build a turret on.", "type": "integer", "minimum": 0, "maximum": 16 }
+      }
+    },
+    "battle": {
+      "title": "Battle Rules",
+      "description": "How a Battle runs on its Battlefield.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startDelay", "timeCap", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "holdPoints", "holdSeconds", "highGroundToHit", "heightSight", "retreatCountdown", "structure", "classDefaults"],
+      "properties": {
+        "startDelay": { "description": "Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.", "type": "integer", "minimum": 0 },
+        "padBuildSeconds": { "description": "Seconds a turret takes to build on a build pad.", "type": "number", "minimum": 0 },
+        "neutralFunds": { "description": "What a neutral garrison has to spend on pad turrets in each Battle, having no economy.", "$ref": "defs.schema.json#/definitions/resourceMap" },
+        "timeCap": { "description": "Seconds of fighting, after startDelay, until the defender wins.", "type": "integer", "minimum": 1 },
+        "captureRadius": { "description": "How near, in cells, a ground Squad must be to a Control Point to hold or take it.", "type": "number", "minimum": 0 },
+        "captureSeconds": { "description": "How long one side alone must be in range to take a Control Point.", "type": "number", "minimum": 0 },
+        "holdPoints": { "description": "How many Control Points the attacker must hold to start the hold timer.", "type": "integer", "minimum": 1 },
+        "holdSeconds": { "description": "How long the attacker must hold them to win.", "type": "number", "minimum": 0 },
+        "highGroundToHit": { "description": "Added to the To-hit roll of a ground attack from a higher height level.", "type": "integer" },
+        "retreatCountdown": { "description": "Seconds from ordering a Retreat until the side turns and heads off the field; it fights on meanwhile, and can call it off.", "type": "number", "minimum": 0 },
+        "heightSight": { "description": "Extra Sight, in cells, per height level a ground unit stands on.", "type": "number", "minimum": 0 },
+        "structure": {
+          "title": "Structure",
+          "description": "What a building without a combat block is in a Battle: a target that never fires.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["unitClass", "shield", "armor", "hp"],
+          "properties": {
+            "unitClass": { "$ref": "defs.schema.json#/definitions/id" },
+            "shield": { "type": "integer", "minimum": 0 },
+            "armor": { "type": "integer", "minimum": 0 },
+            "hp": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "classDefaults": {
+          "description": "Battle stats per Unit Class id, for any a unit or building doesn't set. Every Unit Class needs one.",
+          "type": "object",
+          "propertyNames": { "$ref": "defs.schema.json#/definitions/id" },
+          "additionalProperties": { "$ref": "defs.schema.json#/definitions/classStats" }
+        }
+      }
+    }
   }
 }

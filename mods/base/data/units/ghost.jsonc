@@ -6,6 +6,7 @@
   "cost": { "credits": 150, "materials": 50 },
   "buildTime": 30,
   "commandPoints": 3,
+  "roles": ["scout"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "plasma",
@@ -13,7 +14,6 @@
     "armor": 5,
     "hp": 18,
     "damage": "2d4",
-    "initiative": 16,
     "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "normal", "structure": "disadvantage" }
   }
 }

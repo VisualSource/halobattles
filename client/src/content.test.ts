@@ -12,13 +12,35 @@ const rules = {
   unitSlotsPerStack: 10,
   toHit: 3,
   laneTypes: { fast: 1 },
-  initiativeDie: 20,
-  roundSeconds: 3,
-  roundCap: 40,
   startingResources: { "base:credits": 1000 },
   gracePeriodSeconds: 180,
   armyVisionSeconds: 15,
   resultsSeconds: 60,
+  battlefield: {
+    width: 64,
+    height: 48,
+    terrainPreset: "base:temperate",
+    pathClass: "base:infantry",
+    controlPoints: 3,
+    controlPointSpacing: 10,
+    deployDepth: 4,
+    buildPads: 4,
+  },
+  battle: {
+    startDelay: 30,
+    timeCap: 180,
+    padBuildSeconds: 10,
+    neutralFunds: { "base:credits": 400 },
+    captureRadius: 2,
+    captureSeconds: 5,
+    holdPoints: 2,
+    holdSeconds: 30,
+    highGroundToHit: 2,
+    heightSight: 1,
+    retreatCountdown: 10,
+    structure: { unitClass: "base:structure", shield: 0, armor: 20, hp: 30 },
+    classDefaults: {},
+  },
 };
 
 function doc(creditsName: string): Content {
@@ -38,6 +60,8 @@ function doc(creditsName: string): Content {
     weaponTypes: {},
     planetTypes: {},
     maps: {},
+    terrains: {},
+    terrainPresets: {},
   };
 }
 

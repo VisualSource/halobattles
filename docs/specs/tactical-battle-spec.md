@@ -26,19 +26,20 @@ Every number below is Ruleset or content data. The values given are base-Mod def
 
 Generation follows [Red Blob Games: terrain from noise](https://www.redblobgames.com/maps/terrain-from-noise/):
 
-1. **Elevation** and **moisture** are two independent noise fields. Each is a sum of octaves (frequency doubles and amplitude halves per octave), normalised to 0–1, and elevation is then raised to a redistribution exponent.
-2. Elevation is cut into **four bands**: `water`, `lowland`, `highland` and `peak`.
-3. Moisture splits `lowland` and `highland` into **open**, **forest** or **rough** ground.
-4. A **Terrain Preset** supplies the noise parameters, the band and moisture thresholds, and the Terrain for each band × moisture cell. That way a desert Planet comes out mostly dry and rough, and an ice Planet turns `water` into an ice Terrain with its own rules. A Planet names its preset in `battlefield.preset`; otherwise the Ruleset's `defaultTerrainPreset` applies.
-5. **Placement:** the 3 Control Points, then the deployment zones, then the buildings (see [Deployment](#deployment)).
-6. **Connectivity check:** both deployment zones and every Control Point must be connected by ground-passable cells (Infantry rules). If they aren't, the generator tries again with the next sub-seed, up to 16 times. If every try fails, it flattens the blocking cells along the shortest path between the unconnected parts into `lowland` open ground.
+1. **Elevation** and **moisture** are two independent noise fields. Each is a sum of octaves, with frequency doubling and amplitude scaled by `persistence` per octave.
+2. Each field is **ranked**: a cell's value becomes its rank as a share of the map's cells. A preset's thresholds are therefore shares of the map, so `upTo: 0.12` on the lowest band makes 12% of cells water.
+3. Elevation is cut into **bands**, lowest first. The base presets use `water`, `lowland`, `highland` and `peak`, and each band sets its height level.
+4. Moisture splits each band into Terrains, driest first. For example, lowland comes out as rough, open or forest.
+5. A **Terrain Preset** supplies the noise parameters, the bands, and the Terrains in each. A desert Planet comes out mostly sand and rough; an ice Planet turns its lakes into ice you can walk on. A Planet names its preset in `battlefield.terrainPreset`; otherwise the Ruleset's `battlefield.terrainPreset` applies.
+6. **Connectivity:** the largest region the Ruleset's `pathClass` (Infantry) can walk is the main region. Any edge's deployment strip that doesn't touch it gets the fewest blocked cells along a path cleared to the preset's `clear` Terrain. That's a ford through a lake, or a pass through peaks.
+7. **Control Points** are placed in the main region (see [Control Points](#control-points)). Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
 
 ### Terrain
 
-Terrains are content (`terrain` kind). Each one has:
+Terrains are content (`terrains` kind). Each one has:
 
 - `cover`: a To-hit modifier for attacks **against** a unit standing in it (forest −2, rough −1, open 0);
-- per Unit Class: `passable` and a movement `cost` multiplier;
+- `movement`: a cost per Unit Class. A Unit Class missing from it can't enter.
 - a placeholder `colour` for the client.
 
 Base-Mod Terrains:
@@ -50,13 +51,16 @@ Base-Mod Terrains:
 | Forest | −2 | 1.5 | impassable | 1 | – |
 | Rough | −1 | 2 | 1.5 | 1 | – |
 | Peak | 0 | impassable | impassable | 1 | – |
+| Ice | 0 | 1.5 | 2 | 1 | – |
+| Snow | 0 | 1.5 | 1.5 | 1 | – |
+| Sand | 0 | 1.5 | 1 | 1 | – |
 
-- **Aircraft** move over every Terrain at cost 1. They get neither cover nor the high-ground bonus, and they give neither to an attacker or take either from one.
+- **Aircraft** (a Unit Class with `air: true`) move over every Terrain at cost 1. They get neither cover nor the high-ground bonus, and they give neither to an attacker or take either from one.
 - Structures never move.
 
 ### Height
 
-- A cell's **height level** is its elevation band: `lowland` 0, `highland` 1. Water and peak cells hold no ground units.
+- A cell's **height level** comes from its elevation band: in the base presets, `water` and `lowland` are 0, `highland` 1 and `peak` 2. Water and peak cells hold no ground units.
 - **High ground:** a ground attacker on a higher level than its ground target gets **+2** on the To-hit roll.
 - **Sight:** a ground unit gets **+1 Sight per height level** it stands on.
 
@@ -64,17 +68,18 @@ Base-Mod Terrains:
 
 - A **Squad** is one Unit Slot in battle: one unit type, a count, and **each member's own Shield, Armor and HP**. It sits in one cell, whatever its count.
 - Squads never split or merge mid-Battle.
-- Each armed or unarmed building is a stationary combatant in one cell. Unarmed buildings are now targets (see [Buildings](#buildings)).
+- Each armed or unarmed building is a stationary combatant in one cell, whatever its size; bigger footprints can come with building sites (see [Later](#later)). Unarmed buildings are now targets (see [Buildings](#buildings)).
 - **Occupancy:** one ground Squad or building per cell. An Aircraft Squad can share a cell with one ground Squad, but not with another Aircraft Squad. Squads can't pass through each other; pathfinding routes around them.
 
 ### Deployment
 
-- **Defender:** each of the Planet's three Stacks deploys near one Control Point (Stack 1 at point A, and so on). Buildings take cells the generator picks inside the defender's zone, a radius around the Control Points.
+- **Defender:** each of the Planet's three Stacks deploys on one Control Point (Stack 1 at point A, and so on). Buildings stand 3 cells behind the points, away from the attacker's edge, taking Building Slots round the points in turn.
 - **Attacker:** deploys in a strip 4 cells deep along one map edge, which the Battle seed picks.
 - **Formations:** a Stack deploys in the shape of its 3 × 5 slot grid. The front row faces the enemy, and empty slots leave gaps. An attacking Army's slots are laid out the same way, 15 slots per formation, in slot order. A slot that lands on a blocked cell moves to the nearest free passable cell (breadth-first, ties to the lowest cell index).
 
 ## Time and movement
 
+- **Start delay:** when an Army arrives, the Planet Locks and both sides deploy at once, but the first sim tick waits `battle.startDelay` (30 s). That gives players time to open the Battle and see the layout. The window counts down meanwhile. A Battle decided on arrival (one side has nothing that can fight) ends at once.
 - The sim **steps once per match tick (5 Hz, 200 ms)**. Every duration in seconds is converted to whole ticks, rounded to the nearest one.
 - Within a tick, the order is fixed:
   1. apply orders;
@@ -86,7 +91,7 @@ Base-Mod Terrains:
 
   Squads act in id order inside each step. Damage dealt in a tick is applied as it happens, so a Squad killed earlier in the fire step doesn't fire.
 - **Movement:** a Squad gains `speed` cells' worth of movement points per second. Entering a cell costs the Terrain `cost` for its Unit Class, ×1.5 on a diagonal (8-way movement). It moves when it has enough points saved.
-- **Pathfinding:** A* over the cost grid, with an octile-distance heuristic. A path is recomputed when its next cell becomes blocked or its goal changes.
+- **Pathfinding:** A* over the cost grid, with an octile-distance heuristic. A diagonal step can't cut past a blocked corner. A squad whose next cell is occupied waits; after 1 s it finds a way round the squads in its way. If it's already within 3 cells of its goal, it stops there instead.
 - **Distance** for range and Sight is the straight-line distance between cell centres.
 
 ## Combat
@@ -138,42 +143,60 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 ### Control Points
 
-- The generator places **3 Control Points** on ground-passable cells in the middle third of the map, at least 10 cells apart.
+- The generator places **3 Control Points** in the main region, in the middle half of the map each way, at least `controlPointSpacing` (10) cells apart. Where they don't fit, the spacing shrinks until they do. This placement is good enough for v1; revisit it with handmade maps or the capital-world variant.
 - The **defender holds all three** when the Battle starts.
 - **Capture:** a point changes hands after one side has a ground Squad within **2 cells** of it, and the other side has none, for **5 s** in a row. If the lone side leaves or the other side arrives, progress resets.
+- **Aircraft** neither capture nor contest a point, and nor do buildings: only ground Squads hold ground.
 - **Contested:** when both sides are in range, nothing changes.
 
 ### Winning
 
 - **Attacker wins** by:
-  - holding **2 of 3 points for 30 s in a row**; the hold timer resets the moment it holds fewer than 2;
+  - holding **2 of 3 points for 30 s in a row**; the hold timer resets the moment it holds fewer than 2, and **pauses**, keeping its count, while a defender ground squad stands within capture radius of one of the points it holds (as on Empire at War's maps). The Battle window shows it as paused;
   - **elimination**: the defender has no Squads and no armed buildings left.
 - **Defender wins** by:
-  - the **time cap, 3 min**;
+  - the **time cap, 3 min** of fighting, counted after the start delay;
   - **elimination**: the attacker has no Squads left;
   - the attacker **Retreating** ([Retreat](#retreat-in-battle)).
+- The attacker also wins when the defender Retreats.
 - **Mutual wipe-out**, or both sides finishing a Retreat on the same tick: the defender keeps the Planet, as before.
-- An attacker win captures the Planet; a defender win sends the attacker into Retreat. All of this follows the game-design spec's [Ending](game-design-spec.md#ending) rules.
+- An attacker win captures the Planet; a defender win sends the attacker into Retreat. A beaten defender's surviving units, whether escaped or still on the field, Retreat too, unless they're a neutral garrison, which loses them. All of this follows the game-design spec's [Ending](game-design-spec.md#ending) rules.
 
 ### Buildings
 
 - Buildings are a **secondary objective**. A building destroyed in Battle is **destroyed for real**: its Building Slot is freed, there's no refund, and anything queued in it is cancelled. That stays true even if the defender wins.
 - Destroying buildings has no effect on the win conditions.
-- A building with no `combat` block gets the Ruleset's `structureLayers` (default 0/20/30) and Unit Class Structure, so it can be hit. It never fires and doesn't count for elimination.
+- A building with no `combat` block gets the Ruleset's `battle.structure` (Unit Class Structure, 0/20/30), so it can be hit. It never fires and doesn't count for elimination.
+
+## Build pads
+
+Spots on the Battlefield where a side that holds one can build a turret, as on Empire at War's ground maps.
+
+- **Placement:** the generator places `battlefield.buildPads` (4) pads in the main region, away from the map edges, at least 6 cells from the Control Points and from each other.
+- **Owners at the start:** pads within 10 cells of a Control Point start as the defender's; the rest start with no owner. The attacker starts with none.
+- **Capture:** like a Control Point, using the same radius and time: one side's ground squads alone near it for `captureSeconds` take it. A pad with a turret on it can't be captured; the enemy has to destroy the turret first. A pad being built on can be captured, which cancels the build without a refund.
+- **Building:** the side holding an empty pad can build one turret on it. A turret is a Building with `padTurret: true` and a `combat` block, of the side's own Faction. It costs that Building's `cost`, paid at once from the player's Resources, the same pool as the galaxy. It's built after `battle.padBuildSeconds` (10 s), and it exists only for this Battle. The base Mod's pad turrets are the Turret and the Plasma Turret.
+- **Who decides:** a player builds with the Battle window's button; the AI never spends a player's money. A **neutral garrison** has no economy, so it gets `battle.neutralFunds` (400 Credits and 100 Materials, two turrets' worth) for the Battle, and its AI builds turrets on the pads it holds, the cheapest it can afford first.
+- **Winning:** a defender's pad turrets count against its elimination, like its armed buildings. An attacker's don't: an attacker with only turrets left has lost.
+- **After the Battle:** pad turrets are gone, whoever won. They aren't Planet buildings.
+- **On the wire:** each pad in `BattleView`: its cell, owner, capture progress, any turret's squad id, and any build under way with the tick it finishes. The command is `BattleBuildTurret {planet, pad, building}`.
 
 ## Retreat in Battle
 
-- **Either side** can Retreat. A **neutral** garrison never does. The button is disabled for a defender with no other Planet to retreat to.
-- Pressing **Retreat** starts a **10 s countdown**, during which the side keeps fighting normally. Pressing it again cancels the countdown.
-- When the countdown ends, every Squad on that side gets a `retreat` order. It moves toward its **exit** and doesn't fire, while enemies keep firing at it.
-  - The attacker's exit is its deployment edge.
-  - The defender's exit is the nearest map edge.
-- A Squad that reaches its exit cell **leaves the Battle**. When every one of the side's Squads has left or died, the Battle ends and **the other side wins**.
+- **Either side** can Retreat. A **neutral** garrison never does. A defender with no other Planet to Retreat to can't, and its button is disabled.
+- Pressing **Retreat** starts a countdown of `battle.retreatCountdown` (10 s) of fighting. Ordered during the start delay, it counts from the first tick. The side keeps fighting meanwhile, and pressing again calls it off.
+- When the countdown ends, every squad on that side that can move turns for its **exit**:
+  - the attacker's exit is its own edge;
+  - each defending squad's exit is the map edge nearest to it.
+
+  A Retreating squad holds fire, doesn't count for Control Points, and takes no more orders. Enemies keep firing at it.
+- A squad that reaches its exit's deployment strip (`deployDepth` cells in from the edge) **leaves the field**. When every squad of the side that could move has left or died, the Battle ends and **the other side wins**. Both sides finishing on the same tick goes to the defender.
 - Units that escape return to full layers and become a Retreating Army under the game-design spec's [Retreat](game-design-spec.md#retreat) rules.
   - **Attacker Retreats:** the defender keeps the Planet.
   - **Defender Retreats:** the attacker captures the Planet. Its buildings left standing are destroyed as on capture, and the escaped units Retreat to the defender's nearest friendly Planet.
-- Armed buildings can't Retreat.
+- Buildings can't Retreat; they stay behind.
 - In v1 the AI never Retreats on its own.
+- The order is logged with its tick in the Battle's input log.
 
 ## Controllers
 
@@ -200,6 +223,15 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
   - distance;
   - the enemy strength the side can see near it;
   - the strength already assigned to it, so all Squads don't pile onto one point.
+- **Matchups:** a kill or raid goal's score is scaled by the squad's tier against the target: ×1.15 for Advantage, ×0.9 for Disadvantage. Kept mild: at ×1.5 and ×0.6 the attacker, free to pick its fights while the defender is tied to its points, won 75% of Starting Kit Battles.
+- Caution's threat penalty applies to every goal except holding a point: a threatened point is the one to hold.
+- Threat counts enemy squads the side has **seen lately**, not only those in view: each is remembered where it was last seen for 10 s, or until that spot is back in Sight without it. Without this, a squad that sighted the enemy, turned away, and lost sight of it turned straight back, over and over.
+- A squad's current goal scores a quarter more (**stickiness**), so near-ties don't flip it back and forth.
+- **Guard posts:** a guard settled on its point moves to the best ground within capture radius of it, so it still holds the point. Where there's cover there, it picks among covered cells only. Then it prefers high ground, then more cover by its `cover` weight, then the side facing the attacker's edge. It moves only if the post is clearly better than where it stands. Leaving cover for open high ground cost the defender: Covenant attacks on UNSC rose from 53% to 62% wins.
+- Any positive `cover` weight makes a side want cover and covered posts. A cutoff of 1 had left the Covenant (0.9) out in the open while UNSC attackers took covered, high firing positions.
+- **Sentry beats:** a guard settled on its point walks a short beat every 8 s, but only while its side knows of no enemy: to a covered cell within 2 cells of the point, or else a spot that far out each way. It pauses there 3 s, then returns. Staying inside the capture radius keeps the point contested. Walking out to 4 cells and to nearby pads got guards caught away from their points: attacker wins rose from 54% to 59%. This version costs about 2 points.
+- **Leash:** a squad guarding a point goes after the enemy it can see and hurt, best matchup first and then nearest, that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. At 8 cells, guards left their points open often enough to tip balance toward the attacker.
+- While the attacker's hold timer runs, the defender values retaking a point at 5 instead of 3.
 - **Goals:**
   - `capturePoint(p)`
   - `defendPoint(p)`
@@ -208,37 +240,43 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
   - `scout(area)`: the fallback when no enemy has been seen
 - It only knows what its side's filtered view shows.
 
+### Roles
+
+On top of the usual goals, the Commander gives some squads a job:
+
+- **Scouts** (the defender only, once it has at least 2 mobile squads): about 20% × its `scout` weight of them, at least 1 and at most 3, roam to the part of the map the side has looked at least lately. Blocks are 8 × 8 cells; the pick leans toward the attacker's edge and away from the side's own points. A scout keeps its waypoint until it gets there. A defender with fewer than 3 mobile squads, such as a small neutral garrison, scouts **once**: after its scout has fallen back, every squad stays for the points. Units tagged `scout` go first, then small squads (1–2 units), then the fastest; units tagged `skirmisher` only if nothing else fits.
+- **Skirmishers:** a handful of squads a side can spare beyond one per point for the defender (held or to win back) and two per point for the attacker: 10% × its `aggression` weight of its mobile squads, but never fewer than 1 or more than 5. With the scouts' 20%, a 3-squad side gets 1 scout and no skirmisher; a 10-squad side, 2 scouts and 1 skirmisher. They find and delay the enemy for the main force; they aren't the main force. If the force shrinks and there are too many, the newest go back to the usual goals. Each patrols a round of the Control Points and the halfway marks between them. Units tagged `skirmisher` go first, then the fastest.
+- **Contact:** a scout that meets the enemy falls back. So does a skirmisher, unless the nearest enemy in its Sight is one it doesn't have Disadvantage against and doesn't outnumber it 1.5 to 1; that one it hunts. Falling back goes to the nearest point the side holds, or else the nearest friendly squad. Once there the squad rests for 20 s as an ordinary squad before it can take a role again.
+- A unit's `roles` hint is content (see [Content additions](#content-additions)). The base Warthog and Ghost are scouts; the Hornet and Banshee are skirmishers.
+- **Measured** with three Stacks a side: scouts spot the attacker sooner (2.6 s instead of 3.3 s) at a cost of 2–3 points of the defender's win rate. That's down from 7 points before scouts fell back, when they fought and died alone. With Starting Kits, a two-squad defender's single scouting run moved attacker wins from 59% / 51% to 54% / 53%; letting it keep scouting made them 63% / 59%, as the points went unguarded.
+
 ### Squad planner (GOAP)
 
-- Each Squad plans with **Goal-Oriented Action Planning**: an A* search over world-state facts, from its current state to its goal.
+- Each Squad plans with **Goal-Oriented Action Planning**: the cheapest steps from its facts now to the facts its goal wants, searched over the few states the facts make.
 - **Facts:**
-  - `atCell`
-  - `targetVisible`
-  - `targetInRange`
-  - `inCover`
-  - `onHighGround`
-  - `nearFriendly`
-  - `healthy` (count ≥ 50% of its start)
-- **Actions:**
-  - `moveTo`
-  - `attack`
-  - `takeCover`: move to the nearest cover cell within 4
-  - `takeHighGround`
-  - `regroup`: move toward the nearest friendly Squad
-  - `hold`
-
-  Each action has preconditions, effects and a cost.
+  - `atGoal`: within capture radius of its point, or close to any other goal
+  - `inRange`: its target can be hit from where it stands
+  - `inCover`: on a Terrain with cover
+  - `nearFriendly`: another of its side's squads within 3 cells
+- **What a goal wants:**
+  - capture and scout: `atGoal`;
+  - defend: `atGoal`, and `inCover` too when the Faction's `cover` weight is above 0 and there's cover by the point;
+  - kill and raid: `inRange`, and `nearFriendly` too when the squad is under half strength and the Faction's `caution` weight is 1 or more.
+- **Actions**, each with a cost in seconds of walking, or a flat cost scaled by a weight:
+  - `goTo` the goal;
+  - `approach`: a firing position in range of the target, trading the walk against high ground and cover by the `cover` weight (this covers the spec's `takeHighGround`);
+  - `takeCover`: the nearest covered cell within 3;
+  - `regroup`: to the nearest friendly squad.
 - **Budget:** plans are at most 4 actions deep.
-- **When it replans:**
-  - its goal changes;
-  - its target dies or leaves view;
-  - it loses a member;
-  - a Control Point changes hands;
-  - otherwise every 1 s.
+- **When it replans:** a Control Point changes hands, it loses a member, or otherwise once a second, staggered by Squad id. A replan whose next step hasn't changed keeps the destination it already sent, since every new destination costs a path.
+- **Code and data:** goals, actions and facts are Go code. Their **weights** are content: a Faction's optional `ai` block of `aggression`, `caution`, `cover`, `raid` and `scout`, each defaulting to 1. The base Covenant lean keener (aggression 1.05, caution 0.9, cover 0.9); the UNSC lean careful (aggression 0.95, caution 1.1, cover 1.25). Keep them close to 1: aggression especially is a strong lever, and at 1.4 the Covenant won 80% of their attacks. The planner looks up weights **per Squad** even though v1 only has Faction weights, so per-unit weights can be added later (see [Later](#later)). A neutral garrison plays the defaults.
+- **Determinism:** ties between equal plan costs or equal goal scores go to the earlier goal or the action declared first, and squads are planned in id order. Any randomness comes from the Battle RNG.
 
-  The 1 s fallback is staggered by Squad id across the 5 ticks of each second, so no single tick replans every Squad.
-- **Code and data:** goals, actions, facts, preconditions and effects are Go code. Their **costs and weights** are content: a Faction's `ai` block, such as `aggression`, `caution`, `cover`, `raid` and `scout`. A Covenant preset can rush; a UNSC one can hold cover. The planner looks up weights **per Squad** even though v1 only has Faction weights, so per-unit weights can be added later (see [Later](#later)).
-- **Determinism:** ties between equal plan costs or equal goal scores go to the lowest id, then to action declaration order. Any randomness comes from the Battle RNG.
+### Movement among other squads
+
+- Long routes are A* over the terrain alone. Other squads are handled locally: a blocked squad waits; after 1 s it re-routes, or swaps places with an idle friendly; within 3 cells of its goal it stops.
+- **Soft obstacles:** the re-route counts a cell another squad stands on as extra cost on top of its Terrain, not as a wall: +4 for a friendly, +8 for an enemy, which won't make way. So A* weighs going round a crowd against waiting for a gap, and a squad in a one-cell gap doesn't cut the map in two.
+- If jams show up in play, the next step is grid steering (sidestep into a free neighbouring cell that's no further from the goal). After that would come flow fields for the few shared destinations (points and exits), or a cooperative reservation table. Continuous-space avoidance (RVO/ORCA) doesn't fit a one-squad-per-cell grid.
 
 ## Determinism and the input log
 
@@ -248,36 +286,28 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 
 ## On the wire
 
-- **`BattleStarted`**, sent to both sides:
-  - the Battlefield grid: width, height, one Terrain index per cell, and one height level per cell (a few KB);
-  - the Terrain index table;
-  - the Control Points;
-  - the time cap.
-
-  The rest of each side's opening data is filtered by its Sight. Squad ids are per Battle. Each Squad carries its unit type, side, slot, count and starting layers.
-- **`BattleTick`**, sent to each side every tick, **filtered to that side's Sight**:
-  - the moved Squads (`id, x, y`);
-  - Squads entering and leaving view;
-  - volleys: `{actor, target, shots, hits, shieldDmg, armorDmg, hpDmg, kills}`, with `actor` omitted when the shooter is hidden;
-  - the Control Points' owners and capture progress;
-  - the hold timer;
-  - Retreat state;
-  - buildings seen or destroyed.
+- **`BattleView`**, in each side's View: the Battle as that side sees it. That's the sim tick, the attacker's edge, the side's own squads plus the enemies in its Sight, every Control Point and the hold timer. Each squad carries its id, side, unit, cell, count, starting count, and its front member's layers.
+  - It's diffed and upserted in `ViewDelta` like any other entity, so it changes every tick while anything moves. Fog is enforced where the server builds it, in the sim's `Snapshot(side)`.
+  - **The Battlefield** goes only in `ViewFull` and `BattleStarted`: width, height, the Terrain id table, then one Terrain index and one height level per cell. Deltas leave it out, and the client keeps it.
+- **`BattleStarted`**: the two sides, the Planet, the start time and the Battlefield.
+- **`BattleTick`**: one tick's volleys, `{actor, target, shots, hits, kills, shieldDmg, armorDmg, hpDmg}`. It's sent to a side only on ticks with fire that side may know about: fire at its own squads, or by or at squads it can see. A shooter it can't see is sent as `actor` 0.
 - **Commands:** `BattleRetreat {planet}` and `BattleCancelRetreat {planet}`. A Battle is keyed by its Planet on the wire, as the other Battle messages are.
 - A side that reconnects gets the Battle's current filtered state in its `ViewFull`. It doesn't get a replay.
 - Other players with Vision see only the Locked flag and `BattleEnded`, as before.
 
 ## Watching
 
-- The Battle window shows the Battlefield by default. A button makes it **full-screen**, and the galaxy keeps running underneath it.
+![A Battle in full screen: the Battlefield with Control Points A–C and four build pads, and the side column with points, pads, both sides' squads and the latest fire](images/battle-full-screen.png)
+
+- The Battle window shows the Battlefield above each side's squads and the latest fire. A button (or Esc to leave) makes it **full-screen**: the map fills the screen and the rest moves to a side column. The galaxy keeps running underneath.
 - It's rendered with **three.js and an orthographic top-down camera**, with no new dependency:
-  - the terrain is one data texture on a plane, with placeholder Terrain colours and height shading;
-  - fog of war is a second mask texture;
-  - Squads are instanced sprites showing the side colour, a count badge, a layer bar and a facing tick;
-  - Control Points are rings with capture progress;
-  - volleys are drawn as tracers and flashes.
-- The client **interpolates** Squad positions between ticks.
-- The camera **pans and zooms** inside the map bounds and never rotates.
+  - the terrain is one data texture on a plane, in placeholder Terrain colours, lighter per height level, with a faint checker so cells read;
+  - fog of war is a second mask texture, cleared within your squads' Sight, which the client works out from content the same way the server does;
+  - squads are tokens in the side's colour: circles for ground units, triangles for flyers, squares for buildings, each with a count badge;
+  - Control Points are rings in the holder's colour, with an arc for capture progress in the taker's;
+  - volleys are drawn as tracers from shooters you can see, with a flash where hits land, bigger on a kill.
+- The client **interpolates** Squad positions between ticks, unless the player prefers reduced motion.
+- The camera **pans by drag and zooms with the wheel** inside the map bounds, from the whole map down to a fifth of it, and never rotates.
 - The window's **Retreat** button stays in place. It's disabled when Retreat isn't allowed, and while the countdown runs it shows the time left and "Cancel".
 - Players who aren't sides see only "Battle in progress", as before.
 
@@ -285,16 +315,39 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 
 - **Budget:** ≤ 2 ms per Battle step on the server for 45 Squads a side plus 12 buildings, enforced by a Go benchmark test.
 - **Work done only on change:**
-  - fog is recomputed when a Squad changes cell;
   - paths are recomputed when blocked or when the goal changes;
+  - a squad's next destination is re-sent only when its plan's next step changes, or once a second while chasing a moving target;
   - GOAP replans only on events or the staggered fallback.
+- **Work done every tick** (cheap at this size, the first to revisit): Sight (`see()` checks every pair of squads), target picking (each firing squad scans every squad), and Control Point presence (every point against every squad).
+- **Measured:** about 0.5–0.6 ms a step and about 11 KB allocated, for 45 squads a side plus 12 buildings. A* uses a typed binary heap and pooled working memory, so a path call allocates only its result.
 - **Planned upgrade:** v1 steps Battles one after another inside `MatchLoop`. If the benchmark or a real Match shows the tick running long, Battles will step in **parallel goroutines** joined before the tick returns. That's safe because Battles share no state and make no Nakama API calls.
+
+### Performance ideas, not needed yet
+
+Each one waits until a profile or real play shows the cost. Rough order: cheapest and likeliest first.
+
+- **Server, per tick:**
+  - **A spatial grid for squads** (buckets of, say, 8 × 8 cells), so Sight, target picking and point presence look only at nearby squads instead of all of them. Worth it once Battles grow well past 45 squads a side.
+  - **Sight only on change:** recompute a side's visibility only when one of its squads or an enemy changes cell. Most ticks most squads don't move.
+  - **Flow fields** for the shared destinations (each Control Point and each exit edge, per Unit Class): one Dijkstra pass per Battle, after which any squad heading there follows it with no A*. Chasing a moving target still uses A*.
+  - **Parallel stepping** of Battles (above).
+  - **Fewer allocations in the AI planner:** reuse its open list and best-cost table between squads, as A* does.
+  - **Native pathfinding** (Rust or C), last: see [Later](#later).
+- **Wire:**
+  - `BattleView` is upserted whole in `ViewDelta` about 5 times a second, roughly 2 KB in a big fight. If bandwidth matters, send squad-level diffs (moved, hurt, gone) instead.
+- **Client:**
+  - The fog mask is rebuilt from every own squad's Sight on each update. Rebuild it only when an own squad changes cell.
+  - Squad tokens allocate a small vector per frame for the curved movement. Reuse one.
+  - Count badges are DOM elements (about 100 at most). If that ever shows in profiles, draw them into the scene instead.
+- **Saving Matches:** a running Battle's sim isn't plain data (see the `shortcut:` on `game.Battle`). To save one, store its input log (forces, seed, player orders by tick) and re-simulate.
 
 ## Pacing
 
 - Two evenly matched forces should fight for about **1–3 minutes**.
-- The two Starting Kits should stay roughly even: either one attacking wins about 45–55% of the time, on a range of seeded Battlefields.
-- A Go test checks both, as the round-based test did.
+- The two Starting Kits should stay roughly even: either one attacking wins about 45–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights.
+- A Go test checks both over 100 seeds per matchup, allowing 40–60% for sampling noise. When last tuned: about 96 s per Battle; UNSC attacking wins 48%, Covenant attacking 53%.
+- The test covers **big Battles** too (three Starting Kit Stacks a side): UNSC attacking wins 56%, Covenant attacking 60%, right at the allowance. They were 73% / 67% before roles, the paused hold timer, guard posts, and cover for any positive weight.
+- Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 
 ## Ruleset additions
 
@@ -302,32 +355,40 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 
 | Field | Default |
 |---|---|
-| `classDefaults` | see [Stats](#stats) |
-| `battlefieldSize` | 64 × 48 |
-| `defaultTerrainPreset` | `base:temperate` |
-| `battleTimeCap` | 180 s |
-| `controlPoints` | 3 |
-| `captureRadius` | 2 cells |
-| `captureSeconds` | 5 |
-| `holdPoints` | 2 |
-| `holdSeconds` | 30 |
-| `highGroundToHit` | +2 |
-| `heightSight` | +1 per level |
-| `structureLayers` | 0/20/30 |
-| `retreatCountdown` | 10 s |
-| `deployDepth` | 4 cells |
+| `battlefield.width` × `battlefield.height` | 64 × 48 |
+| `battlefield.terrainPreset` | `base:temperate` |
+| `battlefield.pathClass` | `base:infantry` |
+| `battlefield.controlPoints` | 3 |
+| `battlefield.controlPointSpacing` | 10 cells |
+| `battlefield.deployDepth` | 4 cells |
+| `battle.startDelay` | 30 s |
+| `battle.timeCap` | 180 s |
+| `battle.captureRadius` | 2 cells |
+| `battle.captureSeconds` | 5 |
+| `battle.holdPoints` | 2 |
+| `battle.holdSeconds` | 30 |
+| `battle.highGroundToHit` | +2 |
+| `battle.heightSight` | +1 per level |
+| `battle.structure` | Unit Class Structure, 0/20/30 |
+| `battle.classDefaults` | see [Stats](#stats) |
+| `battle.retreatCountdown` | 10 s |
+| `battlefield.buildPads` | 4 |
+| `battle.padBuildSeconds` | 10 s |
+| `battle.neutralFunds` | 400 Credits, 100 Materials |
 
 ## Content additions
 
-- **`terrain`** kind: `cover`, `colour`, and per Unit Class `{passable, cost}`.
-- **`terrainPreset`** kind:
-  - the noise parameters: frequency, octaves, persistence and redistribution exponent;
-  - the elevation band thresholds and moisture thresholds;
-  - the Terrain for each band × moisture cell.
+- **`terrains`** kind: `cover`, `colour`, and `movement` (a cost per Unit Class).
+- **`terrainPresets`** kind:
+  - `noise`: frequency, octaves and persistence;
+  - `bands`: each with `upTo`, `height`, and its `terrains` by moisture `upTo`;
+  - `clear`: the Terrain and height used to cut a path.
 
   The base Mod ships `base:temperate`, `base:desert` and `base:ice`.
-- **Planet** (in a map): an optional `battlefield {preset, width, height}`.
+- **Planet** (in a map): an optional `battlefield {terrainPreset, width, height}`.
 - **Faction:** an optional `ai` weight block.
+- **Building:** an optional `padTurret` flag: it can be built on a build pad in Battle (it needs a `combat` block).
+- **Unit:** an optional `roles` list, `scout` and/or `skirmisher`: hints for which units the Battle AI picks for those jobs first.
 - **`combat` block:** see [Stats](#stats).
 
 ## Later
@@ -344,12 +405,5 @@ Not in v1, but kept in mind:
 - **Replay UI**, built on the input log.
 - **Halo-style Shield regeneration** during Battles.
 - **Parallel Battle stepping** (see [Performance](#performance)).
-
-## Open questions
-
-Defaults picked while writing this spec, not settled in the design session:
-
-- **Aircraft and Control Points:** the spec counts only ground Squads for capturing and contesting.
-- **Building footprint:** every building is one cell.
-- **Unarmed building layers:** a single Ruleset default (`structureLayers`), not per building.
-- **Placement:** points in the middle third, at least 10 cells apart; the defender zone is a radius around the points.
+- **Choke points** for the defender: plot the attacker's likely approaches to each point with A*, find the narrowest stretch some 6–12 cells out, and have skirmishers or a reserve hold its far side on the best ground there, delaying the attacker where it bunches up. Held back because every way tried so far of pulling squads off the points cost the defender; revisit if big Battles look one-sided in play.
+- **Native pathfinding** (Rust or C): only if profiling, after flow fields and parallel stepping, still shows pathing as the cost. Until then the gains come from doing less work, not faster work, and cgo in the Nakama plugin build adds a toolchain to every build.

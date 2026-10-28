@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/terrain.schema.json",
+  "id": "water",
+  "name": "Water",
+  "colour": "#2f5d8a",
+  "cover": 0,
+  "movement": { "aircraft": 1 }
+}

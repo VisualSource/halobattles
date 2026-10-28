@@ -382,6 +382,9 @@ func TestOrderArmyCapturesTheEmptyPlanetBetweenTheCapitals(t *testing.T) {
 
 func TestAnArmyAtAnEnemyCapitalStartsABattleBothSidesHear(t *testing.T) {
 	h := newLobbyHarness(t)
+	r := h.m.content.Doc.Rulesets["base:rules"]
+	r.Battle.StartDelay, r.Battle.TimeCap = 0, 5 // the test units have no combat stats: the defender holds at the cap
+	h.m.content.Doc.Rulesets["base:rules"] = r
 	h.start()
 	mine, theirs := "", ""
 	for _, p := range h.d.views[u1.session].Planets {
@@ -404,6 +407,12 @@ func TestAnArmyAtAnEnemyCapitalStartsABattleBothSidesHear(t *testing.T) {
 
 	if r := h.rejection(u1, 104); r != "" {
 		t.Fatalf("OrderArmy rejected: %s", r)
+	}
+	for range 6 * tickRate { // the Battle plays out live, to its cap
+		if slices.Contains(h.d.ops[u1.session], wire.OpBattleEnded) {
+			break
+		}
+		h.loop()
 	}
 	for _, p := range []presence{u1, u2} {
 		ops := h.d.ops[p.session]
@@ -535,5 +544,14 @@ func TestLeavingOrSurrenderingInPlayIsAForfeit(t *testing.T) {
 					h.d.toAll, h.d.lobby.Phase, h.d.lobby.Winner)
 			}
 		})
+	}
+}
+
+func TestRetreatingFromNoBattleIsRejected(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	h.loop(cmd(u1, wire.OpBattleRetreat, &wire.BattleRetreatT{Seq: 103, Planet: "y"}))
+	if r := h.rejection(u1, 103); r != "you aren't fighting a Battle there" {
+		t.Errorf("rejection %q", r)
 	}
 }

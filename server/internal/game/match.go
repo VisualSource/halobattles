@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"slices"
 
+	"github.com/VisualSource/halobattles/server/internal/battle"
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
@@ -75,6 +76,7 @@ type State struct {
 	LastID      uint32                      // Match entity ids come from this one counter
 	Armies      map[uint32]*Army
 	Battles     map[uint32]*Battle
+	Fields      map[string]*battle.Field // each Planet's Battlefield, once it's had a Battle
 	// The win-hold: the Seat holding more than the map's share of Planets
 	// (-1 for none) and when its hold runs out.
 	HoldSeat int
