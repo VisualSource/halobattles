@@ -1,0 +1,9 @@
+{
+  // Frozen water: open to infantry, slow for vehicles.
+  "$schema": "../../../../schema/content/terrain.schema.json",
+  "id": "ice",
+  "name": "Ice",
+  "colour": "#cfe3ec",
+  "cover": 0,
+  "movement": { "infantry": 1.5, "vehicle": 2, "aircraft": 1 }
+}

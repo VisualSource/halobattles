@@ -1,0 +1,31 @@
+{
+  // Rolling grassland with woods, a few lakes and hills. Each upTo is a share
+  // of the map's cells: 12% water, then 50% lowland, 30% highland, 8% peaks.
+  "$schema": "../../../../schema/content/terrain-preset.schema.json",
+  "id": "temperate",
+  "name": "Temperate",
+  "noise": { "frequency": 3, "octaves": 4, "persistence": 0.5 },
+  "bands": [
+    { "upTo": 0.12, "height": 0, "terrains": [{ "upTo": 1, "terrain": "water" }] },
+    {
+      "upTo": 0.62,
+      "height": 0,
+      "terrains": [
+        { "upTo": 0.15, "terrain": "rough" },
+        { "upTo": 0.7, "terrain": "open" },
+        { "upTo": 1, "terrain": "forest" }
+      ]
+    },
+    {
+      "upTo": 0.92,
+      "height": 1,
+      "terrains": [
+        { "upTo": 0.35, "terrain": "rough" },
+        { "upTo": 0.75, "terrain": "open" },
+        { "upTo": 1, "terrain": "forest" }
+      ]
+    },
+    { "upTo": 1, "height": 2, "terrains": [{ "upTo": 1, "terrain": "peak" }] }
+  ],
+  "clear": { "terrain": "open", "height": 0 }
+}

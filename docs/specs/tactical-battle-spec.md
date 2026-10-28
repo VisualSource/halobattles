@@ -26,19 +26,20 @@ Every number below is Ruleset or content data. The values given are base-Mod def
 
 Generation follows [Red Blob Games: terrain from noise](https://www.redblobgames.com/maps/terrain-from-noise/):
 
-1. **Elevation** and **moisture** are two independent noise fields. Each is a sum of octaves (frequency doubles and amplitude halves per octave), normalised to 0–1, and elevation is then raised to a redistribution exponent.
-2. Elevation is cut into **four bands**: `water`, `lowland`, `highland` and `peak`.
-3. Moisture splits `lowland` and `highland` into **open**, **forest** or **rough** ground.
-4. A **Terrain Preset** supplies the noise parameters, the band and moisture thresholds, and the Terrain for each band × moisture cell. That way a desert Planet comes out mostly dry and rough, and an ice Planet turns `water` into an ice Terrain with its own rules. A Planet names its preset in `battlefield.preset`; otherwise the Ruleset's `defaultTerrainPreset` applies.
-5. **Placement:** the 3 Control Points, then the deployment zones, then the buildings (see [Deployment](#deployment)).
-6. **Connectivity check:** both deployment zones and every Control Point must be connected by ground-passable cells (Infantry rules). If they aren't, the generator tries again with the next sub-seed, up to 16 times. If every try fails, it flattens the blocking cells along the shortest path between the unconnected parts into `lowland` open ground.
+1. **Elevation** and **moisture** are two independent noise fields. Each is a sum of octaves, with frequency doubling and amplitude scaled by `persistence` per octave.
+2. Each field is **ranked**: a cell's value becomes its rank as a share of the map's cells. A preset's thresholds are therefore shares of the map, so `upTo: 0.12` on the lowest band makes 12% of cells water.
+3. Elevation is cut into **bands**, lowest first. The base presets use `water`, `lowland`, `highland` and `peak`, and each band sets its height level.
+4. Moisture splits each band into Terrains, driest first. For example, lowland comes out as rough, open or forest.
+5. A **Terrain Preset** supplies the noise parameters, the bands, and the Terrains in each. A desert Planet comes out mostly sand and rough; an ice Planet turns its lakes into ice you can walk on. A Planet names its preset in `battlefield.terrainPreset`; otherwise the Ruleset's `battlefield.terrainPreset` applies.
+6. **Connectivity:** the largest region the Ruleset's `pathClass` (Infantry) can walk is the main region. Any edge's deployment strip that doesn't touch it gets the fewest blocked cells along a path cleared to the preset's `clear` Terrain. That's a ford through a lake, or a pass through peaks.
+7. **Control Points** are placed in the main region (see [Control Points](#control-points)). Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
 
 ### Terrain
 
-Terrains are content (`terrain` kind). Each one has:
+Terrains are content (`terrains` kind). Each one has:
 
 - `cover`: a To-hit modifier for attacks **against** a unit standing in it (forest −2, rough −1, open 0);
-- per Unit Class: `passable` and a movement `cost` multiplier;
+- `movement`: a cost per Unit Class. A Unit Class missing from it can't enter.
 - a placeholder `colour` for the client.
 
 Base-Mod Terrains:
@@ -50,13 +51,16 @@ Base-Mod Terrains:
 | Forest | −2 | 1.5 | impassable | 1 | – |
 | Rough | −1 | 2 | 1.5 | 1 | – |
 | Peak | 0 | impassable | impassable | 1 | – |
+| Ice | 0 | 1.5 | 2 | 1 | – |
+| Snow | 0 | 1.5 | 1.5 | 1 | – |
+| Sand | 0 | 1.5 | 1 | 1 | – |
 
 - **Aircraft** move over every Terrain at cost 1. They get neither cover nor the high-ground bonus, and they give neither to an attacker or take either from one.
 - Structures never move.
 
 ### Height
 
-- A cell's **height level** is its elevation band: `lowland` 0, `highland` 1. Water and peak cells hold no ground units.
+- A cell's **height level** comes from its elevation band: in the base presets, `water` and `lowland` are 0, `highland` 1 and `peak` 2. Water and peak cells hold no ground units.
 - **High ground:** a ground attacker on a higher level than its ground target gets **+2** on the To-hit roll.
 - **Sight:** a ground unit gets **+1 Sight per height level** it stands on.
 
@@ -138,7 +142,7 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 ### Control Points
 
-- The generator places **3 Control Points** on ground-passable cells in the middle third of the map, at least 10 cells apart.
+- The generator places **3 Control Points** in the main region, in the middle half of the map each way, at least `controlPointSpacing` (10) cells apart. Where they don't fit, the spacing shrinks until they do.
 - The **defender holds all three** when the Battle starts.
 - **Capture:** a point changes hands after one side has a ground Squad within **2 cells** of it, and the other side has none, for **5 s** in a row. If the lone side leaves or the other side arrives, progress resets.
 - **Contested:** when both sides are in range, nothing changes.
@@ -303,10 +307,13 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | Field | Default |
 |---|---|
 | `classDefaults` | see [Stats](#stats) |
-| `battlefieldSize` | 64 × 48 |
-| `defaultTerrainPreset` | `base:temperate` |
+| `battlefield.width` × `battlefield.height` | 64 × 48 |
+| `battlefield.terrainPreset` | `base:temperate` |
+| `battlefield.pathClass` | `base:infantry` |
+| `battlefield.controlPoints` | 3 |
+| `battlefield.controlPointSpacing` | 10 cells |
+| `battlefield.deployDepth` | 4 cells |
 | `battleTimeCap` | 180 s |
-| `controlPoints` | 3 |
 | `captureRadius` | 2 cells |
 | `captureSeconds` | 5 |
 | `holdPoints` | 2 |
@@ -315,18 +322,17 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `heightSight` | +1 per level |
 | `structureLayers` | 0/20/30 |
 | `retreatCountdown` | 10 s |
-| `deployDepth` | 4 cells |
 
 ## Content additions
 
-- **`terrain`** kind: `cover`, `colour`, and per Unit Class `{passable, cost}`.
-- **`terrainPreset`** kind:
-  - the noise parameters: frequency, octaves, persistence and redistribution exponent;
-  - the elevation band thresholds and moisture thresholds;
-  - the Terrain for each band × moisture cell.
+- **`terrains`** kind: `cover`, `colour`, and `movement` (a cost per Unit Class).
+- **`terrainPresets`** kind:
+  - `noise`: frequency, octaves and persistence;
+  - `bands`: each with `upTo`, `height`, and its `terrains` by moisture `upTo`;
+  - `clear`: the Terrain and height used to cut a path.
 
   The base Mod ships `base:temperate`, `base:desert` and `base:ice`.
-- **Planet** (in a map): an optional `battlefield {preset, width, height}`.
+- **Planet** (in a map): an optional `battlefield {terrainPreset, width, height}`.
 - **Faction:** an optional `ai` weight block.
 - **`combat` block:** see [Stats](#stats).
 
@@ -352,4 +358,4 @@ Defaults picked while writing this spec, not settled in the design session:
 - **Aircraft and Control Points:** the spec counts only ground Squads for capturing and contesting.
 - **Building footprint:** every building is one cell.
 - **Unarmed building layers:** a single Ruleset default (`structureLayers`), not per building.
-- **Placement:** points in the middle third, at least 10 cells apart; the defender zone is a radius around the points.
+- **Placement:** points in the middle half each way; the defender zone is a radius around the points.

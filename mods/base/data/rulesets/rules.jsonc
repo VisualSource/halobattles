@@ -17,5 +17,15 @@
   "startingResources": { "credits": 1000, "materials": 300 },
   "gracePeriodSeconds": 180,
   "armyVisionSeconds": 15,
-  "resultsSeconds": 60
+  "resultsSeconds": 60,
+  // docs/specs/tactical-battle-spec.md
+  "battlefield": {
+    "width": 64,
+    "height": 48,
+    "terrainPreset": "temperate",
+    "pathClass": "infantry",
+    "controlPoints": 3,
+    "controlPointSpacing": 10,
+    "deployDepth": 4
+  }
 }

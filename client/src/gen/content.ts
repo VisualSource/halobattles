@@ -42,6 +42,12 @@ export interface Content {
   maps: {
     [k: string]: GalaxyMap;
   };
+  terrains: {
+    [k: string]: Terrain;
+  };
+  terrainPresets: {
+    [k: string]: TerrainPreset;
+  };
 }
 /**
  * A stockpiled currency players earn at Payday and spend. Command Points is not a Resource.
@@ -130,12 +136,37 @@ export interface Ruleset {
    * How long a Match stays in results.
    */
   resultsSeconds: number;
+  battlefield: BattlefieldRules;
 }
 /**
  * Defaults the lobby fills in.
  */
 export interface ResourceMap {
   [k: string]: number;
+}
+/**
+ * How Battlefields are generated. A map's Planet can override the size and preset.
+ */
+export interface BattlefieldRules {
+  width: number;
+  height: number;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  terrainPreset: string;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  pathClass: string;
+  controlPoints: number;
+  /**
+   * The fewest cells between two Control Points, where the map has room.
+   */
+  controlPointSpacing: number;
+  /**
+   * Depth in cells of the strip along each edge an attacker can deploy in.
+   */
+  deployDepth: number;
 }
 /**
  * A playable side with its own units and buildings.
@@ -429,11 +460,23 @@ export interface MapPlanet {
    * How the client draws it: a planet (the default), or a Halo ring.
    */
   model?: "planet" | "ring";
+  battlefield?: PlanetBattlefield;
   overrides?: PlanetOverrides;
 }
 export interface Position {
   x: number;
   y: number;
+}
+/**
+ * Overrides the Ruleset's Battlefield size and Terrain Preset for this Planet.
+ */
+export interface PlanetBattlefield {
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  terrainPreset?: string;
+  width?: number;
+  height?: number;
 }
 /**
  * Values that replace this Planet's Planet Type values.
@@ -475,4 +518,106 @@ export interface Win {
    */
   planetShare: number;
   holdSeconds: number;
+}
+/**
+ * A kind of ground on a Battlefield cell.
+ */
+export interface Terrain {
+  $schema?: string;
+  /**
+   * Replace an existing definition with this id.
+   */
+  replace?: boolean;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  id: string;
+  /**
+   * Inline English display name.
+   */
+  name: string;
+  /**
+   * Placeholder colour the client draws it in.
+   */
+  colour: string;
+  /**
+   * Added to the To-hit roll of attacks against a ground unit standing here; negative is cover.
+   */
+  cover: number;
+  /**
+   * Per Unit Class id, the cost of entering a cell of this Terrain. A Unit Class missing here can't enter it.
+   */
+  movement: {
+    [k: string]: number;
+  };
+}
+/**
+ * How a Battlefield is generated: two noise fields, elevation and moisture, each ranked so a threshold is a share of the map's cells.
+ */
+export interface TerrainPreset {
+  $schema?: string;
+  /**
+   * Replace an existing definition with this id.
+   */
+  replace?: boolean;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  id: string;
+  /**
+   * Inline English display name.
+   */
+  name: string;
+  noise: Noise;
+  /**
+   * Elevation bands, lowest first. Each covers elevation up to `upTo`; the last must reach 1.
+   *
+   * @minItems 1
+   */
+  bands: [Band, ...Band[]];
+  clear: Clear;
+}
+export interface Noise {
+  /**
+   * Noise cycles across the map's width in the first octave.
+   */
+  frequency: number;
+  /**
+   * Each doubles the frequency of the last.
+   */
+  octaves: number;
+  /**
+   * Each octave's amplitude relative to the last.
+   */
+  persistence: number;
+}
+export interface Band {
+  upTo: number;
+  /**
+   * Height level: high ground and extra Sight.
+   */
+  height: number;
+  /**
+   * Terrains by moisture, driest first. Each covers moisture up to `upTo`; the last must reach 1.
+   *
+   * @minItems 1
+   */
+  terrains: [BandTerrain, ...BandTerrain[]];
+}
+export interface BandTerrain {
+  upTo: number;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  terrain: string;
+}
+/**
+ * What the generator turns blocked cells into when it cuts a path to connect the map.
+ */
+export interface Clear {
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  terrain: string;
+  height: number;
 }

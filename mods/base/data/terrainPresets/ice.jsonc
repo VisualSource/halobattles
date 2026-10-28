@@ -1,0 +1,28 @@
+{
+  // Frozen: lakes are ice you can cross, snowfields, few trees.
+  "$schema": "../../../../schema/content/terrain-preset.schema.json",
+  "id": "ice",
+  "name": "Ice",
+  "noise": { "frequency": 3, "octaves": 4, "persistence": 0.5 },
+  "bands": [
+    { "upTo": 0.2, "height": 0, "terrains": [{ "upTo": 1, "terrain": "ice" }] },
+    {
+      "upTo": 0.65,
+      "height": 0,
+      "terrains": [
+        { "upTo": 0.85, "terrain": "snow" },
+        { "upTo": 1, "terrain": "forest" }
+      ]
+    },
+    {
+      "upTo": 0.9,
+      "height": 1,
+      "terrains": [
+        { "upTo": 0.6, "terrain": "snow" },
+        { "upTo": 1, "terrain": "rough" }
+      ]
+    },
+    { "upTo": 1, "height": 2, "terrains": [{ "upTo": 1, "terrain": "peak" }] }
+  ],
+  "clear": { "terrain": "snow", "height": 0 }
+}

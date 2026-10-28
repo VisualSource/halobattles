@@ -90,8 +90,8 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 - **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `tiers: {unitClassId: tier}`, and optional `speed`, `range`, `minRange`, `fireInterval` and `sight`, which default from the Ruleset's `classDefaults` ([Stats](tactical-battle-spec.md#stats)). `damage` is dice notation, `NdM` or `NdM+K`, checked by a schema pattern; a tier is `advantage`, `normal`, `disadvantage` or `none`, and a Unit Class missing from `tiers` counts as `normal` ([ADR 0003](../adr/0003-dice-damage.md)).
 - **Unit Class:** an id and a name.
 - **Weapon Type:** a multiplier for each layer (`shield`, `armor`, `hp`).
-- **Terrain:** `cover`, `colour`, and per Unit Class `{passable, cost}`.
-- **Terrain Preset:** noise parameters, elevation and moisture thresholds, and the Terrain for each band × moisture cell ([Generation](tactical-battle-spec.md#generation)).
+- **Terrain:** `cover`, `colour`, and `movement`, a cost per Unit Class; a Unit Class missing from it can't enter.
+- **Terrain Preset:** `noise`, elevation `bands` each with moisture-split `terrains`, and the `clear` Terrain ([Generation](tactical-battle-spec.md#generation)).
 - **Planet Type:** `income` (resource map), `buildingSlots`, `commandPointBonus`, optional `sprite`.
 - **Ruleset:** exactly one definition, `base:rules`, which later Mods Patch. Its fields are:
   - the Payday interval;
@@ -105,7 +105,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 
   Defaults are in the game-design spec's [Ruleset defaults](game-design-spec.md#ruleset-defaults).
 - **Map:**
-  - `planets`: a local id, `name`, `type` (a Planet Type), 2D `position {x, y}`, an optional `overrides` (a Patch on its type's values), an optional `model`: `planet` (the default) or `ring`, which the client draws as a Halo ring, and an optional `battlefield {preset, width, height}`.
+  - `planets`: a local id, `name`, `type` (a Planet Type), 2D `position {x, y}`, an optional `overrides` (a Patch on its type's values), an optional `model`: `planet` (the default) or `ring`, which the client draws as a Halo ring, and an optional `battlefield {terrainPreset, width, height}`.
   - `lanes`: `{from, to, type}`. Optional `length` defaults to the straight-line distance; optional `time` overrides length × multiplier.
   - `garrisons`: neutral starting forces per Planet, as up to 3 Stacks of `[{unit, count}]`, from any Faction. A garrison on a `starts` Planet applies only when that start is unused.
   - `starts`: a list of Planet ids. Its length is the maximum player count; a used start is its player's Capital. There is also `minPlayers`.

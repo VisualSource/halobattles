@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/terrain.schema.json",
+  "id": "rough",
+  "name": "Rough ground",
+  "colour": "#9a8660",
+  "cover": -1,
+  "movement": { "infantry": 2, "vehicle": 1.5, "aircraft": 1 }
+}

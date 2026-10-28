@@ -5,6 +5,51 @@ package contentschema
 // An asset in a Mod's assets/ folder, written `__mod__/path`.
 type Asset string
 
+type Band struct {
+	// Height level: high ground and extra Sight.
+	Height int `json:"height"`
+
+	// Terrains by moisture, driest first. Each covers moisture up to `upTo`; the last
+	// must reach 1.
+	Terrains []BandTerrain `json:"terrains"`
+
+	// UpTo corresponds to the JSON schema field "upTo".
+	UpTo float64 `json:"upTo"`
+}
+
+type BandTerrain struct {
+	// Terrain corresponds to the JSON schema field "terrain".
+	Terrain ID `json:"terrain"`
+
+	// UpTo corresponds to the JSON schema field "upTo".
+	UpTo float64 `json:"upTo"`
+}
+
+// How Battlefields are generated. A map's Planet can override the size and preset.
+type BattlefieldRules struct {
+	// The fewest cells between two Control Points, where the map has room.
+	ControlPointSpacing int `json:"controlPointSpacing"`
+
+	// ControlPoints corresponds to the JSON schema field "controlPoints".
+	ControlPoints int `json:"controlPoints"`
+
+	// Depth in cells of the strip along each edge an attacker can deploy in.
+	DeployDepth int `json:"deployDepth"`
+
+	// Height corresponds to the JSON schema field "height".
+	Height int `json:"height"`
+
+	// The Unit Class whose movement decides which ground must connect: every Control
+	// Point and every edge's deployment strip.
+	PathClass ID `json:"pathClass"`
+
+	// The Terrain Preset a Planet uses unless it names its own.
+	TerrainPreset ID `json:"terrainPreset"`
+
+	// Width corresponds to the JSON schema field "width".
+	Width int `json:"width"`
+}
+
 // Sits in a Building Slot. `trains` makes it a production building with its own
 // unit queue; `combat` makes it armed.
 type Building struct {
@@ -46,6 +91,16 @@ type Building struct {
 
 	// Paid at each Payday.
 	Yield map[string]int `json:"yield"`
+}
+
+// What the generator turns blocked cells into when it cuts a path to connect the
+// map.
+type Clear struct {
+	// Height corresponds to the JSON schema field "height".
+	Height int `json:"height"`
+
+	// Terrain corresponds to the JSON schema field "terrain".
+	Terrain ID `json:"terrain"`
 }
 
 // Battle stats. A Unit Class missing from tiers counts as `normal`.
@@ -104,6 +159,12 @@ type Content struct {
 
 	// Rulesets corresponds to the JSON schema field "rulesets".
 	Rulesets map[string]Ruleset `json:"rulesets"`
+
+	// TerrainPresets corresponds to the JSON schema field "terrainPresets".
+	TerrainPresets map[string]TerrainPreset `json:"terrainPresets"`
+
+	// Terrains corresponds to the JSON schema field "terrains".
+	Terrains map[string]Terrain `json:"terrains"`
 
 	// UnitClasses corresponds to the JSON schema field "unitClasses".
 	UnitClasses map[string]UnitClass `json:"unitClasses"`
@@ -202,6 +263,9 @@ type Lane struct {
 type LocalID string
 
 type MapPlanet struct {
+	// Overrides the Ruleset's Battlefield size and Terrain Preset for this Planet.
+	Battlefield *PlanetBattlefield `json:"battlefield,omitempty,omitzero"`
+
 	// ID corresponds to the JSON schema field "id".
 	ID LocalID `json:"id"`
 
@@ -242,6 +306,29 @@ type ModManifest struct {
 
 // Inline English display name.
 type Name string
+
+type Noise struct {
+	// Noise cycles across the map's width in the first octave.
+	Frequency float64 `json:"frequency"`
+
+	// Each doubles the frequency of the last.
+	Octaves int `json:"octaves"`
+
+	// Each octave's amplitude relative to the last.
+	Persistence float64 `json:"persistence"`
+}
+
+// Overrides the Ruleset's Battlefield size and Terrain Preset for this Planet.
+type PlanetBattlefield struct {
+	// Height corresponds to the JSON schema field "height".
+	Height *int `json:"height,omitempty,omitzero"`
+
+	// TerrainPreset corresponds to the JSON schema field "terrainPreset".
+	TerrainPreset *ID `json:"terrainPreset,omitempty,omitzero"`
+
+	// Width corresponds to the JSON schema field "width".
+	Width *int `json:"width,omitempty,omitzero"`
+}
 
 // Values that replace this Planet's Planet Type values.
 type PlanetOverrides struct {
@@ -322,6 +409,10 @@ type Ruleset struct {
 	// destroyed.
 	ArmyVisionSeconds int `json:"armyVisionSeconds"`
 
+	// How Battlefields are generated. A map's Planet can override the size and
+	// preset.
+	Battlefield BattlefieldRules `json:"battlefield"`
+
 	// Refund for cancelling a queue item after it started.
 	CancelRefundPercent int `json:"cancelRefundPercent"`
 
@@ -390,6 +481,59 @@ type StartingKit struct {
 
 	// Stacks corresponds to the JSON schema field "stacks".
 	Stacks Stacks `json:"stacks"`
+}
+
+// A kind of ground on a Battlefield cell.
+type Terrain struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// Placeholder colour the client draws it in.
+	Colour string `json:"colour"`
+
+	// Added to the To-hit roll of attacks against a ground unit standing here;
+	// negative is cover.
+	Cover int `json:"cover"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Per Unit Class id, the cost of entering a cell of this Terrain. A Unit Class
+	// missing here can't enter it.
+	Movement map[string]float64 `json:"movement"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+}
+
+// How a Battlefield is generated: two noise fields, elevation and moisture, each
+// ranked so a threshold is a share of the map's cells.
+type TerrainPreset struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// Elevation bands, lowest first. Each covers elevation up to `upTo`; the last
+	// must reach 1.
+	Bands []Band `json:"bands"`
+
+	// What the generator turns blocked cells into when it cuts a path to connect the
+	// map.
+	Clear Clear `json:"clear"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Noise corresponds to the JSON schema field "noise".
+	Noise Noise `json:"noise"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
 }
 
 type Unit struct {

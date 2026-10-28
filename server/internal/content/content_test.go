@@ -25,6 +25,8 @@ const baseRules = `{
 	"gracePeriodSeconds": 180,
 	"armyVisionSeconds": 15,
 	"resultsSeconds": 60,
+	"battlefield": {"width": 32, "height": 24, "terrainPreset": "plain", "pathClass": "infantry",
+		"controlPoints": 3, "controlPointSpacing": 6, "deployDepth": 3},
 }`
 
 // writeMods lays out files under a temp dir, keyed "mod/relative/path", and
@@ -50,9 +52,15 @@ func writeMods(t *testing.T, files map[string]string, names ...string) []string 
 
 func baseFiles() map[string]string {
 	return map[string]string{
-		"base/mod.jsonc":                    `{"name": "base", "version": "1.0.0", "title": "Halo Battles"}`,
-		"base/data/resources/credits.jsonc": `{"id": "credits", "name": "Credits"}`,
-		"base/data/rulesets/rules.jsonc":    baseRules,
+		"base/mod.jsonc":                       `{"name": "base", "version": "1.0.0", "title": "Halo Battles"}`,
+		"base/data/resources/credits.jsonc":    `{"id": "credits", "name": "Credits"}`,
+		"base/data/rulesets/rules.jsonc":       baseRules,
+		"base/data/unitClasses/infantry.jsonc": `{"id": "infantry", "name": "Infantry"}`,
+		"base/data/terrains/open.jsonc":        `{"id": "open", "name": "Open", "colour": "#00ff00", "cover": 0, "movement": {"infantry": 1}}`,
+		"base/data/terrainPresets/plain.jsonc": `{"id": "plain", "name": "Plain",
+			"noise": {"frequency": 2, "octaves": 1, "persistence": 0.5},
+			"bands": [{"upTo": 1, "height": 0, "terrains": [{"upTo": 1, "terrain": "open"}]}],
+			"clear": {"terrain": "open", "height": 0}}`,
 	}
 }
 

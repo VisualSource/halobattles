@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/terrain.schema.json",
+  "id": "snow",
+  "name": "Snow",
+  "colour": "#e8eef0",
+  "cover": 0,
+  "movement": { "infantry": 1.5, "vehicle": 1.5, "aircraft": 1 }
+}

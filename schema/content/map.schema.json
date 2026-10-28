@@ -33,6 +33,17 @@
             "description": "How the client draws it: a planet (the default), or a Halo ring.",
             "enum": ["planet", "ring"]
           },
+          "battlefield": {
+            "title": "Planet Battlefield",
+            "description": "Overrides the Ruleset's Battlefield size and Terrain Preset for this Planet.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "terrainPreset": { "$ref": "defs.schema.json#/definitions/id" },
+              "width": { "type": "integer", "minimum": 16, "maximum": 256 },
+              "height": { "type": "integer", "minimum": 16, "maximum": 256 }
+            }
+          },
           "overrides": {
             "title": "Planet Overrides",
             "description": "Values that replace this Planet's Planet Type values.",

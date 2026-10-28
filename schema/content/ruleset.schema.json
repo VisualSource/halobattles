@@ -19,7 +19,8 @@
     "startingResources",
     "gracePeriodSeconds",
     "armyVisionSeconds",
-    "resultsSeconds"
+    "resultsSeconds",
+    "battlefield"
   ],
   "properties": {
     "$schema": { "type": "string" },
@@ -56,6 +57,22 @@
     },
     "gracePeriodSeconds": { "description": "How long a disconnected player keeps their Seat.", "type": "integer", "minimum": 0 },
     "armyVisionSeconds": { "description": "How long a player keeps seeing a Planet after their Army there leaves or is destroyed.", "type": "integer", "minimum": 0 },
-    "resultsSeconds": { "description": "How long a Match stays in results.", "type": "integer", "minimum": 0 }
+    "resultsSeconds": { "description": "How long a Match stays in results.", "type": "integer", "minimum": 0 },
+    "battlefield": {
+      "title": "Battlefield Rules",
+      "description": "How Battlefields are generated. A map's Planet can override the size and preset.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "terrainPreset", "pathClass", "controlPoints", "controlPointSpacing", "deployDepth"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 16, "maximum": 256 },
+        "height": { "type": "integer", "minimum": 16, "maximum": 256 },
+        "terrainPreset": { "description": "The Terrain Preset a Planet uses unless it names its own.", "$ref": "defs.schema.json#/definitions/id" },
+        "pathClass": { "description": "The Unit Class whose movement decides which ground must connect: every Control Point and every edge's deployment strip.", "$ref": "defs.schema.json#/definitions/id" },
+        "controlPoints": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "controlPointSpacing": { "description": "The fewest cells between two Control Points, where the map has room.", "type": "integer", "minimum": 0 },
+        "deployDepth": { "description": "Depth in cells of the strip along each edge an attacker can deploy in.", "type": "integer", "minimum": 1 }
+      }
+    }
   }
 }

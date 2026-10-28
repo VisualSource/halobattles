@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/terrain.schema.json",
+  "id": "peak",
+  "name": "Peak",
+  "colour": "#8d8d8d",
+  "cover": 0,
+  "movement": { "aircraft": 1 }
+}

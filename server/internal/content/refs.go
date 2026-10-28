@@ -1,6 +1,7 @@
 package content
 
 import (
+	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
@@ -16,6 +17,10 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 	switch kind {
 	case "rulesets":
 		qualifyKeys(obj, "startingResources", ns)
+		if b, ok := obj["battlefield"].(map[string]any); ok {
+			qualifyField(b, "terrainPreset", ns)
+			qualifyField(b, "pathClass", ns)
+		}
 	case "factions":
 		if kit, ok := obj["startingKit"].(map[string]any); ok {
 			qualifyList(kit, "buildings", ns)
@@ -34,11 +39,31 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		}
 	case "planetTypes":
 		qualifyKeys(obj, "income", ns)
+	case "terrains":
+		qualifyKeys(obj, "movement", ns)
+	case "terrainPresets":
+		bands, _ := obj["bands"].([]any)
+		for _, b := range bands {
+			if b, ok := b.(map[string]any); ok {
+				terrains, _ := b["terrains"].([]any)
+				for _, t := range terrains {
+					if t, ok := t.(map[string]any); ok {
+						qualifyField(t, "terrain", ns)
+					}
+				}
+			}
+		}
+		if c, ok := obj["clear"].(map[string]any); ok {
+			qualifyField(c, "terrain", ns)
+		}
 	case "maps":
 		planets, _ := obj["planets"].([]any)
 		for _, p := range planets {
 			if p, ok := p.(map[string]any); ok {
 				qualifyField(p, "type", ns)
+				if b, ok := p["battlefield"].(map[string]any); ok {
+					qualifyField(b, "terrainPreset", ns)
+				}
 				if o, ok := p["overrides"].(map[string]any); ok {
 					qualifyKeys(o, "income", ns)
 				}
@@ -117,6 +142,8 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		r := doc.Rulesets[id]
 		where := "rulesets " + id
 		c.resourceKeys(where+": startingResources", r.StartingResources)
+		c.ref(where+": battlefield", "terrainPresets", string(r.Battlefield.TerrainPreset))
+		c.ref(where+": battlefield pathClass", "unitClasses", string(r.Battlefield.PathClass))
 	}
 	for _, id := range slices.Sorted(maps.Keys(doc.Resources)) {
 		c.asset("resources "+id, doc.Resources[id].Icon)
@@ -161,6 +188,42 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 	for _, id := range slices.Sorted(maps.Keys(doc.Maps)) {
 		c.galaxyMap("maps "+id, doc.Maps[id])
 	}
+	for _, id := range slices.Sorted(maps.Keys(doc.Terrains)) {
+		for _, class := range slices.Sorted(maps.Keys(doc.Terrains[id].Movement)) {
+			c.ref("terrains "+id+": movement", "unitClasses", class)
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(doc.TerrainPresets)) {
+		c.terrainPreset("terrainPresets "+id, doc.TerrainPresets[id])
+	}
+}
+
+// terrainPreset checks Terrains exist and that bands, and the moisture
+// splits inside each, rise to 1 so every cell gets a Terrain.
+func (c *checker) terrainPreset(where string, p contentschema.TerrainPreset) {
+	c.ref(where+": clear", "terrains", string(p.Clear.Terrain))
+	rising := func(where string, upTos []float64) {
+		for i, u := range upTos {
+			if i > 0 && u <= upTos[i-1] {
+				c.fail("%s: upTo %v doesn't rise above %v", where, u, upTos[i-1])
+			}
+		}
+		if upTos[len(upTos)-1] != 1 {
+			c.fail("%s: the last upTo is %v; it must be 1", where, upTos[len(upTos)-1])
+		}
+	}
+	var bands []float64
+	for i, b := range p.Bands {
+		bw := fmt.Sprintf("%s: band %d", where, i+1)
+		bands = append(bands, b.UpTo)
+		var splits []float64
+		for _, t := range b.Terrains {
+			c.ref(bw, "terrains", string(t.Terrain))
+			splits = append(splits, t.UpTo)
+		}
+		rising(bw+" terrains", splits)
+	}
+	rising(where+": bands", bands)
 }
 
 // ref reports a reference to a kind's id that doesn't exist. References to a
@@ -212,6 +275,9 @@ func (c *checker) galaxyMap(where string, m contentschema.GalaxyMap) {
 		}
 		planets[p.ID] = true
 		c.ref(where+": planet "+string(p.ID), "planetTypes", string(p.Type))
+		if p.Battlefield != nil && p.Battlefield.TerrainPreset != nil {
+			c.ref(where+": planet "+string(p.ID)+": battlefield", "terrainPresets", string(*p.Battlefield.TerrainPreset))
+		}
 		if p.Overrides != nil {
 			c.resourceKeys(where+": planet "+string(p.ID)+": overrides income", p.Overrides.Income)
 			c.asset(where+": planet "+string(p.ID), p.Overrides.Sprite)

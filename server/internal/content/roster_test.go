@@ -149,6 +149,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 12},
 		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
 		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 2},
+		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
 	}
 	for kind, n := range counts {
 		if n[0] != n[1] {
@@ -196,4 +197,26 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 			t.Errorf("start %s has no unused-start garrison", s)
 		}
 	}
+}
+
+func TestTerrainReferencesAndBandsAreChecked(t *testing.T) {
+	files := rosterFiles()
+	files["base/data/terrains/open.jsonc"] = `{"id": "open", "name": "Open", "colour": "#00ff00", "cover": 0, "movement": {"hover": 1}}`
+	files["base/data/terrainPresets/plain.jsonc"] = `{"id": "plain", "name": "Plain",
+		"noise": {"frequency": 2, "octaves": 1, "persistence": 0.5},
+		"bands": [
+			{"upTo": 0.5, "height": 0, "terrains": [{"upTo": 0.9, "terrain": "lava"}]},
+			{"upTo": 0.4, "height": 1, "terrains": [{"upTo": 1, "terrain": "open"}]},
+		],
+		"clear": {"terrain": "open", "height": 0}}`
+	files["base/data/maps/duel.jsonc"] = strings.Replace(files["base/data/maps/duel.jsonc"],
+		`"position": {"x": 0, "y": 0}}`, `"position": {"x": 0, "y": 0}, "battlefield": {"terrainPreset": "swamp"}}`, 1)
+
+	wantErr(t, writeMods(t, files, "base"),
+		"terrains base:open: movement: unknown Unit Class base:hover",
+		"terrainPresets base:plain: band 1: unknown Terrain base:lava",
+		"terrainPresets base:plain: band 1 terrains: the last upTo is 0.9; it must be 1",
+		"terrainPresets base:plain: bands: upTo 0.4 doesn't rise above 0.5",
+		"terrainPresets base:plain: bands: the last upTo is 0.4; it must be 1",
+		"maps base:duel: planet a: battlefield: unknown Terrain Preset base:swamp")
 }
