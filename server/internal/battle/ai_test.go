@@ -501,3 +501,29 @@ func TestATwoSquadGarrisonScoutsOnce(t *testing.T) {
 		}
 	}
 }
+
+func TestAnIdleGuardWalksABeatUntilTheEnemyShows(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
+	marines, d := s.Squads[0], s.Squads[1]
+	point := s.Points[0].Cell
+	freeAt(t, s, d, point, 0)
+	ai := NewAI(WeightsOf(nil))
+	p := &plan{goal: goal{kind: defend, cell: point}, steps: []action{}}
+	ai.plans[d.ID] = p
+	v := View{s, Defender}
+	s.Tick = beatEvery*TicksPerSecond - d.ID%TicksPerSecond + TicksPerSecond // past the wait, on its slot
+
+	o, ok := ai.walkBeat(v, d, p)
+	if !ok || o.Kind != Move || dist(o.Cell, point) > beatReach {
+		t.Fatalf("order %+v, %v; want a walk to a stop within %d of the point", o, ok, beatReach)
+	}
+	if _, again := ai.walkBeat(v, d, p); again {
+		t.Error("set out again straight away")
+	}
+
+	p.beatAt = -beatEvery * TicksPerSecond
+	ai.sighted[marines.ID] = sighting{marines.Cell, 5, s.Tick}
+	if _, ok := ai.walkBeat(v, d, p); ok {
+		t.Error("walked its beat with the enemy seen")
+	}
+}

@@ -93,12 +93,15 @@ const (
 )
 
 type plan struct {
-	goal    goal
-	steps   []action
-	members int  // its count when planned: a loss replans
-	moveTo  Cell // where the current step sent it
-	sent    bool
-	engaged int // guarding a point: the enemy it has left the point to fight, or 0
+	goal      goal
+	steps     []action
+	members   int  // its count when planned: a loss replans
+	moveTo    Cell // where the current step sent it
+	sent      bool
+	engaged   int // guarding a point: the enemy it has left the point to fight, or 0
+	beat      int // a guard's place on its beat round its point
+	beatAt    int // the tick it last set out on its beat
+	beatUntil int // the tick it's back from its beat
 }
 
 // AI drives a side: a Commander that hands each squad a goal, and a
@@ -171,6 +174,14 @@ const (
 	outnumbered = 1.5
 	// staleCap is the most seconds since a block was looked at that count.
 	staleCap = 60
+	// A guard's beat: every beatEvery seconds it walks to a stop up to
+	// beatReach cells from its point, inside the capture radius so the point
+	// is never left open, and pauses there beatPause seconds. Out to 4 cells
+	// and the pads near it, guards were caught away: 59% attacker wins
+	// instead of 54%; this costs about 2.
+	beatEvery = 8
+	beatReach = 2
+	beatPause = 3
 	// leash is how far from its point, in cells, a guarding squad chases an
 	// enemy, times its aggression weight.
 	leash        = 6
@@ -222,6 +233,13 @@ func (ai *AI) Orders(v View) []Order {
 			}
 			if p.engaged != 0 { // it's dead or gone: back to the point
 				p.engaged, p.steps, p.sent = 0, nil, false
+			}
+			if v.Tick() < p.beatUntil {
+				continue // walking its beat, or pausing at a stop
+			}
+			if o, ok := ai.walkBeat(v, sq, p); ok {
+				out = append(out, o)
+				continue
 			}
 		}
 		if p.steps == nil || flipped || len(sq.Members) < p.members || (v.Tick()+sq.ID)%TicksPerSecond == 0 {
@@ -373,6 +391,52 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		}
 		ai.plans[sq.ID] = &plan{goal: goals[best]}
 	}
+}
+
+// walkBeat sends an idle guard to the next stop on its beat round its point,
+// so a garrison doesn't stand still: covered cells by the point, or else a
+// spot each way. It goes only when it's settled on the point and the side
+// knows of no enemy, and the usual plan brings it back once it has paused
+// there. Walking beats with the enemy about got guards caught out.
+func (ai *AI) walkBeat(v View, sq *Squad, p *plan) (Order, bool) {
+	s := v.sim
+	if len(p.steps) > 0 || len(sq.path) > 0 || dist(sq.Cell, p.goal.cell) > s.rules.CaptureRadius ||
+		v.Tick()-p.beatAt < beatEvery*TicksPerSecond || (v.Tick()+sq.ID)%TicksPerSecond != 0 {
+		return Order{}, false
+	}
+	if len(ai.sighted) > 0 {
+		return Order{}, false // the enemy's been seen: stay put
+	}
+	var stops []Cell
+	// Covered cells by the point if there are any, so it keeps its cover;
+	// else a spot each way.
+	for y := -beatReach; y <= beatReach; y++ {
+		for x := -beatReach; x <= beatReach; x++ {
+			c := p.goal.cell.add(Cell{x, y})
+			if c != sq.Cell && dist(c, p.goal.cell) <= beatReach && !sq.air && s.standable(sq, c) && s.coverAt(c) < 0 {
+				stops = append(stops, c)
+			}
+		}
+	}
+	if len(stops) == 0 {
+		for _, d := range steps[:4] {
+			for r := beatReach; r > 1; r-- {
+				if c := p.goal.cell.add(d.scale(r)); s.standable(sq, c) {
+					stops = append(stops, c)
+					break
+				}
+			}
+		}
+	}
+	if len(stops) == 0 {
+		return Order{}, false
+	}
+	to := stops[p.beat%len(stops)]
+	p.beat++
+	p.beatAt = v.Tick()
+	p.beatUntil = v.Tick() + int(dist(sq.Cell, to)/max(sq.speed, 0.1)*TicksPerSecond) + beatPause*TicksPerSecond
+	p.steps, p.sent = nil, false // back to the point afterwards
+	return Order{Kind: Move, Squad: sq.ID, Cell: to}, true
 }
 
 // intruder is the enemy a guarding squad should leave its point to fight:
