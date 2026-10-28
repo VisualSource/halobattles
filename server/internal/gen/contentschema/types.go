@@ -25,6 +25,39 @@ type BandTerrain struct {
 	UpTo float64 `json:"upTo"`
 }
 
+// How a Battle runs on its Battlefield.
+type BattleRules struct {
+	// How near, in cells, a ground Squad must be to a Control Point to hold or take
+	// it.
+	CaptureRadius float64 `json:"captureRadius"`
+
+	// How long one side alone must be in range to take a Control Point.
+	CaptureSeconds float64 `json:"captureSeconds"`
+
+	// Battle stats per Unit Class id, for any a unit or building doesn't set. Every
+	// Unit Class needs one.
+	ClassDefaults map[string]ClassStats `json:"classDefaults"`
+
+	// Extra Sight, in cells, per height level a ground unit stands on.
+	HeightSight float64 `json:"heightSight"`
+
+	// Added to the To-hit roll of a ground attack from a higher height level.
+	HighGroundToHit int `json:"highGroundToHit"`
+
+	// How many Control Points the attacker must hold to start the hold timer.
+	HoldPoints int `json:"holdPoints"`
+
+	// How long the attacker must hold them to win.
+	HoldSeconds float64 `json:"holdSeconds"`
+
+	// What a building without a combat block is in a Battle: a target that never
+	// fires.
+	Structure Structure `json:"structure"`
+
+	// Seconds until the defender wins.
+	TimeCap int `json:"timeCap"`
+}
+
 // How Battlefields are generated. A map's Planet can override the size and preset.
 type BattlefieldRules struct {
 	// The fewest cells between two Control Points, where the map has room.
@@ -93,6 +126,21 @@ type Building struct {
 	Yield map[string]int `json:"yield"`
 }
 
+// A Unit Class's default Battle stats.
+type ClassStats struct {
+	// Seconds between volleys.
+	FireInterval float64 `json:"fireInterval"`
+
+	// Farthest it fires, in cells.
+	Range float64 `json:"range"`
+
+	// Sight radius in cells.
+	Sight float64 `json:"sight"`
+
+	// Cells per second.
+	Speed float64 `json:"speed"`
+}
+
 // What the generator turns blocked cells into when it cuts a path to connect the
 // map.
 type Clear struct {
@@ -111,14 +159,29 @@ type Combat struct {
 	// The damage roll, in dice notation: NdM, or NdM+K.
 	Damage string `json:"damage"`
 
+	// Seconds between volleys; defaults from battle.classDefaults.
+	FireInterval *float64 `json:"fireInterval,omitempty,omitzero"`
+
 	// Hp corresponds to the JSON schema field "hp".
 	Hp int `json:"hp"`
 
 	// Initiative corresponds to the JSON schema field "initiative".
 	Initiative int `json:"initiative"`
 
+	// Closest it fires, in cells (artillery). Defaults to 0.
+	MinRange *float64 `json:"minRange,omitempty,omitzero"`
+
+	// Farthest it fires, in cells; defaults from battle.classDefaults.
+	Range *float64 `json:"range,omitempty,omitzero"`
+
 	// Shield corresponds to the JSON schema field "shield".
 	Shield int `json:"shield"`
+
+	// Sight radius in cells; defaults from battle.classDefaults.
+	Sight *float64 `json:"sight,omitempty,omitzero"`
+
+	// Cells per second; defaults from the Ruleset's battle.classDefaults.
+	Speed *float64 `json:"speed,omitempty,omitzero"`
 
 	// Per Unit Class id, how this attacker rolls against it: advantage rolls the
 	// to-hit and damage twice and keeps the higher, disadvantage keeps the lower,
@@ -409,6 +472,9 @@ type Ruleset struct {
 	// destroyed.
 	ArmyVisionSeconds int `json:"armyVisionSeconds"`
 
+	// How a Battle runs on its Battlefield.
+	Battle BattleRules `json:"battle"`
+
 	// How Battlefields are generated. A map's Planet can override the size and
 	// preset.
 	Battlefield BattlefieldRules `json:"battlefield"`
@@ -481,6 +547,22 @@ type StartingKit struct {
 
 	// Stacks corresponds to the JSON schema field "stacks".
 	Stacks Stacks `json:"stacks"`
+}
+
+// What a building without a combat block is in a Battle: a target that never
+// fires.
+type Structure struct {
+	// Armor corresponds to the JSON schema field "armor".
+	Armor int `json:"armor"`
+
+	// Hp corresponds to the JSON schema field "hp".
+	Hp int `json:"hp"`
+
+	// Shield corresponds to the JSON schema field "shield".
+	Shield int `json:"shield"`
+
+	// UnitClass corresponds to the JSON schema field "unitClass".
+	UnitClass ID `json:"unitClass"`
 }
 
 // A kind of ground on a Battlefield cell.
@@ -579,6 +661,10 @@ type Unit struct {
 type UnitClass struct {
 	// Schema corresponds to the JSON schema field "$schema".
 	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// Flies: ignores cover and high ground both ways, and shares a cell with one
+	// ground unit.
+	Air *bool `json:"air,omitempty,omitzero"`
 
 	// ID corresponds to the JSON schema field "id".
 	ID ID `json:"id"`

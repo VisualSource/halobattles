@@ -9,7 +9,7 @@ import (
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
-func baseContent(t *testing.T) *cs.Content {
+func baseContent(t testing.TB) *cs.Content {
 	t.Helper()
 	c, err := content.Load([]string{filepath.Join("..", "..", "..", "mods", "base")})
 	if err != nil {

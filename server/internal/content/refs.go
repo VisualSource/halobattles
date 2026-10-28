@@ -21,6 +21,12 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 			qualifyField(b, "terrainPreset", ns)
 			qualifyField(b, "pathClass", ns)
 		}
+		if b, ok := obj["battle"].(map[string]any); ok {
+			qualifyKeys(b, "classDefaults", ns)
+			if s, ok := b["structure"].(map[string]any); ok {
+				qualifyField(s, "unitClass", ns)
+			}
+		}
 	case "factions":
 		if kit, ok := obj["startingKit"].(map[string]any); ok {
 			qualifyList(kit, "buildings", ns)
@@ -144,6 +150,15 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		c.resourceKeys(where+": startingResources", r.StartingResources)
 		c.ref(where+": battlefield", "terrainPresets", string(r.Battlefield.TerrainPreset))
 		c.ref(where+": battlefield pathClass", "unitClasses", string(r.Battlefield.PathClass))
+		c.ref(where+": battle structure", "unitClasses", string(r.Battle.Structure.UnitClass))
+		for _, class := range slices.Sorted(maps.Keys(r.Battle.ClassDefaults)) {
+			c.ref(where+": battle classDefaults", "unitClasses", class)
+		}
+		for _, class := range slices.Sorted(maps.Keys(doc.UnitClasses)) {
+			if _, ok := r.Battle.ClassDefaults[class]; !ok {
+				c.fail("%s: battle classDefaults has no entry for Unit Class %s", where, class)
+			}
+		}
 	}
 	for _, id := range slices.Sorted(maps.Keys(doc.Resources)) {
 		c.asset("resources "+id, doc.Resources[id].Icon)

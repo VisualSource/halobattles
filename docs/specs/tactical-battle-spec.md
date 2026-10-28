@@ -55,7 +55,7 @@ Base-Mod Terrains:
 | Snow | 0 | 1.5 | 1.5 | 1 | – |
 | Sand | 0 | 1.5 | 1 | 1 | – |
 
-- **Aircraft** move over every Terrain at cost 1. They get neither cover nor the high-ground bonus, and they give neither to an attacker or take either from one.
+- **Aircraft** (a Unit Class with `air: true`) move over every Terrain at cost 1. They get neither cover nor the high-ground bonus, and they give neither to an attacker or take either from one.
 - Structures never move.
 
 ### Height
@@ -73,7 +73,7 @@ Base-Mod Terrains:
 
 ### Deployment
 
-- **Defender:** each of the Planet's three Stacks deploys near one Control Point (Stack 1 at point A, and so on). Buildings take cells the generator picks inside the defender's zone, a radius around the Control Points.
+- **Defender:** each of the Planet's three Stacks deploys on one Control Point (Stack 1 at point A, and so on). Buildings stand 3 cells behind the points, away from the attacker's edge, taking Building Slots round the points in turn.
 - **Attacker:** deploys in a strip 4 cells deep along one map edge, which the Battle seed picks.
 - **Formations:** a Stack deploys in the shape of its 3 × 5 slot grid. The front row faces the enemy, and empty slots leave gaps. An attacking Army's slots are laid out the same way, 15 slots per formation, in slot order. A slot that lands on a blocked cell moves to the nearest free passable cell (breadth-first, ties to the lowest cell index).
 
@@ -90,7 +90,7 @@ Base-Mod Terrains:
 
   Squads act in id order inside each step. Damage dealt in a tick is applied as it happens, so a Squad killed earlier in the fire step doesn't fire.
 - **Movement:** a Squad gains `speed` cells' worth of movement points per second. Entering a cell costs the Terrain `cost` for its Unit Class, ×1.5 on a diagonal (8-way movement). It moves when it has enough points saved.
-- **Pathfinding:** A* over the cost grid, with an octile-distance heuristic. A path is recomputed when its next cell becomes blocked or its goal changes.
+- **Pathfinding:** A* over the cost grid, with an octile-distance heuristic. A diagonal step can't cut past a blocked corner. A squad whose next cell is occupied waits; after 1 s it finds a way round the squads in its way. If it's already within 3 cells of its goal, it stops there instead.
 - **Distance** for range and Sight is the straight-line distance between cell centres.
 
 ## Combat
@@ -163,7 +163,7 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 - Buildings are a **secondary objective**. A building destroyed in Battle is **destroyed for real**: its Building Slot is freed, there's no refund, and anything queued in it is cancelled. That stays true even if the defender wins.
 - Destroying buildings has no effect on the win conditions.
-- A building with no `combat` block gets the Ruleset's `structureLayers` (default 0/20/30) and Unit Class Structure, so it can be hit. It never fires and doesn't count for elimination.
+- A building with no `combat` block gets the Ruleset's `battle.structure` (Unit Class Structure, 0/20/30), so it can be hit. It never fires and doesn't count for elimination.
 
 ## Retreat in Battle
 
@@ -306,21 +306,21 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 
 | Field | Default |
 |---|---|
-| `classDefaults` | see [Stats](#stats) |
 | `battlefield.width` × `battlefield.height` | 64 × 48 |
 | `battlefield.terrainPreset` | `base:temperate` |
 | `battlefield.pathClass` | `base:infantry` |
 | `battlefield.controlPoints` | 3 |
 | `battlefield.controlPointSpacing` | 10 cells |
 | `battlefield.deployDepth` | 4 cells |
-| `battleTimeCap` | 180 s |
-| `captureRadius` | 2 cells |
-| `captureSeconds` | 5 |
-| `holdPoints` | 2 |
-| `holdSeconds` | 30 |
-| `highGroundToHit` | +2 |
-| `heightSight` | +1 per level |
-| `structureLayers` | 0/20/30 |
+| `battle.timeCap` | 180 s |
+| `battle.captureRadius` | 2 cells |
+| `battle.captureSeconds` | 5 |
+| `battle.holdPoints` | 2 |
+| `battle.holdSeconds` | 30 |
+| `battle.highGroundToHit` | +2 |
+| `battle.heightSight` | +1 per level |
+| `battle.structure` | Unit Class Structure, 0/20/30 |
+| `battle.classDefaults` | see [Stats](#stats) |
 | `retreatCountdown` | 10 s |
 
 ## Content additions
@@ -357,5 +357,5 @@ Defaults picked while writing this spec, not settled in the design session:
 
 - **Aircraft and Control Points:** the spec counts only ground Squads for capturing and contesting.
 - **Building footprint:** every building is one cell.
-- **Unarmed building layers:** a single Ruleset default (`structureLayers`), not per building.
+- **Unarmed building layers:** a single Ruleset default (`battle.structure`), not per building.
 - **Placement:** points in the middle half each way; the defender zone is a radius around the points.

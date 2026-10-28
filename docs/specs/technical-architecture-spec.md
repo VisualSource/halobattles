@@ -88,7 +88,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 - **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), optional `slotLimit` (the most one Unit Slot holds), `combat` (required), optional `icon`.
 - **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `icon`. There are no build limits or prerequisites.
 - **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `tiers: {unitClassId: tier}`, and optional `speed`, `range`, `minRange`, `fireInterval` and `sight`, which default from the Ruleset's `classDefaults` ([Stats](tactical-battle-spec.md#stats)). `damage` is dice notation, `NdM` or `NdM+K`, checked by a schema pattern; a tier is `advantage`, `normal`, `disadvantage` or `none`, and a Unit Class missing from `tiers` counts as `normal` ([ADR 0003](../adr/0003-dice-damage.md)).
-- **Unit Class:** an id and a name.
+- **Unit Class:** an id, a name, and an optional `air` flag: it flies, ignores cover and high ground, and shares a cell with one ground unit.
 - **Weapon Type:** a multiplier for each layer (`shield`, `armor`, `hp`).
 - **Terrain:** `cover`, `colour`, and `movement`, a cost per Unit Class; a Unit Class missing from it can't enter.
 - **Terrain Preset:** `noise`, elevation `bands` each with moisture-split `terrains`, and the `clear` Terrain ([Generation](tactical-battle-spec.md#generation)).

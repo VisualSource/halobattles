@@ -28,6 +28,17 @@ const rules = {
     controlPointSpacing: 10,
     deployDepth: 4,
   },
+  battle: {
+    timeCap: 180,
+    captureRadius: 2,
+    captureSeconds: 5,
+    holdPoints: 2,
+    holdSeconds: 30,
+    highGroundToHit: 2,
+    heightSight: 1,
+    structure: { unitClass: "base:structure", shield: 0, armor: 20, hp: 30 },
+    classDefaults: {},
+  },
 };
 
 function doc(creditsName: string): Content {

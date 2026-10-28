@@ -23,6 +23,19 @@
       "pattern": "^__[a-z0-9_-]+__/[^\\\\]+$"
     },
     "seconds": { "type": "integer", "minimum": 0 },
+    "classStats": {
+      "title": "Class Stats",
+      "description": "A Unit Class's default Battle stats.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["speed", "range", "fireInterval", "sight"],
+      "properties": {
+        "speed": { "description": "Cells per second.", "type": "number", "minimum": 0 },
+        "range": { "description": "Farthest it fires, in cells.", "type": "number", "exclusiveMinimum": 0 },
+        "fireInterval": { "description": "Seconds between volleys.", "type": "number", "exclusiveMinimum": 0 },
+        "sight": { "description": "Sight radius in cells.", "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
     "resourceMap": {
       "description": "Amounts keyed by Resource id.",
       "type": "object",
@@ -68,6 +81,11 @@
           "pattern": "^[1-9][0-9]*d[1-9][0-9]*(\\+[0-9]+)?$"
         },
         "initiative": { "type": "integer" },
+        "speed": { "description": "Cells per second; defaults from the Ruleset's battle.classDefaults.", "type": "number", "minimum": 0 },
+        "range": { "description": "Farthest it fires, in cells; defaults from battle.classDefaults.", "type": "number", "exclusiveMinimum": 0 },
+        "minRange": { "description": "Closest it fires, in cells (artillery). Defaults to 0.", "type": "number", "minimum": 0 },
+        "fireInterval": { "description": "Seconds between volleys; defaults from battle.classDefaults.", "type": "number", "exclusiveMinimum": 0 },
+        "sight": { "description": "Sight radius in cells; defaults from battle.classDefaults.", "type": "number", "exclusiveMinimum": 0 },
         "tiers": {
           "description": "Per Unit Class id, how this attacker rolls against it: advantage rolls the to-hit and damage twice and keeps the higher, disadvantage keeps the lower, none can't target it.",
           "type": "object",

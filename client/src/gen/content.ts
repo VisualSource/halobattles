@@ -137,6 +137,7 @@ export interface Ruleset {
    */
   resultsSeconds: number;
   battlefield: BattlefieldRules;
+  battle: BattleRules;
 }
 /**
  * Defaults the lobby fills in.
@@ -167,6 +168,79 @@ export interface BattlefieldRules {
    * Depth in cells of the strip along each edge an attacker can deploy in.
    */
   deployDepth: number;
+}
+/**
+ * How a Battle runs on its Battlefield.
+ */
+export interface BattleRules {
+  /**
+   * Seconds until the defender wins.
+   */
+  timeCap: number;
+  /**
+   * How near, in cells, a ground Squad must be to a Control Point to hold or take it.
+   */
+  captureRadius: number;
+  /**
+   * How long one side alone must be in range to take a Control Point.
+   */
+  captureSeconds: number;
+  /**
+   * How many Control Points the attacker must hold to start the hold timer.
+   */
+  holdPoints: number;
+  /**
+   * How long the attacker must hold them to win.
+   */
+  holdSeconds: number;
+  /**
+   * Added to the To-hit roll of a ground attack from a higher height level.
+   */
+  highGroundToHit: number;
+  /**
+   * Extra Sight, in cells, per height level a ground unit stands on.
+   */
+  heightSight: number;
+  structure: Structure;
+  /**
+   * Battle stats per Unit Class id, for any a unit or building doesn't set. Every Unit Class needs one.
+   */
+  classDefaults: {
+    [k: string]: ClassStats;
+  };
+}
+/**
+ * What a building without a combat block is in a Battle: a target that never fires.
+ */
+export interface Structure {
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  unitClass: string;
+  shield: number;
+  armor: number;
+  hp: number;
+}
+/**
+ * A Unit Class's default Battle stats.
+ */
+export interface ClassStats {
+  /**
+   * Cells per second.
+   */
+  speed: number;
+  /**
+   * Farthest it fires, in cells.
+   */
+  range: number;
+  /**
+   * Seconds between volleys.
+   */
+  fireInterval: number;
+  /**
+   * Sight radius in cells.
+   */
+  sight: number;
 }
 /**
  * A playable side with its own units and buildings.
@@ -276,6 +350,26 @@ export interface Combat {
   damage: string;
   initiative: number;
   /**
+   * Cells per second; defaults from the Ruleset's battle.classDefaults.
+   */
+  speed?: number;
+  /**
+   * Farthest it fires, in cells; defaults from battle.classDefaults.
+   */
+  range?: number;
+  /**
+   * Closest it fires, in cells (artillery). Defaults to 0.
+   */
+  minRange?: number;
+  /**
+   * Seconds between volleys; defaults from battle.classDefaults.
+   */
+  fireInterval?: number;
+  /**
+   * Sight radius in cells; defaults from battle.classDefaults.
+   */
+  sight?: number;
+  /**
    * Per Unit Class id, how this attacker rolls against it: advantage rolls the to-hit and damage twice and keeps the higher, disadvantage keeps the lower, none can't target it.
    */
   tiers?: {
@@ -350,6 +444,10 @@ export interface UnitClass {
    * Inline English display name.
    */
   name: string;
+  /**
+   * Flies: ignores cover and high ground both ways, and shares a cell with one ground unit.
+   */
+  air?: boolean;
 }
 /**
  * A kind of damage, with a multiplier for each layer it hits.

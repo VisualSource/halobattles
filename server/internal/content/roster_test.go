@@ -129,6 +129,8 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 		"bad dice": {"base/data/units/marine.jsonc",
 			strings.Replace(rosterFiles()["base/data/units/marine.jsonc"], `"1d4"`, `"d4"`, 1),
 			"units base:marine (from base/data/units/marine.jsonc): at /combat/damage"},
+		"class without Battle stats": {"base/data/unitClasses/vehicle.jsonc", `{"id": "vehicle", "name": "Vehicle"}`,
+			"rulesets base:rules: battle classDefaults has no entry for Unit Class base:vehicle"},
 		"dangling reference": {"base/data/buildings/barracks.jsonc",
 			strings.Replace(rosterFiles()["base/data/buildings/barracks.jsonc"], `["marine"]`, `["spartan"]`, 1),
 			"buildings base:barracks: trains: unknown Unit base:spartan"},
