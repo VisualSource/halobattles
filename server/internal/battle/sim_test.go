@@ -459,3 +459,32 @@ func TestARetreatingDefenderLeavesItsBuildingsBehind(t *testing.T) {
 		}
 	}
 }
+
+func TestASquadInTheWayIsCostlyNotAWall(t *testing.T) {
+	// . . . . . . . . .
+	// W W W W f W W W .    f: a friendly squad in the only near gap
+	// . . . . . . . . .
+	f := &Field{W: 9, H: 3, Terrain: make([]uint8, 27), Height: make([]uint8, 27)}
+	c := make(costs, 27)
+	for i := range c {
+		c[i] = 1
+	}
+	for x := range 8 {
+		if x != 4 {
+			c[f.index(Cell{x, 1})] = 0
+		}
+	}
+	friend := f.index(Cell{4, 1})
+	crowd := func(i int) float64 {
+		if i == friend {
+			return friendCost
+		}
+		return 0
+	}
+	if got := f.path(c, Cell{4, 0}, Cell{4, 2}, crowd); !slices.Contains(got, Cell{4, 1}) {
+		t.Errorf("path %v: with the far gap a long way round, it should queue through the friend", got)
+	}
+	if got := f.path(c, Cell{7, 0}, Cell{7, 2}, crowd); slices.Contains(got, Cell{4, 1}) {
+		t.Errorf("path %v: with a free gap next to it, it should go round the friend", got)
+	}
+}

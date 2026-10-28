@@ -91,6 +91,7 @@ type AI struct {
 	plans   map[int]*plan
 	seen    map[int]Cell // enemy buildings seen, by id, where they stand
 	owners  []Side       // Control Point holders last tick, to notice a flip
+	own     []*Squad     // the side's squads on the field this tick
 }
 
 func NewAI(w Weights) *AI {
@@ -110,6 +111,7 @@ func (ai *AI) Orders(v View) []Order {
 	s := v.sim
 	enemies := v.Enemies()
 	own := v.Own()
+	ai.own = own
 	ai.remember(v, own, enemies)
 
 	flipped := false
@@ -278,7 +280,7 @@ func (ai *AI) state(v View, sq *Squad, g goal) facts {
 	if s.coverAt(sq.Cell) < 0 && !sq.air {
 		f |= inCover
 	}
-	for _, o := range v.Own() {
+	for _, o := range ai.own {
 		if o != sq && !o.Building && dist(o.Cell, sq.Cell) <= nearRadius {
 			f |= nearFriendly
 			break
@@ -413,7 +415,7 @@ func (ai *AI) cellFor(v View, sq *Squad, p *plan) (Cell, bool) {
 		return s.coverNear(sq, sq.Cell, nearRadius)
 	case regroup:
 		var near []Cell
-		for _, o := range v.Own() {
+		for _, o := range ai.own {
 			if o != sq && !o.Building {
 				near = append(near, o.Cell)
 			}

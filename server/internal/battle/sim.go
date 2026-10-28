@@ -123,8 +123,8 @@ type Sim struct {
 	pathClass   string
 	deployDepth int
 	rng         *rand.Rand
-	ground, air []int // the squad id in each cell, or 0
-	visible     [2]map[int]bool
+	ground, air []int     // the squad id in each cell, or 0
+	visible     [2][]bool // by squad id: what each side can see this tick
 	costCache   map[string]costs
 	main        []bool            // cells joined to the Control Points on foot
 	reach       map[string][]bool // per Unit Class: cells it can walk to a Control Point from
@@ -415,6 +415,27 @@ func (s *Sim) relocate(sq *Squad, to Cell) {
 	sq.Cell = to
 }
 
+// What another squad in the way costs a re-route, on top of the Terrain:
+// enough to go round a crowd, not so much that a long detour beats waiting
+// for a gap. An enemy won't make way, so it costs more.
+const (
+	friendCost = 4
+	enemyCost  = 8
+)
+
+// crowding is the extra cost of cells other squads stand on in layer.
+func (s *Sim) crowding(side Side, layer []int) func(int) float64 {
+	return func(i int) float64 {
+		switch o := s.squad(layer[i]); {
+		case o == nil:
+			return 0
+		case o.Side == side:
+			return friendCost
+		}
+		return enemyCost
+	}
+}
+
 // closeEnough is how near its goal, in cells, a squad stops when its way is
 // blocked.
 const closeEnough = 3
@@ -449,7 +470,7 @@ func (s *Sim) move() {
 				sq.bank = min(sq.bank, cost)
 				if sq.blocked++; sq.blocked >= TicksPerSecond {
 					sq.blocked = 0
-					sq.path = s.Field.path(c, sq.Cell, sq.goal, func(i int) bool { return layer[i] != 0 })
+					sq.path = s.Field.path(c, sq.Cell, sq.goal, s.crowding(sq.Side, layer))
 				}
 				break
 			}
@@ -567,7 +588,11 @@ func (s *Sim) sightOf(sq *Squad) float64 {
 // Sight of any of them.
 func (s *Sim) see() {
 	for side := range s.visible {
-		vis := map[int]bool{}
+		vis := s.visible[side]
+		if len(vis) != len(s.Squads)+1 {
+			vis = make([]bool, len(s.Squads)+1)
+		}
+		clear(vis)
 		for _, e := range s.Squads {
 			if !e.alive() {
 				continue

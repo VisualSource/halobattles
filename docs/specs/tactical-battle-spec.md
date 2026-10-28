@@ -243,7 +243,8 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 
 ### Movement among other squads
 
-- Long routes are A* over the terrain alone. Other squads are handled locally: a blocked squad waits; after 1 s it re-routes around occupied cells, or swaps places with an idle friendly; within 3 cells of its goal it stops.
+- Long routes are A* over the terrain alone. Other squads are handled locally: a blocked squad waits; after 1 s it re-routes, or swaps places with an idle friendly; within 3 cells of its goal it stops.
+- **Soft obstacles:** the re-route counts a cell another squad stands on as extra cost on top of its Terrain, not as a wall: +4 for a friendly, +8 for an enemy, which won't make way. So A* weighs going round a crowd against waiting for a gap, and a squad in a one-cell gap doesn't cut the map in two.
 - If jams show up in play, the next step is grid steering (sidestep into a free neighbouring cell that's no further from the goal). After that would come flow fields for the few shared destinations (points and exits), or a cooperative reservation table. Continuous-space avoidance (RVO/ORCA) doesn't fit a one-squad-per-cell grid.
 
 ## Determinism and the input log
@@ -281,10 +282,31 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 
 - **Budget:** ≤ 2 ms per Battle step on the server for 45 Squads a side plus 12 buildings, enforced by a Go benchmark test.
 - **Work done only on change:**
-  - fog is recomputed when a Squad changes cell;
   - paths are recomputed when blocked or when the goal changes;
+  - a squad's next destination is re-sent only when its plan's next step changes, or once a second while chasing a moving target;
   - GOAP replans only on events or the staggered fallback.
+- **Work done every tick** (cheap at this size, the first to revisit): Sight (`see()` checks every pair of squads), target picking (each firing squad scans every squad), and Control Point presence (every point against every squad).
+- **Measured:** about 0.5–0.6 ms a step and about 11 KB allocated, for 45 squads a side plus 12 buildings. A* uses a typed binary heap and pooled working memory, so a path call allocates only its result.
 - **Planned upgrade:** v1 steps Battles one after another inside `MatchLoop`. If the benchmark or a real Match shows the tick running long, Battles will step in **parallel goroutines** joined before the tick returns. That's safe because Battles share no state and make no Nakama API calls.
+
+### Performance ideas, not needed yet
+
+Each one waits until a profile or real play shows the cost. Rough order: cheapest and likeliest first.
+
+- **Server, per tick:**
+  - **A spatial grid for squads** (buckets of, say, 8 × 8 cells), so Sight, target picking and point presence look only at nearby squads instead of all of them. Worth it once Battles grow well past 45 squads a side.
+  - **Sight only on change:** recompute a side's visibility only when one of its squads or an enemy changes cell. Most ticks most squads don't move.
+  - **Flow fields** for the shared destinations (each Control Point and each exit edge, per Unit Class): one Dijkstra pass per Battle, after which any squad heading there follows it with no A*. Chasing a moving target still uses A*.
+  - **Parallel stepping** of Battles (above).
+  - **Fewer allocations in the AI planner:** reuse its open list and best-cost table between squads, as A* does.
+  - **Native pathfinding** (Rust or C), last: see [Later](#later).
+- **Wire:**
+  - `BattleView` is upserted whole in `ViewDelta` about 5 times a second, roughly 2 KB in a big fight. If bandwidth matters, send squad-level diffs (moved, hurt, gone) instead.
+- **Client:**
+  - The fog mask is rebuilt from every own squad's Sight on each update. Rebuild it only when an own squad changes cell.
+  - Squad tokens allocate a small vector per frame for the curved movement. Reuse one.
+  - Count badges are DOM elements (about 100 at most). If that ever shows in profiles, draw them into the scene instead.
+- **Saving Matches:** a running Battle's sim isn't plain data (see the `shortcut:` on `game.Battle`). To save one, store its input log (forces, seed, player orders by tick) and re-simulate.
 
 ## Pacing
 
@@ -344,6 +366,7 @@ Not in v1, but kept in mind:
 - **Replay UI**, built on the input log.
 - **Halo-style Shield regeneration** during Battles.
 - **Parallel Battle stepping** (see [Performance](#performance)).
+- **Native pathfinding** (Rust or C): only if profiling, after flow fields and parallel stepping, still shows pathing as the cost. Until then the gains come from doing less work, not faster work, and cgo in the Nakama plugin build adds a toolchain to every build.
 
 ## Open questions
 

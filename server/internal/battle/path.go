@@ -2,7 +2,6 @@ package battle
 
 import (
 	"cmp"
-	"container/heap"
 	"math"
 	"sync"
 )
@@ -57,11 +56,12 @@ func octile(a, b Cell) float64 {
 	return max(dx, dy) + (diagonal-1)*min(dx, dy)
 }
 
-// search is A*'s per-call arrays, pooled: a path call on a big map would
-// otherwise allocate a few dozen KB.
+// search is A*'s working memory, pooled: g and from cover the whole map,
+// and the open list keeps its capacity between calls.
 type search struct {
 	g    []float64
 	from []int
+	open []node
 }
 
 var scratch = sync.Pool{New: func() any { return &search{} }}
@@ -71,25 +71,52 @@ type node struct {
 	f, h float64
 }
 
-type nodes []node
-
-func (n nodes) Len() int { return len(n) }
-func (n nodes) Less(a, b int) bool {
-	return cmp.Or(cmp.Compare(n[a].f, n[b].f), cmp.Compare(n[a].h, n[b].h), cmp.Compare(n[a].i, n[b].i)) < 0
-}
-func (n nodes) Swap(a, b int) { n[a], n[b] = n[b], n[a] }
-func (n *nodes) Push(x any)   { *n = append(*n, x.(node)) }
-func (n *nodes) Pop() any {
-	old := *n
-	x := old[len(old)-1]
-	*n = old[:len(old)-1]
-	return x
+// less orders the open list: lowest f, then lowest h, then lowest cell.
+func (a node) less(b node) bool {
+	return cmp.Or(cmp.Compare(a.f, b.f), cmp.Compare(a.h, b.h), cmp.Compare(a.i, b.i)) < 0
 }
 
-// path finds the cheapest route from start to goal with A*, avoiding cells
-// blocked reports. If goal can't be reached, it goes to the reachable cell
-// nearest it. The result leaves out start.
-func (f *Field) path(c costs, start, goal Cell, blocked func(int) bool) []Cell {
+// push and pop keep open a binary min-heap, typed, so nothing is boxed.
+func push(open []node, n node) []node {
+	open = append(open, n)
+	for i := len(open) - 1; i > 0; {
+		p := (i - 1) / 2
+		if !open[i].less(open[p]) {
+			break
+		}
+		open[i], open[p] = open[p], open[i]
+		i = p
+	}
+	return open
+}
+
+func pop(open []node) (node, []node) {
+	top, last := open[0], len(open)-1
+	open[0] = open[last]
+	open = open[:last]
+	for i := 0; ; {
+		l, small := 2*i+1, i
+		if l < last && open[l].less(open[small]) {
+			small = l
+		}
+		if r := l + 1; r < last && open[r].less(open[small]) {
+			small = r
+		}
+		if small == i {
+			break
+		}
+		open[i], open[small] = open[small], open[i]
+		i = small
+	}
+	return top, open
+}
+
+// path finds the cheapest route from start to goal with A*. extra, if set,
+// adds a cost for entering a cell on top of its Terrain's: other squads in
+// the way, soft enough that a long detour can lose to waiting. If goal can't
+// be reached, it goes to the reachable cell nearest it. The result leaves out
+// start.
+func (f *Field) path(c costs, start, goal Cell, extra func(int) float64) []Cell {
 	minCost := math.Inf(1)
 	for _, v := range c {
 		if v > 0 {
@@ -112,9 +139,10 @@ func (f *Field) path(c costs, start, goal Cell, blocked func(int) bool) []Cell {
 	s, gi := f.index(start), f.index(goal)
 	g[s] = 0
 	best, bestH := s, octile(start, goal)
-	open := &nodes{{s, bestH * minCost, bestH}}
-	for open.Len() > 0 {
-		cur := heap.Pop(open).(node)
+	open := push(buf.open[:0], node{s, bestH * minCost, bestH})
+	for len(open) > 0 {
+		var cur node
+		cur, open = pop(open)
 		if cur.i == gi {
 			best = gi
 			break
@@ -133,22 +161,25 @@ func (f *Field) path(c costs, start, goal Cell, blocked func(int) bool) []Cell {
 				continue
 			}
 			bi := f.index(b)
-			if bi != gi && blocked != nil && blocked(bi) {
-				continue
+			if extra != nil && bi != gi {
+				cost += extra(bi)
 			}
 			if ng := g[cur.i] + cost; ng < g[bi] {
 				g[bi], from[bi] = ng, cur.i
 				h := octile(b, goal)
-				heap.Push(open, node{bi, ng + h*minCost, h})
+				open = push(open, node{bi, ng + h*minCost, h})
 			}
 		}
 	}
-	var out []Cell
+	buf.open = open
+	length := 0
 	for i := best; i != s; i = from[i] {
-		out = append(out, f.cell(i))
+		length++
 	}
-	for l, r := 0, len(out)-1; l < r; l, r = l+1, r-1 {
-		out[l], out[r] = out[r], out[l]
+	out := make([]Cell, length)
+	for i := best; i != s; i = from[i] {
+		length--
+		out[length] = f.cell(i)
 	}
 	return out
 }
