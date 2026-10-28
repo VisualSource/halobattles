@@ -383,7 +383,7 @@ func TestOrderArmyCapturesTheEmptyPlanetBetweenTheCapitals(t *testing.T) {
 func TestAnArmyAtAnEnemyCapitalStartsABattleBothSidesHear(t *testing.T) {
 	h := newLobbyHarness(t)
 	r := h.m.content.Doc.Rulesets["base:rules"]
-	r.Battle.TimeCap = 5 // the test units have no combat stats: the defender holds at the cap
+	r.Battle.StartDelay, r.Battle.TimeCap = 0, 5 // the test units have no combat stats: the defender holds at the cap
 	h.m.content.Doc.Rulesets["base:rules"] = r
 	h.start()
 	mine, theirs := "", ""

@@ -30,7 +30,7 @@ func TestArrivingAtAGarrisonedPlanetStartsABattle(t *testing.T) {
 	ev := s.Advance(c, 30_000)
 
 	b := onlyBattle(t, s)
-	if !s.Planets["b"].Locked || len(s.Armies) != 0 || b.Attacker != 0 || b.Defender != Neutral || b.Started != 30_000 {
+	if !s.Planets["b"].Locked || len(s.Armies) != 0 || b.Attacker != 0 || b.Defender != Neutral || b.Started != 60_000 {
 		t.Fatalf("Battle %+v, b Locked %v, Armies %d", b, s.Planets["b"].Locked, len(s.Armies))
 	}
 	if len(ev.Started) != 1 || b.Sim.Tick != 0 {
@@ -44,17 +44,17 @@ func TestArrivingAtAGarrisonedPlanetStartsABattle(t *testing.T) {
 	}
 }
 
-func TestTheSimStepsOncePerTickOfMatchTime(t *testing.T) {
+func TestTheSimWaitsOutTheStartDelayThenStepsOncePerTick(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	_ = s.OrderArmy(0, "a", marines(10), "b", 1)
-	s.Advance(c, 30_000)
+	s.Advance(c, 30_000) // arrives; the fighting starts 30 s later
 	b := onlyBattle(t, s)
 
-	s.Advance(c, 30_199)
+	s.Advance(c, 60_199)
 	if b.Sim.Tick != 0 {
 		t.Errorf("stepped early: tick %d", b.Sim.Tick)
 	}
-	s.Advance(c, 31_000) // a second: five ticks, caught up at once
+	s.Advance(c, 61_000) // a second in: five ticks, caught up at once
 	if b.Sim.Tick != 5 {
 		t.Errorf("tick %d after 1 s, want 5", b.Sim.Tick)
 	}
@@ -262,7 +262,7 @@ func TestOnlyTheTwoSidesSeeTheBattle(t *testing.T) {
 		t.Error("Seat 1 can see a Battle it isn't a side of")
 	}
 
-	s.Advance(c, 31_000)
+	s.Advance(c, 61_000)
 	if got := s.View(c, 0).Battles[0].Tick; got != 5 {
 		t.Errorf("tick %d after 1 s, want 5", got)
 	}

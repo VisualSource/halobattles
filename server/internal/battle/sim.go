@@ -106,7 +106,8 @@ type Sim struct {
 	ground, air []int // the squad id in each cell, or 0
 	visible     [2]map[int]bool
 	costCache   map[string]costs
-	main        []bool // cells joined to the Control Points on foot
+	main        []bool            // cells joined to the Control Points on foot
+	reach       map[string][]bool // per Unit Class: cells it can walk to a Control Point from
 }
 
 // Each edge's inward direction, and the direction along it.
@@ -134,7 +135,7 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	s := &Sim{
 		Field: f, content: c, rules: rules.Battle, toHit: rules.ToHit, pathClass: string(rules.Battlefield.PathClass),
 		rng: rand.New(rand.NewPCG(seed, 4)), ground: make([]int, f.W*f.H), air: make([]int, f.W*f.H),
-		costCache: map[string]costs{},
+		costCache: map[string]costs{}, reach: map[string][]bool{},
 	}
 	foot := s.costsFor(s.pathClass)
 	s.main = f.largestRegion(func(i int) bool { return foot[i] > 0 })
@@ -240,7 +241,11 @@ func (s *Sim) place(sq *Squad, want Cell) {
 		c = s.costsFor(s.pathClass)
 	}
 	layer := s.layer(sq)
-	fits := func(i int) bool { return c[i] > 0 && (sq.air || s.main[i]) }
+	reach := s.reachFor(sq.class)
+	if sq.Building || !slices.Contains(reach, true) {
+		reach = s.main // a class that can't reach any point, or a building: anywhere on foot
+	}
+	fits := func(i int) bool { return c[i] > 0 && (sq.air || reach[i]) }
 	if !slices.ContainsFunc(layer, func(id int) bool { return id == 0 }) {
 		return // shortcut: a map with every cell taken can't seat it; maps are thousands of cells
 	}
@@ -279,6 +284,36 @@ func (s *Sim) place(sq *Squad, want Cell) {
 			return
 		}
 	}
+}
+
+// reachFor marks the cells a Unit Class can walk to a Control Point from,
+// so a squad never deploys in a pocket it can't leave, such as a vehicle
+// ringed by forest.
+func (s *Sim) reachFor(class string) []bool {
+	if r, ok := s.reach[class]; ok {
+		return r
+	}
+	f, c := s.Field, s.costsFor(class)
+	r := make([]bool, f.W*f.H)
+	var queue []int
+	for _, p := range f.Points {
+		if i := f.index(p); c[i] > 0 {
+			r[i] = true
+			queue = append(queue, i)
+		}
+	}
+	for len(queue) > 0 {
+		i := queue[0]
+		queue = queue[1:]
+		f.neighbours4(i, func(n int) {
+			if !r[n] && c[n] > 0 {
+				r[n] = true
+				queue = append(queue, n)
+			}
+		})
+	}
+	s.reach[class] = r
+	return r
 }
 
 // Step runs one tick: orders, movement, fire, Control Points, then the end
@@ -363,7 +398,10 @@ func (s *Sim) move() {
 				sq.path = nil
 				break
 			}
-			if layer[s.Field.index(next)] != 0 {
+			if other := s.squad(layer[s.Field.index(next)]); other != nil {
+				if s.swaps(sq, other, cost) {
+					continue
+				}
 				if dist(sq.Cell, sq.goal) <= closeEnough {
 					sq.path = nil // a crowd round the goal: this will do
 					break
@@ -384,6 +422,24 @@ func (s *Sim) move() {
 			sq.path = sq.path[1:]
 		}
 	}
+}
+
+// swaps trades places with an idle friendly squad in the way, if each can
+// stand where the other is, so a squad parked in a gap can't block another
+// for good.
+func (s *Sim) swaps(sq, other *Squad, cost float64) bool {
+	if other.Side != sq.Side || len(other.path) > 0 || other.speed == 0 || sq.bank < cost ||
+		s.costsFor(other.class)[s.Field.index(sq.Cell)] == 0 {
+		return false
+	}
+	layer := s.layer(sq)
+	a, b := sq.Cell, other.Cell
+	layer[s.Field.index(a)], layer[s.Field.index(b)] = other.ID, sq.ID
+	sq.Cell, other.Cell = b, a
+	sq.bank -= cost
+	sq.blocked = 0
+	sq.path = sq.path[1:]
+	return true
 }
 
 // sightOf is how far a squad sees: its Sight, plus more per height level on

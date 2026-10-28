@@ -65,17 +65,40 @@ func (v View) Enemies() []*Squad {
 	return out
 }
 
-// Rush is a placeholder AI until the GOAP one: once a second each squad
-// heads for the nearest Control Point its side doesn't hold, or else the
-// nearest enemy it can see, and fires at whatever comes into range.
+// Rush is a placeholder AI until the GOAP one. Once a second each squad
+// attack-moves: the nearest enemy it can see within its Sight and can hit
+// comes first, and once that enemy is in range it stops to fire. Otherwise
+// it heads for the nearest Control Point its side doesn't hold.
 type Rush struct{}
 
 func (Rush) Orders(v View) []Order {
 	var out []Order
-	var enemies []*Squad // looked up once, if needed
+	enemies := v.Enemies()
+	nearest := func(from Cell, cells []Cell) Cell {
+		return slices.MinFunc(cells, func(a, b Cell) int {
+			return cmp.Or(cmp.Compare(dist2(from, a), dist2(from, b)), cmp.Compare(v.Field().index(a), v.Field().index(b)))
+		})
+	}
 	for _, sq := range v.Own() {
 		if sq.speed == 0 || (v.Tick()+sq.ID)%TicksPerSecond != 0 {
 			continue // staggered, so squads don't all plan on the same tick
+		}
+		var foes []Cell
+		for _, e := range enemies {
+			if v.sim.tier(sq, e) != None && dist(sq.Cell, e.Cell) <= sq.sight {
+				foes = append(foes, e.Cell)
+			}
+		}
+		if len(foes) > 0 {
+			foe := nearest(sq.Cell, foes)
+			if d := dist(sq.Cell, foe); d <= sq.reach && d >= sq.minRange {
+				if len(sq.path) > 0 {
+					out = append(out, Order{Kind: Hold, Squad: sq.ID})
+				}
+				continue
+			}
+			out = append(out, Order{Kind: Move, Squad: sq.ID, Cell: foe})
+			continue
 		}
 		var goals []Cell
 		for _, p := range v.Points() {
@@ -84,19 +107,9 @@ func (Rush) Orders(v View) []Order {
 			}
 		}
 		if len(goals) == 0 {
-			if enemies == nil {
-				enemies = v.Enemies()
-			}
-			for _, e := range enemies {
-				goals = append(goals, e.Cell)
-			}
-		}
-		if len(goals) == 0 {
 			continue
 		}
-		goal := slices.MinFunc(goals, func(a, b Cell) int {
-			return cmp.Or(cmp.Compare(dist2(sq.Cell, a), dist2(sq.Cell, b)), cmp.Compare(v.Field().index(a), v.Field().index(b)))
-		})
+		goal := nearest(sq.Cell, goals)
 		if goal != sq.goal || (len(sq.path) == 0 && dist(sq.Cell, goal) > closeEnough) {
 			out = append(out, Order{Kind: Move, Squad: sq.ID, Cell: goal})
 		}

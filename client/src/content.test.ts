@@ -26,6 +26,7 @@ const rules = {
     deployDepth: 4,
   },
   battle: {
+    startDelay: 30,
     timeCap: 180,
     captureRadius: 2,
     captureSeconds: 5,

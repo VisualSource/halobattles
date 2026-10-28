@@ -26,6 +26,8 @@
     "deployDepth": 4
   },
   "battle": {
+    // Seconds to open the Battle before the fighting starts.
+    "startDelay": 30,
     "timeCap": 180,
     "captureRadius": 2,
     "captureSeconds": 5,

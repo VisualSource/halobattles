@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
+import { BattlefieldScene, POINT_NAMES } from "../scene/battlefield";
 import { seatColour } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
 import {
@@ -19,7 +20,6 @@ type TickEvent = { battle: number; tick: number; volleys: Volley[] };
 
 const NEUTRAL = "#9ca3af";
 const SIDES: Side[] = ["attacker", "defender"];
-const POINT_NAMES = "ABCDEFGH";
 
 const sideName = (view: View | null, seat: number | null) =>
   seat === null
@@ -60,7 +60,9 @@ export function BattlePanel(props: {
     id === null ? undefined : s.reports.get(id),
   );
   const view = useStore(conn.store, (s) => s.view);
+  const now = useMatchNow(conn.local);
   const [fire, setFire] = useState<Volley[]>([]);
+  const [full, setFull] = useState(false);
 
   useEffect(() => {
     setFire([]);
@@ -71,6 +73,13 @@ export function BattlePanel(props: {
     conn.events.addEventListener("battleTick", onTick);
     return () => conn.events.removeEventListener("battleTick", onTick);
   }, [conn, id]);
+
+  useEffect(() => {
+    if (!full) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFull(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [full]);
 
   if (id === null) return null;
   const close = () => conn.local.setState({ watching: null });
@@ -121,6 +130,160 @@ export function BattlePanel(props: {
     "?";
   const last = fire.at(-1);
 
+  const title = (
+    <>
+      <h2 className={windowTitle}>
+        {sideName(view, battle.attacker)} attacks {planetName(battle.planet)}
+      </h2>
+      <Tag className="bg-accent-wash text-accent">Locked</Tag>
+    </>
+  );
+  // Both sides are deployed, waiting for the fighting to start.
+  const startsIn = Math.max(0, Math.ceil((battle.started - now) / 1000));
+  const tools = (
+    <>
+      <span className="mr-1 font-mono">
+        {startsIn > 0 ? (
+          <>
+            <span className={label}>Starts in </span>
+            {clock(startsIn)}
+          </>
+        ) : (
+          <>
+            {clock(seconds)}
+            <span className="text-ink-3"> / {clock(rules.timeCap)}</span>
+          </>
+        )}
+      </span>
+      <button
+        type="button"
+        aria-label={full ? "Leave full screen" : "Full screen"}
+        title={full ? "Leave full screen (Esc)" : "Full screen"}
+        onClick={() => setFull(!full)}
+        className="size-7 border-0 bg-transparent p-0 text-ink-3"
+      >
+        {full ? "⤡" : "⤢"}
+      </button>
+    </>
+  );
+  const timeBar = (
+    <div className="h-0.75 flex-none bg-well">
+      <div
+        className="h-full bg-accent transition-[width] duration-200"
+        style={{ width: `${Math.min(1, seconds / rules.timeCap) * 100}%` }}
+      />
+    </div>
+  );
+  const points = (
+    <Points
+      battle={battle}
+      holdSeconds={rules.holdSeconds}
+      captureSeconds={rules.captureSeconds}
+    />
+  );
+  const sides = (
+    <div className={`grid gap-4 p-4 ${full ? "grid-cols-1" : "grid-cols-2"}`}>
+      {SIDES.map((side) => {
+        const seat = seatOf(battle, side);
+        const faction = seat === null ? "" : view?.players[seat]?.faction;
+        return (
+          <section key={side} className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="size-2.5 rounded-sm"
+                style={{ background: colourOf(seat) }}
+              />
+              <h3 className="font-semibold">
+                {side === "attacker" ? "Attackers" : "Defenders"}
+              </h3>
+              <span className="truncate text-ink-3 text-sm">
+                {sideName(view, seat)}
+                {faction &&
+                  ` · ${content.factions.get(faction)?.name ?? faction}`}
+              </span>
+            </div>
+            <UnitGrid
+              squads={battle.squads.filter((q) => q.side === side)}
+              name={name}
+              actor={last?.actor}
+              target={last?.target}
+            />
+          </section>
+        );
+      })}
+    </div>
+  );
+  const latest = (
+    <div className="mx-4 flex h-32 flex-none flex-col gap-1.5 overflow-hidden rounded-md bg-well px-3.5 py-3 text-sm">
+      <span className={label}>Latest fire</span>
+      {fire.length === 0 ? (
+        <span className="text-ink-3">Nobody in range yet…</span>
+      ) : (
+        fire
+          .map((v, n) => ({ v, n }))
+          .reverse()
+          .map(({ v, n }) => (
+            <span
+              key={`${battle.tick}-${n}`}
+              className={`truncate ${n === fire.length - 1 ? "" : "text-ink-3"}`}
+            >
+              {v.actor ? name(unitOf.get(v.actor)) : "Unseen fire"} on{" "}
+              {name(unitOf.get(v.target))} ·{" "}
+              <span className="font-mono">
+                {v.hits}/{v.shots}
+              </span>{" "}
+              hit, <span className="font-mono">{damage(v)}</span>
+              {v.kills > 0 && (
+                <span className="text-danger"> · {v.kills} down</span>
+              )}
+            </span>
+          ))
+      )}
+    </div>
+  );
+  const map = (
+    <BattlefieldView
+      conn={conn}
+      content={content}
+      battle={battle.id}
+      className={full ? "min-h-0 flex-1" : "mx-4 h-95 rounded-md"}
+      banner={startsIn > 0 ? `The fighting starts in ${startsIn} s` : undefined}
+    />
+  );
+
+  if (full) {
+    return (
+      <section
+        aria-label="Battle"
+        className="fixed inset-0 z-50 flex flex-col bg-void"
+      >
+        <div className="flex h-10 flex-none items-center gap-2.5 border-line border-b bg-bar pr-2 pl-3">
+          {title}
+          <span className="flex-1" />
+          {tools}
+          <button
+            type="button"
+            aria-label="Close Battle"
+            onClick={close}
+            className="size-7 border-0 bg-transparent p-0 text-ink-3"
+          >
+            ✕
+          </button>
+        </div>
+        {timeBar}
+        <div className="flex min-h-0 flex-1">
+          {map}
+          <aside className="flex w-105 flex-none flex-col overflow-y-auto border-line border-l bg-panel pb-4">
+            {points}
+            {sides}
+            {latest}
+          </aside>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <Floating
       label="Battle"
@@ -128,95 +291,98 @@ export function BattlePanel(props: {
       remember="battle"
       onClose={close}
       className="w-200"
-      title={
-        <>
-          <h2 className={windowTitle}>
-            {sideName(view, battle.attacker)} attacks{" "}
-            {planetName(battle.planet)}
-          </h2>
-          <Tag className="bg-accent-wash text-accent">Locked</Tag>
-        </>
-      }
-      tools={
-        <span className="mr-2 font-mono">
-          {clock(seconds)}
-          <span className="text-ink-3"> / {clock(rules.timeCap)}</span>
-        </span>
-      }
+      title={title}
+      tools={tools}
     >
-      <div className="h-0.75 bg-well">
-        <div
-          className="h-full bg-accent transition-[width] duration-200"
-          style={{ width: `${Math.min(1, seconds / rules.timeCap) * 100}%` }}
-        />
-      </div>
-      <Points
-        battle={battle}
-        holdSeconds={rules.holdSeconds}
-        captureSeconds={rules.captureSeconds}
-      />
-      <div className="grid grid-cols-2 gap-5 p-4">
-        {SIDES.map((side) => {
-          const seat = seatOf(battle, side);
-          const faction = seat === null ? "" : view?.players[seat]?.faction;
-          return (
-            <section key={side} className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className="size-2.5 rounded-sm"
-                  style={{ background: colourOf(seat) }}
-                />
-                <h3 className="font-semibold">
-                  {side === "attacker" ? "Attackers" : "Defenders"}
-                </h3>
-                <span className="text-ink-3 text-sm">
-                  {sideName(view, seat)}
-                  {faction &&
-                    ` · ${content.factions.get(faction)?.name ?? faction}`}
-                </span>
-              </div>
-              <UnitGrid
-                squads={battle.squads.filter((q) => q.side === side)}
-                name={name}
-                actor={last?.actor}
-                target={last?.target}
-              />
-            </section>
-          );
-        })}
-      </div>
-      <div className="mx-4 flex h-24 flex-col gap-1.5 overflow-hidden rounded-md bg-well px-3.5 py-3 text-sm">
-        <span className={label}>Latest fire</span>
-        {fire.length === 0 ? (
-          <span className="text-ink-3">Nobody in range yet…</span>
-        ) : (
-          fire
-            .map((v, n) => ({ v, n }))
-            .reverse()
-            .map(({ v, n }) => (
-              <span
-                key={`${battle.tick}-${n}`}
-                className={n === fire.length - 1 ? "" : "text-ink-3"}
-              >
-                {v.actor ? name(unitOf.get(v.actor)) : "Unseen fire"} on{" "}
-                {name(unitOf.get(v.target))} ·{" "}
-                <span className="font-mono">
-                  {v.hits}/{v.shots}
-                </span>{" "}
-                hit, <span className="font-mono">{damage(v)}</span>
-                {v.kills > 0 && (
-                  <span className="text-danger"> · {v.kills} down</span>
-                )}
-              </span>
-            ))
-        )}
-      </div>
+      {timeBar}
+      {points}
+      <div className="h-3" />
+      {map}
+      {sides}
+      {latest}
       <p className="px-4 py-3 text-ink-3 text-sm">
         {planetName(battle.planet)} is Locked: its queues are paused and its
         Stacks are frozen until the Battle ends.
       </p>
     </Floating>
+  );
+}
+
+/**
+ * The Battlefield, drawn by a BattlefieldScene that follows the Battle in
+ * the Match store and plays each tick's fire, without re-rendering React.
+ */
+function BattlefieldView(props: {
+  conn: MatchConnection;
+  content: ContentLookups;
+  battle: number;
+  className: string;
+  banner?: string; // shown over the map
+}) {
+  const { conn, content, battle: id } = props;
+  const ref = useRef<HTMLDivElement>(null);
+  const ready = useStore(conn.store, (s) => !!s.view?.battles.get(id)?.field);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ready re-runs it once the Battlefield arrives
+  useEffect(() => {
+    const view = conn.store.getState().view;
+    const battle = view?.battles.get(id);
+    if (!ref.current || !view || !battle?.field) return;
+    const rules = content.rules.battle;
+    const statsOf = (unit: string) =>
+      content.units.get(unit)?.combat ?? content.buildings.get(unit)?.combat;
+    const classOf = (unit: string) =>
+      statsOf(unit)?.unitClass ?? rules.structure.unitClass;
+    const flies = (sq: Squad) =>
+      !!content.unitClasses.get(classOf(sq.unit))?.air;
+    const scene = new BattlefieldScene(ref.current, battle.field, {
+      terrainColour: (t) => content.terrains.get(t)?.colour ?? "#555555",
+      sideColour: {
+        attacker: colourOf(battle.attacker),
+        defender: colourOf(battle.defender),
+      },
+      you: battle.attacker === view.you ? "attacker" : "defender",
+      sight: (sq, height) =>
+        (statsOf(sq.unit)?.sight ??
+          rules.classDefaults[classOf(sq.unit)]?.sight ??
+          0) + (flies(sq) ? 0 : rules.heightSight * height),
+      flies,
+      captureRadius: rules.captureRadius,
+      captureTicks: rules.captureSeconds * BATTLE_TICKS,
+    });
+    scene.update(battle);
+    const unsubscribe = conn.store.subscribe((s, prev) => {
+      const next = s.view?.battles.get(id);
+      if (next && next !== prev.view?.battles.get(id)) scene.update(next);
+    });
+    const onTick = (e: Event) => {
+      const t = (e as CustomEvent<TickEvent>).detail;
+      if (t.battle === id) scene.fire(t.volleys);
+    };
+    conn.events.addEventListener("battleTick", onTick);
+    return () => {
+      unsubscribe();
+      conn.events.removeEventListener("battleTick", onTick);
+      scene.dispose();
+    };
+  }, [conn, content, id, ready]);
+
+  return (
+    <div
+      ref={ref}
+      className={`relative overflow-hidden bg-void ${props.className}`}
+    >
+      {!ready && (
+        <p className="flex h-full items-center justify-center text-ink-3 text-sm">
+          Loading the Battlefield…
+        </p>
+      )}
+      {props.banner && (
+        <p className="pointer-events-none absolute top-3 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/75 px-3 py-1.5 font-mono text-sm">
+          {props.banner}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -446,13 +612,13 @@ function UnitGrid(props: {
     units.set(q.unit, [...(units.get(q.unit) ?? []), q]);
   if (units.size === 0) {
     return (
-      <p className="flex h-64 items-center justify-center rounded-md border border-line border-dashed text-ink-3 text-sm">
+      <p className="flex h-40 items-center justify-center rounded-md border border-line border-dashed text-ink-3 text-sm">
         None in sight
       </p>
     );
   }
   return (
-    <ul className="flex h-64 flex-col gap-2 overflow-y-auto">
+    <ul className="flex h-40 flex-col gap-2 overflow-y-auto">
       {[...units].map(([unit, qs]) => {
         const left = qs.reduce((n, q) => n + q.count, 0);
         const started = qs.reduce((n, q) => n + q.start, 0);

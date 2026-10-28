@@ -50,11 +50,15 @@ type BattleRules struct {
 	// How long the attacker must hold them to win.
 	HoldSeconds float64 `json:"holdSeconds"`
 
+	// Seconds from an Army's arrival to the first sim tick: both sides are deployed
+	// and the Planet Locked, so players can open the Battle.
+	StartDelay int `json:"startDelay"`
+
 	// What a building without a combat block is in a Battle: a target that never
 	// fires.
 	Structure Structure `json:"structure"`
 
-	// Seconds until the defender wins.
+	// Seconds of fighting, after startDelay, until the defender wins.
 	TimeCap int `json:"timeCap"`
 }
 

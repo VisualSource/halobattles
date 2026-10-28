@@ -20,10 +20,10 @@ import (
 type Battle struct {
 	ID       uint32
 	Planet   string
-	Attacker int // a Seat
-	Defender int // a Seat, or Neutral
-	Started  int64
-	ToStack  int // where the attackers go if they win
+	Attacker int   // a Seat
+	Defender int   // a Seat, or Neutral
+	Started  int64 // Match Time of the first sim tick, after the start delay
+	ToStack  int   // where the attackers go if they win
 	Sim      *battle.Sim
 }
 
@@ -68,10 +68,12 @@ func (s *State) field(c *cs.Content, planet string) *battle.Field {
 
 // startBattle fights an Army against everything defending a Planet: every
 // unit in its Stacks, each Stack a formation, and every building. The Planet
-// Locks until the Battle ends.
+// Locks until the Battle ends. Both sides deploy now, and the fighting
+// starts after the Ruleset's start delay.
 func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	s.LastID++
-	b := &Battle{ID: s.LastID, Planet: p.ID, Attacker: a.Owner, Defender: p.Owner, Started: s.Time, ToStack: a.ToStack}
+	delay := int64(c.Rulesets[RulesetID].Battle.StartDelay) * 1000 // time to open the Battle before it starts
+	b := &Battle{ID: s.LastID, Planet: p.ID, Attacker: a.Owner, Defender: p.Owner, Started: s.Time + delay, ToStack: a.ToStack}
 	var attack, defend battle.Force
 	per := max(1, c.Rulesets[RulesetID].UnitSlotsPerStack)
 	for i, u := range a.Units { // an Army's slots, a Stack's worth at a time

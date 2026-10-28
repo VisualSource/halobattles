@@ -352,3 +352,30 @@ func TestSnapshotsHideWhatASideCantSee(t *testing.T) {
 		t.Errorf("fire the attacker can't see at all: %+v, want none", got)
 	}
 }
+
+// Regression: a vehicle deployed in a pocket of forest it couldn't leave,
+// and the infantry queued behind it waited all Battle.
+func TestEveryAttackerGetsMoving(t *testing.T) {
+	c := baseContent(t)
+	for seed := range uint64(30) {
+		unsc, cov := kits()
+		unsc.Formations = append(unsc.Formations, []Slot{{"base:marine", 5, 0}, {"base:warthog", 2, 1}, {"base:scorpion", 1, 2}, {"base:hornet", 1, 3}})
+		s := newSim(c, unsc, cov, seed)
+		start := map[int]Cell{}
+		for _, sq := range s.Squads {
+			start[sq.ID] = sq.Cell
+		}
+		moved := map[int]bool{}
+		for !s.Over && s.Tick < 300 {
+			s.Step()
+			for _, sq := range s.Squads {
+				moved[sq.ID] = moved[sq.ID] || sq.Cell != start[sq.ID]
+			}
+		}
+		for _, sq := range s.Squads {
+			if sq.Side == Attacker && !moved[sq.ID] && sq.alive() {
+				t.Errorf("seed %d: %s squad %d never left %v", seed, sq.Unit, sq.ID, sq.Cell)
+			}
+		}
+	}
+}

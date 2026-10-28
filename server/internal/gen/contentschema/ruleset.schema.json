@@ -74,9 +74,10 @@
       "description": "How a Battle runs on its Battlefield.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["timeCap", "captureRadius", "captureSeconds", "holdPoints", "holdSeconds", "highGroundToHit", "heightSight", "structure", "classDefaults"],
+      "required": ["startDelay", "timeCap", "captureRadius", "captureSeconds", "holdPoints", "holdSeconds", "highGroundToHit", "heightSight", "structure", "classDefaults"],
       "properties": {
-        "timeCap": { "description": "Seconds until the defender wins.", "type": "integer", "minimum": 1 },
+        "startDelay": { "description": "Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.", "type": "integer", "minimum": 0 },
+        "timeCap": { "description": "Seconds of fighting, after startDelay, until the defender wins.", "type": "integer", "minimum": 1 },
         "captureRadius": { "description": "How near, in cells, a ground Squad must be to a Control Point to hold or take it.", "type": "number", "minimum": 0 },
         "captureSeconds": { "description": "How long one side alone must be in range to take a Control Point.", "type": "number", "minimum": 0 },
         "holdPoints": { "description": "How many Control Points the attacker must hold to start the hold timer.", "type": "integer", "minimum": 1 },

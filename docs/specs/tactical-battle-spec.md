@@ -79,6 +79,7 @@ Base-Mod Terrains:
 
 ## Time and movement
 
+- **Start delay:** when an Army arrives, the Planet Locks and both sides deploy at once, but the first sim tick waits `battle.startDelay` (30 s). That gives players time to open the Battle and see the layout. The window counts down meanwhile. A Battle decided on arrival (one side has nothing that can fight) ends at once.
 - The sim **steps once per match tick (5 Hz, 200 ms)**. Every duration in seconds is converted to whole ticks, rounded to the nearest one.
 - Within a tick, the order is fixed:
   1. apply orders;
@@ -153,7 +154,7 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
   - holding **2 of 3 points for 30 s in a row**; the hold timer resets the moment it holds fewer than 2;
   - **elimination**: the defender has no Squads and no armed buildings left.
 - **Defender wins** by:
-  - the **time cap, 3 min**;
+  - the **time cap, 3 min** of fighting, counted after the start delay;
   - **elimination**: the attacker has no Squads left;
   - the attacker **Retreating** ([Retreat](#retreat-in-battle)).
 - **Mutual wipe-out**, or both sides finishing a Retreat on the same tick: the defender keeps the Planet, as before.
@@ -263,15 +264,15 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 
 ## Watching
 
-- The Battle window shows the Battlefield by default. A button makes it **full-screen**, and the galaxy keeps running underneath it.
+- The Battle window shows the Battlefield above each side's squads and the latest fire. A button (or Esc to leave) makes it **full-screen**: the map fills the screen and the rest moves to a side column. The galaxy keeps running underneath.
 - It's rendered with **three.js and an orthographic top-down camera**, with no new dependency:
-  - the terrain is one data texture on a plane, with placeholder Terrain colours and height shading;
-  - fog of war is a second mask texture;
-  - Squads are instanced sprites showing the side colour, a count badge, a layer bar and a facing tick;
-  - Control Points are rings with capture progress;
-  - volleys are drawn as tracers and flashes.
-- The client **interpolates** Squad positions between ticks.
-- The camera **pans and zooms** inside the map bounds and never rotates.
+  - the terrain is one data texture on a plane, in placeholder Terrain colours, lighter per height level, with a faint checker so cells read;
+  - fog of war is a second mask texture, cleared within your squads' Sight, which the client works out from content the same way the server does;
+  - squads are tokens in the side's colour: circles for ground units, triangles for flyers, squares for buildings, each with a count badge;
+  - Control Points are rings in the holder's colour, with an arc for capture progress in the taker's;
+  - volleys are drawn as tracers from shooters you can see, with a flash where hits land, bigger on a kill.
+- The client **interpolates** Squad positions between ticks, unless the player prefers reduced motion.
+- The camera **pans by drag and zooms with the wheel** inside the map bounds, from the whole map down to a fifth of it, and never rotates.
 - The window's **Retreat** button stays in place. It's disabled when Retreat isn't allowed, and while the countdown runs it shows the time left and "Cancel".
 - Players who aren't sides see only "Battle in progress", as before.
 
@@ -302,6 +303,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battlefield.controlPoints` | 3 |
 | `battlefield.controlPointSpacing` | 10 cells |
 | `battlefield.deployDepth` | 4 cells |
+| `battle.startDelay` | 30 s |
 | `battle.timeCap` | 180 s |
 | `battle.captureRadius` | 2 cells |
 | `battle.captureSeconds` | 5 |
