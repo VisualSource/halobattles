@@ -210,3 +210,53 @@ func TestGuardsChaseOnALeashThenGoBack(t *testing.T) {
 		t.Errorf("orders %+v, engaged %d; want the guard back to its point", orders, p.engaged)
 	}
 }
+
+// matchupSim has Marines (advantage against infantry, disadvantage against
+// vehicles) facing Grunts a little further off than a Warthog, all in view.
+func matchupSim(t *testing.T) (s *Sim, marines, grunts, warthog *Squad) {
+	t.Helper()
+	s = aiSim(t, Force{Formations: [][]Slot{{{"base:marine", 5, 0}}}},
+		Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:warthog", 1, 1}}}})
+	marines, grunts, warthog = s.Squads[0], s.Squads[1], s.Squads[2]
+	freeAt(t, s, marines, s.Points[0].Cell, 0)
+	freeAt(t, s, warthog, marines.Cell, 3)
+	freeAt(t, s, grunts, marines.Cell, 4)
+	s.see()
+	return
+}
+
+func TestFireGoesForTheBestMatchupInRange(t *testing.T) {
+	s, marines, grunts, _ := matchupSim(t)
+	if got := s.targetOf(marines); got != grunts {
+		t.Errorf("the Marines fire at %v; want the Grunts they have Advantage against, over the nearer Warthog", got.Unit)
+	}
+}
+
+func TestTheCommanderSendsSquadsAfterWhatTheyreGoodAgainst(t *testing.T) {
+	s, marines, grunts, _ := matchupSim(t)
+	for i := range s.Points {
+		s.Points[i].Owner = Attacker // nothing to capture: it's down to whom to fight
+	}
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Attacker}
+	ai.command(v, v.Own(), v.Enemies())
+	if g := ai.plans[marines.ID].goal; g.kind != kill || g.target != grunts.ID {
+		t.Errorf("the Marines' goal is %+v; want to kill the Grunts", g)
+	}
+}
+
+func TestAGuardOnItsLeashTakesTheBestMatchup(t *testing.T) {
+	s := aiSim(t, Force{Formations: [][]Slot{{{"base:marine", 5, 0}, {"base:warthog", 1, 1}}}},
+		Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
+	marines, warthog, grunts := s.Squads[0], s.Squads[1], s.Squads[2]
+	point := s.Points[0].Cell
+	freeAt(t, s, grunts, point, 0)
+	freeAt(t, s, warthog, point, 3)
+	freeAt(t, s, marines, point, 5)
+	s.see()
+	ai := NewAI(WeightsOf(nil))
+	p := &plan{goal: goal{kind: defend, cell: point}}
+	if got := ai.intruder(View{s, Defender}, grunts, p, View{s, Defender}.Enemies()); got != marines {
+		t.Errorf("the guard goes after %v; want the Marines it has Advantage against", got)
+	}
+}

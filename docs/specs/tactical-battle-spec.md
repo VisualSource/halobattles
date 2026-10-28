@@ -210,10 +210,11 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
   - distance;
   - the enemy strength the side can see near it;
   - the strength already assigned to it, so all Squads don't pile onto one point.
+- **Matchups:** a kill or raid goal's score is scaled by the squad's tier against the target: ×1.15 for Advantage, ×0.9 for Disadvantage. Kept mild: at ×1.5 and ×0.6 the attacker, free to pick its fights while the defender is tied to its points, won 75% of Starting Kit Battles.
 - Caution's threat penalty applies to every goal except holding a point: a threatened point is the one to hold.
 - Threat counts enemy squads the side has **seen lately**, not only those in view: each is remembered where it was last seen for 10 s, or until that spot is back in Sight without it. Without this, a squad that sighted the enemy, turned away, and lost sight of it turned straight back, over and over.
 - A squad's current goal scores a quarter more (**stickiness**), so near-ties don't flip it back and forth.
-- **Leash:** a squad guarding a point goes after the nearest enemy it can see and hurt that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. At 8 cells, guards left their points open often enough to tip balance toward the attacker.
+- **Leash:** a squad guarding a point goes after the enemy it can see and hurt, best matchup first and then nearest, that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. At 8 cells, guards left their points open often enough to tip balance toward the attacker.
 - While the attacker's hold timer runs, the defender values retaking a point at 5 instead of 3.
 - **Goals:**
   - `capturePoint(p)`
@@ -316,7 +317,7 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
 
 - Two evenly matched forces should fight for about **1–3 minutes**.
 - The two Starting Kits should stay roughly even: either one attacking wins about 45–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights.
-- A Go test checks both over 100 seeds per matchup, allowing 40–60% for sampling noise. When last tuned: about 105 s per Battle; UNSC attacking wins 55%, Covenant attacking 51%.
+- A Go test checks both over 100 seeds per matchup, allowing 40–60% for sampling noise. When last tuned: about 99 s per Battle; UNSC attacking wins 58%, Covenant attacking 51%.
 - Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 
 ## Ruleset additions

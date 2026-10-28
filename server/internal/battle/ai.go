@@ -42,6 +42,11 @@ const (
 	scout                   // look for the enemy
 )
 
+// matchup scales a kill or raid goal by the squad's tier against the
+// target, so squads go after what they're good against. Kept mild: at 1.5 and
+// 0.6 the attacker, free to pick its fights, won 75% of Starting Kit Battles.
+var matchup = map[string]float64{Advantage: 1.15, Normal: 1, Disadvantage: 0.9}
+
 // goal is what the Commander gives a squad: a place, and for kill and raid
 // the target's id.
 type goal struct {
@@ -289,6 +294,9 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 				continue // it can't hurt that
 			}
 			score := values[i] / (1 + dist(sq.Cell, g.cell)/distScale) / (1 + assigned[i])
+			if g.target != 0 {
+				score *= matchup[s.tier(sq, s.squad(g.target))] // go after what it's good against
+			}
 			if g.kind != defend { // a threatened point is the one to hold, not to shy from
 				score /= 1 + w.Caution*threat[i]/max(1, strength)
 			}
@@ -312,8 +320,9 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 }
 
 // intruder is the enemy a guarding squad should leave its point to fight:
-// the one it's already fighting while that's still on the leash, or else the
-// nearest it can see and hurt within the leash of the point.
+// the one it's already fighting while that's still on the leash, or else,
+// among those it can see and hurt within the leash of the point, the best
+// matchup, then the nearest.
 func (ai *AI) intruder(v View, sq *Squad, p *plan, enemies []*Squad) *Squad {
 	s := v.sim
 	reach := leash * ai.weightsOf(sq).Aggression
@@ -326,7 +335,10 @@ func (ai *AI) intruder(v View, sq *Squad, p *plan, enemies []*Squad) *Squad {
 	}
 	var best *Squad
 	for _, e := range enemies {
-		if onLeash(e) && (best == nil || dist2(sq.Cell, e.Cell) < dist2(sq.Cell, best.Cell)) {
+		if onLeash(e) && (best == nil || cmp.Or(
+			cmp.Compare(tierRank[s.tier(sq, e)], tierRank[s.tier(sq, best)]),
+			cmp.Compare(dist2(sq.Cell, e.Cell), dist2(sq.Cell, best.Cell)),
+		) < 0) {
 			best = e
 		}
 	}
