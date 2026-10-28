@@ -403,4 +403,5 @@ Not in v1, but kept in mind:
 - **Replay UI**, built on the input log.
 - **Halo-style Shield regeneration** during Battles.
 - **Parallel Battle stepping** (see [Performance](#performance)).
+- **Choke points** for the defender: plot the attacker's likely approaches to each point with A*, find the narrowest stretch some 6–12 cells out, and have skirmishers or a reserve hold its far side on the best ground there, delaying the attacker where it bunches up. Held back because every way tried so far of pulling squads off the points cost the defender; revisit if big Battles look one-sided in play.
 - **Native pathfinding** (Rust or C): only if profiling, after flow fields and parallel stepping, still shows pathing as the cost. Until then the gains come from doing less work, not faster work, and cgo in the Nakama plugin build adds a toolchain to every build.
