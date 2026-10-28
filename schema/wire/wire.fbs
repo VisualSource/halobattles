@@ -241,6 +241,8 @@ table BattleAction {
   armor_dmg: float;
   hp_dmg: float;
   killed: bool;
+  hit: bool;               // false: the to-hit roll missed, and nothing was dealt
+  roll: uint16;            // the damage roll, before the layer multipliers
 }
 
 // A Battle you're a side of, as it stands after the Rounds completed so far.

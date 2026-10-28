@@ -14,6 +14,8 @@ type BattleActionT struct {
 	ArmorDmg  float32 `json:"armor_dmg"`
 	HpDmg     float32 `json:"hp_dmg"`
 	Killed    bool    `json:"killed"`
+	Hit       bool    `json:"hit"`
+	Roll      uint16  `json:"roll"`
 }
 
 func (t *BattleActionT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -40,6 +42,8 @@ func (t *BattleActionT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	BattleActionAddArmorDmg(builder, t.ArmorDmg)
 	BattleActionAddHpDmg(builder, t.HpDmg)
 	BattleActionAddKilled(builder, t.Killed)
+	BattleActionAddHit(builder, t.Hit)
+	BattleActionAddRoll(builder, t.Roll)
 	return BattleActionEnd(builder)
 }
 
@@ -51,6 +55,8 @@ func (rcv *BattleAction) UnPackTo(t *BattleActionT) {
 	t.ArmorDmg = rcv.ArmorDmg()
 	t.HpDmg = rcv.HpDmg()
 	t.Killed = rcv.Killed()
+	t.Hit = rcv.Hit()
+	t.Roll = rcv.Roll()
 }
 
 func (rcv *BattleAction) UnPack() *BattleActionT {
@@ -169,8 +175,32 @@ func (rcv *BattleAction) MutateKilled(n bool) bool {
 	return rcv._tab.MutateBoolSlot(16, n)
 }
 
+func (rcv *BattleAction) Hit() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleAction) MutateHit(n bool) bool {
+	return rcv._tab.MutateBoolSlot(18, n)
+}
+
+func (rcv *BattleAction) Roll() uint16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		return rcv._tab.GetUint16(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleAction) MutateRoll(n uint16) bool {
+	return rcv._tab.MutateUint16Slot(20, n)
+}
+
 func BattleActionStart(builder *flatbuffers.Builder) {
-	builder.StartObject(7)
+	builder.StartObject(9)
 }
 func BattleActionAddActor(builder *flatbuffers.Builder, actor flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(actor), 0)
@@ -192,6 +222,12 @@ func BattleActionAddHpDmg(builder *flatbuffers.Builder, hpDmg float32) {
 }
 func BattleActionAddKilled(builder *flatbuffers.Builder, killed bool) {
 	builder.PrependBoolSlot(6, killed, false)
+}
+func BattleActionAddHit(builder *flatbuffers.Builder, hit bool) {
+	builder.PrependBoolSlot(7, hit, false)
+}
+func BattleActionAddRoll(builder *flatbuffers.Builder, roll uint16) {
+	builder.PrependUint16Slot(8, roll, 0)
 }
 func BattleActionEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

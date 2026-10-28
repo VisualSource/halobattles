@@ -9,11 +9,11 @@
   "combat": {
     "unitClass": "infantry",
     "weaponType": "plasma",
-    "shield": 20,
+    "shield": 2,
     "armor": 0,
-    "hp": 70,
-    "damage": 9,
+    "hp": 10,
+    "damage": "1d4",
     "initiative": 12,
-    "tiers": { "infantry": "strong", "vehicle": "weak", "aircraft": "weak", "structure": "weak" }
+    "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "disadvantage", "structure": "disadvantage" }
   }
 }

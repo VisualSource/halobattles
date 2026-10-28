@@ -16,7 +16,7 @@ const baseRules = `{
 	"cancelRefundPercent": 50,
 	"sellRefundPercent": 50,
 	"unitSlotsPerStack": 10,
-	"tiers": {"none": 0, "weak": 0.6, "average": 1, "strong": 1.4},
+	"toHit": 3,
 	"laneTypes": {"fast": 1, "slow": 2},
 	"initiativeDie": 20,
 	"roundSeconds": 3,
@@ -215,14 +215,12 @@ func TestEveryContentProblemIsListedAtOnce(t *testing.T) {
 
 func TestCrossReferencesAreChecked(t *testing.T) {
 	files := baseFiles()
-	files["base/data/rulesets/rules.jsonc"] = strings.Replace(baseRules, `"average": 1, `, "", 1)
-	files["base/data/rulesets/rules.jsonc"] = strings.Replace(files["base/data/rulesets/rules.jsonc"], `{"credits": 1000}`, `{"gold": 5}`, 1)
+	files["base/data/rulesets/rules.jsonc"] = strings.Replace(baseRules, `{"credits": 1000}`, `{"gold": 5}`, 1)
 	files["base/data/resources/credits.jsonc"] = `{"id": "credits", "name": "Credits", "icon": "__base__/icons/credits.png"}`
 	files["base/data/rulesets/second.jsonc"] = strings.Replace(baseRules, `"id": "rules"`, `"id": "other"`, 1)
 
 	wantErr(t, writeMods(t, files, "base"),
 		"exactly one Ruleset, base:rules; found [base:other base:rules]",
-		"rulesets base:rules: tiers must include \"average\"",
 		"rulesets base:rules: startingResources: unknown Resource base:gold",
 		"resources base:credits: asset __base__/icons/credits.png not found")
 

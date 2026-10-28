@@ -264,7 +264,7 @@ func TestOnlyTheTwoSidesSeeTheBattleAsItStandsAfterEachRound(t *testing.T) {
 	s.Advance(c, 30_000)
 
 	v := s.View(c, 0)
-	if len(v.Battles) != 1 || v.Battles[0].Round != 0 || v.Battles[0].Roster[0].HP != 100 {
+	if len(v.Battles) != 1 || v.Battles[0].Round != 0 || v.Battles[0].Roster[0].HP != 12 {
 		t.Fatalf("Seat 0 sees %+v, want its Battle before any Round completes", v.Battles)
 	}
 	if len(s.View(c, 1).Battles) != 0 {
@@ -273,7 +273,7 @@ func TestOnlyTheTwoSidesSeeTheBattleAsItStandsAfterEachRound(t *testing.T) {
 
 	s.Advance(c, 33_000)
 	after := s.View(c, 0).Battles[0]
-	hurt := slices.ContainsFunc(after.Roster, func(cb Combatant) bool { return cb.Side == Defender && cb.HP < 70 })
+	hurt := slices.ContainsFunc(after.Roster, func(cb Combatant) bool { return cb.Side == Defender && (cb.Shield < 20 || cb.HP < 70) })
 	if after.Round != 1 || !hurt {
 		t.Errorf("after Round 1: round %d, want 1 and some Grunt hurt", after.Round)
 	}

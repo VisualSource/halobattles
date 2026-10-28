@@ -509,7 +509,17 @@ describe("MatchConnection", () => {
       Op.BattleRound,
       pack(
         new BattleRoundT(3000n, 5, "c", 2, [
-          new BattleActionT("a0001", "d0001", "base:kinetic", 9.5, 0, 5, false),
+          new BattleActionT(
+            "a0001",
+            "d0001",
+            "base:kinetic",
+            9.5,
+            0,
+            5,
+            false,
+            true,
+            12,
+          ),
         ]),
       ),
     );
@@ -554,6 +564,8 @@ describe("MatchConnection", () => {
             armorDmg: 0,
             hpDmg: 5,
             killed: false,
+            hit: true,
+            roll: 12,
           },
         ],
       },

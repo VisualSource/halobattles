@@ -65,8 +65,18 @@ killed():boolean {
   return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
 }
 
+hit():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
+roll():number {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? this.bb!.readUint16(this.bb_pos + offset) : 0;
+}
+
 static startBattleAction(builder:flatbuffers.Builder) {
-  builder.startObject(7);
+  builder.startObject(9);
 }
 
 static addActor(builder:flatbuffers.Builder, actorOffset:flatbuffers.Offset) {
@@ -97,12 +107,20 @@ static addKilled(builder:flatbuffers.Builder, killed:boolean) {
   builder.addFieldInt8(6, +killed, +false);
 }
 
+static addHit(builder:flatbuffers.Builder, hit:boolean) {
+  builder.addFieldInt8(7, +hit, +false);
+}
+
+static addRoll(builder:flatbuffers.Builder, roll:number) {
+  builder.addFieldInt16(8, roll, 0);
+}
+
 static endBattleAction(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createBattleAction(builder:flatbuffers.Builder, actorOffset:flatbuffers.Offset, targetOffset:flatbuffers.Offset, weaponOffset:flatbuffers.Offset, shieldDmg:number, armorDmg:number, hpDmg:number, killed:boolean):flatbuffers.Offset {
+static createBattleAction(builder:flatbuffers.Builder, actorOffset:flatbuffers.Offset, targetOffset:flatbuffers.Offset, weaponOffset:flatbuffers.Offset, shieldDmg:number, armorDmg:number, hpDmg:number, killed:boolean, hit:boolean, roll:number):flatbuffers.Offset {
   BattleAction.startBattleAction(builder);
   BattleAction.addActor(builder, actorOffset);
   BattleAction.addTarget(builder, targetOffset);
@@ -111,6 +129,8 @@ static createBattleAction(builder:flatbuffers.Builder, actorOffset:flatbuffers.O
   BattleAction.addArmorDmg(builder, armorDmg);
   BattleAction.addHpDmg(builder, hpDmg);
   BattleAction.addKilled(builder, killed);
+  BattleAction.addHit(builder, hit);
+  BattleAction.addRoll(builder, roll);
   return BattleAction.endBattleAction(builder);
 }
 
@@ -122,7 +142,9 @@ unpack(): BattleActionT {
     this.shieldDmg(),
     this.armorDmg(),
     this.hpDmg(),
-    this.killed()
+    this.killed(),
+    this.hit(),
+    this.roll()
   );
 }
 
@@ -135,6 +157,8 @@ unpackTo(_o: BattleActionT): void {
   _o.armorDmg = this.armorDmg();
   _o.hpDmg = this.hpDmg();
   _o.killed = this.killed();
+  _o.hit = this.hit();
+  _o.roll = this.roll();
 }
 }
 
@@ -146,7 +170,9 @@ constructor(
   public shieldDmg: number = 0.0,
   public armorDmg: number = 0.0,
   public hpDmg: number = 0.0,
-  public killed: boolean = false
+  public killed: boolean = false,
+  public hit: boolean = false,
+  public roll: number = 0
 ){}
 
 
@@ -162,7 +188,9 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.shieldDmg,
     this.armorDmg,
     this.hpDmg,
-    this.killed
+    this.killed,
+    this.hit,
+    this.roll
   );
 }
 }

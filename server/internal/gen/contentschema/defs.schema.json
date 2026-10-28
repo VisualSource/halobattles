@@ -52,7 +52,7 @@
     },
     "combat": {
       "title": "Combat",
-      "description": "Battle stats. A Unit Class missing from tiers counts as `average`.",
+      "description": "Battle stats. A Unit Class missing from tiers counts as `normal`.",
       "type": "object",
       "additionalProperties": false,
       "required": ["unitClass", "weaponType", "shield", "armor", "hp", "damage", "initiative"],
@@ -62,13 +62,17 @@
         "shield": { "type": "integer", "minimum": 0 },
         "armor": { "type": "integer", "minimum": 0 },
         "hp": { "type": "integer", "minimum": 1 },
-        "damage": { "type": "number", "minimum": 0 },
+        "damage": {
+          "description": "The damage roll, in dice notation: NdM, or NdM+K.",
+          "type": "string",
+          "pattern": "^[1-9][0-9]*d[1-9][0-9]*(\\+[0-9]+)?$"
+        },
         "initiative": { "type": "integer" },
         "tiers": {
-          "description": "Effectiveness tier name (from the Ruleset) per Unit Class id.",
+          "description": "Per Unit Class id, how this attacker rolls against it: advantage rolls the to-hit and damage twice and keeps the higher, disadvantage keeps the lower, none can't target it.",
           "type": "object",
           "propertyNames": { "$ref": "#/definitions/id" },
-          "additionalProperties": { "type": "string", "pattern": "^[a-z0-9_-]+$" }
+          "additionalProperties": { "enum": ["advantage", "normal", "disadvantage", "none"] }
         }
       }
     }

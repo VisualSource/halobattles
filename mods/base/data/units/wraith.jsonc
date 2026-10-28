@@ -9,11 +9,11 @@
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "explosive",
-    "shield": 150,
-    "armor": 150,
-    "hp": 250,
-    "damage": 60,
+    "shield": 17,
+    "armor": 17,
+    "hp": 30,
+    "damage": "4d6+1",
     "initiative": 4,
-    "tiers": { "infantry": "average", "vehicle": "strong", "aircraft": "none", "structure": "strong" }
+    "tiers": { "infantry": "normal", "vehicle": "advantage", "aircraft": "none", "structure": "advantage" }
   }
 }

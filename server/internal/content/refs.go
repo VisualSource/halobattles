@@ -116,9 +116,6 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 	for _, id := range slices.Sorted(maps.Keys(doc.Rulesets)) {
 		r := doc.Rulesets[id]
 		where := "rulesets " + id
-		if _, ok := r.Tiers["average"]; !ok {
-			c.fail("%s: tiers must include \"average\"", where)
-		}
 		c.resourceKeys(where+": startingResources", r.StartingResources)
 	}
 	for _, id := range slices.Sorted(maps.Keys(doc.Resources)) {
@@ -185,12 +182,7 @@ func (c *checker) combat(where string, cb *contentschema.Combat) {
 	c.ref(where+": combat", "unitClasses", string(cb.UnitClass))
 	c.ref(where+": combat", "weaponTypes", string(cb.WeaponType))
 	for _, class := range slices.Sorted(maps.Keys(cb.Tiers)) {
-		c.ref(where+": combat tiers", "unitClasses", class)
-		if c.rules != nil {
-			if _, ok := c.rules.Tiers[cb.Tiers[class]]; !ok {
-				c.fail("%s: combat tiers: unknown tier %q", where, cb.Tiers[class])
-			}
-		}
+		c.ref(where+": combat tiers", "unitClasses", class) // the schema checks the tier names
 	}
 }
 

@@ -24,7 +24,7 @@ func lineContent() *cs.Content {
 	return &cs.Content{
 		Rulesets: map[string]cs.Ruleset{RulesetID: {
 			PaydaySeconds: 90, CancelRefundPercent: 50, SellRefundPercent: 50, UnitSlotsPerStack: 10,
-			Tiers: map[string]float64{"none": 0, "weak": 0.6, "average": 1, "strong": 1.4}, InitiativeDie: 20, RoundCap: 40, RoundSeconds: 3,
+			ToHit: 3, InitiativeDie: 20, RoundCap: 40, RoundSeconds: 3,
 		}},
 		WeaponTypes: battleContent().WeaponTypes,
 		Resources:   map[string]cs.Resource{"base:credits": {Name: "Credits"}, "base:materials": {Name: "Materials"}},

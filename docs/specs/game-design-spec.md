@@ -79,17 +79,20 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 
 ### Damage model
 
-- Every combatant has **Shield → Armor → HP** layers, a **Unit Class**, a **Weapon Type**, base damage and an **Initiative** stat.
+- Every combatant has **Shield → Armor → HP** layers, a **Unit Class**, a **Weapon Type**, a **Damage roll** in dice notation (`1d4`, `4d6+1`) and an **Initiative** stat. See [ADR 0003](../adr/0003-dice-damage.md).
 - A **Weapon Type** has a multiplier per layer.
-- Against each **Unit Class**, an attacker has an effectiveness tier: `none` 0, `weak` 0.6, `average` 1.0, `strong` 1.4. A Unit Class missing from a combatant's `tiers` counts as `average`.
-- **One hit** = base damage × Unit Class tier × the multiplier of the layer being hit now. Damage left over after a layer breaks carries into the next layer at that layer's multiplier. Damage left over after the target dies is wasted.
+- Against each **Unit Class**, an attacker has a tier: `advantage`, `normal`, `disadvantage` or `none`. A Unit Class missing from a combatant's `tiers` counts as `normal`.
+- **An attack** rolls the **To-hit roll** first, 1d20: below the Ruleset's `toHit` it misses and deals nothing. A hit then rolls the Damage roll.
+  - With **Advantage**, the attacker rolls the To-hit roll and the Damage roll twice each and keeps the higher. With **Disadvantage** it keeps the lower. `normal` rolls once, and `none` can't target that Unit Class.
+- **One hit's damage** = the Damage roll × the multiplier of the layer being hit now, rounded down. Damage left over after a layer breaks carries into the next layer at that layer's multiplier. Damage left over after the target dies is wasted. A hit always does at least 1, unless the layer it reaches has a ×0 multiplier.
+- There are no critical hits.
 - A Battle tracks **every unit individually**, each with its own layers and its own turn.
 
 ### Rounds
 
 - At the start of each **Round**, every combatant re-rolls Initiative: its Initiative stat + 1d20.
   - Combatants act from the highest Initiative down. Ties go to the defender, then to the lowest unit id.
-- On its turn, a combatant picks a target uniformly at random among living enemies it can hit (tier > 0) and attacks.
+- On its turn, a combatant picks a target uniformly at random among living enemies it can target (any tier but `none`) and attacks. A miss still uses its turn.
   - A combatant killed before its turn doesn't act.
   - A combatant with no valid target skips its turn.
 - Shields don't regenerate during a Battle.
@@ -165,18 +168,20 @@ The base Mod ships **no icons or sprites**; the client draws placeholders.
 
 The rosters mirror each other's roles and costs. Covenant units put part of their durability into Shields and have higher Initiative; UNSC units carry more Armor and HP.
 
-| Unit | Faction | Class | Weapon | Sh/Ar/HP | Dmg | Init | Tiers Inf/Veh/Air/Str | Cost | Time | CP | Trained at |
+Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 45–55% of the time) and fight for 8–15 Rounds; a Go test keeps both.
+
+| Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Init | Tiers Inf/Veh/Air/Str | Cost | Time | CP | Trained at |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Marine | UNSC | Inf | Kinetic | 0/0/100 | 10 | 10 | strong/weak/weak/weak | 50C | 15s | 1 | Barracks |
-| ODST | UNSC | Inf | Explosive | 0/20/120 | 30 | 8 | weak/strong/average/strong | 100C 25M | 25s | 2 | Barracks |
-| Warthog | UNSC | Veh | Kinetic | 0/100/200 | 20 | 14 | strong/weak/average/weak | 150C 50M | 30s | 3 | Vehicle Depot |
-| Scorpion | UNSC | Veh | Explosive | 0/300/300 | 60 | 4 | average/strong/none/strong | 250C 100M | 45s | 4 | Vehicle Depot |
-| Hornet | UNSC | Air | Kinetic | 0/100/200 | 25 | 16 | average/strong/strong/average | 300C 150M | 50s | 5 | Air Pad |
-| Grunt | Covenant | Inf | Plasma | 20/0/70 | 9 | 12 | strong/weak/weak/weak | 50C | 15s | 1 | Hall |
-| Elite | Covenant | Inf | Explosive | 80/0/80 | 30 | 10 | weak/strong/average/strong | 100C 25M | 25s | 2 | Hall |
-| Ghost | Covenant | Veh | Plasma | 80/40/120 | 18 | 16 | strong/weak/average/weak | 150C 50M | 30s | 3 | Summoning Foundry |
-| Wraith | Covenant | Veh | Explosive | 150/150/250 | 60 | 4 | average/strong/none/strong | 250C 100M | 45s | 4 | Summoning Foundry |
-| Banshee | Covenant | Air | Plasma | 100/40/150 | 25 | 18 | average/strong/strong/average | 300C 150M | 50s | 5 | Summit |
+| Marine | UNSC | Inf | Kinetic | 0/0/12 | 1d4 | 10 | A/D/D/D | 50C | 15s | 1 | Barracks |
+| ODST | UNSC | Inf | Explosive | 0/2/19 | 2d6 | 8 | D/A/N/A | 100C 25M | 25s | 2 | Barracks |
+| Warthog | UNSC | Veh | Kinetic | 0/12/25 | 2d4 | 14 | A/D/N/D | 150C 50M | 30s | 3 | Vehicle Depot |
+| Scorpion | UNSC | Veh | Explosive | 0/38/38 | 4d6+1 | 4 | N/A/–/A | 250C 100M | 45s | 4 | Vehicle Depot |
+| Hornet | UNSC | Air | Kinetic | 0/12/25 | 1d12 | 16 | N/A/A/N | 300C 150M | 50s | 5 | Air Pad |
+| Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | 12 | A/D/D/D | 50C | 15s | 1 | Hall |
+| Elite | Covenant | Inf | Explosive | 10/0/10 | 2d6 | 10 | D/A/N/A | 100C 25M | 25s | 2 | Hall |
+| Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | 16 | A/D/N/D | 150C 50M | 30s | 3 | Summoning Foundry |
+| Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | 4 | N/A/–/A | 250C 100M | 45s | 4 | Summoning Foundry |
+| Banshee | Covenant | Air | Plasma | 13/5/20 | 1d12 | 18 | N/A/A/N | 300C 150M | 50s | 5 | Summit |
 
 ### Buildings
 
@@ -191,10 +196,10 @@ Six mirrored buildings per Faction. Every `commandPointBonus` is 0.
 | Reactor / Generator | 200C | 30s | 0 | +50M | economy |
 | Turret / Plasma Turret | 200C 50M | 30s | 10C | none | armed Structure |
 
-Both Turrets have damage 20 and Initiative 10, and are strong against Infantry and average against Vehicles and Aircraft.
+Both Turrets have a Damage roll of 2d4 and Initiative 10, have `advantage` against Infantry, and are `normal` against Vehicles and Aircraft.
 
-- **Turret (UNSC):** Kinetic, Sh/Ar/HP 0/200/300.
-- **Plasma Turret (Covenant):** Plasma, Sh/Ar/HP 150/50/300.
+- **Turret (UNSC):** Kinetic, Sh/Ar/HP 0/25/38.
+- **Plasma Turret (Covenant):** Plasma, Sh/Ar/HP 19/6/38.
 
 ### Planet Types
 
@@ -293,7 +298,7 @@ The single `base:rules` definition.
 | Cancel-after-start refund | 50% |
 | Sell refund | 50% |
 | Unit Slots per Stack | 15 |
-| Tiers | `none` 0, `weak` 0.6, `average` 1.0, `strong` 1.4 |
+| `toHit` | 3 (a d20 roll of 1–2 misses: 90% of attacks hit before Advantage or Disadvantage) |
 | Lane types | `fast` 0.6, `slow` 2.0 |
 | Initiative die | 20 |
 | Round duration | 3 s |

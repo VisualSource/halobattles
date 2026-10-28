@@ -206,8 +206,19 @@ export function BattlePanel(props: {
                 key={n}
                 className={n === shown.length - 1 ? "" : "text-ink-3"}
               >
-                {name(unitOf.get(a.actor))} hits {name(unitOf.get(a.target))} ·{" "}
-                <span className="font-mono">{damage(a)}</span>
+                {a.hit ? (
+                  <>
+                    {name(unitOf.get(a.actor))} hits{" "}
+                    {name(unitOf.get(a.target))} · rolled{" "}
+                    <span className="font-mono">{a.roll}</span>,{" "}
+                    <span className="font-mono">{damage(a)}</span>
+                  </>
+                ) : (
+                  <>
+                    {name(unitOf.get(a.actor))} misses{" "}
+                    {name(unitOf.get(a.target))}
+                  </>
+                )}
                 {a.killed && (
                   <span className="text-danger">
                     {" "}

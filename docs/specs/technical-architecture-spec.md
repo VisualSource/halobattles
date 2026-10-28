@@ -87,7 +87,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 - **Faction:** an optional `icon` and a **Starting Kit**: the buildings and Stacks (`[{unit, count}]` per Stack) placed on its Capital. Starting resources are not part of the kit.
 - **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), optional `slotLimit` (the most one Unit Slot holds), `combat` (required), optional `icon`.
 - **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `icon`. There are no build limits or prerequisites.
-- **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `initiative`, and `tiers: {unitClassId: tierName}`. A Unit Class missing from `tiers` counts as `average`.
+- **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `initiative`, and `tiers: {unitClassId: tier}`. `damage` is dice notation, `NdM` or `NdM+K`, checked by a schema pattern; a tier is `advantage`, `normal`, `disadvantage` or `none`, and a Unit Class missing from `tiers` counts as `normal` ([ADR 0003](../adr/0003-dice-damage.md)).
 - **Unit Class:** an id and a name.
 - **Weapon Type:** a multiplier for each layer (`shield`, `armor`, `hp`).
 - **Planet Type:** `income` (resource map), `buildingSlots`, `commandPointBonus`, optional `sprite`.
@@ -95,7 +95,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
   - the Payday interval;
   - the cancel-after-start and sell refund percentages;
   - Unit Slots per Stack;
-  - tier names and their multipliers;
+  - `toHit`, the d20 roll an attack needs to hit;
   - Lane types and their multipliers;
   - the Initiative die size, the Round duration and the Round cap;
   - `startingResources`, the defaults the lobby fills in (maps have none of their own);
@@ -220,7 +220,7 @@ Every command carries a client-assigned `seq`.
 ### Battles on the wire
 
 - `BattleStarted` carries a roster: per-Battle combatant ids, each with its unit type, side, and starting Shield, Armor and HP.
-- `BattleRound` carries the Round's actions in Initiative order: `{actor, target, weapon, shieldDmg, armorDmg, hpDmg, killed}`.
+- `BattleRound` carries the Round's actions in Initiative order: `{actor, target, weapon, shieldDmg, armorDmg, hpDmg, killed, hit, roll}`. A miss has `hit` false and deals nothing; `roll` is the Damage roll before the layer multipliers.
 - A side that reconnects mid-Battle sees where the Battle stands now, from its View. It doesn't get a replay.
 - Each Battle's RNG is seeded from the Match seed plus the Battle id, and the resolver is a pure function of (forces, seed).
 

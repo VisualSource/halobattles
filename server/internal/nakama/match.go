@@ -220,7 +220,7 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		for _, a := range r.Battle.Result.Rounds[r.Round] {
 			actions = append(actions, &wire.BattleActionT{
 				Actor: a.Actor, Target: a.Target, Weapon: a.Weapon, ShieldDmg: float32(a.ShieldDmg),
-				ArmorDmg: float32(a.ArmorDmg), HpDmg: float32(a.HPDmg), Killed: a.Killed,
+				ArmorDmg: float32(a.ArmorDmg), HpDmg: float32(a.HPDmg), Killed: a.Killed, Hit: a.Hit, Roll: uint16(a.Roll),
 			})
 		}
 		t := &wire.BattleRoundT{MatchTime: s.play.Time, Battle: r.Battle.ID, Planet: r.Battle.Planet, Round: uint16(r.Round + 1), Actions: actions}

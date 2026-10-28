@@ -89,6 +89,8 @@ export type BattleAction = {
   armorDmg: number;
   hpDmg: number;
   killed: boolean;
+  hit: boolean; // false: the to-hit roll missed
+  roll: number; // the damage roll, before the layer multipliers
 };
 
 /** A Battle you're a side of, as it stands after the Rounds completed. */

@@ -48,13 +48,13 @@ type Building struct {
 	Yield map[string]int `json:"yield"`
 }
 
-// Battle stats. A Unit Class missing from tiers counts as `average`.
+// Battle stats. A Unit Class missing from tiers counts as `normal`.
 type Combat struct {
 	// Armor corresponds to the JSON schema field "armor".
 	Armor int `json:"armor"`
 
-	// Damage corresponds to the JSON schema field "damage".
-	Damage float64 `json:"damage"`
+	// The damage roll, in dice notation: NdM, or NdM+K.
+	Damage string `json:"damage"`
 
 	// Hp corresponds to the JSON schema field "hp".
 	Hp int `json:"hp"`
@@ -65,8 +65,10 @@ type Combat struct {
 	// Shield corresponds to the JSON schema field "shield".
 	Shield int `json:"shield"`
 
-	// Effectiveness tier name (from the Ruleset) per Unit Class id.
-	Tiers map[string]string `json:"tiers,omitempty,omitzero"`
+	// Per Unit Class id, how this attacker rolls against it: advantage rolls the
+	// to-hit and damage twice and keeps the higher, disadvantage keeps the lower,
+	// none can't target it.
+	Tiers map[string]CombatTiersValue `json:"tiers,omitempty,omitzero"`
 
 	// UnitClass corresponds to the JSON schema field "unitClass".
 	UnitClass ID `json:"unitClass"`
@@ -74,6 +76,13 @@ type Combat struct {
 	// WeaponType corresponds to the JSON schema field "weaponType".
 	WeaponType ID `json:"weaponType"`
 }
+
+type CombatTiersValue string
+
+const CombatTiersValueAdvantage CombatTiersValue = "advantage"
+const CombatTiersValueDisadvantage CombatTiersValue = "disadvantage"
+const CombatTiersValueNone CombatTiersValue = "none"
+const CombatTiersValueNormal CombatTiersValue = "normal"
 
 // The merged content document the server serves: kind, then id, then definition,
 // with every Patch applied.
@@ -352,9 +361,8 @@ type Ruleset struct {
 	// Defaults the lobby fills in.
 	StartingResources map[string]int `json:"startingResources"`
 
-	// Damage multiplier per tier name. A Unit Class missing from a combat block's
-	// tiers counts as `average`.
-	Tiers map[string]float64 `json:"tiers"`
+	// An attack's d20 roll below this misses.
+	ToHit int `json:"toHit"`
 
 	// UnitSlotsPerStack corresponds to the JSON schema field "unitSlotsPerStack".
 	UnitSlotsPerStack int `json:"unitSlotsPerStack"`

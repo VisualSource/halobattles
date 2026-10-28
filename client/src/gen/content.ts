@@ -96,11 +96,9 @@ export interface Ruleset {
   sellRefundPercent: number;
   unitSlotsPerStack: number;
   /**
-   * Damage multiplier per tier name. A Unit Class missing from a combat block's tiers counts as `average`.
+   * An attack's d20 roll below this misses.
    */
-  tiers: {
-    [k: string]: number;
-  };
+  toHit: number;
   /**
    * Travel-time multiplier per Lane type.
    */
@@ -227,7 +225,7 @@ export interface ResourceMap1 {
   [k: string]: number;
 }
 /**
- * Battle stats. A Unit Class missing from tiers counts as `average`.
+ * Battle stats. A Unit Class missing from tiers counts as `normal`.
  */
 export interface Combat {
   /**
@@ -241,13 +239,16 @@ export interface Combat {
   shield: number;
   armor: number;
   hp: number;
-  damage: number;
+  /**
+   * The damage roll, in dice notation: NdM, or NdM+K.
+   */
+  damage: string;
   initiative: number;
   /**
-   * Effectiveness tier name (from the Ruleset) per Unit Class id.
+   * Per Unit Class id, how this attacker rolls against it: advantage rolls the to-hit and damage twice and keeps the higher, disadvantage keeps the lower, none can't target it.
    */
   tiers?: {
-    [k: string]: string;
+    [k: string]: "advantage" | "normal" | "disadvantage" | "none";
   };
 }
 /**

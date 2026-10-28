@@ -521,6 +521,8 @@ export class MatchConnection {
           armorDmg: a.armorDmg,
           hpDmg: a.hpDmg,
           killed: a.killed,
+          hit: a.hit,
+          roll: a.roll,
         }));
         this.setReport(t.battle, (r) => r && reportRound(r, t.round, actions));
         this.emit("battleRound", { battle: t.battle, round: t.round, actions });

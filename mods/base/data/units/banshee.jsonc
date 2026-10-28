@@ -9,11 +9,11 @@
   "combat": {
     "unitClass": "aircraft",
     "weaponType": "plasma",
-    "shield": 100,
-    "armor": 40,
-    "hp": 150,
-    "damage": 25,
+    "shield": 13,
+    "armor": 5,
+    "hp": 20,
+    "damage": "1d12",
     "initiative": 18,
-    "tiers": { "infantry": "average", "vehicle": "strong", "aircraft": "strong", "structure": "average" }
+    "tiers": { "infantry": "normal", "vehicle": "advantage", "aircraft": "advantage", "structure": "normal" }
   }
 }

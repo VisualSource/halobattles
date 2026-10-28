@@ -11,7 +11,7 @@
     "cancelRefundPercent",
     "sellRefundPercent",
     "unitSlotsPerStack",
-    "tiers",
+    "toHit",
     "laneTypes",
     "initiativeDie",
     "roundSeconds",
@@ -35,11 +35,11 @@
     },
     "sellRefundPercent": { "description": "Refund for selling a building.", "type": "integer", "minimum": 0, "maximum": 100 },
     "unitSlotsPerStack": { "type": "integer", "minimum": 1 },
-    "tiers": {
-      "description": "Damage multiplier per tier name. A Unit Class missing from a combat block's tiers counts as `average`.",
-      "type": "object",
-      "propertyNames": { "pattern": "^[a-z0-9_-]+$" },
-      "additionalProperties": { "type": "number", "minimum": 0 }
+    "toHit": {
+      "description": "An attack's d20 roll below this misses.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20
     },
     "laneTypes": {
       "description": "Travel-time multiplier per Lane type.",

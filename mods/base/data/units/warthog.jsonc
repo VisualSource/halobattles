@@ -10,10 +10,10 @@
     "unitClass": "vehicle",
     "weaponType": "kinetic",
     "shield": 0,
-    "armor": 100,
-    "hp": 200,
-    "damage": 20,
+    "armor": 12,
+    "hp": 25,
+    "damage": "2d4",
     "initiative": 14,
-    "tiers": { "infantry": "strong", "vehicle": "weak", "aircraft": "average", "structure": "weak" }
+    "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "normal", "structure": "disadvantage" }
   }
 }

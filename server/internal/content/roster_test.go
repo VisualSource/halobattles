@@ -17,7 +17,7 @@ func rosterFiles() map[string]string {
 		"base/data/units/marine.jsonc": `{"id": "marine", "name": "Marine", "faction": "unsc",
 			"cost": {"credits": 50}, "buildTime": 15, "commandPoints": 1,
 			"combat": {"unitClass": "infantry", "weaponType": "kinetic", "shield": 0, "armor": 0, "hp": 100,
-				"damage": 10, "initiative": 10, "tiers": {"infantry": "strong"}}}`,
+				"damage": "1d4", "initiative": 10, "tiers": {"infantry": "advantage"}}}`,
 		"base/data/buildings/barracks.jsonc": `{"id": "barracks", "name": "Barracks", "faction": "unsc",
 			"cost": {"credits": 150}, "buildTime": 30, "upkeep": {"credits": 10}, "yield": {},
 			"commandPointBonus": 0, "trains": ["marine"]}`,
@@ -42,7 +42,7 @@ func TestRosterReferencesResolveToTheirMod(t *testing.T) {
 	if marine.Faction != "base:unsc" || marine.Combat.UnitClass != "base:infantry" || marine.Combat.WeaponType != "base:kinetic" {
 		t.Errorf("marine refs = %q %q %q", marine.Faction, marine.Combat.UnitClass, marine.Combat.WeaponType)
 	}
-	if marine.Combat.Tiers["base:infantry"] != "strong" || marine.Cost["base:credits"] != 50 {
+	if marine.Combat.Tiers["base:infantry"] != "advantage" || marine.Cost["base:credits"] != 50 {
 		t.Errorf("marine tiers/cost keys not namespaced: %v %v", marine.Combat.Tiers, marine.Cost)
 	}
 	kit := c.Doc.Factions["base:unsc"].StartingKit
@@ -63,7 +63,7 @@ func TestDanglingReferencesAreReported(t *testing.T) {
 	files["base/data/units/marine.jsonc"] = `{"id": "marine", "name": "Marine", "faction": "innie",
 		"cost": {"gold": 1}, "buildTime": 15, "commandPoints": 1,
 		"combat": {"unitClass": "robot", "weaponType": "laser", "shield": 0, "armor": 0, "hp": 100,
-			"damage": 10, "initiative": 10, "tiers": {"ghost": "strong", "infantry": "mighty"}},
+			"damage": "1d4", "initiative": 10, "tiers": {"ghost": "advantage"}},
 		"icon": "__base__/marine.png"}`
 	files["base/data/buildings/barracks.jsonc"] = `{"id": "barracks", "name": "Barracks", "faction": "unsc",
 		"cost": {}, "buildTime": 30, "upkeep": {}, "yield": {}, "commandPointBonus": 0, "trains": ["spartan"]}`
@@ -85,7 +85,6 @@ func TestDanglingReferencesAreReported(t *testing.T) {
 		"units base:marine: combat: unknown Unit Class base:robot",
 		"units base:marine: combat: unknown Weapon Type base:laser",
 		"units base:marine: combat tiers: unknown Unit Class base:ghost",
-		`units base:marine: combat tiers: unknown tier "mighty"`,
 		"units base:marine: asset __base__/marine.png not found",
 		"buildings base:barracks: trains: unknown Unit base:spartan",
 		"factions base:unsc: startingKit: unknown Building base:bunker",
@@ -122,8 +121,14 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 			"unitClasses base:infanterí (from base/data/unitClasses/infantry.jsonc): at /id: 'base:infanterí' does not match pattern"},
 		"unmarked redefinition": {"base/data/units/marine2.jsonc",
 			`{"id": "marine", "name": "Marine II", "faction": "unsc", "cost": {}, "buildTime": 1, "commandPoints": 1,
-				"combat": {"unitClass": "infantry", "weaponType": "kinetic", "shield": 0, "armor": 0, "hp": 1, "damage": 1, "initiative": 1}}`,
+				"combat": {"unitClass": "infantry", "weaponType": "kinetic", "shield": 0, "armor": 0, "hp": 1, "damage": "1d1", "initiative": 1}}`,
 			`base/data/units/marine2.jsonc: redefines base:marine; add "replace": true or write a Patch`},
+		"unknown tier": {"base/data/units/marine.jsonc",
+			strings.Replace(rosterFiles()["base/data/units/marine.jsonc"], `"advantage"`, `"mighty"`, 1),
+			"units base:marine (from base/data/units/marine.jsonc): at /combat/tiers/base:infantry: value must be one of"},
+		"bad dice": {"base/data/units/marine.jsonc",
+			strings.Replace(rosterFiles()["base/data/units/marine.jsonc"], `"1d4"`, `"d4"`, 1),
+			"units base:marine (from base/data/units/marine.jsonc): at /combat/damage"},
 		"dangling reference": {"base/data/buildings/barracks.jsonc",
 			strings.Replace(rosterFiles()["base/data/buildings/barracks.jsonc"], `["marine"]`, `["spartan"]`, 1),
 			"buildings base:barracks: trains: unknown Unit base:spartan"},
@@ -164,11 +169,11 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	}
 
 	// Spot checks against the spec tables.
-	if s := d.Units["base:scorpion"]; s.Combat.Armor != 300 || s.Combat.Hp != 300 || s.Combat.Damage != 60 ||
+	if s := d.Units["base:scorpion"]; s.Combat.Armor != 38 || s.Combat.Hp != 38 || s.Combat.Damage != "4d6+1" ||
 		s.Combat.Tiers["base:aircraft"] != "none" || s.Cost["base:materials"] != 100 || s.CommandPoints != 4 {
 		t.Errorf("scorpion = %+v", s)
 	}
-	if b := d.Units["base:banshee"]; b.Combat.Shield != 100 || b.Combat.Initiative != 18 || b.BuildTime != 50 {
+	if b := d.Units["base:banshee"]; b.Combat.Shield != 13 || b.Combat.Initiative != 18 || b.BuildTime != 50 {
 		t.Errorf("banshee = %+v", b)
 	}
 	if w := d.WeaponTypes["base:plasma"]; w.Shield != 1.5 || w.Armor != 0.75 || w.Hp != 1 {

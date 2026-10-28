@@ -10,10 +10,10 @@
     "unitClass": "infantry",
     "weaponType": "explosive",
     "shield": 0,
-    "armor": 20,
-    "hp": 120,
-    "damage": 30,
+    "armor": 2,
+    "hp": 19,
+    "damage": "2d6",
     "initiative": 8,
-    "tiers": { "infantry": "weak", "vehicle": "strong", "aircraft": "average", "structure": "strong" }
+    "tiers": { "infantry": "disadvantage", "vehicle": "advantage", "aircraft": "normal", "structure": "advantage" }
   }
 }

@@ -8,7 +8,8 @@
   "cancelRefundPercent": 50,
   "sellRefundPercent": 50,
   "unitSlotsPerStack": 15,
-  "tiers": { "none": 0, "weak": 0.6, "average": 1.0, "strong": 1.4 },
+  // An attack hits on a d20 roll of this or more: 90%.
+  "toHit": 3,
   "laneTypes": { "fast": 0.6, "slow": 2.0 },
   "initiativeDie": 20,
   "roundSeconds": 3,

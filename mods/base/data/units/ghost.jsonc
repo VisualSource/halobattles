@@ -9,11 +9,11 @@
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "plasma",
-    "shield": 80,
-    "armor": 40,
-    "hp": 120,
-    "damage": 18,
+    "shield": 14,
+    "armor": 5,
+    "hp": 18,
+    "damage": "2d4",
     "initiative": 16,
-    "tiers": { "infantry": "strong", "vehicle": "weak", "aircraft": "average", "structure": "weak" }
+    "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "normal", "structure": "disadvantage" }
   }
 }

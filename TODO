@@ -1,0 +1,8 @@
+Fix:
+    [] make movemenet speed faster
+    [] remove captured planet count in player list
+    [] update battle window to show a battle report
+    [] remove payday toast
+    [] drag copy in game sence does not matching mouse cursor
+    [] restore the ring modal for in game
+    [] switch battle system to use dnd style 1d4 for attack roll

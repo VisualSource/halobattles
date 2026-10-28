@@ -100,6 +100,22 @@ _Avoid_: Unit type (a unit type is a specific unit, e.g. Marine), class
 The kind of damage a combatant deals (e.g. Kinetic, Plasma), which is more or less effective against Shield, Armor and HP.
 _Avoid_: Damage type
 
+**To-hit roll**:
+The 1d20 each attack rolls first; below the Ruleset's `toHit` it misses and deals nothing.
+_Avoid_: Accuracy, attack roll
+
+**Damage roll**:
+The dice a combatant rolls when its attack hits, written as `NdM` or `NdM+K` (a Marine's is 1d4); the roll then goes through the Weapon Type's layer multipliers.
+_Avoid_: Damage value, base damage
+
+**Advantage**:
+An attacker's edge against a Unit Class: it rolls the To-hit roll and the Damage roll twice each and keeps the higher.
+_Avoid_: Strong, bonus
+
+**Disadvantage**:
+An attacker's weakness against a Unit Class: it rolls the To-hit roll and the Damage roll twice each and keeps the lower.
+_Avoid_: Weak, penalty
+
 **Locked**:
 The state of a Planet while a Battle is in progress on it.
 _Avoid_: Contested, in-battle

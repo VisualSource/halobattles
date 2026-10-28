@@ -3,6 +3,7 @@ package game
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"slices"
 
@@ -33,13 +34,24 @@ type Combatant struct {
 	combat            *cs.Combat
 }
 
-// Action is one combatant's turn: its hit on a target, layer by layer.
+// Action is one combatant's turn: its attack on a target and, if it hit,
+// the damage dealt layer by layer.
 type Action struct {
 	Actor, Target              string
 	Weapon                     string // the actor's Weapon Type
 	ShieldDmg, ArmorDmg, HPDmg float64
 	Killed                     bool
+	Hit                        bool // false: the to-hit roll missed
+	Roll                       int  // the damage roll, before the layer multipliers
 }
+
+// Tiers: how an attacker rolls against a Unit Class.
+const (
+	Advantage    = "advantage"    // roll to hit and damage twice, keep the higher
+	Normal       = "normal"       // roll once; a Unit Class missing from tiers is this
+	Disadvantage = "disadvantage" // roll twice, keep the lower
+	None         = "none"         // can't target it
+)
 
 // BattleResult is a whole Battle: the roster at the start, every Round's
 // actions in Initiative order, the winner, and who survived.
@@ -61,18 +73,17 @@ func ResolveBattle(c *cs.Content, attack, defend Force, seed uint64) BattleResul
 		res.Roster[i].combat = nil // the roster is data only
 	}
 
-	tier := func(actor, target *Combatant) float64 {
-		name, ok := actor.combat.Tiers[string(target.combat.UnitClass)]
-		if !ok {
-			name = "average"
+	tier := func(actor, target *Combatant) string {
+		if name, ok := actor.combat.Tiers[string(target.combat.UnitClass)]; ok {
+			return string(name)
 		}
-		return rules.Tiers[name]
+		return Normal
 	}
 	targets := func(actor *Combatant) []*Combatant {
 		var out []*Combatant
 		for i := range all {
 			t := &all[i]
-			if t.Side != actor.Side && t.HP > 0 && tier(actor, t) > 0 {
+			if t.Side != actor.Side && t.HP > 0 && tier(actor, t) != None {
 				out = append(out, t)
 			}
 		}
@@ -125,7 +136,13 @@ func ResolveBattle(c *cs.Content, attack, defend Force, seed uint64) BattleResul
 				continue
 			}
 			t := ts[rng.IntN(len(ts))]
-			actions = append(actions, hit(c, r.c, t, r.c.combat.Damage*tier(r.c, t)))
+			tr := tier(r.c, t)
+			if rollWith(tr, func() int { return 1 + rng.IntN(20) }) < rules.ToHit {
+				actions = append(actions, Action{Actor: r.c.ID, Target: t.ID, Weapon: string(r.c.combat.WeaponType)})
+				continue
+			}
+			dice := parseDice(string(r.c.combat.Damage))
+			actions = append(actions, hit(c, r.c, t, rollWith(tr, func() int { return dice.roll(rng) })))
 		}
 		res.Rounds = append(res.Rounds, actions)
 	}
@@ -164,12 +181,46 @@ func combatants(c *cs.Content, side Side, f Force) []Combatant {
 	return out
 }
 
-// hit applies base damage (damage × tier) to Shield, then Armor, then HP,
-// each at the actor's Weapon Type multiplier for that layer. What's left
-// after a layer breaks carries on; what's left after death is wasted.
-func hit(c *cs.Content, actor, target *Combatant, base float64) Action {
+// rollWith makes a roll, twice with advantage (keeping the higher) or
+// disadvantage (keeping the lower).
+func rollWith(tier string, roll func() int) int {
+	x := roll()
+	switch tier {
+	case Advantage:
+		return max(x, roll())
+	case Disadvantage:
+		return min(x, roll())
+	}
+	return x
+}
+
+// Dice is a damage roll, NdM+K.
+type Dice struct{ N, M, K int }
+
+// parseDice reads dice notation. The content schema has already checked
+// it, so a part that isn't there is 0.
+func parseDice(s string) Dice {
+	var d Dice
+	_, _ = fmt.Sscanf(s, "%dd%d+%d", &d.N, &d.M, &d.K) // "1d4" has no +K: that's fine
+	return d
+}
+
+func (d Dice) roll(rng *rand.Rand) int {
+	total := d.K
+	for range d.N {
+		total += 1 + rng.IntN(d.M)
+	}
+	return total
+}
+
+// hit applies a damage roll to Shield, then Armor, then HP, each at the
+// actor's Weapon Type multiplier for that layer, rounded down. What's left
+// after a layer breaks carries on; what's left after death is wasted. A
+// hit always does at least 1.
+func hit(c *cs.Content, actor, target *Combatant, roll int) Action {
 	w := c.WeaponTypes[string(actor.combat.WeaponType)]
-	a := Action{Actor: actor.ID, Target: target.ID, Weapon: string(actor.combat.WeaponType)}
+	a := Action{Actor: actor.ID, Target: target.ID, Weapon: string(actor.combat.WeaponType), Hit: true, Roll: roll}
+	base := float64(roll)
 	layers := []struct {
 		value *float64
 		mult  float64
@@ -187,12 +238,24 @@ func hit(c *cs.Content, actor, target *Combatant, base float64) Action {
 		if l.mult <= 0 {
 			break // this layer can't be hurt, so nothing gets past it
 		}
-		dmg := min(left*l.mult, *l.value)
+		dmg := min(math.Floor(left*l.mult), *l.value)
 		*l.value -= dmg
 		*l.dealt = dmg
 		left -= dmg / l.mult
 		if *l.value > 0 || left <= 0 {
 			break
+		}
+	}
+	if a.ShieldDmg+a.ArmorDmg+a.HPDmg == 0 {
+		// Rounding took it all: 1 to the first layer standing, unless it's immune.
+		for _, l := range layers {
+			if *l.value > 0 {
+				if l.mult > 0 {
+					*l.value--
+					*l.dealt = 1
+				}
+				break
+			}
 		}
 	}
 	a.Killed = target.HP <= 0

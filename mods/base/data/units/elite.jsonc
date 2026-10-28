@@ -9,11 +9,11 @@
   "combat": {
     "unitClass": "infantry",
     "weaponType": "explosive",
-    "shield": 80,
+    "shield": 10,
     "armor": 0,
-    "hp": 80,
-    "damage": 30,
+    "hp": 10,
+    "damage": "2d6",
     "initiative": 10,
-    "tiers": { "infantry": "weak", "vehicle": "strong", "aircraft": "average", "structure": "strong" }
+    "tiers": { "infantry": "disadvantage", "vehicle": "advantage", "aircraft": "normal", "structure": "advantage" }
   }
 }

@@ -10,7 +10,7 @@ const rules = {
   cancelRefundPercent: 50,
   sellRefundPercent: 50,
   unitSlotsPerStack: 10,
-  tiers: { average: 1 },
+  toHit: 3,
   laneTypes: { fast: 1 },
   initiativeDie: 20,
   roundSeconds: 3,

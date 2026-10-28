@@ -11,9 +11,9 @@
     "weaponType": "kinetic",
     "shield": 0,
     "armor": 0,
-    "hp": 100,
-    "damage": 10,
+    "hp": 12,
+    "damage": "1d4",
     "initiative": 10,
-    "tiers": { "infantry": "strong", "vehicle": "weak", "aircraft": "weak", "structure": "weak" }
+    "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "disadvantage", "structure": "disadvantage" }
   }
 }

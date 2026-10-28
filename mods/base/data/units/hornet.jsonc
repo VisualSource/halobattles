@@ -10,10 +10,10 @@
     "unitClass": "aircraft",
     "weaponType": "kinetic",
     "shield": 0,
-    "armor": 100,
-    "hp": 200,
-    "damage": 25,
+    "armor": 12,
+    "hp": 25,
+    "damage": "1d12",
     "initiative": 16,
-    "tiers": { "infantry": "average", "vehicle": "strong", "aircraft": "strong", "structure": "average" }
+    "tiers": { "infantry": "normal", "vehicle": "advantage", "aircraft": "advantage", "structure": "normal" }
   }
 }
