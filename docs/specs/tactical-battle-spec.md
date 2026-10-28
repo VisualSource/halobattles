@@ -224,6 +224,16 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
   - `scout(area)`: the fallback when no enemy has been seen
 - It only knows what its side's filtered view shows.
 
+### Roles
+
+On top of the usual goals, the Commander gives some squads a job:
+
+- **Scouts** (the defender only, once it has at least 3 mobile squads): about 20% × its `scout` weight of them, at least 1 and at most 3, roam to the part of the map the side has looked at least lately. Blocks are 8 × 8 cells; the pick leans toward the attacker's edge and away from the side's own points. A scout keeps its waypoint until it gets there. Units tagged `scout` go first, then small squads (1–2 units), then the fastest; units tagged `skirmisher` only if nothing else fits.
+- **Skirmishers:** a handful of squads a side can spare beyond one per point for the defender (held or to win back) and two per point for the attacker: 30% × its `aggression` weight of its mobile squads, but never fewer than 1 or more than 5. They find and delay the enemy for the main force; they aren't the main force. If the force shrinks and there are too many, the newest go back to the usual goals. Each patrols a round of the Control Points and the halfway marks between them. Units tagged `skirmisher` go first, then the fastest.
+- **Contact:** a scout that meets the enemy falls back. So does a skirmisher, unless the nearest enemy in its Sight is one it doesn't have Disadvantage against and doesn't outnumber it 1.5 to 1; that one it hunts. Falling back goes to the nearest point the side holds, or else the nearest friendly squad. Once there the squad rests for 20 s as an ordinary squad before it can take a role again.
+- A unit's `roles` hint is content (see [Content additions](#content-additions)). The base Warthog and Ghost are scouts; the Hornet and Banshee are skirmishers.
+- **Measured** with three Stacks a side: scouts spot the attacker sooner (2.6 s instead of 3.3 s) at a cost of 2–3 points of the defender's win rate. That's down from 7 points before scouts fell back, when they fought and died alone. Starting Kits are unaffected: a two-squad defender has too few squads to spare any.
+
 ### Squad planner (GOAP)
 
 - Each Squad plans with **Goal-Oriented Action Planning**: the cheapest steps from its facts now to the facts its goal wants, searched over the few states the facts make.
@@ -355,6 +365,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
   The base Mod ships `base:temperate`, `base:desert` and `base:ice`.
 - **Planet** (in a map): an optional `battlefield {terrainPreset, width, height}`.
 - **Faction:** an optional `ai` weight block.
+- **Unit:** an optional `roles` list, `scout` and/or `skirmisher`: hints for which units the Battle AI picks for those jobs first.
 - **`combat` block:** see [Stats](#stats).
 
 ## Later

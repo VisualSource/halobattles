@@ -6,6 +6,7 @@
   "cost": { "credits": 150, "materials": 50 },
   "buildTime": 30,
   "commandPoints": 3,
+  "roles": ["scout"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "kinetic",

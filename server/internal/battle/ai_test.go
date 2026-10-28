@@ -260,3 +260,220 @@ func TestAGuardOnItsLeashTakesTheBestMatchup(t *testing.T) {
 		t.Errorf("the guard goes after %v; want the Marines it has Advantage against", got)
 	}
 }
+
+func TestTheDefenderSendsItsFastestSquadToScout(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(1)},
+		Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:ghost", 2, 1}, {"base:grunt", 5, 2}}}})
+	ghost := s.Squads[2]
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Defender}
+	ai.look(v, v.Own())
+	ai.command(v, v.Own(), nil)
+
+	p := ai.plans[ghost.ID]
+	if p == nil || p.goal.kind != scout {
+		t.Fatalf("the Ghosts' plan is %+v; want them out scouting, as the fastest", p)
+	}
+	scouts := 0
+	for _, q := range ai.plans {
+		if q.goal.kind == scout {
+			scouts++
+		}
+	}
+	if scouts != 1 {
+		t.Errorf("%d scouts out of 3 squads; want 1, the rest on the points", scouts)
+	}
+	near := slices.ContainsFunc(s.Points, func(pt Point) bool { return dist(pt.Cell, p.goal.cell) < block })
+	if near {
+		t.Errorf("waypoint %v is by one of the side's own points", p.goal.cell)
+	}
+	attackerSide := s.depth(s.Edge, p.goal.cell) < max(s.Field.W, s.Field.H)/2
+	if !attackerSide {
+		t.Errorf("waypoint %v is on the defender's half; want it toward the attacker's edge %d", p.goal.cell, s.Edge)
+	}
+
+	// Once that block has been looked at, the next one is somewhere else.
+	first := p.goal.cell
+	ghost.Cell = first
+	ai.look(v, v.Own())
+	v.sim.Tick += 5 * TicksPerSecond
+	ai.command(v, v.Own(), nil)
+	if next := ai.plans[ghost.ID].goal; next.kind != scout || next.cell == first {
+		t.Errorf("after reaching %v the scout's goal is %+v; want a new waypoint", first, next)
+	}
+}
+
+func TestAScoutInContactIsReleased(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(1)},
+		Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:ghost", 2, 1}, {"base:grunt", 5, 2}}}})
+	marines, ghost := s.Squads[0], s.Squads[2]
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Defender}
+	ai.sighted[marines.ID] = sighting{ghost.Cell.add(Cell{2, 0}), 5, 0}
+	ai.look(v, v.Own())
+	ai.command(v, v.Own(), nil)
+	if p := ai.plans[ghost.ID]; p != nil && p.goal.kind == scout {
+		t.Errorf("the Ghosts went scouting with the enemy beside them: %+v", p.goal)
+	}
+}
+
+func TestTheAttackerDoesntHoldBackScouts(t *testing.T) {
+	s := aiSim(t, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:ghost", 2, 1}, {"base:grunt", 5, 2}}}},
+		Force{Formations: [][]Slot{{{"base:marine", 1, 0}}}})
+	ai := NewAI(WeightsOf(nil))
+	ai.assignRoles(View{s, Attacker}, View{s, Attacker}.Own(), nil)
+	if len(ai.roles) != 0 {
+		t.Errorf("the attacker gave out roles %v; with 3 squads for 3 points, every one should press the attack", ai.roles)
+	}
+}
+
+func TestTaggedScoutsAreChosenOverFasterSquads(t *testing.T) {
+	// The Hornet (aircraft) is faster, but the Ghosts are tagged to scout.
+	s := aiSim(t, Force{Formations: marines(1)},
+		Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:hornet", 1, 1}, {"base:ghost", 2, 2}, {"base:grunt", 5, 3}}}})
+	hornet, ghost := s.Squads[2], s.Squads[3]
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Defender}
+	ai.look(v, v.Own())
+	ai.assignRoles(v, v.Own(), nil)
+	if ai.roles[ghost.ID] != scouting || ai.roles[hornet.ID] == scouting {
+		t.Errorf("roles %v; want the tagged Ghosts scouting, not the faster Hornet", ai.roles)
+	}
+}
+
+func TestAScoutFallsBackFromTheEnemyThenRests(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(1)},
+		Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:ghost", 2, 1}, {"base:grunt", 5, 2}}}})
+	marines, ghost := s.Squads[0], s.Squads[2]
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Defender}
+	ai.look(v, v.Own())
+	ai.assignRoles(v, v.Own(), nil)
+	if ai.roles[ghost.ID] != scouting {
+		t.Fatalf("roles %v; want the Ghosts scouting", ai.roles)
+	}
+
+	freeAt(t, s, ghost, s.Points[0].Cell, 12)
+	ai.sighted[marines.ID] = sighting{ghost.Cell.add(Cell{2, 0}), 5, 0}
+	ai.assignRoles(v, v.Own(), nil)
+	p := ai.plans[ghost.ID]
+	if ai.roles[ghost.ID] != fallingBack || p.goal.kind != fallback || !slices.ContainsFunc(s.Points, func(pt Point) bool { return pt.Cell == p.goal.cell }) {
+		t.Fatalf("role %v, goal %+v; want it falling back to a held point", ai.roles[ghost.ID], p.goal)
+	}
+
+	delete(ai.sighted, marines.ID)
+	freeAt(t, s, ghost, p.goal.cell, 1) // it made it back
+	ai.assignRoles(v, v.Own(), nil)
+	if ai.roles[ghost.ID] != noRole {
+		t.Errorf("role %v once safe; want it back to the usual goals", ai.roles[ghost.ID])
+	}
+	if ai.assignRoles(v, v.Own(), nil); ai.roles[ghost.ID] == scouting {
+		t.Error("it went straight back out; want it to rest first")
+	}
+}
+
+func TestSpareSquadsSkirmishBetweenThePoints(t *testing.T) {
+	var f []Slot
+	for cell := range 7 {
+		f = append(f, Slot{"base:grunt", 5, cell})
+	}
+	f = append(f, Slot{"base:banshee", 1, 7})
+	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{f}})
+	banshee := s.Squads[len(s.Squads)-1]
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Defender}
+	ai.look(v, v.Own())
+	ai.assignRoles(v, v.Own(), nil)
+	// 8 mobile, 3 points held: 3 guards, 2 scouts, and up to round(8 × 0.3) = 2 skirmishers.
+	n := 0
+	for _, r := range ai.roles {
+		if r == skirmish {
+			n++
+		}
+	}
+	if n != 2 || ai.roles[banshee.ID] != skirmish {
+		t.Fatalf("roles %v; want 2 skirmishers, the tagged Banshee first", ai.roles)
+	}
+	stops := ai.stops(v)
+	if g := ai.plans[banshee.ID].goal; g.kind != patrol || !slices.Contains(stops, g.cell) {
+		t.Errorf("the Banshee's goal is %+v; want a patrol stop of %v", g, stops)
+	}
+}
+
+func TestASkirmisherHuntsWhatItCanTakeAndFallsBackFromTheRest(t *testing.T) {
+	for _, tc := range []struct {
+		marines int
+		hunts   bool
+	}{{2, true}, {5, false}} { // 2 Ghosts take on 2 Marines, not 5
+		// Six squads: one per point, a scout, and two to spare.
+		s := aiSim(t, Force{Formations: [][]Slot{{{"base:marine", tc.marines, 0}}}},
+			Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:ghost", 2, 1}, {"base:grunt", 5, 2},
+				{"base:grunt", 5, 3}, {"base:grunt", 5, 4}, {"base:grunt", 5, 5}}}})
+		marines, ghost := s.Squads[0], s.Squads[2]
+		freeAt(t, s, ghost, s.Points[0].Cell, 10)
+		freeAt(t, s, marines, ghost.Cell, 4)
+		s.see()
+		ai := NewAI(WeightsOf(nil))
+		v := View{s, Defender}
+		ai.roles[ghost.ID] = skirmish
+		ai.remember(v, v.Own(), v.Enemies())
+		ai.assignRoles(v, v.Own(), v.Enemies())
+		g := ai.plans[ghost.ID].goal
+		if tc.hunts && (g.kind != kill || g.target != marines.ID) {
+			t.Errorf("against %d Marines: goal %+v; want it hunting them", tc.marines, g)
+		}
+		if !tc.hunts && g.kind != fallback {
+			t.Errorf("against %d Marines: goal %+v; want it falling back", tc.marines, g)
+		}
+	}
+}
+
+func TestScoutsAndSkirmishersAreAHandfulInABigForce(t *testing.T) {
+	var f [][]Slot
+	for range 3 {
+		var st []Slot
+		for cell := range 15 {
+			st = append(st, Slot{"base:grunt", 3, cell})
+		}
+		f = append(f, st)
+	}
+	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: f})
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Defender}
+	ai.look(v, v.Own())
+	ai.assignRoles(v, v.Own(), nil)
+	n := 0
+	for _, r := range ai.roles {
+		if r == skirmish {
+			n++
+		}
+	}
+	if n != maxSkirmishers {
+		t.Errorf("%d skirmishers out of 45 squads; want %d at most", n, maxSkirmishers)
+	}
+	scouts := 0
+	for _, r := range ai.roles {
+		if r == scouting {
+			scouts++
+		}
+	}
+	if scouts != maxScouts {
+		t.Errorf("%d scouts out of 45 squads; want %d at most", scouts, maxScouts)
+	}
+
+	// The force shrinks to 6 squads: 3 for the points, scouts, and at most 2
+	// to spare.
+	for _, sq := range s.Squads[7:] {
+		sq.Members = nil
+	}
+	ai.assignRoles(v, v.Own(), nil)
+	n = 0
+	for id, r := range ai.roles {
+		if r == skirmish && s.squad(id).alive() {
+			n++
+		}
+	}
+	if n > 2 {
+		t.Errorf("%d skirmishers with 2 squads to spare", n)
+	}
+}

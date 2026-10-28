@@ -339,6 +339,10 @@ export interface Unit {
    * The most of this unit one Unit Slot holds; more take another slot. Unset is no limit.
    */
   slotLimit?: number;
+  /**
+   * Hints for the Battle AI: which roles it picks this unit for first. A scout roams to look and falls back from the enemy; a skirmisher patrols between points and hunts what it's good against.
+   */
+  roles?: ("scout" | "skirmisher")[];
   combat: Combat;
   /**
    * An asset in a Mod's assets/ folder, written `__mod__/path`.

@@ -35,11 +35,23 @@ func WeightsOf(w *cs.AIWeights) Weights {
 type goalKind int
 
 const (
-	capture goalKind = iota // take a Control Point the side doesn't hold
-	defend                  // hold one it does
-	kill                    // destroy an enemy squad in view
-	raid                    // destroy an enemy building seen
-	scout                   // look for the enemy
+	capture  goalKind = iota // take a Control Point the side doesn't hold
+	defend                   // hold one it does
+	kill                     // destroy an enemy squad in view
+	raid                     // destroy an enemy building seen
+	scout                    // look for the enemy
+	patrol                   // a skirmisher's next stop on its round
+	fallback                 // get clear of the enemy: back to a held point or a friend
+)
+
+// role is a job the Commander gives a squad on top of the usual goals.
+type role int
+
+const (
+	noRole      role = iota
+	scouting         // roams to look, falls back from the enemy
+	skirmish         // patrols between points, hunts what it's good against
+	fallingBack      // was scouting or skirmishing, and met more than it could take
 )
 
 // matchup scales a kill or raid goal by the squad's tier against the
@@ -99,10 +111,17 @@ type AI struct {
 	sighted map[int]sighting // enemy squads seen lately, by id
 	owners  []Side           // Control Point holders last tick, to notice a flip
 	own     []*Squad         // the side's squads on the field this tick
+	looked  []int            // per block of the map, the tick the side last saw its middle
+	roles   map[int]role     // squads with a job, by id
+	rested  map[int]int      // the tick a squad got back from falling back
+	round   map[int]int      // a skirmisher's place on its patrol
 }
 
 func NewAI(w Weights) *AI {
-	return &AI{weights: w, plans: map[int]*plan{}, seen: map[int]Cell{}, sighted: map[int]sighting{}}
+	return &AI{
+		weights: w, plans: map[int]*plan{}, seen: map[int]Cell{}, sighted: map[int]sighting{},
+		roles: map[int]role{}, rested: map[int]int{}, round: map[int]int{},
+	}
 }
 
 // sighting is where an enemy squad was last seen, how many it had, and when.
@@ -123,6 +142,30 @@ const (
 	// stickiness is how much better another goal must score before a squad
 	// drops the one it has.
 	stickiness = 1.25
+	// block is the side, in cells, of the squares the AI tracks looking at.
+	block = 8
+	// scoutShare is the part of a defender's mobile squads sent scouting,
+	// times its scout weight; at least one once it has minForScouts, and at
+	// most maxScouts. With
+	// fewer, sending one leaves the points too thin: two-squad Starting Kit
+	// defenders that scouted lost 60% of the time instead of about half.
+	scoutShare   = 0.2
+	minForScouts = 3
+	maxScouts    = 3
+	// skirmishShare is the part of a side's mobile squads it sends
+	// skirmishing, times its aggression weight, out of those it can spare
+	// (beyond one per point for the defender, two per point for the
+	// attacker): at least 1 and at most maxSkirmishers.
+	skirmishShare  = 0.3
+	maxSkirmishers = 5
+	// restTicks is how long a squad that fell back is left to the usual
+	// goals before it can take a role again.
+	restTicks = 20 * TicksPerSecond
+	// outnumbered is how many times its own members an enemy needs before a
+	// skirmisher falls back rather than fights.
+	outnumbered = 1.5
+	// staleCap is the most seconds since a block was looked at that count.
+	staleCap = 60
 	// leash is how far from its point, in cells, a guarding squad chases an
 	// enemy, times its aggression weight.
 	leash        = 6
@@ -147,6 +190,7 @@ func (ai *AI) Orders(v View) []Order {
 		ai.owners = append(ai.owners, p.Owner)
 	}
 	if flipped || v.Tick()%TicksPerSecond == 0 {
+		ai.look(v, own)
 		ai.command(v, own, enemies)
 	}
 
@@ -283,8 +327,9 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		strength += float64(len(sq.Members))
 	}
 	assigned := make([]float64, len(goals))
+	busy := ai.assignRoles(v, own, enemies)
 	for _, sq := range own {
-		if sq.speed == 0 || sq.retreating {
+		if sq.speed == 0 || sq.retreating || busy[sq.ID] {
 			continue
 		}
 		best, bestScore := -1, math.Inf(-1)
@@ -368,12 +413,296 @@ func (ai *AI) engage(v View, sq *Squad, p *plan, e *Squad) []Order {
 	return []Order{{Kind: Move, Squad: sq.ID, Cell: to}}
 }
 
+// look marks the blocks whose middles the side can see now.
+func (ai *AI) look(v View, own []*Squad) {
+	f := v.sim.Field
+	bw, bh := (f.W+block-1)/block, (f.H+block-1)/block
+	if ai.looked == nil {
+		ai.looked = make([]int, bw*bh)
+		for b := range ai.looked {
+			ai.looked[b] = -staleCap * TicksPerSecond // not seen yet: as stale as it gets
+		}
+	}
+	for b := range ai.looked {
+		mid := Cell{min(b%bw*block+block/2, f.W-1), min(b/bw*block+block/2, f.H-1)}
+		for _, o := range own {
+			if r := v.sim.sightOf(o); float64(dist2(o.Cell, mid)) <= r*r {
+				ai.looked[b] = v.Tick()
+				break
+			}
+		}
+	}
+}
+
+// assignRoles gives out the Commander's jobs on top of the usual goals, and
+// reports the squads it has a job for:
+//   - scouts: the defender's few, preferring units tagged for it, then
+//     small squads, then fast ones, roam to the parts of the map it has
+//     looked at least lately;
+//   - skirmishers: squads a side can spare from its points, preferring
+//     units tagged for it, then fast ones, patrol between the points and
+//     hunt enemies they meet that they're good against;
+//   - a scout, or a skirmisher meeting more than it can take, falls back to
+//     a point its side holds or a friend, then rests as an ordinary squad.
+func (ai *AI) assignRoles(v View, own, enemies []*Squad) map[int]bool {
+	s := v.sim
+	w := ai.weights
+	busy := map[int]bool{}
+	var mobile []*Squad
+	for _, sq := range own {
+		if sq.speed > 0 && !sq.retreating {
+			mobile = append(mobile, sq)
+		}
+	}
+
+	// Squads already on a job: carry on, hunt, or fall back.
+	for _, sq := range mobile {
+		r := ai.roles[sq.ID]
+		switch {
+		case r == noRole:
+			continue
+		case r == fallingBack:
+			p := ai.plans[sq.ID]
+			if p == nil || p.goal.kind != fallback || dist(sq.Cell, p.goal.cell) <= closeEnough {
+				delete(ai.roles, sq.ID) // safe: back to the usual goals, for a while
+				ai.rested[sq.ID] = v.Tick()
+				continue
+			}
+		case !ai.inContact(v, sq):
+		case r == skirmish && ai.prey(v, sq, enemies) != nil:
+			e := ai.prey(v, sq, enemies)
+			if p := ai.plans[sq.ID]; p == nil || p.goal.kind != kill || p.goal.target != e.ID {
+				ai.plans[sq.ID] = &plan{goal: goal{kind: kill, cell: e.Cell, target: e.ID}}
+			}
+		default:
+			ai.roles[sq.ID] = fallingBack
+			ai.plans[sq.ID] = &plan{goal: goal{kind: fallback, cell: ai.safety(v, sq)}}
+		}
+		busy[sq.ID] = true
+	}
+
+	count := func(r role) int {
+		n := 0
+		for _, sq := range mobile {
+			if ai.roles[sq.ID] == r {
+				n++
+			}
+		}
+		return n
+	}
+	free := func() []*Squad {
+		var out []*Squad
+		for _, sq := range mobile {
+			back, rested := ai.rested[sq.ID]
+			if ai.roles[sq.ID] == noRole && (!rested || v.Tick()-back >= restTicks) && !ai.inContact(v, sq) {
+				out = append(out, sq)
+			}
+		}
+		return out
+	}
+	tagged := func(sq *Squad, r string) int {
+		if slices.Contains(sq.roles, r) {
+			return 1
+		}
+		return 0
+	}
+	small := func(sq *Squad) int {
+		if len(sq.Members) <= 2 {
+			return 1
+		}
+		return 0
+	}
+
+	scouts := 0
+	if v.Side == Defender && len(mobile) >= minForScouts && w.Scout > 0 {
+		scouts = min(max(1, int(math.Round(float64(len(mobile))*scoutShare*w.Scout))), maxScouts, len(mobile)-1)
+	}
+	if want := scouts - count(scouting); want > 0 {
+		cands := free()
+		slices.SortStableFunc(cands, func(a, b *Squad) int {
+			// Tagged scouts first; units tagged to skirmish only if nothing else fits.
+			return cmp.Or(-cmp.Compare(tagged(a, "scout"), tagged(b, "scout")),
+				cmp.Compare(tagged(a, "skirmisher"), tagged(b, "skirmisher")),
+				-cmp.Compare(small(a), small(b)), -cmp.Compare(a.speed, b.speed), cmp.Compare(a.ID, b.ID))
+		})
+		for _, sq := range cands[:min(want, len(cands))] {
+			ai.roles[sq.ID] = scouting
+		}
+	}
+
+	// Squads it needs on the points: one per point for the defender, held or
+	// to win back (counting only held ones sent squads skirmishing just as
+	// points fell), and two per point for the attacker.
+	need := len(s.Points)
+	if v.Side == Attacker {
+		need = 2 * len(s.Points)
+	}
+	spare := len(mobile) - need - scouts
+	// A handful at most: they find and delay the enemy for the main force.
+	skirmishers := min(spare, maxSkirmishers, max(1, int(math.Round(float64(len(mobile))*skirmishShare*w.Aggression))))
+	if skirmishers <= 0 || w.Aggression <= 0 {
+		skirmishers = 0
+	}
+	for i := len(mobile) - 1; i >= 0 && count(skirmish) > skirmishers; i-- {
+		if sq := mobile[i]; ai.roles[sq.ID] == skirmish {
+			delete(ai.roles, sq.ID) // too many now, say the force shrank: the newest go back
+			delete(ai.plans, sq.ID)
+		}
+	}
+	if want := skirmishers - count(skirmish); want > 0 {
+		cands := free()
+		slices.SortStableFunc(cands, func(a, b *Squad) int {
+			return cmp.Or(-cmp.Compare(tagged(a, "skirmisher"), tagged(b, "skirmisher")),
+				cmp.Compare(tagged(a, "scout"), tagged(b, "scout")),
+				-cmp.Compare(a.speed, b.speed), cmp.Compare(a.ID, b.ID))
+		})
+		for _, sq := range cands[:min(want, len(cands))] {
+			ai.roles[sq.ID] = skirmish
+		}
+	}
+
+	// Send each squad on a job where it goes next.
+	taken := map[Cell]bool{}
+	stops := ai.stops(v)
+	for _, sq := range mobile {
+		p := ai.plans[sq.ID]
+		switch ai.roles[sq.ID] {
+		case scouting:
+			busy[sq.ID] = true
+			if p != nil && p.goal.kind == scout && dist(sq.Cell, p.goal.cell) > closeEnough {
+				taken[p.goal.cell] = true
+				continue // still on its way
+			}
+			if at, ok := ai.waypoint(v, sq, taken); ok {
+				taken[at] = true
+				ai.plans[sq.ID] = &plan{goal: goal{kind: scout, cell: at}}
+			}
+		case skirmish:
+			busy[sq.ID] = true
+			if p != nil && p.goal.kind == kill {
+				continue // hunting
+			}
+			if len(stops) == 0 {
+				continue
+			}
+			k := ai.round[sq.ID] % len(stops)
+			if p != nil && p.goal.kind == patrol && dist(sq.Cell, p.goal.cell) <= closeEnough {
+				k = (k + 1) % len(stops) // there: on to the next stop
+			}
+			ai.round[sq.ID] = k
+			if p == nil || p.goal.kind != patrol || p.goal.cell != stops[k] {
+				ai.plans[sq.ID] = &plan{goal: goal{kind: patrol, cell: stops[k]}}
+			}
+		}
+	}
+	return busy
+}
+
+// stops is a skirmisher's round: each Control Point and the halfway mark to
+// the next, in order.
+func (ai *AI) stops(v View) []Cell {
+	pts := v.sim.Points
+	var out []Cell
+	for i, p := range pts {
+		out = append(out, p.Cell)
+		if len(pts) > 1 {
+			q := pts[(i+1)%len(pts)].Cell
+			out = append(out, Cell{(p.Cell.X + q.X) / 2, (p.Cell.Y + q.Y) / 2})
+		}
+	}
+	return out
+}
+
+// prey is the enemy a skirmisher in contact should take on: in view and in
+// its Sight, not one it's at a disadvantage against, and not outnumbering it
+// badly; the best matchup first, then the nearest.
+func (ai *AI) prey(v View, sq *Squad, enemies []*Squad) *Squad {
+	s := v.sim
+	r := s.sightOf(sq)
+	var best *Squad
+	for _, e := range enemies {
+		t := s.tier(sq, e)
+		if t == None || t == Disadvantage || float64(dist2(sq.Cell, e.Cell)) > r*r ||
+			float64(len(e.Members)) > outnumbered*float64(len(sq.Members)) {
+			continue
+		}
+		if best == nil || cmp.Or(
+			cmp.Compare(tierRank[t], tierRank[s.tier(sq, best)]),
+			cmp.Compare(dist2(sq.Cell, e.Cell), dist2(sq.Cell, best.Cell)),
+		) < 0 {
+			best = e
+		}
+	}
+	return best
+}
+
+// safety is where a squad falls back to: the nearest point its side holds,
+// or else the nearest friendly squad, or else where it is.
+func (ai *AI) safety(v View, sq *Squad) Cell {
+	var at []Cell
+	for _, p := range v.sim.Points {
+		if p.Owner == v.Side {
+			at = append(at, p.Cell)
+		}
+	}
+	if len(at) == 0 {
+		for _, o := range ai.own {
+			if o != sq && !o.Building && ai.roles[o.ID] == noRole {
+				at = append(at, o.Cell)
+			}
+		}
+	}
+	if len(at) == 0 {
+		return sq.Cell
+	}
+	return slices.MinFunc(at, func(a, b Cell) int {
+		return cmp.Or(cmp.Compare(dist2(sq.Cell, a), dist2(sq.Cell, b)), cmp.Compare(v.sim.Field.index(a), v.sim.Field.index(b)))
+	})
+}
+
+// inContact is whether an enemy the side has seen lately is in or near the
+// squad's Sight.
+func (ai *AI) inContact(v View, sq *Squad) bool {
+	r := v.sim.sightOf(sq) + 2
+	for _, sg := range ai.sighted {
+		if float64(dist2(sq.Cell, sg.cell)) <= r*r {
+			return true
+		}
+	}
+	return false
+}
+
+// waypoint is the middle of the block a scout should look at next: the one
+// looked at least lately, leaning toward the attacker's edge and against a
+// long walk, and well clear of the side's own points, which it can see.
+func (ai *AI) waypoint(v View, sq *Squad, taken map[Cell]bool) (Cell, bool) {
+	s := v.sim
+	f := s.Field
+	bw := (f.W + block - 1) / block
+	best, bestScore, found := Cell{}, math.Inf(-1), false
+	for b, at := range ai.looked {
+		mid := Cell{min(b%bw*block+block/2, f.W-1), min(b/bw*block+block/2, f.H-1)}
+		reachable := sq.air || s.costsFor(sq.class)[f.index(mid)] > 0 && s.reachFor(sq.class)[f.index(mid)]
+		if taken[mid] || !reachable ||
+			slices.ContainsFunc(s.Points, func(p Point) bool { return dist(p.Cell, mid) < block }) {
+			continue
+		}
+		stale := min(float64(v.Tick()-at)/TicksPerSecond, staleCap)
+		toward := float64(max(f.W, f.H)-s.depth(s.Edge, mid)) / float64(max(f.W, f.H)) // 1 at the attacker's edge
+		score := stale + 20*toward - dist(sq.Cell, mid)/max(sq.speed, 0.1)/2
+		if score > bestScore { // ties keep the lower block
+			best, bestScore, found = mid, score, true
+		}
+	}
+	return best, found
+}
+
 // state reads a squad's facts now.
 func (ai *AI) state(v View, sq *Squad, g goal) facts {
 	s := v.sim
 	var f facts
 	radius := s.rules.CaptureRadius
-	if g.kind == scout || g.target != 0 {
+	if g.kind == scout || g.kind == patrol || g.kind == fallback || g.target != 0 {
 		radius = closeEnough
 	}
 	if dist(sq.Cell, g.cell) <= radius {

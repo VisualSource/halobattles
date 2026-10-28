@@ -6,6 +6,7 @@
   "cost": { "credits": 300, "materials": 150 },
   "buildTime": 50,
   "commandPoints": 5,
+  "roles": ["skirmisher"],
   "combat": {
     "unitClass": "aircraft",
     "weaponType": "plasma",

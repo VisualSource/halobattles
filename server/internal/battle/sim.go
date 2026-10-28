@@ -66,7 +66,8 @@ type Squad struct {
 	target                 int // an ordered target's id, or 0
 	blocked                int // ticks spent waiting for a cell
 	retreating             bool
-	exit                   int // the edge it Retreats off: 0 top, 1 right, 2 bottom, 3 left
+	roles                  []string // the unit's AI role hints: "scout", "skirmisher"
+	exit                   int      // the edge it Retreats off: 0 top, 1 right, 2 bottom, 3 left
 }
 
 // alive is whether it's still on the field: it has members and hasn't
@@ -199,6 +200,9 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 func (s *Sim) addUnit(side Side, formation int, sl Slot, want Cell) {
 	cb := s.content.Units[sl.Unit].Combat
 	sq := &Squad{Side: side, Unit: sl.Unit, Armed: true, Formation: formation, Slot: sl.Cell}
+	for _, r := range s.content.Units[sl.Unit].Roles {
+		sq.roles = append(sq.roles, string(r))
+	}
 	s.stats(sq, &cb)
 	sq.Members = make([]Layers, sl.Count)
 	for i := range sq.Members {

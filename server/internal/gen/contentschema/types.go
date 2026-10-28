@@ -673,6 +673,11 @@ type Unit struct {
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
 
+	// Hints for the Battle AI: which roles it picks this unit for first. A scout
+	// roams to look and falls back from the enemy; a skirmisher patrols between
+	// points and hunts what it's good against.
+	Roles []UnitRolesElem `json:"roles,omitempty,omitzero"`
+
 	// The most of this unit one Unit Slot holds; more take another slot. Unset is no
 	// limit.
 	SlotLimit *int `json:"slotLimit,omitempty,omitzero"`
@@ -696,6 +701,11 @@ type UnitClass struct {
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
 }
+
+type UnitRolesElem string
+
+const UnitRolesElemScout UnitRolesElem = "scout"
+const UnitRolesElemSkirmisher UnitRolesElem = "skirmisher"
 
 // A kind of damage, with a multiplier for each layer it hits.
 type WeaponType struct {
