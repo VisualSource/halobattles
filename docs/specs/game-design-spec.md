@@ -8,7 +8,7 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 
 - Real-time, online PvP grand strategy for 2–4 players. Galaxy-map play in the style of Empire at War, with Stellaris-style resource management, in the Halo setting.
 - Two Factions: **UNSC** and **Covenant**.
-- Players build on Planets and send Armies along Lanes to capture enemy Planets. A **Battle** is ground only, automatic and round-based, and its Planet is **Locked** while it runs. Players only watch.
+- Players build on Planets and send Armies along Lanes to capture enemy Planets. A **Battle** is ground only, a real-time AI-run fight over Control Points on a 2D Battlefield ([tactical Battle spec](tactical-battle-spec.md)), and its Planet is **Locked** while it runs. Players watch, and can only order a Retreat.
 - **Vision**: a player sees the Planets they own plus their neighbours one Lane away. They also see a Planet one of their Armies is at (passing through, waiting in orbit, landed, or attacking it), and for `armyVisionSeconds` after it leaves or is destroyed; only that Planet, not its neighbours, and never from a Retreating Army. When vision of a Planet ends, its client keeps it as last seen.
 - **Winning**: hold more than a map-set share of Planets for a set time, or be the last player not eliminated. Losing your Capital eliminates you.
 - There is no tech tree, no research, no bots, no Pops and no space Battles. See [Out of scope](#out-of-scope).
@@ -72,43 +72,35 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 
 ## Battles
 
+How a Battle plays out (the Battlefield, Squads, movement, fog of war, Control Points, the AI) is in the [tactical Battle spec](tactical-battle-spec.md). This section keeps who fights, the damage model, and what happens around a Battle.
+
 ### Sides
 
 - A Battle always has exactly two sides. The Planet's owner, or its neutral garrison, defends; one player attacks. Further hostile arrivals wait in orbit.
-- **Defenders** are every unit in all three of the Planet's Stacks, plus **armed** buildings (those with a `combat` block). Unarmed buildings aren't targets; they are destroyed only on capture.
+- **Defenders** are every unit in all three of the Planet's Stacks, plus every building. Armed buildings (those with a `combat` block) fire; unarmed ones are only targets. A building destroyed in a Battle is gone for good.
 
 ### Damage model
 
-- Every combatant has **Shield → Armor → HP** layers, a **Unit Class**, a **Weapon Type**, a **Damage roll** in dice notation (`1d4`, `4d6+1`) and an **Initiative** stat. See [ADR 0003](../adr/0003-dice-damage.md).
+- Every combatant has **Shield → Armor → HP** layers, a **Unit Class**, a **Weapon Type**, a **Damage roll** in dice notation (`1d4`, `4d6+1`), and movement, range, fire-rate and Sight stats ([Stats](tactical-battle-spec.md#stats)). See [ADR 0003](../adr/0003-dice-damage.md).
 - A **Weapon Type** has a multiplier per layer.
 - Against each **Unit Class**, an attacker has a tier: `advantage`, `normal`, `disadvantage` or `none`. A Unit Class missing from a combatant's `tiers` counts as `normal`.
 - **An attack** rolls the **To-hit roll** first, 1d20: below the Ruleset's `toHit` it misses and deals nothing. A hit then rolls the Damage roll.
   - With **Advantage**, the attacker rolls the To-hit roll and the Damage roll twice each and keeps the higher. With **Disadvantage** it keeps the lower. `normal` rolls once, and `none` can't target that Unit Class.
 - **One hit's damage** = the Damage roll × the multiplier of the layer being hit now, rounded down. Damage left over after a layer breaks carries into the next layer at that layer's multiplier. Damage left over after the target dies is wasted. A hit always does at least 1, unless the layer it reaches has a ×0 multiplier.
 - There are no critical hits.
-- A Battle tracks **every unit individually**, each with its own layers and its own turn.
-
-### Rounds
-
-- At the start of each **Round**, every combatant re-rolls Initiative: its Initiative stat + 1d20.
-  - Combatants act from the highest Initiative down. Ties go to the defender, then to the lowest unit id.
-- On its turn, a combatant picks a target uniformly at random among living enemies it can target (any tier but `none`) and attacks. A miss still uses its turn.
-  - A combatant killed before its turn doesn't act.
-  - A combatant with no valid target skips its turn.
+- A Battle tracks **every unit individually**, each with its own layers, inside its Unit Slot's Squad.
+- Terrain and height add To-hit modifiers ([Firing](tactical-battle-spec.md#firing)).
 - Shields don't regenerate during a Battle.
-- The RNG is seeded per Battle from the Match seed plus the Battle id. The resolver is a pure function of (forces, seed), so Battles can be replayed.
+- The RNG is seeded per Battle from the Match seed plus the Battle id. A Battle is a pure function of (Battlefield, forces, seed, player orders by tick), so Battles can be re-simulated.
 
 ### Ending
 
-The Battle runs Round after Round until one of these happens:
+The win conditions (Control Points, elimination, the time cap and Retreat) are in [Winning](tactical-battle-spec.md#winning). Then:
 
-- **Attacker wins:** no defending combatants are left, and the Planet is captured (see [Ownership](#ownership-elimination-and-winning)).
-- **Defender wins:** the surviving attackers Retreat, in any of these cases:
-  - no attackers are left;
-  - the Round cap (40) is reached;
-  - no living combatant has a valid target, which ends the Battle early.
+- **Attacker wins:** the Planet is captured (see [Ownership](#ownership-elimination-and-winning)).
+- **Defender wins:** the surviving attackers Retreat.
 - **Mutual wipe-out:** the defender keeps the Planet. A neutral Planet stays neutral with an empty garrison.
-- Neither side can retreat voluntarily.
+- Either side can order a Retreat mid-Battle; a neutral garrison can't ([Retreat in Battle](tactical-battle-spec.md#retreat-in-battle)).
 - **Survivors** return to full Shield, Armor and HP. Only unit counts carry back to the galaxy map.
 
 ### While Locked
@@ -119,6 +111,7 @@ The Battle runs Round after Round until one of these happens:
 
 ### Retreat
 
+- Applies to a defeated attacker and to either side that Retreats mid-Battle ("the attacker" below means whichever side is Retreating).
 - **Target:** the attacker's friendly Planet that is the fewest Lane jumps from the Battle. Ties go to the shorter travel time, then the lowest Planet id. Every "lowest id" tie-break compares ids byte-wise; ids are ASCII only.
 - **Movement:** the Army moves there directly and doesn't stop or fight at any Planet in between. The trip takes as long as the Lane route would.
 - A Retreating Army can't be re-ordered.
@@ -126,10 +119,10 @@ The Battle runs Round after Round until one of these happens:
 
 ### Pacing and watching
 
-- The server resolves each Round instantly. The client plays it back over a 3 s Round, so the defaults give a Lock of about 2 minutes at most. Mods or maps should keep it within 1–3 minutes.
-- **The two sides** see every Round's actions, grouped by Unit Slot: counts go down, and the acting unit and its target are highlighted. Units are never shown one by one.
+- The server runs the Battle live on the match tick. The time cap (3 min) bounds the Lock. Mods or maps should keep it within 1–3 minutes.
+- **The two sides** watch it live in the Battle window, which can go full-screen ([Watching](tactical-battle-spec.md#watching)).
 - **Other players with vision** see only that a Battle is in progress, and its outcome.
-- The roster's pacing target: two forces of similar size should fight for about 8–15 Rounds.
+- The roster's pacing target: two forces of similar size should fight for about 1–3 minutes.
 
 ## Ownership, elimination and winning
 
@@ -166,22 +159,22 @@ The base Mod ships **no icons or sprites**; the client draws placeholders.
 
 ### Units
 
-The rosters mirror each other's roles and costs. Covenant units put part of their durability into Shields and have higher Initiative; UNSC units carry more Armor and HP.
+The rosters mirror each other's roles and costs. Covenant units put part of their durability into Shields; UNSC units carry more Armor and HP. Movement, range, fire-rate and Sight come from the [Unit Class defaults](tactical-battle-spec.md#stats) until playtests give units their own.
 
-Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 45–55% of the time) and fight for 8–15 Rounds; a Go test keeps both.
+Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 45–55% of the time) and fight for 1–3 minutes; a Go test keeps both. They were first balanced for round-based Battles and need re-tuning for tactical ones.
 
-| Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Init | Tiers Inf/Veh/Air/Str | Cost | Time | CP | Trained at |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| Marine | UNSC | Inf | Kinetic | 0/0/12 | 1d4 | 10 | A/D/D/D | 50C | 15s | 1 | Barracks |
-| ODST | UNSC | Inf | Explosive | 0/2/19 | 2d6 | 8 | D/A/N/A | 100C 25M | 25s | 2 | Barracks |
-| Warthog | UNSC | Veh | Kinetic | 0/12/25 | 2d4 | 14 | A/D/N/D | 150C 50M | 30s | 3 | Vehicle Depot |
-| Scorpion | UNSC | Veh | Explosive | 0/38/38 | 4d6+1 | 4 | N/A/–/A | 250C 100M | 45s | 4 | Vehicle Depot |
-| Hornet | UNSC | Air | Kinetic | 0/12/25 | 1d12 | 16 | N/A/A/N | 300C 150M | 50s | 5 | Air Pad |
-| Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | 12 | A/D/D/D | 50C | 15s | 1 | Hall |
-| Elite | Covenant | Inf | Explosive | 10/0/10 | 2d6 | 10 | D/A/N/A | 100C 25M | 25s | 2 | Hall |
-| Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | 16 | A/D/N/D | 150C 50M | 30s | 3 | Summoning Foundry |
-| Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | 4 | N/A/–/A | 250C 100M | 45s | 4 | Summoning Foundry |
-| Banshee | Covenant | Air | Plasma | 13/5/20 | 1d12 | 18 | N/A/A/N | 300C 150M | 50s | 5 | Summit |
+| Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Tiers Inf/Veh/Air/Str | Cost | Time | CP | Trained at |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Marine | UNSC | Inf | Kinetic | 0/0/12 | 1d4 | A/D/D/D | 50C | 15s | 1 | Barracks |
+| ODST | UNSC | Inf | Explosive | 0/2/19 | 2d6 | D/A/N/A | 100C 25M | 25s | 2 | Barracks |
+| Warthog | UNSC | Veh | Kinetic | 0/12/25 | 2d4 | A/D/N/D | 150C 50M | 30s | 3 | Vehicle Depot |
+| Scorpion | UNSC | Veh | Explosive | 0/38/38 | 4d6+1 | N/A/–/A | 250C 100M | 45s | 4 | Vehicle Depot |
+| Hornet | UNSC | Air | Kinetic | 0/12/25 | 1d12 | N/A/A/N | 300C 150M | 50s | 5 | Air Pad |
+| Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | A/D/D/D | 50C | 15s | 1 | Hall |
+| Elite | Covenant | Inf | Explosive | 10/0/10 | 2d6 | D/A/N/A | 100C 25M | 25s | 2 | Hall |
+| Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | A/D/N/D | 150C 50M | 30s | 3 | Summoning Foundry |
+| Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | N/A/–/A | 250C 100M | 45s | 4 | Summoning Foundry |
+| Banshee | Covenant | Air | Plasma | 13/5/20 | 1d12 | N/A/A/N | 300C 150M | 50s | 5 | Summit |
 
 ### Buildings
 
@@ -196,7 +189,7 @@ Six mirrored buildings per Faction. Every `commandPointBonus` is 0.
 | Reactor / Generator | 200C | 30s | 0 | +50M | economy |
 | Turret / Plasma Turret | 200C 50M | 30s | 10C | none | armed Structure |
 
-Both Turrets have a Damage roll of 2d4 and Initiative 10, have `advantage` against Infantry, and are `normal` against Vehicles and Aircraft.
+Both Turrets have a Damage roll of 2d4, have `advantage` against Infantry, and are `normal` against Vehicles and Aircraft.
 
 - **Turret (UNSC):** Kinetic, Sh/Ar/HP 0/25/38.
 - **Plasma Turret (Covenant):** Plasma, Sh/Ar/HP 19/6/38.
@@ -300,9 +293,7 @@ The single `base:rules` definition.
 | Unit Slots per Stack | 15 |
 | `toHit` | 3 (a d20 roll of 1–2 misses: 90% of attacks hit before Advantage or Disadvantage) |
 | Lane types | `fast` 0.6, `slow` 2.0 |
-| Initiative die | 20 |
-| Round duration | 3 s |
-| Round cap | 40 |
+| Tactical Battle fields | see [Ruleset additions](tactical-battle-spec.md#ruleset-additions) |
 | `startingResources` | 1000 Credits, 300 Materials |
 | `gracePeriodSeconds` | 180 (3 min) |
 | `armyVisionSeconds` | 15 |
@@ -319,12 +310,12 @@ Post-MVP, decided when the MVP was specified:
 - **Bots** filling empty Seats. The MVP is PvP only.
 - **Spies and richer vision rules.** MVP vision is owned Planets plus their neighbours one Lane away.
 - **A tech tree or unlocks.**
-- **Halo-style Shield regeneration during Battles** (after a Round without damage). MVP Shields refill only after a Battle.
+- **Halo-style Shield regeneration during Battles** (after a few seconds without damage). MVP Shields refill only after a Battle.
+- **Player control in Battles** beyond Retreat, and the rest of the tactical spec's [Later](tactical-battle-spec.md#later) list.
 - **Touch and mobile layouts.** The MVP is desktop mouse and keyboard at 1280×720 or larger.
 
 Further off, not designed yet:
 
-- **Tactical Battles** (player-controlled): wanted eventually, far beyond the MVP.
 - **Space Battles** or an orbital layer. MVP Battles are ground only.
 - **Pops**, a population simulation.
 - **A Tauri desktop client:** blocked on Linux webkitgtk; browser-first keeps it possible.

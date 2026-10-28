@@ -69,7 +69,7 @@ The periodic moment when every player receives their net income in one lump sum.
 _Avoid_: Income tick, week, turn
 
 **Retreat**:
-The forced move of a defeated attacking Army to its owner's nearest Planet, passing through other Planets without stopping or fighting.
+The move of an Army to its owner's nearest Planet, passing through other Planets without stopping or fighting; forced on a defeated attacker, or ordered by either side mid-Battle.
 _Avoid_: Rout, recall
 
 **Rally Stack**:
@@ -81,16 +81,40 @@ The start Planet a player is assigned when the Match starts; losing it eliminate
 _Avoid_: Homeworld, HQ
 
 **Battle**:
-The automatic, round-based fight that starts when hostile forces meet at a Planet; players watch but do not act.
-_Avoid_: Combat, engagement, tactical battle
+The real-time fight on a Battlefield that starts when hostile forces meet at a Planet; Controllers run it, and players can only order a Retreat.
+_Avoid_: Combat, engagement, tactical battle, round (Battles no longer have Rounds)
 
-**Round**:
-One step of a Battle in which every living combatant gets one turn, in Initiative order.
-_Avoid_: Turn (a turn is one combatant's action within a Round)
+**Battlefield**:
+The square-grid map a Planet's Battles are fought on, generated from noise with the Match seed and the Planet id.
+_Avoid_: Battle map, arena, level
 
-**Initiative**:
-A combatant's roll at the start of each Round that sets the order in which combatants act.
-_Avoid_: Speed, turn order
+**Terrain**:
+The kind of ground in a Battlefield cell (e.g. Open, Forest, Rough, Water), which sets cover and per-Unit-Class movement.
+_Avoid_: Tile, biome
+
+**Terrain Preset**:
+The noise settings and thresholds a Battlefield is generated from, e.g. temperate, desert or ice.
+_Avoid_: Biome (reserved, see Planet Type), map type
+
+**Squad**:
+A Unit Slot as it fights in a Battle: one token on one cell, tracking each member's own layers.
+_Avoid_: Stack (a Stack holds up to 15 Unit Slots), unit, token
+
+**Control Point**:
+A Battlefield location the two sides fight over; holding enough of them long enough wins the Battle for the attacker.
+_Avoid_: Objective, flag, capture point
+
+**Sight**:
+How far a unit sees on a Battlefield, in cells; a side sees the union of its units' Sight, and everything else is fog.
+_Avoid_: Vision (Vision is galaxy-level), range (that's how far it fires)
+
+**Controller**:
+What drives one side of a Battle: it reads that side's fog-filtered view and issues orders. The AI is a Controller, and a player will be one later.
+_Avoid_: AI player, brain, bot (bots fill Seats, which is out of scope)
+
+**Commander**:
+The AI Controller's side-level layer, which assigns each Squad a goal.
+_Avoid_: General, strategist
 
 **Unit Class**:
 A combat category of units and armed buildings (e.g. Infantry, Vehicle, Aircraft, Structure) that attackers are more or less effective against.
@@ -122,7 +146,7 @@ _Avoid_: Contested, in-battle
 
 **Vision**:
 The Planets a player can see right now: those they own and their neighbours one Lane away, plus any Planet one of their Armies is at, and for a short time after it leaves or is destroyed. Retreating Armies give none.
-_Avoid_: Fog of war, line of sight
+_Avoid_: Fog of war (fog is a Battlefield term), line of sight, Sight (Battlefield only)
 
 **View**:
 One player's picture of a Match, limited to what their vision reveals; the only state a player is ever sent.
@@ -131,9 +155,6 @@ _Avoid_: Snapshot, game state (the full state only the server holds)
 **Match Time**:
 Time elapsed since a Match started; everything scheduled in a Match is placed on it.
 _Avoid_: Server time, game clock
-
-**Tactical Battle**:
-A possible future player-controlled battle mode, distinct from Battle; not part of the current scope.
 
 **Mod**:
 A package of content (units, buildings, planets, maps) loaded by the game; the base game is itself a Mod.
@@ -148,7 +169,7 @@ A Mod's change to content another Mod defined, altering only the fields it names
 _Avoid_: Override (an override replaces the whole definition), diff
 
 **Ruleset**:
-The single set of game-wide tuning values (Payday interval, refunds, Unit Slots per Stack, Battle settings) that every Match runs under.
+The single set of game-wide tuning values (Payday interval, refunds, Unit Slots per Stack, Battle and Battlefield settings) that every Match runs under.
 _Avoid_: Settings, config, game rules
 
 **Resource**:

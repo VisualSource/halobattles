@@ -84,12 +84,14 @@ Kind folders let VS Code attach the right schema by glob. Assets use the `__mod_
 Every definition has an `id` and an inline English `name`. Every asset reference is optional; the client draws a placeholder when one is missing. A "resource map" is `{resourceId: amount}` over stockpile Resources.
 
 - **Resource:** a stockpile only, with an optional `icon`. Command Points is **not** a Resource; it is carried by `commandPoints` and `commandPointBonus` fields.
-- **Faction:** an optional `icon` and a **Starting Kit**: the buildings and Stacks (`[{unit, count}]` per Stack) placed on its Capital. Starting resources are not part of the kit.
+- **Faction:** an optional `icon`, an optional `ai` weight block for the Battle AI ([AI](tactical-battle-spec.md#ai)), and a **Starting Kit**: the buildings and Stacks (`[{unit, count}]` per Stack) placed on its Capital. Starting resources are not part of the kit.
 - **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), optional `slotLimit` (the most one Unit Slot holds), `combat` (required), optional `icon`.
 - **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `icon`. There are no build limits or prerequisites.
-- **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `initiative`, and `tiers: {unitClassId: tier}`. `damage` is dice notation, `NdM` or `NdM+K`, checked by a schema pattern; a tier is `advantage`, `normal`, `disadvantage` or `none`, and a Unit Class missing from `tiers` counts as `normal` ([ADR 0003](../adr/0003-dice-damage.md)).
+- **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `tiers: {unitClassId: tier}`, and optional `speed`, `range`, `minRange`, `fireInterval` and `sight`, which default from the Ruleset's `classDefaults` ([Stats](tactical-battle-spec.md#stats)). `damage` is dice notation, `NdM` or `NdM+K`, checked by a schema pattern; a tier is `advantage`, `normal`, `disadvantage` or `none`, and a Unit Class missing from `tiers` counts as `normal` ([ADR 0003](../adr/0003-dice-damage.md)).
 - **Unit Class:** an id and a name.
 - **Weapon Type:** a multiplier for each layer (`shield`, `armor`, `hp`).
+- **Terrain:** `cover`, `colour`, and per Unit Class `{passable, cost}`.
+- **Terrain Preset:** noise parameters, elevation and moisture thresholds, and the Terrain for each band × moisture cell ([Generation](tactical-battle-spec.md#generation)).
 - **Planet Type:** `income` (resource map), `buildingSlots`, `commandPointBonus`, optional `sprite`.
 - **Ruleset:** exactly one definition, `base:rules`, which later Mods Patch. Its fields are:
   - the Payday interval;
@@ -97,13 +99,13 @@ Every definition has an `id` and an inline English `name`. Every asset reference
   - Unit Slots per Stack;
   - `toHit`, the d20 roll an attack needs to hit;
   - Lane types and their multipliers;
-  - the Initiative die size, the Round duration and the Round cap;
+  - the tactical Battle fields ([Ruleset additions](tactical-battle-spec.md#ruleset-additions));
   - `startingResources`, the defaults the lobby fills in (maps have none of their own);
   - `gracePeriodSeconds`, `resultsSeconds` and `armyVisionSeconds`, in whole seconds and converted to Match Time ms by the server.
 
   Defaults are in the game-design spec's [Ruleset defaults](game-design-spec.md#ruleset-defaults).
 - **Map:**
-  - `planets`: a local id, `name`, `type` (a Planet Type), 2D `position {x, y}`, an optional `overrides` (a Patch on its type's values), and an optional `model`: `planet` (the default) or `ring`, which the client draws as a Halo ring.
+  - `planets`: a local id, `name`, `type` (a Planet Type), 2D `position {x, y}`, an optional `overrides` (a Patch on its type's values), an optional `model`: `planet` (the default) or `ring`, which the client draws as a Halo ring, and an optional `battlefield {preset, width, height}`.
   - `lanes`: `{from, to, type}`. Optional `length` defaults to the straight-line distance; optional `time` overrides length × multiplier.
   - `garrisons`: neutral starting forces per Planet, as up to 3 Stacks of `[{unit, count}]`, from any Faction. A garrison on a `starts` Planet applies only when that start is unused.
   - `starts`: a list of Planet ids. Its length is the maximum player count; a used start is its player's Capital. There is also `minPlayers`.
@@ -121,7 +123,7 @@ The Plugin API is post-MVP. The spec names only where it will attach:
 
 1. After content merge
 2. Payday income
-3. Battle target choice
+3. Battle Controller (a Plugin can drive a side, or supply AI weights; [ADR 0005](../adr/0005-ai-as-controller.md))
 4. Battle hit damage
 5. Planet captured
 6. Win check
@@ -163,8 +165,8 @@ These one-off messages travel on a side channel, alongside the View:
 |---|---|
 | `CommandRejected {seq, reason}` | the sender |
 | `PaydayPaid {net per Resource}` | that player |
-| `BattleStarted {planet, roster}` | the two sides |
-| `BattleRound {planet, round, actions}` | the two sides |
+| `BattleStarted {planet, battlefield, controlPoints, squads}` (filtered per side) | the two sides |
+| `BattleTick {planet, tick, ...}` (filtered per side) | the two sides |
 | `BattleEnded {planet, winner}` | viewers who can see the Planet |
 | `PlanetCaptured {planet, from, to}` | viewers who can see the Planet |
 | `PlayerEliminated {player}` | everyone |
@@ -174,9 +176,9 @@ These one-off messages travel on a side channel, alongside the View:
 
 ### Time
 
-- Payday, Battle Rounds, queue completions, Lane arrivals and Grace Period expiries are scheduled on **Match Time** (ms since the Match started). Each fires on the first tick after it's due.
+- Payday, queue completions, Lane arrivals and Grace Period expiries are scheduled on **Match Time** (ms since the Match started). Each fires on the first tick after it's due.
 - Every message carries the current Match Time, and the client keeps a clock offset from it.
-- Lane hops, queue items, the next Round and the next Payday are sent as start/end Match Time pairs, and the client interpolates between them. A paused queue (debt or Locked) carries `paused` plus the progress remaining instead of an end time.
+- Lane hops, queue items and the next Payday are sent as start/end Match Time pairs, and the client interpolates between them. A paused queue (debt or Locked) carries `paused` plus the progress remaining instead of an end time.
 
 ### Commands
 
@@ -197,6 +199,8 @@ Every command carries a client-assigned `seq`.
 | `SetRallyStack {planet, stack}` | play | owner |
 | `OrderArmy {fromPlanet, units: [{stack, unit, count}], toPlanet, toStack}` | play | owner |
 | `ReorderArmy {army, toPlanet, toStack}` | play | owner |
+| `BattleRetreat {planet}` | play | a side of that Battle, not neutral |
+| `BattleCancelRetreat {planet}` | play | a side of that Battle, during the countdown |
 | `Surrender` | play | any Seat |
 
 - In `QueueUnit`, `count` expands into that many queue items, each reserving its own Command Points.
@@ -213,16 +217,20 @@ Every command carries a client-assigned `seq`.
 - **Static map:** Planets, Lanes and Planet Types come from content, so every client always has them. Capitals are not static: they are decided at Start.
 - **Visible Planets you don't own:** the owner, the `capital` flag, the Locked flag, buildings, and Stack contents (unit types and counts). Their queues stay hidden.
 - **Armies:** visible while on a Lane with at least one endpoint in your vision. You see only the current hop, never the final destination.
-- **Battles:** only the two sides get the roster, the Round events, and the roster's current state in their View. Anyone else with vision sees the Locked flag and `BattleEnded`.
+- **Battles:** only the two sides get the Battlefield and the Battle's state in their View, and each side only what its Sight reveals ([Sight and fog of war](tactical-battle-spec.md#sight-and-fog-of-war)). Anyone else with vision sees the Locked flag and `BattleEnded`.
 - **Never sent:** other players' Resources and Command Points.
 - **Last-seen cache:** the dynamic details of a Planet outside vision are absent from the View. The client keeps a local last-seen copy, shown greyed with its age, and loses it on reload.
 
 ### Battles on the wire
 
-- `BattleStarted` carries a roster: per-Battle combatant ids, each with its unit type, side, and starting Shield, Armor and HP.
-- `BattleRound` carries the Round's actions in Initiative order: `{actor, target, weapon, shieldDmg, armorDmg, hpDmg, killed, hit, roll}`. A miss has `hit` false and deals nothing; `roll` is the Damage roll before the layer multipliers.
+Messages and commands are listed in the tactical spec's [On the wire](tactical-battle-spec.md#on-the-wire). Decision: [ADR 0004](../adr/0004-real-time-battle-sim.md).
+
+- **Sim loop:** each running Battle steps once per match tick inside `MatchLoop`, after commands are applied and before Views are computed. The sim is its own Go package with no Nakama imports. It takes orders and returns events, and it owns all Battle state.
+- **Controllers:** each step, a side's Controller is given that side's filtered Battle view and returns orders. The AI Controller and player orders (`BattleRetreat`, `BattleCancelRetreat`) take the same path.
+- **Per-side filter:** `battleView(battle, side)` is a pure function and the only place Battle fog is enforced, just as `view(state, player)` is for galaxy Vision. `BattleTick` is the diff of that view against the last one sent, so hidden enemies never leave the server.
+- **Determinism:** each Battle's RNG is seeded from the Match seed plus the Battle id, and its Battlefield from the Match seed plus the Planet id. A Battle is a pure function of (Battlefield, forces, seed, player orders by tick), and the server keeps that input log until the Match ends.
+- **Budget:** ≤ 2 ms per Battle step, enforced by a Go benchmark. If it's exceeded, Battles step in parallel goroutines joined before the tick returns.
 - A side that reconnects mid-Battle sees where the Battle stands now, from its View. It doesn't get a replay.
-- Each Battle's RNG is seeded from the Match seed plus the Battle id, and the resolver is a pure function of (forces, seed).
 
 ### Lobby listing and joining
 
@@ -280,7 +288,7 @@ React, fixed to the screen, not anchored to 3D.
   - **Visible, not owned:** read-only owner, buildings and Stacks. Queues are hidden.
   - **Out of vision:** the last-seen copy, greyed, with its age.
   - **Locked:** commands are disabled, and "Watch Battle" is offered if you are a side.
-- **Battle panel:** a DOM `BattleView` showing both sides' Unit Slot grids with Shield, Armor and HP bars. It animates each Round's actions in order across the Round duration and reuses the Stack grid component. It sits behind its own module, so a 3D or Tactical Battle view can replace it later.
+- **Battle panel:** shows the Battlefield in a three.js orthographic top-down view inside the Battle window, with a full-screen toggle and the Retreat button ([Watching](tactical-battle-spec.md#watching)). It interpolates Squad positions between `BattleTick`s. It sits behind its own module, so a 3D Battle view can replace it later.
 - **Player badges:** a disconnected badge with a forfeit countdown (from `graceEndsAt`) for each player.
 - **Animating between ticks:** progress bars use CSS animations set once per change (from the current progress to 100% over the remaining ms). A paused queue freezes its bar. Countdown text (Payday, win-hold, forfeit) ticks from a 1 Hz `useMatchNow` hook.
 
