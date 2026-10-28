@@ -297,6 +297,8 @@ On top of the usual goals, the Commander gives some squads a job:
 
 ## Watching
 
+![A Battle in full screen: the Battlefield with Control Points A–C and four build pads, and the side column with points, pads, both sides' squads and the latest fire](images/battle-full-screen.png)
+
 - The Battle window shows the Battlefield above each side's squads and the latest fire. A button (or Esc to leave) makes it **full-screen**: the map fills the screen and the rest moves to a side column. The galaxy keeps running underneath.
 - It's rendered with **three.js and an orthographic top-down camera**, with no new dependency:
   - the terrain is one data texture on a plane, in placeholder Terrain colours, lighter per height level, with a faint checker so cells read;

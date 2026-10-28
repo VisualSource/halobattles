@@ -397,7 +397,6 @@ export function BattlePanel(props: {
           <aside className="flex w-105 flex-none flex-col overflow-y-auto border-line border-l bg-panel">
             {points}
             {pads}
-            {pads}
             {sides}
             {latest}
             <span className="flex-1" />
@@ -420,6 +419,7 @@ export function BattlePanel(props: {
     >
       {timeBar}
       {points}
+      {pads}
       <div className="h-3" />
       {map}
       {sides}
@@ -517,7 +517,7 @@ function Points(props: {
   const { battle } = props;
   const hold = battle.hold / BATTLE_TICKS;
   return (
-    <div className="flex items-center gap-3 px-4 pt-3 text-sm">
+    <div className="flex flex-wrap items-center gap-3 px-4 pt-3 text-sm">
       <span className={label}>Points</span>
       {battle.points.map((p, i) => (
         <span
@@ -540,7 +540,7 @@ function Points(props: {
       ))}
       <span className="flex-1" />
       <span
-        className={`font-mono ${battle.holdPaused ? "text-accent" : "text-ink-3"}`}
+        className={`whitespace-nowrap font-mono ${battle.holdPaused ? "text-accent" : "text-ink-3"}`}
         title={
           battle.holdPaused
             ? "A defender stands on a held point: the hold waits"
