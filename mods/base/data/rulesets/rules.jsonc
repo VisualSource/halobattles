@@ -11,9 +11,6 @@
   // An attack hits on a d20 roll of this or more: 90%.
   "toHit": 3,
   "laneTypes": { "fast": 0.6, "slow": 2.0 },
-  "initiativeDie": 20,
-  "roundSeconds": 3,
-  "roundCap": 40,
   "startingResources": { "credits": 1000, "materials": 300 },
   "gracePeriodSeconds": 180,
   "armyVisionSeconds": 15,

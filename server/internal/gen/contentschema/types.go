@@ -165,9 +165,6 @@ type Combat struct {
 	// Hp corresponds to the JSON schema field "hp".
 	Hp int `json:"hp"`
 
-	// Initiative corresponds to the JSON schema field "initiative".
-	Initiative int `json:"initiative"`
-
 	// Closest it fires, in cells (artillery). Defaults to 0.
 	MinRange *float64 `json:"minRange,omitempty,omitzero"`
 
@@ -488,9 +485,6 @@ type Ruleset struct {
 	// ID corresponds to the JSON schema field "id".
 	ID ID `json:"id"`
 
-	// Sides on the Initiative die.
-	InitiativeDie int `json:"initiativeDie"`
-
 	// Travel-time multiplier per Lane type.
 	LaneTypes map[string]float64 `json:"laneTypes"`
 
@@ -505,12 +499,6 @@ type Ruleset struct {
 
 	// How long a Match stays in results.
 	ResultsSeconds int `json:"resultsSeconds"`
-
-	// Most Rounds a Battle can run.
-	RoundCap int `json:"roundCap"`
-
-	// Duration of one Battle Round.
-	RoundSeconds int `json:"roundSeconds"`
 
 	// Refund for selling a building.
 	SellRefundPercent int `json:"sellRefundPercent"`

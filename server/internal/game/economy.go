@@ -1,6 +1,9 @@
 package game
 
-import cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
+import (
+	"github.com/VisualSource/halobattles/server/internal/battle"
+	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
+)
 
 // PaydayPaid is what one player's Resources changed by at a Payday.
 type PaydayPaid struct {
@@ -33,7 +36,7 @@ type Events struct {
 	Paydays  []PaydayPaid
 	Captures []PlanetCaptured
 	Started  []*Battle
-	Rounds   []BattleRound
+	Ticks    []BattleTick // only ticks with volleys
 	Ended    []BattleEnded
 	// Eliminated are the Seats eliminated this tick.
 	Eliminated []int
@@ -126,9 +129,9 @@ func (s *State) units(seat int) map[string]int {
 	}
 	for _, b := range s.Battles { // attackers count until the Battle ends
 		if b.Attacker == seat {
-			for _, cb := range b.Result.Roster {
-				if cb.Side == Attacker {
-					n[cb.Unit]++
+			for _, sq := range b.Sim.Squads {
+				if sq.Side == battle.Attacker {
+					n[sq.Unit] += sq.Start
 				}
 			}
 		}

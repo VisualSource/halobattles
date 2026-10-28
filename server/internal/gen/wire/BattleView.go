@@ -7,14 +7,17 @@ import (
 )
 
 type BattleViewT struct {
-	Id       uint32        `json:"id"`
-	Planet   string        `json:"planet"`
-	Attacker int8          `json:"attacker"`
-	Defender int8          `json:"defender"`
-	Started  int64         `json:"started"`
-	RoundMs  uint32        `json:"round_ms"`
-	Round    uint16        `json:"round"`
-	Roster   []*CombatantT `json:"roster"`
+	Id       uint32           `json:"id"`
+	Planet   string           `json:"planet"`
+	Attacker int8             `json:"attacker"`
+	Defender int8             `json:"defender"`
+	Started  int64            `json:"started"`
+	Tick     uint32           `json:"tick"`
+	Edge     byte             `json:"edge"`
+	Field    *BattlefieldT    `json:"field"`
+	Squads   []*BattleSquadT  `json:"squads"`
+	Points   []*ControlPointT `json:"points"`
+	Hold     uint32           `json:"hold"`
 }
 
 func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -25,18 +28,32 @@ func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t.Planet != "" {
 		planetOffset = builder.CreateString(t.Planet)
 	}
-	rosterOffset := flatbuffers.UOffsetT(0)
-	if t.Roster != nil {
-		rosterLength := len(t.Roster)
-		rosterOffsets := make([]flatbuffers.UOffsetT, rosterLength)
-		for j := 0; j < rosterLength; j++ {
-			rosterOffsets[j] = t.Roster[j].Pack(builder)
+	fieldOffset := t.Field.Pack(builder)
+	squadsOffset := flatbuffers.UOffsetT(0)
+	if t.Squads != nil {
+		squadsLength := len(t.Squads)
+		squadsOffsets := make([]flatbuffers.UOffsetT, squadsLength)
+		for j := 0; j < squadsLength; j++ {
+			squadsOffsets[j] = t.Squads[j].Pack(builder)
 		}
-		BattleViewStartRosterVector(builder, rosterLength)
-		for j := rosterLength - 1; j >= 0; j-- {
-			builder.PrependUOffsetT(rosterOffsets[j])
+		BattleViewStartSquadsVector(builder, squadsLength)
+		for j := squadsLength - 1; j >= 0; j-- {
+			builder.PrependUOffsetT(squadsOffsets[j])
 		}
-		rosterOffset = builder.EndVector(rosterLength)
+		squadsOffset = builder.EndVector(squadsLength)
+	}
+	pointsOffset := flatbuffers.UOffsetT(0)
+	if t.Points != nil {
+		pointsLength := len(t.Points)
+		pointsOffsets := make([]flatbuffers.UOffsetT, pointsLength)
+		for j := 0; j < pointsLength; j++ {
+			pointsOffsets[j] = t.Points[j].Pack(builder)
+		}
+		BattleViewStartPointsVector(builder, pointsLength)
+		for j := pointsLength - 1; j >= 0; j-- {
+			builder.PrependUOffsetT(pointsOffsets[j])
+		}
+		pointsOffset = builder.EndVector(pointsLength)
 	}
 	BattleViewStart(builder)
 	BattleViewAddId(builder, t.Id)
@@ -44,9 +61,12 @@ func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleViewAddAttacker(builder, t.Attacker)
 	BattleViewAddDefender(builder, t.Defender)
 	BattleViewAddStarted(builder, t.Started)
-	BattleViewAddRoundMs(builder, t.RoundMs)
-	BattleViewAddRound(builder, t.Round)
-	BattleViewAddRoster(builder, rosterOffset)
+	BattleViewAddTick(builder, t.Tick)
+	BattleViewAddEdge(builder, t.Edge)
+	BattleViewAddField(builder, fieldOffset)
+	BattleViewAddSquads(builder, squadsOffset)
+	BattleViewAddPoints(builder, pointsOffset)
+	BattleViewAddHold(builder, t.Hold)
 	return BattleViewEnd(builder)
 }
 
@@ -56,15 +76,24 @@ func (rcv *BattleView) UnPackTo(t *BattleViewT) {
 	t.Attacker = rcv.Attacker()
 	t.Defender = rcv.Defender()
 	t.Started = rcv.Started()
-	t.RoundMs = rcv.RoundMs()
-	t.Round = rcv.Round()
-	rosterLength := rcv.RosterLength()
-	t.Roster = make([]*CombatantT, rosterLength)
-	for j := 0; j < rosterLength; j++ {
-		x := Combatant{}
-		rcv.Roster(&x, j)
-		t.Roster[j] = x.UnPack()
+	t.Tick = rcv.Tick()
+	t.Edge = rcv.Edge()
+	t.Field = rcv.Field(nil).UnPack()
+	squadsLength := rcv.SquadsLength()
+	t.Squads = make([]*BattleSquadT, squadsLength)
+	for j := 0; j < squadsLength; j++ {
+		x := BattleSquad{}
+		rcv.Squads(&x, j)
+		t.Squads[j] = x.UnPack()
 	}
+	pointsLength := rcv.PointsLength()
+	t.Points = make([]*ControlPointT, pointsLength)
+	for j := 0; j < pointsLength; j++ {
+		x := ControlPoint{}
+		rcv.Points(&x, j)
+		t.Points[j] = x.UnPack()
+	}
+	t.Hold = rcv.Hold()
 }
 
 func (rcv *BattleView) UnPack() *BattleViewT {
@@ -204,7 +233,7 @@ func (rcv *BattleView) MutateStarted(n int64) bool {
 	return rcv._tab.MutateInt64Slot(12, n)
 }
 
-func (rcv *BattleView) RoundMs() uint32 {
+func (rcv *BattleView) Tick() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
 		return rcv._tab.GetUint32(o + rcv._tab.Pos)
@@ -212,24 +241,37 @@ func (rcv *BattleView) RoundMs() uint32 {
 	return 0
 }
 
-func (rcv *BattleView) MutateRoundMs(n uint32) bool {
+func (rcv *BattleView) MutateTick(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(14, n)
 }
 
-func (rcv *BattleView) Round() uint16 {
+func (rcv *BattleView) Edge() byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
-		return rcv._tab.GetUint16(o + rcv._tab.Pos)
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *BattleView) MutateRound(n uint16) bool {
-	return rcv._tab.MutateUint16Slot(16, n)
+func (rcv *BattleView) MutateEdge(n byte) bool {
+	return rcv._tab.MutateByteSlot(16, n)
 }
 
-func (rcv *BattleView) Roster(obj *Combatant, j int) bool {
+func (rcv *BattleView) Field(obj *Battlefield) *Battlefield {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(Battlefield)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
+}
+
+func (rcv *BattleView) Squads(obj *BattleSquad, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
 	if o != 0 {
 		x := rcv._tab.Vector(o)
 		x += flatbuffers.UOffsetT(j) * 4
@@ -240,16 +282,57 @@ func (rcv *BattleView) Roster(obj *Combatant, j int) bool {
 	return false
 }
 
-func (rcv *BattleView) RosterLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+func (rcv *BattleView) SquadsByKey(obj *BattleSquad, key uint16) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		return obj.LookupByKey(key, x, rcv._tab.Bytes)
+	}
+	return false
+}
+
+func (rcv *BattleView) SquadsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
 	return 0
 }
 
+func (rcv *BattleView) Points(obj *ControlPoint, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *BattleView) PointsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
+func (rcv *BattleView) Hold() uint32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	if o != 0 {
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleView) MutateHold(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(24, n)
+}
+
 func BattleViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(8)
+	builder.StartObject(11)
 }
 func BattleViewAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -266,17 +349,29 @@ func BattleViewAddDefender(builder *flatbuffers.Builder, defender int8) {
 func BattleViewAddStarted(builder *flatbuffers.Builder, started int64) {
 	builder.PrependInt64Slot(4, started, 0)
 }
-func BattleViewAddRoundMs(builder *flatbuffers.Builder, roundMs uint32) {
-	builder.PrependUint32Slot(5, roundMs, 0)
+func BattleViewAddTick(builder *flatbuffers.Builder, tick uint32) {
+	builder.PrependUint32Slot(5, tick, 0)
 }
-func BattleViewAddRound(builder *flatbuffers.Builder, round uint16) {
-	builder.PrependUint16Slot(6, round, 0)
+func BattleViewAddEdge(builder *flatbuffers.Builder, edge byte) {
+	builder.PrependByteSlot(6, edge, 0)
 }
-func BattleViewAddRoster(builder *flatbuffers.Builder, roster flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(roster), 0)
+func BattleViewAddField(builder *flatbuffers.Builder, field flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(7, flatbuffers.UOffsetT(field), 0)
 }
-func BattleViewStartRosterVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+func BattleViewAddSquads(builder *flatbuffers.Builder, squads flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(8, flatbuffers.UOffsetT(squads), 0)
+}
+func BattleViewStartSquadsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
+}
+func BattleViewAddPoints(builder *flatbuffers.Builder, points flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(points), 0)
+}
+func BattleViewStartPointsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func BattleViewAddHold(builder *flatbuffers.Builder, hold uint32) {
+	builder.PrependUint32Slot(10, hold, 0)
 }
 func BattleViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

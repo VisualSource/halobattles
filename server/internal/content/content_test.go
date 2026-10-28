@@ -18,9 +18,6 @@ const baseRules = `{
 	"unitSlotsPerStack": 10,
 	"toHit": 3,
 	"laneTypes": {"fast": 1, "slow": 2},
-	"initiativeDie": 20,
-	"roundSeconds": 3,
-	"roundCap": 40,
 	"startingResources": {"credits": 1000},
 	"gracePeriodSeconds": 180,
 	"armyVisionSeconds": 15,
@@ -109,8 +106,8 @@ func TestPatchMergesFieldsAndNullDeletes(t *testing.T) {
 
 	rules := mustLoad(t, dirs).Doc.Rulesets["base:rules"]
 
-	if rules.PaydaySeconds != 60 || rules.RoundCap != 40 {
-		t.Errorf("patched field should change and others stay: payday=%d roundCap=%d", rules.PaydaySeconds, rules.RoundCap)
+	if rules.PaydaySeconds != 60 || rules.ToHit != 3 {
+		t.Errorf("patched field should change and others stay: payday=%d toHit=%d", rules.PaydaySeconds, rules.ToHit)
 	}
 	want := map[string]int{"base:credits": 5000}
 	if len(rules.StartingResources) != 1 || rules.StartingResources["base:credits"] != 5000 {
@@ -134,7 +131,7 @@ func TestReplaceMustBeExplicit(t *testing.T) {
 
 func TestPatchCannotCarryReplace(t *testing.T) {
 	files := with(baseFiles(), map[string]string{
-		"base/data/rulesets/tweak.jsonc": `{"patch": "rules", "replace": true, "roundCap": 1}`,
+		"base/data/rulesets/tweak.jsonc": `{"patch": "rules", "replace": true, "toHit": 1}`,
 	})
 	wantErr(t, writeMods(t, files, "base"), `base/data/rulesets/tweak.jsonc: a Patch can't "replace"`)
 }
@@ -211,7 +208,7 @@ func TestEveryContentProblemIsListedAtOnce(t *testing.T) {
 		"base/data/resources/bad-id.jsonc":   `{"id": "Not Valid", "name": "x"}`,
 		"base/data/resources/extra.jsonc":    `{"id": "extra", "name": "x", "colour": "red"}`,
 		"base/data/resources/dupe.jsonc":     `{"id": "credits", "name": "Dupe"}`,
-		"base/data/rulesets/bad-patch.jsonc": `{"patch": "nope", "roundCap": 1}`,
+		"base/data/rulesets/bad-patch.jsonc": `{"patch": "nope", "toHit": 1}`,
 	})
 	files["base/data/rulesets/rules.jsonc"] = strings.Replace(baseRules, `{"credits": 1000}`, `{"gold": 5}`, 1)
 

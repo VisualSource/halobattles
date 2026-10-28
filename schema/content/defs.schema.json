@@ -68,7 +68,7 @@
       "description": "Battle stats. A Unit Class missing from tiers counts as `normal`.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["unitClass", "weaponType", "shield", "armor", "hp", "damage", "initiative"],
+      "required": ["unitClass", "weaponType", "shield", "armor", "hp", "damage"],
       "properties": {
         "unitClass": { "$ref": "#/definitions/id" },
         "weaponType": { "$ref": "#/definitions/id" },
@@ -80,7 +80,6 @@
           "type": "string",
           "pattern": "^[1-9][0-9]*d[1-9][0-9]*(\\+[0-9]+)?$"
         },
-        "initiative": { "type": "integer" },
         "speed": { "description": "Cells per second; defaults from the Ruleset's battle.classDefaults.", "type": "number", "minimum": 0 },
         "range": { "description": "Farthest it fires, in cells; defaults from battle.classDefaults.", "type": "number", "exclusiveMinimum": 0 },
         "minRange": { "description": "Closest it fires, in cells (artillery). Defaults to 0.", "type": "number", "minimum": 0 },

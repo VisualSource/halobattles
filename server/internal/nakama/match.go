@@ -8,6 +8,7 @@ import (
 	"math/rand/v2"
 	"slices"
 
+	"github.com/VisualSource/halobattles/server/internal/battle"
 	"github.com/VisualSource/halobattles/server/internal/content"
 	"github.com/VisualSource/halobattles/server/internal/game"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
@@ -211,20 +212,23 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 	for _, b := range ev.Started {
 		t := &wire.BattleStartedT{
 			MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender),
-			Started: b.Started, RoundMs: uint32(b.RoundMs), Roster: roster(b.Result.Roster),
+			Started: b.Started, Field: field(b.Sim.Field),
 		}
 		s.sendTo(logger, dispatcher, wire.OpBattleStarted, finish(t), sides(b)...)
 	}
-	for _, r := range ev.Rounds {
-		var actions []*wire.BattleActionT
-		for _, a := range r.Battle.Result.Rounds[r.Round] {
-			actions = append(actions, &wire.BattleActionT{
-				Actor: a.Actor, Target: a.Target, Weapon: a.Weapon, ShieldDmg: float32(a.ShieldDmg),
-				ArmorDmg: float32(a.ArmorDmg), HpDmg: float32(a.HPDmg), Killed: a.Killed, Hit: a.Hit, Roll: uint16(a.Roll),
-			})
+	for _, bt := range ev.Ticks {
+		for _, seat := range sides(bt.Battle) {
+			side := battle.Defender
+			if seat == bt.Battle.Attacker {
+				side = battle.Attacker
+			}
+			vs := bt.Battle.Sim.VolleysFor(side, bt.Volleys)
+			if len(vs) == 0 {
+				continue
+			}
+			t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: bt.Battle.ID, Planet: bt.Battle.Planet, Tick: uint32(bt.Battle.Sim.Tick), Volleys: volleys(vs)}
+			s.sendTo(logger, dispatcher, wire.OpBattleTick, finish(t), seat)
 		}
-		t := &wire.BattleRoundT{MatchTime: s.play.Time, Battle: r.Battle.ID, Planet: r.Battle.Planet, Round: uint16(r.Round + 1), Actions: actions}
-		s.sendTo(logger, dispatcher, wire.OpBattleRound, finish(t), sides(r.Battle)...)
 	}
 	for _, e := range ev.Ended {
 		t := &wire.BattleEndedT{MatchTime: s.play.Time, Battle: e.Battle, Planet: e.Planet, Winner: int8(e.Winner)}
@@ -356,7 +360,7 @@ func encodeView(v game.View, contentHash string) []byte {
 	return finish(&wire.ViewFullT{
 		MatchTime: v.Time, ContentHash: contentHash, Ruleset: game.RulesetID, Map: v.Map, You: uint8(v.You),
 		Players: players(v.Players), Planets: planets(v.Planets), Economy: economy(&v.Economy), Armies: armies(v.Armies),
-		Battles: battles(v.Battles), WinHold: &wire.WinHoldT{Seat: int8(v.Hold.Seat), Ends: v.Hold.Ends},
+		Battles: battles(v.Battles, true), WinHold: &wire.WinHoldT{Seat: int8(v.Hold.Seat), Ends: v.Hold.Ends},
 	})
 }
 
@@ -365,7 +369,7 @@ func encodeDelta(d game.Delta) []byte {
 		MatchTime: d.Time, Players: players(d.Players), Planets: planets(d.Planets),
 		RemovedPlanets: d.RemovedPlanets, Economy: economy(d.Economy),
 		Armies: armies(d.Armies), RemovedArmies: d.RemovedArmies,
-		Battles: battles(d.Battles), RemovedBattles: d.RemovedBattles, WinHold: winHold(d.Hold),
+		Battles: battles(d.Battles, false), RemovedBattles: d.RemovedBattles, WinHold: winHold(d.Hold),
 	})
 }
 
@@ -376,23 +380,46 @@ func winHold(h *game.Hold) *wire.WinHoldT {
 	return &wire.WinHoldT{Seat: int8(h.Seat), Ends: h.Ends}
 }
 
-func battles(bs []game.BattleView) []*wire.BattleViewT {
+// battles encodes Battles as each side sees them. The Battlefield never
+// changes, so only a ViewFull carries it; the client keeps it from there or
+// from BattleStarted.
+func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 	var out []*wire.BattleViewT
 	for _, b := range bs { // already sorted by id, as the (key) needs
-		out = append(out, &wire.BattleViewT{
-			Id: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender),
-			Started: b.Started, RoundMs: uint32(b.RoundMs), Round: uint16(b.Round), Roster: roster(b.Roster),
-		})
+		bv := &wire.BattleViewT{
+			Id: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender), Started: b.Started,
+			Tick: uint32(b.Tick), Edge: uint8(b.Edge), Hold: uint32(b.Hold),
+		}
+		if withField {
+			bv.Field = field(b.Field)
+		}
+		for _, sq := range b.Squads { // by id, as the (key) needs
+			bv.Squads = append(bv.Squads, &wire.BattleSquadT{
+				Id: uint16(sq.ID), Side: uint8(sq.Side), Unit: sq.Unit, Building: sq.Building,
+				X: uint16(sq.Cell.X), Y: uint16(sq.Cell.Y), Count: uint32(sq.Count), Start: uint32(sq.Start),
+				Shield: float32(max(0, sq.Front.Shield)), Armor: float32(max(0, sq.Front.Armor)), Hp: float32(max(0, sq.Front.HP)),
+			})
+		}
+		for _, p := range b.Points {
+			bv.Points = append(bv.Points, &wire.ControlPointT{
+				X: uint16(p.Cell.X), Y: uint16(p.Cell.Y), Owner: uint8(p.Owner), Taker: uint8(p.Taker), Progress: uint16(p.Progress),
+			})
+		}
+		out = append(out, bv)
 	}
 	return out
 }
 
-func roster(cs []game.Combatant) []*wire.CombatantT {
-	var out []*wire.CombatantT
-	for _, c := range cs {
-		out = append(out, &wire.CombatantT{
-			Id: c.ID, Side: uint8(c.Side), Unit: c.Unit,
-			Shield: float32(max(0, c.Shield)), Armor: float32(max(0, c.Armor)), Hp: float32(max(0, c.HP)),
+func field(f *battle.Field) *wire.BattlefieldT {
+	return &wire.BattlefieldT{Width: uint16(f.W), Height: uint16(f.H), Terrains: f.Terrains, Terrain: f.Terrain, Heights: f.Height}
+}
+
+func volleys(vs []battle.Volley) []*wire.VolleyT {
+	var out []*wire.VolleyT
+	for _, v := range vs {
+		out = append(out, &wire.VolleyT{
+			Actor: uint16(v.Actor), Target: uint16(v.Target), Shots: uint16(v.Shots), Hits: uint16(v.Hits), Kills: uint16(v.Kills),
+			ShieldDmg: float32(v.ShieldDmg), ArmorDmg: float32(v.ArmorDmg), HpDmg: float32(v.HPDmg),
 		})
 	}
 	return out

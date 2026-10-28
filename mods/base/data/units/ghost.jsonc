@@ -13,7 +13,6 @@
     "armor": 5,
     "hp": 18,
     "damage": "2d4",
-    "initiative": 16,
     "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "normal", "structure": "disadvantage" }
   }
 }

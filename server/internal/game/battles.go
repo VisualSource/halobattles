@@ -2,37 +2,38 @@ package game
 
 import (
 	"cmp"
+	"hash/fnv"
 	"maps"
 	"slices"
+
+	"github.com/VisualSource/halobattles/server/internal/battle"
 
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
-// Battle is a Battle running on a Locked Planet. It's resolved in full when
-// it starts, then played out one Round per Round duration.
+// Battle is a Battle running on a Locked Planet: a tactical sim, stepped
+// once per sim tick of Match Time.
+//
+// shortcut: Sim holds live state, not plain data, so a State with Battles
+// running isn't serialisable; save the input log and re-sim instead when
+// Matches are saved.
 type Battle struct {
 	ID       uint32
 	Planet   string
 	Attacker int // a Seat
 	Defender int // a Seat, or Neutral
 	Started  int64
-	RoundMs  int64
-	Sent     int // Rounds played out so far
 	ToStack  int // where the attackers go if they win
-	Result   BattleResult
-	// Origins says where each defending combatant came from, by roster
-	// order: a Stack, or a Building Slot when Stack is -1.
-	Origins []Origin
+	Sim      *battle.Sim
 }
 
-// Origin is a Stack and the cell of its Unit Slot, or a Building Slot when
-// Stack is -1.
-type Origin struct{ Stack, Cell, Slot int }
+// tickMs is one sim tick in Match Time.
+const tickMs = 1000 / battle.TicksPerSecond
 
-// BattleRound is one Round being played out.
-type BattleRound struct {
-	Battle *Battle
-	Round  int // index into Result.Rounds
+// BattleTick is one sim tick's volleys in a Battle.
+type BattleTick struct {
+	Battle  *Battle
+	Volleys []battle.Volley
 }
 
 // BattleEnded tells Viewers who won a Battle.
@@ -43,31 +44,53 @@ type BattleEnded struct {
 	Viewers []int
 }
 
+// field is a Planet's Battlefield, generated on its first Battle from the
+// Match seed and the Planet id, and the same for the rest of the Match.
+func (s *State) field(c *cs.Content, planet string) *battle.Field {
+	if f := s.Fields[planet]; f != nil {
+		return f
+	}
+	var override *cs.PlanetBattlefield
+	for _, mp := range c.Maps[s.Map].Planets {
+		if string(mp.ID) == planet {
+			override = mp.Battlefield
+		}
+	}
+	h := fnv.New64a()
+	h.Write([]byte(planet))
+	f := battle.Generate(c, c.Rulesets[RulesetID].Battlefield, override, s.Seed^h.Sum64())
+	if s.Fields == nil {
+		s.Fields = map[string]*battle.Field{}
+	}
+	s.Fields[planet] = f
+	return f
+}
+
 // startBattle fights an Army against everything defending a Planet: every
-// unit in its Stacks and its armed buildings. The Planet Locks until the
-// Battle ends.
+// unit in its Stacks, each Stack a formation, and every building. The Planet
+// Locks until the Battle ends.
 func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	s.LastID++
-	b := &Battle{
-		ID: s.LastID, Planet: p.ID, Attacker: a.Owner, Defender: p.Owner, Started: s.Time,
-		RoundMs: int64(c.Rulesets[RulesetID].RoundSeconds) * 1000, ToStack: a.ToStack,
+	b := &Battle{ID: s.LastID, Planet: p.ID, Attacker: a.Owner, Defender: p.Owner, Started: s.Time, ToStack: a.ToStack}
+	var attack, defend battle.Force
+	per := max(1, c.Rulesets[RulesetID].UnitSlotsPerStack)
+	for i, u := range a.Units { // an Army's slots, a Stack's worth at a time
+		if i%per == 0 {
+			attack.Formations = append(attack.Formations, nil)
+		}
+		attack.Formations[i/per] = append(attack.Formations[i/per], battle.Slot{Unit: u.Unit, Count: u.Count, Cell: i % per})
 	}
-	var units []UnitSlot
-	for i, st := range p.Stacks {
+	for _, st := range p.Stacks {
+		var f []battle.Slot
 		for _, u := range st {
-			units = append(units, u)
-			for range u.Count {
-				b.Origins = append(b.Origins, Origin{Stack: i, Cell: u.Cell})
-			}
+			f = append(f, battle.Slot{Unit: u.Unit, Count: u.Count, Cell: u.Cell})
 		}
+		defend.Formations = append(defend.Formations, f)
 	}
-	for slot, id := range p.Buildings {
-		if c.Buildings[id].Combat != nil {
-			b.Origins = append(b.Origins, Origin{Stack: -1, Slot: slot})
-		}
-	}
+	defend.Buildings = slices.Clone(p.Buildings)
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
-	b.Result = ResolveBattle(c, Force{Units: a.Units}, Force{Units: units, Buildings: p.Buildings}, s.Seed+uint64(b.ID))
+	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID), attack, defend, s.Seed+uint64(b.ID))
+	b.Sim.Controllers = [2]battle.Controller{battle.Rush{}, battle.Rush{}}
 	p.Locked = true
 	delete(s.Armies, a.ID)
 	if s.Battles == nil {
@@ -77,54 +100,52 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	ev.Started = append(ev.Started, b)
 }
 
-// fightBattles plays out each Round when it's due, and ends each Battle one
-// Round duration after its last Round.
+// fightBattles steps each Battle's sim once per tick that's due, and ends
+// each Battle once its sim is over.
 func (s *State) fightBattles(c *cs.Content, now int64, ev *Events) {
 	for _, id := range slices.Sorted(maps.Keys(s.Battles)) {
 		b := s.Battles[id]
-		for b.Sent < len(b.Result.Rounds) && b.Started+int64(b.Sent)*b.RoundMs <= now {
-			ev.Rounds = append(ev.Rounds, BattleRound{Battle: b, Round: b.Sent})
-			b.Sent++
+		for !b.Sim.Over && b.Started+int64(b.Sim.Tick+1)*tickMs <= now {
+			if vs := b.Sim.Step(); len(vs) > 0 {
+				ev.Ticks = append(ev.Ticks, BattleTick{Battle: b, Volleys: vs})
+			}
 		}
-		if b.Sent == len(b.Result.Rounds) && b.Started+int64(b.Sent)*b.RoundMs <= now {
+		if b.Sim.Over {
 			s.endBattle(c, b, ev)
 		}
 	}
 }
 
 // endBattle puts the survivors back, back to full Shield, Armor and HP:
-// only unit counts carry over. Armed buildings that died are destroyed. A
-// winning attacker captures the Planet and moves in; a beaten one Retreats.
+// only unit counts carry over. Buildings that died are destroyed, whoever
+// won. A winning attacker captures the Planet and moves in; a beaten one
+// Retreats.
 func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	p := s.Planets[b.Planet]
-	alive := map[string]bool{}
-	for _, id := range b.Result.Survivors {
-		alive[id] = true
-	}
 	var attackers Stack
 	var stacks [StacksPerPlanet]Stack
-	d := 0 // index into Origins
-	for _, cb := range b.Result.Roster {
-		if cb.Side == Attacker {
-			if alive[cb.ID] {
-				attackers = attackers.add(cb.Unit, 1, 0)
-			}
-			continue
-		}
-		o := b.Origins[d]
-		d++
+	for _, sq := range b.Sim.Squads {
+		n := len(sq.Members)
 		switch {
-		case o.Stack >= 0 && alive[cb.ID]:
-			stacks[o.Stack] = stacks[o.Stack].addToCell(cb.Unit, o.Cell) // back to its own slot
-		case o.Stack < 0 && !alive[cb.ID]:
-			p.Buildings[o.Slot] = ""
+		case sq.Building:
+			if n == 0 {
+				p.Buildings[sq.Slot] = ""
+			}
+		case sq.Side == battle.Attacker:
+			if n > 0 {
+				attackers = attackers.add(sq.Unit, n, 0)
+			}
+		default:
+			for range n {
+				stacks[sq.Formation] = stacks[sq.Formation].addToCell(sq.Unit, sq.Slot) // back to its own slot
+			}
 		}
 	}
 	p.Stacks, p.Locked = stacks, false
 	delete(s.Battles, b.ID)
 
 	winner := b.Defender
-	if b.Result.Winner == Attacker {
+	if b.Sim.Winner == battle.Attacker {
 		winner = b.Attacker
 	}
 	if s.Players[b.Attacker].Eliminated {

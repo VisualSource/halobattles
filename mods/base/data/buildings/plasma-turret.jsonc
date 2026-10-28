@@ -7,6 +7,6 @@
   "buildTime": 30,
   "upkeep": { "credits": 10 },
   "yield": {},
-  "combat": { "unitClass": "structure", "weaponType": "plasma", "shield": 19, "armor": 6, "hp": 38, "damage": "2d4", "initiative": 10, "tiers": { "infantry": "advantage", "vehicle": "normal", "aircraft": "normal", "structure": "normal" } },
+  "combat": { "unitClass": "structure", "weaponType": "plasma", "shield": 19, "armor": 6, "hp": 38, "damage": "2d4", "tiers": { "infantry": "advantage", "vehicle": "normal", "aircraft": "normal", "structure": "normal" } },
   "commandPointBonus": 0
 }

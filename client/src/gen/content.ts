@@ -111,18 +111,6 @@ export interface Ruleset {
   laneTypes: {
     [k: string]: number;
   };
-  /**
-   * Sides on the Initiative die.
-   */
-  initiativeDie: number;
-  /**
-   * Duration of one Battle Round.
-   */
-  roundSeconds: number;
-  /**
-   * Most Rounds a Battle can run.
-   */
-  roundCap: number;
   startingResources: ResourceMap;
   /**
    * How long a disconnected player keeps their Seat.
@@ -348,7 +336,6 @@ export interface Combat {
    * The damage roll, in dice notation: NdM, or NdM+K.
    */
   damage: string;
-  initiative: number;
   /**
    * Cells per second; defaults from the Ruleset's battle.classDefaults.
    */

@@ -25,7 +25,7 @@ export enum Op {
   PaydayPaid = 104,
   PlanetCaptured = 105,
   BattleStarted = 106,
-  BattleRound = 107,
+  BattleTick = 107,
   BattleEnded = 108,
   PlayerEliminated = 109,
   MatchEnded = 110

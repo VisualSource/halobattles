@@ -165,8 +165,8 @@ These one-off messages travel on a side channel, alongside the View:
 |---|---|
 | `CommandRejected {seq, reason}` | the sender |
 | `PaydayPaid {net per Resource}` | that player |
-| `BattleStarted {planet, battlefield, controlPoints, squads}` (filtered per side) | the two sides |
-| `BattleTick {planet, tick, ...}` (filtered per side) | the two sides |
+| `BattleStarted {planet, battle, attacker, defender, started, field}` | the two sides |
+| `BattleTick {planet, battle, tick, volleys}` (filtered per side) | each side, on ticks with fire it may know about |
 | `BattleEnded {planet, winner}` | viewers who can see the Planet |
 | `PlanetCaptured {planet, from, to}` | viewers who can see the Planet |
 | `PlayerEliminated {player}` | everyone |
@@ -227,7 +227,7 @@ Messages and commands are listed in the tactical spec's [On the wire](tactical-b
 
 - **Sim loop:** each running Battle steps once per match tick inside `MatchLoop`, after commands are applied and before Views are computed. The sim is its own Go package with no Nakama imports. It takes orders and returns events, and it owns all Battle state.
 - **Controllers:** each step, a side's Controller is given that side's filtered Battle view and returns orders. The AI Controller and player orders (`BattleRetreat`, `BattleCancelRetreat`) take the same path.
-- **Per-side filter:** `battleView(battle, side)` is a pure function and the only place Battle fog is enforced, just as `view(state, player)` is for galaxy Vision. `BattleTick` is the diff of that view against the last one sent, so hidden enemies never leave the server.
+- **Per-side filter:** the sim's `Snapshot(side)` and `VolleysFor(side)` are the only places Battle fog is enforced, just as `view(state, player)` is for galaxy Vision. The snapshot rides in each side's View as its `BattleView`, diffed like any other entity, so hidden enemies never leave the server.
 - **Determinism:** each Battle's RNG is seeded from the Match seed plus the Battle id, and its Battlefield from the Match seed plus the Planet id. A Battle is a pure function of (Battlefield, forces, seed, player orders by tick), and the server keeps that input log until the Match ends.
 - **Budget:** ≤ 2 ms per Battle step, enforced by a Go benchmark. If it's exceeded, Battles step in parallel goroutines joined before the tick returns.
 - A side that reconnects mid-Battle sees where the Battle stands now, from its View. It doesn't get a replay.

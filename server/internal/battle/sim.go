@@ -128,7 +128,8 @@ func (s *Sim) layer(sq *Squad) []int {
 }
 
 // New deploys both sides on the Field. The defender holds every Control
-// Point.
+// Point. A side with nothing that can fight has already lost: the Sim
+// starts Over.
 func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed uint64) *Sim {
 	s := &Sim{
 		Field: f, content: c, rules: rules.Battle, toHit: rules.ToHit, pathClass: string(rules.Battlefield.PathClass),
@@ -170,6 +171,7 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 		s.addBuilding(slot, id, f.Points[slot%len(f.Points)].add(in.scale(3)))
 	}
 	s.see()
+	s.end() // nobody on one side: decided before it starts
 	return s
 }
 
@@ -227,7 +229,9 @@ func (s *Sim) stats(sq *Squad, cb *cs.Combat) {
 
 // place puts a squad in the free cell it can stand on nearest want, searching
 // outward from it. Ground squads stay in the main region, so every one can
-// reach the Control Points.
+// reach the Control Points. A squad that can stand nowhere (its Unit Class
+// can't enter any Terrain here) takes the nearest free cell anyway, so no
+// unit is ever left out of a Battle.
 func (s *Sim) place(sq *Squad, want Cell) {
 	f := s.Field
 	want = Cell{min(max(want.X, 0), f.W-1), min(max(want.Y, 0), f.H-1)}
@@ -236,13 +240,20 @@ func (s *Sim) place(sq *Squad, want Cell) {
 		c = s.costsFor(s.pathClass)
 	}
 	layer := s.layer(sq)
+	fits := func(i int) bool { return c[i] > 0 && (sq.air || s.main[i]) }
+	if !slices.ContainsFunc(layer, func(id int) bool { return id == 0 }) {
+		return // shortcut: a map with every cell taken can't seat it; maps are thousands of cells
+	}
+	if !slices.ContainsFunc(c, func(v float64) bool { return v > 0 }) {
+		fits = func(int) bool { return true }
+	}
 	seen := make([]bool, f.W*f.H)
 	queue := []int{f.index(want)}
 	seen[queue[0]] = true
 	for len(queue) > 0 {
 		i := queue[0]
 		queue = queue[1:]
-		if layer[i] == 0 && c[i] > 0 && (sq.air || s.main[i]) {
+		if layer[i] == 0 && fits(i) {
 			sq.ID = len(s.Squads) + 1
 			sq.Cell = f.cell(i)
 			sq.Start = len(sq.Members)
@@ -259,8 +270,15 @@ func (s *Sim) place(sq *Squad, want Cell) {
 			}
 		}
 	}
-	// shortcut: a squad with nowhere to stand sits out the Battle; only a map
-	// fuller than its ground can cause it.
+	// Its ground has no free cell left: stand anywhere free.
+	for i, id := range layer {
+		if id == 0 {
+			sq.ID, sq.Cell, sq.Start = len(s.Squads)+1, f.cell(i), len(sq.Members)
+			layer[i] = sq.ID
+			s.Squads = append(s.Squads, sq)
+			return
+		}
+	}
 }
 
 // Step runs one tick: orders, movement, fire, Control Points, then the end
@@ -566,4 +584,58 @@ func (s *Sim) end() {
 	case s.Tick >= s.rules.TimeCap*TicksPerSecond:
 		s.Over, s.Winner, s.Reason = true, Defender, TimeUp
 	}
+}
+
+// SquadView is a squad as a side sees it: where it is, how many are left,
+// and its front member's layers.
+type SquadView struct {
+	ID       int
+	Side     Side
+	Unit     string
+	Building bool
+	Cell     Cell
+	Count    int
+	Start    int
+	Front    Layers
+}
+
+// Snapshot is one side's picture of the Battle: its own squads, the enemies
+// it can see, and the public state. It's the only Battle state a side is
+// sent, so it's where fog of war is enforced.
+type Snapshot struct {
+	Tick   int
+	Edge   int
+	Squads []SquadView // living, by id
+	Points []Point
+	Hold   int
+}
+
+func (s *Sim) Snapshot(side Side) Snapshot {
+	snap := Snapshot{Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Hold: s.Hold}
+	for _, sq := range s.Squads {
+		if sq.alive() && s.visible[side][sq.ID] {
+			snap.Squads = append(snap.Squads, SquadView{
+				ID: sq.ID, Side: sq.Side, Unit: sq.Unit, Building: sq.Building, Cell: sq.Cell,
+				Count: len(sq.Members), Start: sq.Start, Front: sq.Members[0],
+			})
+		}
+	}
+	return snap
+}
+
+// VolleysFor is the volleys side may know about: any that hit its own squads
+// or ones it can see. A shooter it can't see shows as 0.
+func (s *Sim) VolleysFor(side Side, vs []Volley) []Volley {
+	var out []Volley
+	for _, v := range vs {
+		t := s.squad(v.Target)
+		if t.Side != side && !s.visible[side][v.Target] && !s.visible[side][v.Actor] {
+			continue
+		}
+		if a := s.squad(v.Actor); a.Side != side && !s.visible[side][v.Actor] {
+			v.Actor = 0
+		}
+		out = append(out, v)
+	}
+	return out
 }

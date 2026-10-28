@@ -5,11 +5,11 @@ import {
   ArmyUnitsT,
   type ArmyViewT,
   BattleEnded,
-  BattleRound,
+  type BattlefieldT,
   BattleStarted,
+  BattleTick,
   type BattleViewT,
   CancelQueueItemT,
-  type CombatantT,
   CommandRejected,
   type EconomyT,
   LobbyState,
@@ -47,9 +47,8 @@ import {
   type Army,
   applyDelta,
   type Battle,
-  type BattleAction,
+  type Battlefield,
   type BattleReport,
-  type Combatant,
   createMatchStore,
   type ViewDelta as Delta,
   type Economy,
@@ -57,9 +56,11 @@ import {
   type PlanetView,
   type PlayerView,
   type QueueItem,
-  reportFromView,
-  reportRound,
+  reportView,
+  reportVolleys,
+  type Side,
   type View,
+  type Volley,
 } from "./store";
 
 export type SocketLike = Pick<
@@ -153,24 +154,50 @@ const toArmy = (a: ArmyViewT): Army => ({
   path: a.path.map(str),
 });
 
-const toCombatant = (c: CombatantT): Combatant => ({
-  id: str(c.id),
-  side: c.side === 0 ? "attacker" : "defender",
-  unit: str(c.unit),
-  shield: c.shield,
-  armor: c.armor,
-  hp: c.hp,
+const side = (n: number): Side => (n === 0 ? "attacker" : "defender");
+
+const toField = (f: BattlefieldT): Battlefield => ({
+  width: f.width,
+  height: f.height,
+  terrains: f.terrains.map(str),
+  terrain: [...f.terrain],
+  heights: [...f.heights],
 });
 
-const toBattle = (b: BattleViewT): Battle => ({
+/** field is for a delta, which leaves the Battlefield out. */
+const toBattle = (
+  b: BattleViewT,
+  field: Battlefield | null = null,
+): Battle => ({
   id: b.id,
   planet: str(b.planet),
   attacker: b.attacker,
   defender: b.defender < 0 ? null : b.defender,
   started: Number(b.started),
-  roundMs: b.roundMs,
-  round: b.round,
-  roster: b.roster.map(toCombatant),
+  tick: b.tick,
+  edge: b.edge,
+  field: b.field ? toField(b.field) : field,
+  squads: b.squads.map((q) => ({
+    id: q.id,
+    side: side(q.side),
+    unit: str(q.unit),
+    building: q.building,
+    x: q.x,
+    y: q.y,
+    count: q.count,
+    start: q.start,
+    shield: q.shield,
+    armor: q.armor,
+    hp: q.hp,
+  })),
+  points: b.points.map((p) => ({
+    x: p.x,
+    y: p.y,
+    owner: side(p.owner),
+    taker: side(p.taker),
+    progress: p.progress,
+  })),
+  hold: b.hold,
 });
 
 const toQueueItem = (q: QueueItemT): QueueItem => ({
@@ -216,14 +243,14 @@ function toView(t: ViewFullT): View {
   };
 }
 
-const toDelta = (t: ViewDeltaT): Delta => ({
+const toDelta = (t: ViewDeltaT, fields: Map<number, Battlefield>): Delta => ({
   matchTime: Number(t.matchTime),
   players: t.players.map(toPlayer),
   planets: t.planets.map(toPlanet),
   removedPlanets: t.removedPlanets.map(str),
   armies: t.armies.map(toArmy),
   removedArmies: [...t.removedArmies],
-  battles: t.battles.map(toBattle),
+  battles: t.battles.map((b) => toBattle(b, fields.get(b.id) ?? null)),
   removedBattles: [...t.removedBattles],
   economy: t.economy ? toEconomy(t.economy) : null,
   winHold: t.winHold ? toWinHold(t.winHold) : null,
@@ -236,7 +263,7 @@ const toDelta = (t: ViewDeltaT): Delta => ({
  * events go out on `events`: "rejected" carries a refused command's reason,
  * "payday" the Map of what each Resource changed by, "captured" a Planet
  * that changed hands, as {planet, from, to} (Seats; null is neutral),
- * "battleStarted" {battle, planet}, "battleRound" {battle, round, actions},
+ * "battleStarted" {battle, planet}, "battleTick" {battle, tick, volleys},
  * "battleEnded" {battle, planet, winner}, "eliminated" {seat}, and
  * "matchEnded" {winner, reason}.
  */
@@ -249,6 +276,8 @@ export class MatchConnection {
   private matchId = "";
   private seq = 0;
   private readonly log: boolean;
+  /** Each running Battle's Battlefield, which only ViewFull and BattleStarted carry. */
+  private readonly fields = new Map<number, Battlefield>();
 
   constructor(
     private readonly socket: SocketLike,
@@ -436,6 +465,8 @@ export class MatchConnection {
         const view = toView(ViewFull.getRootAsViewFull(bb).unpack());
         this.debug("ViewFull", view);
         this.syncClock(view.matchTime);
+        for (const b of view.battles.values())
+          if (b.field) this.fields.set(b.id, b.field);
         this.store.setState({ view });
         this.seedReports(view.battles.values());
         this.local.setState((s) => ({
@@ -450,7 +481,10 @@ export class MatchConnection {
         return;
       }
       case Op.ViewDelta: {
-        const delta = toDelta(ViewDelta.getRootAsViewDelta(bb).unpack());
+        const delta = toDelta(
+          ViewDelta.getRootAsViewDelta(bb).unpack(),
+          this.fields,
+        );
         this.debug("ViewDelta", delta);
         this.syncClock(delta.matchTime);
         const { view } = this.store.getState();
@@ -496,36 +530,35 @@ export class MatchConnection {
         const t = BattleStarted.getRootAsBattleStarted(bb).unpack();
         this.debug("BattleStarted", t);
         this.syncClock(Number(t.matchTime));
+        if (t.field) this.fields.set(t.battle, toField(t.field));
         this.setReport(t.battle, () => ({
           id: t.battle,
           planet: str(t.planet),
           attacker: t.attacker,
           defender: t.defender < 0 ? null : t.defender,
-          roundMs: t.roundMs,
-          roster: t.roster.map(toCombatant),
-          rounds: 0,
+          squads: new Map(),
+          ticks: 0,
           damage: { attacker: 0, defender: 0 },
         }));
         this.emit("battleStarted", { battle: t.battle, planet: str(t.planet) });
         return;
       }
-      case Op.BattleRound: {
-        const t = BattleRound.getRootAsBattleRound(bb).unpack();
-        this.debug("BattleRound", t);
+      case Op.BattleTick: {
+        const t = BattleTick.getRootAsBattleTick(bb).unpack();
+        this.debug("BattleTick", t);
         this.syncClock(Number(t.matchTime));
-        const actions: BattleAction[] = t.actions.map((a) => ({
-          actor: str(a.actor),
-          target: str(a.target),
-          weapon: str(a.weapon),
-          shieldDmg: a.shieldDmg,
-          armorDmg: a.armorDmg,
-          hpDmg: a.hpDmg,
-          killed: a.killed,
-          hit: a.hit,
-          roll: a.roll,
+        const volleys: Volley[] = t.volleys.map((v) => ({
+          actor: v.actor,
+          target: v.target,
+          shots: v.shots,
+          hits: v.hits,
+          kills: v.kills,
+          shieldDmg: v.shieldDmg,
+          armorDmg: v.armorDmg,
+          hpDmg: v.hpDmg,
         }));
-        this.setReport(t.battle, (r) => r && reportRound(r, t.round, actions));
-        this.emit("battleRound", { battle: t.battle, round: t.round, actions });
+        this.setReport(t.battle, (r) => r && reportVolleys(r, t.tick, volleys));
+        this.emit("battleTick", { battle: t.battle, tick: t.tick, volleys });
         return;
       }
       case Op.BattleEnded: {
@@ -533,6 +566,7 @@ export class MatchConnection {
         this.debug("BattleEnded", t);
         this.syncClock(Number(t.matchTime));
         const winner = t.winner < 0 ? null : t.winner;
+        this.fields.delete(t.battle);
         this.setReport(
           t.battle,
           (r) => r && { ...r, winner, endedAt: Number(t.matchTime) },
@@ -583,10 +617,9 @@ export class MatchConnection {
     });
   }
 
-  /** A Battle first seen in a View (a reconnect) starts its report there. */
+  /** Each Battle in a View brings its report up to date, or starts one. */
   private seedReports(battles: Iterable<Battle>) {
-    for (const b of battles)
-      this.setReport(b.id, (r) => r ?? reportFromView(b));
+    for (const b of battles) this.setReport(b.id, (r) => reportView(r, b));
   }
 
   private emit(type: string, detail: unknown) {

@@ -29,7 +29,7 @@ enum Op : int {
   PaydayPaid = 104,
   PlanetCaptured = 105,
   BattleStarted = 106,
-  BattleRound = 107,
+  BattleTick = 107,
   BattleEnded = 108,
   PlayerEliminated = 109,
   MatchEnded = 110,
@@ -222,40 +222,66 @@ table ArmyView {
   path: [string];          // own only: the Planets after to, in order
 }
 
-// One unit or armed building in a Battle, tracked on its own.
-table Combatant {
-  id: string;              // unique in the Battle
+// A Battle's grid: one Terrain index and one height level per cell, row by
+// row. Sent only in ViewFull and BattleStarted; it never changes.
+table Battlefield {
+  width: ushort;
+  height: ushort;
+  terrains: [string];      // Terrain ids; a cell holds an index into this
+  terrain: [ubyte];
+  heights: [ubyte];
+}
+
+// A Unit Slot or building in a Battle, as your side sees it.
+table BattleSquad {
+  id: ushort (key);        // unique in the Battle
   side: ubyte;             // 0 attacker, 1 defender
   unit: string;            // a unit or building id
-  shield: float;
+  building: bool;
+  x: ushort;
+  y: ushort;
+  count: uint32;           // members left
+  start: uint32;           // members at the start
+  shield: float;           // the front member's layers: it takes the hits
   armor: float;
   hp: float;
 }
 
-// One combatant's turn in a Round.
-table BattleAction {
-  actor: string;
-  target: string;
-  weapon: string;          // the actor's Weapon Type
-  shield_dmg: float;
-  armor_dmg: float;
-  hp_dmg: float;
-  killed: bool;
-  hit: bool;               // false: the to-hit roll missed, and nothing was dealt
-  roll: uint16;            // the damage roll, before the layer multipliers
+table ControlPoint {
+  x: ushort;
+  y: ushort;
+  owner: ubyte;            // 0 attacker, 1 defender
+  taker: ubyte;            // the side taking it, while progress > 0
+  progress: ushort;        // sim ticks the taker has held it alone
 }
 
-// A Battle you're a side of, as it stands after the Rounds completed so far.
-// Anyone else with vision sees only the Planet's Locked flag.
+// A Battle you're a side of, as your side sees it: your own squads and the
+// enemies in your Sight. Anyone else with vision sees only the Locked flag.
 table BattleView {
   id: uint32 (key);
   planet: string;
   attacker: byte;
   defender: byte = -1;     // -1 is neutral
-  started: long;           // Match Time of Round 1
-  round_ms: uint32;
-  round: uint16;           // Rounds completed
-  roster: [Combatant];     // with each one's Shield, Armor and HP now
+  started: long;           // Match Time of tick 0
+  tick: uint32;            // sim ticks run, 5 a second
+  edge: ubyte;             // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
+  field: Battlefield;      // in ViewFull only; deltas leave it out
+  squads: [BattleSquad];
+  points: [ControlPoint];
+  hold: uint32;            // sim ticks the attacker has held enough points
+}
+
+// One squad's fire in one sim tick: every living member's shot at one
+// target, added up.
+table Volley {
+  actor: ushort;           // 0: a shooter your side can't see
+  target: ushort;
+  shots: ushort;
+  hits: ushort;
+  kills: ushort;
+  shield_dmg: float;
+  armor_dmg: float;
+  hp_dmg: float;
 }
 
 // The public part of every player.
@@ -324,8 +350,7 @@ table PlanetCaptured {
   to: byte;
 }
 
-// Sent to the two sides when a Battle starts. Round k is played out from
-// started + (k-1) × round_ms.
+// Sent to the two sides when a Battle starts. Its state comes in the View.
 table BattleStarted {
   match_time: long;
   battle: uint32;
@@ -333,17 +358,16 @@ table BattleStarted {
   attacker: byte;
   defender: byte = -1;
   started: long;
-  round_ms: uint32;
-  roster: [Combatant];     // at full Shield, Armor and HP
+  field: Battlefield;
 }
 
-// Sent to the two sides as each Round is played out.
-table BattleRound {
+// Sent to each side on a sim tick with fire it may know about.
+table BattleTick {
   match_time: long;
   battle: uint32;
   planet: string;
-  round: uint16;           // from 1
-  actions: [BattleAction]; // in Initiative order
+  tick: uint32;
+  volleys: [Volley];
 }
 
 // Sent to everyone who can see the Planet, and both sides.

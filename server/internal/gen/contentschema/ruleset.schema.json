@@ -13,9 +13,6 @@
     "unitSlotsPerStack",
     "toHit",
     "laneTypes",
-    "initiativeDie",
-    "roundSeconds",
-    "roundCap",
     "startingResources",
     "gracePeriodSeconds",
     "armyVisionSeconds",
@@ -49,9 +46,6 @@
       "propertyNames": { "pattern": "^[a-z0-9_-]+$" },
       "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }
     },
-    "initiativeDie": { "description": "Sides on the Initiative die.", "type": "integer", "minimum": 1 },
-    "roundSeconds": { "description": "Duration of one Battle Round.", "type": "integer", "minimum": 1 },
-    "roundCap": { "description": "Most Rounds a Battle can run.", "type": "integer", "minimum": 1 },
     "startingResources": {
       "description": "Defaults the lobby fills in.",
       "$ref": "defs.schema.json#/definitions/resourceMap"

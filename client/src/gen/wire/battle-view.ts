@@ -4,7 +4,9 @@
 
 import * as flatbuffers from 'flatbuffers';
 
-import { Combatant, CombatantT } from '../wire/combatant.js';
+import { BattleSquad, BattleSquadT } from '../wire/battle-squad.js';
+import { Battlefield, BattlefieldT } from '../wire/battlefield.js';
+import { ControlPoint, ControlPointT } from '../wire/control-point.js';
 
 
 export class BattleView implements flatbuffers.IUnpackableObject<BattleViewT> {
@@ -52,28 +54,48 @@ started():bigint {
   return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
 }
 
-roundMs():number {
+tick():number {
   const offset = this.bb!.__offset(this.bb_pos, 14);
   return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
 }
 
-round():number {
+edge():number {
   const offset = this.bb!.__offset(this.bb_pos, 16);
-  return offset ? this.bb!.readUint16(this.bb_pos + offset) : 0;
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
 }
 
-roster(index: number, obj?:Combatant):Combatant|null {
+field(obj?:Battlefield):Battlefield|null {
   const offset = this.bb!.__offset(this.bb_pos, 18);
-  return offset ? (obj || new Combatant()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+  return offset ? (obj || new Battlefield()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
 }
 
-rosterLength():number {
-  const offset = this.bb!.__offset(this.bb_pos, 18);
+squads(index: number, obj?:BattleSquad):BattleSquad|null {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? (obj || new BattleSquad()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+squadsLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+points(index: number, obj?:ControlPoint):ControlPoint|null {
+  const offset = this.bb!.__offset(this.bb_pos, 22);
+  return offset ? (obj || new ControlPoint()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+pointsLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 22);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
+hold():number {
+  const offset = this.bb!.__offset(this.bb_pos, 24);
+  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
+}
+
 static startBattleView(builder:flatbuffers.Builder) {
-  builder.startObject(8);
+  builder.startObject(11);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -96,19 +118,23 @@ static addStarted(builder:flatbuffers.Builder, started:bigint) {
   builder.addFieldInt64(4, started, BigInt('0'));
 }
 
-static addRoundMs(builder:flatbuffers.Builder, roundMs:number) {
-  builder.addFieldInt32(5, roundMs, 0);
+static addTick(builder:flatbuffers.Builder, tick:number) {
+  builder.addFieldInt32(5, tick, 0);
 }
 
-static addRound(builder:flatbuffers.Builder, round:number) {
-  builder.addFieldInt16(6, round, 0);
+static addEdge(builder:flatbuffers.Builder, edge:number) {
+  builder.addFieldInt8(6, edge, 0);
 }
 
-static addRoster(builder:flatbuffers.Builder, rosterOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(7, rosterOffset, 0);
+static addField(builder:flatbuffers.Builder, fieldOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(7, fieldOffset, 0);
 }
 
-static createRosterVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+static addSquads(builder:flatbuffers.Builder, squadsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(8, squadsOffset, 0);
+}
+
+static createSquadsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
   builder.startVector(4, data.length, 4);
   for (let i = data.length - 1; i >= 0; i--) {
     builder.addOffset(data[i]!);
@@ -116,8 +142,28 @@ static createRosterVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]
   return builder.endVector();
 }
 
-static startRosterVector(builder:flatbuffers.Builder, numElems:number) {
+static startSquadsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
+}
+
+static addPoints(builder:flatbuffers.Builder, pointsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(9, pointsOffset, 0);
+}
+
+static createPointsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startPointsVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
+static addHold(builder:flatbuffers.Builder, hold:number) {
+  builder.addFieldInt32(10, hold, 0);
 }
 
 static endBattleView(builder:flatbuffers.Builder):flatbuffers.Offset {
@@ -125,18 +171,6 @@ static endBattleView(builder:flatbuffers.Builder):flatbuffers.Offset {
   return offset;
 }
 
-static createBattleView(builder:flatbuffers.Builder, id:number, planetOffset:flatbuffers.Offset, attacker:number, defender:number, started:bigint, roundMs:number, round:number, rosterOffset:flatbuffers.Offset):flatbuffers.Offset {
-  BattleView.startBattleView(builder);
-  BattleView.addId(builder, id);
-  BattleView.addPlanet(builder, planetOffset);
-  BattleView.addAttacker(builder, attacker);
-  BattleView.addDefender(builder, defender);
-  BattleView.addStarted(builder, started);
-  BattleView.addRoundMs(builder, roundMs);
-  BattleView.addRound(builder, round);
-  BattleView.addRoster(builder, rosterOffset);
-  return BattleView.endBattleView(builder);
-}
 
 unpack(): BattleViewT {
   return new BattleViewT(
@@ -145,9 +179,12 @@ unpack(): BattleViewT {
     this.attacker(),
     this.defender(),
     this.started(),
-    this.roundMs(),
-    this.round(),
-    this.bb!.createObjList<Combatant, CombatantT>(this.roster.bind(this), this.rosterLength())
+    this.tick(),
+    this.edge(),
+    (this.field() !== null ? this.field()!.unpack() : null),
+    this.bb!.createObjList<BattleSquad, BattleSquadT>(this.squads.bind(this), this.squadsLength()),
+    this.bb!.createObjList<ControlPoint, ControlPointT>(this.points.bind(this), this.pointsLength()),
+    this.hold()
   );
 }
 
@@ -158,9 +195,12 @@ unpackTo(_o: BattleViewT): void {
   _o.attacker = this.attacker();
   _o.defender = this.defender();
   _o.started = this.started();
-  _o.roundMs = this.roundMs();
-  _o.round = this.round();
-  _o.roster = this.bb!.createObjList<Combatant, CombatantT>(this.roster.bind(this), this.rosterLength());
+  _o.tick = this.tick();
+  _o.edge = this.edge();
+  _o.field = (this.field() !== null ? this.field()!.unpack() : null);
+  _o.squads = this.bb!.createObjList<BattleSquad, BattleSquadT>(this.squads.bind(this), this.squadsLength());
+  _o.points = this.bb!.createObjList<ControlPoint, ControlPointT>(this.points.bind(this), this.pointsLength());
+  _o.hold = this.hold();
 }
 }
 
@@ -171,25 +211,34 @@ constructor(
   public attacker: number = 0,
   public defender: number = -1,
   public started: bigint = BigInt('0'),
-  public roundMs: number = 0,
-  public round: number = 0,
-  public roster: (CombatantT)[] = []
+  public tick: number = 0,
+  public edge: number = 0,
+  public field: BattlefieldT|null = null,
+  public squads: (BattleSquadT)[] = [],
+  public points: (ControlPointT)[] = [],
+  public hold: number = 0
 ){}
 
 
 pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const planet = (this.planet !== null ? builder.createString(this.planet!) : 0);
-  const roster = BattleView.createRosterVector(builder, builder.createObjectOffsetList(this.roster));
+  const field = (this.field !== null ? this.field!.pack(builder) : 0);
+  const squads = BattleView.createSquadsVector(builder, builder.createObjectOffsetList(this.squads));
+  const points = BattleView.createPointsVector(builder, builder.createObjectOffsetList(this.points));
 
-  return BattleView.createBattleView(builder,
-    this.id,
-    planet,
-    this.attacker,
-    this.defender,
-    this.started,
-    this.roundMs,
-    this.round,
-    roster
-  );
+  BattleView.startBattleView(builder);
+  BattleView.addId(builder, this.id);
+  BattleView.addPlanet(builder, planet);
+  BattleView.addAttacker(builder, this.attacker);
+  BattleView.addDefender(builder, this.defender);
+  BattleView.addStarted(builder, this.started);
+  BattleView.addTick(builder, this.tick);
+  BattleView.addEdge(builder, this.edge);
+  BattleView.addField(builder, field);
+  BattleView.addSquads(builder, squads);
+  BattleView.addPoints(builder, points);
+  BattleView.addHold(builder, this.hold);
+
+  return BattleView.endBattleView(builder);
 }
 }

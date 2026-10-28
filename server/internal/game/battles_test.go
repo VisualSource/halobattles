@@ -5,11 +5,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/VisualSource/halobattles/server/internal/battle"
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
-// fixedMatch's line map a - b - c - d - e has 30 s Lanes and 3 s Rounds.
-// Seat 0 holds a (10 Marines, 2 Warthogs), Seat 1 holds e. b has 6 Grunts.
+// fixedMatch's line map a - b - c - d - e has 30 s Lanes. Seat 0 holds a
+// (10 Marines, 2 Warthogs), Seat 1 holds e. b has 6 Grunts.
 
 func onlyBattle(t *testing.T, s *State) *Battle {
 	t.Helper()
@@ -32,50 +33,38 @@ func TestArrivingAtAGarrisonedPlanetStartsABattle(t *testing.T) {
 	if !s.Planets["b"].Locked || len(s.Armies) != 0 || b.Attacker != 0 || b.Defender != Neutral || b.Started != 30_000 {
 		t.Fatalf("Battle %+v, b Locked %v, Armies %d", b, s.Planets["b"].Locked, len(s.Armies))
 	}
-	if len(ev.Started) != 1 || len(ev.Rounds) != 1 || ev.Rounds[0].Round != 0 {
-		t.Errorf("events: %d started, rounds %+v; want the Battle and its first Round now", len(ev.Started), ev.Rounds)
+	if len(ev.Started) != 1 || b.Sim.Tick != 0 {
+		t.Errorf("events: %d started, sim at tick %d; want the Battle, not yet stepped", len(ev.Started), b.Sim.Tick)
 	}
-	if want := ResolveBattle(c, Force{Units: []UnitSlot{{Unit: "base:marine", Count: 10}}},
-		Force{Units: []UnitSlot{{Unit: "base:grunt", Count: 6}}}, s.Seed+uint64(b.ID)); len(want.Rounds) != len(b.Result.Rounds) {
-		t.Errorf("the Battle isn't seeded from the Match seed plus its id")
+	if b.Sim.Field != s.Fields["b"] || len(b.Sim.Squads) != 2 {
+		t.Errorf("want b's cached Battlefield and 2 squads, got %d squads", len(b.Sim.Squads))
 	}
 	if used, _ := s.commandPoints(c, 0); used != 16 {
 		t.Errorf("Command Points used = %d, want 16: attackers count until the Battle ends", used)
 	}
 }
 
-func TestRoundsPlayOutOnePerRoundDuration(t *testing.T) {
+func TestTheSimStepsOncePerTickOfMatchTime(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	_ = s.OrderArmy(0, "a", marines(10), "b", 1)
 	s.Advance(c, 30_000)
 	b := onlyBattle(t, s)
-	n := len(b.Result.Rounds)
-	if n < 2 {
-		t.Fatalf("a %d-Round Battle is too short to test pacing", n)
-	}
 
-	if ev := s.Advance(c, 32_800); len(ev.Rounds) != 0 {
-		t.Errorf("Round 2 came early")
+	s.Advance(c, 30_199)
+	if b.Sim.Tick != 0 {
+		t.Errorf("stepped early: tick %d", b.Sim.Tick)
 	}
-	if ev := s.Advance(c, 33_000); len(ev.Rounds) != 1 || ev.Rounds[0].Round != 1 {
-		t.Errorf("Round 2 at 33 s: %+v", ev.Rounds)
-	}
-	end := int64(30_000 + 3_000*n)
-	s.Advance(c, end-200)
-	if len(s.Battles) != 1 {
-		t.Fatal("the Battle ended before its last Round played out")
-	}
-	ev := s.Advance(c, end)
-	if len(s.Battles) != 0 || len(ev.Ended) != 1 || s.Planets["b"].Locked {
-		t.Errorf("at %d ms: Battles %d, ended %+v; want it over and b unlocked", end, len(s.Battles), ev.Ended)
+	s.Advance(c, 31_000) // a second: five ticks, caught up at once
+	if b.Sim.Tick != 5 {
+		t.Errorf("tick %d after 1 s, want 5", b.Sim.Tick)
 	}
 }
 
-// fight runs the only Battle to its end and returns the end's events.
-func fight(t *testing.T, s *State, c *cs.Content) Events {
-	t.Helper()
-	b := onlyBattle(t, s)
-	return s.Advance(c, b.Started+int64(len(b.Result.Rounds))*b.RoundMs)
+func TestEachPlanetKeepsItsBattlefield(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	if s.field(c, "b") != s.field(c, "b") || s.field(c, "b").String() == s.field(c, "d").String() {
+		t.Error("want one Battlefield per Planet, cached, and different Planets different")
+	}
 }
 
 func TestAWinningAttackerCapturesAndMovesIn(t *testing.T) {
@@ -98,9 +87,8 @@ func TestAWinningAttackerCapturesAndMovesIn(t *testing.T) {
 
 func TestABeatenAttackerRetreatsToItsNearestPlanet(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
-	// One Round: the defender holds at the Round cap, and 10 Grunts can't get
-	// through two Warthogs' Armor and HP in one Round, so both survive.
-	c.Rulesets[RulesetID] = withRuleset(c, func(r *cs.Ruleset) { r.RoundCap = 1 })
+	// A 1 s cap: the defender holds before anyone is in range, so both survive.
+	c.Rulesets[RulesetID] = withRuleset(c, func(r *cs.Ruleset) { r.Battle.TimeCap = 1 })
 	s.Planets["b"].Stacks = [StacksPerPlanet]Stack{{{Unit: "base:grunt", Count: 10, Cell: 4}}} // survivors keep cell 4
 	a := s.Planets["a"]
 	_ = s.OrderArmy(0, "a", []ArmyUnits{{0, "base:warthog", 2}}, "b", 0)
@@ -111,8 +99,8 @@ func TestABeatenAttackerRetreatsToItsNearestPlanet(t *testing.T) {
 	if len(ev.Ended) != 1 || ev.Ended[0].Winner != Neutral || s.Planets["b"].Owner != Neutral {
 		t.Fatalf("ended %+v, want the neutral garrison to hold", ev.Ended)
 	}
-	if got := s.Planets["b"].Stacks[0][0]; got.Unit != "base:grunt" || got.Count > 10 || got.Cell != 4 {
-		t.Errorf("b's garrison = %+v, want its surviving Grunts back", got)
+	if got := s.Planets["b"].Stacks[0][0]; got != (UnitSlot{Unit: "base:grunt", Count: 10, Cell: 4}) {
+		t.Errorf("b's garrison = %+v, want its 10 Grunts back in cell 4", got)
 	}
 	r := onlyArmy(t, s)
 	if !r.Retreating || r.From != "b" || r.To != "a" || r.Units[0] != (UnitSlot{Unit: "base:warthog", Count: 2}) {
@@ -228,53 +216,54 @@ func TestALockedPlanetStillPaysItsOwner(t *testing.T) {
 	}
 }
 
-func TestDeadArmedBuildingsAreDestroyedEvenWhenTheDefenderHolds(t *testing.T) {
+func TestDeadBuildingsAreDestroyedEvenWhenTheDefenderHolds(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	a := s.Planets["a"]
-	a.Buildings[2] = "base:turret"
-	b := &Battle{
-		ID: 9, Planet: "a", Attacker: 1, Defender: 0, Origins: []Origin{{Stack: 0}, {Stack: -1, Slot: 2}},
-		Result: BattleResult{
-			Roster: []Combatant{
-				{ID: "a0001", Side: Attacker, Unit: "base:marine"},
-				{ID: "d0001", Side: Defender, Unit: "base:marine"},
-				{ID: "d0002", Side: Defender, Unit: "base:turret"},
-			},
-			Winner: Defender, Survivors: []string{"d0001"},
-		},
-	}
-	s.Battles = map[uint32]*Battle{9: b}
-	a.Locked = true
-
+	s.LastID++
+	army := &Army{ID: s.LastID, Owner: 1, Units: Stack{{Unit: "base:marine", Count: 1}}, To: "a"}
+	s.Armies = map[uint32]*Army{army.ID: army}
 	var ev Events
+	s.startBattle(c, army, a, &ev)
+	b := onlyBattle(t, s)
+	for _, sq := range b.Sim.Squads {
+		if sq.Building && sq.Slot == 0 || sq.Side == battle.Attacker {
+			sq.Members = nil // the Barracks and the attacker are dead
+		}
+	}
+	b.Sim.Over, b.Sim.Winner = true, battle.Defender
+
 	s.endBattle(c, b, &ev)
 
-	if a.Buildings[2] != "" || a.Stacks[0][0] != (UnitSlot{Unit: "base:marine", Count: 1}) || a.Locked {
-		t.Errorf("a = %+v; want the Turret gone, 1 Marine left and the Lock lifted", a)
+	if a.Buildings[0] != "" || a.Buildings[1] != "base:supply-pad" || a.Locked || a.Owner != 0 {
+		t.Errorf("a = %+v; want the Barracks gone, the Supply Pad kept and the Lock lifted", a)
+	}
+	if n := a.Stacks[0][0].Count + a.Stacks[0][1].Count; n != 12 {
+		t.Errorf("a's Stack 1 = %+v, want all 12 defenders back", a.Stacks[0])
 	}
 	if !slices.Contains(ev.Ended[0].Viewers, 1) {
 		t.Errorf("viewers %v, want the attacker told how it went", ev.Ended[0].Viewers)
 	}
 }
 
-func TestOnlyTheTwoSidesSeeTheBattleAsItStandsAfterEachRound(t *testing.T) {
+func TestOnlyTheTwoSidesSeeTheBattle(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	s.Planets["c"].Owner = 1 // Seat 1 sees b too
 	_ = s.OrderArmy(0, "a", marines(10), "b", 1)
 	s.Advance(c, 30_000)
 
 	v := s.View(c, 0)
-	if len(v.Battles) != 1 || v.Battles[0].Round != 0 || v.Battles[0].Roster[0].HP != 12 {
-		t.Fatalf("Seat 0 sees %+v, want its Battle before any Round completes", v.Battles)
+	if len(v.Battles) != 1 || v.Battles[0].Tick != 0 || v.Battles[0].Field == nil || len(v.Battles[0].Points) != 3 {
+		t.Fatalf("Seat 0 sees %+v, want its Battle at tick 0 with its Battlefield and points", v.Battles)
+	}
+	if !slices.ContainsFunc(v.Battles[0].Squads, func(sq battle.SquadView) bool { return sq.Unit == "base:marine" && sq.Count == 10 }) {
+		t.Errorf("squads %+v, want Seat 0's own Marines", v.Battles[0].Squads)
 	}
 	if len(s.View(c, 1).Battles) != 0 {
 		t.Error("Seat 1 can see a Battle it isn't a side of")
 	}
 
-	s.Advance(c, 33_000)
-	after := s.View(c, 0).Battles[0]
-	hurt := slices.ContainsFunc(after.Roster, func(cb Combatant) bool { return cb.Side == Defender && (cb.Shield < 20 || cb.HP < 70) })
-	if after.Round != 1 || !hurt {
-		t.Errorf("after Round 1: round %d, want 1 and some Grunt hurt", after.Round)
+	s.Advance(c, 31_000)
+	if got := s.View(c, 0).Battles[0].Tick; got != 5 {
+		t.Errorf("tick %d after 1 s, want 5", got)
 	}
 }

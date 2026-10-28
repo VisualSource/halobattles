@@ -4,7 +4,7 @@
 
 import * as flatbuffers from 'flatbuffers';
 
-import { Combatant, CombatantT } from '../wire/combatant.js';
+import { Battlefield, BattlefieldT } from '../wire/battlefield.js';
 
 
 export class BattleStarted implements flatbuffers.IUnpackableObject<BattleStartedT> {
@@ -57,23 +57,13 @@ started():bigint {
   return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
 }
 
-roundMs():number {
+field(obj?:Battlefield):Battlefield|null {
   const offset = this.bb!.__offset(this.bb_pos, 16);
-  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
-}
-
-roster(index: number, obj?:Combatant):Combatant|null {
-  const offset = this.bb!.__offset(this.bb_pos, 18);
-  return offset ? (obj || new Combatant()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
-}
-
-rosterLength():number {
-  const offset = this.bb!.__offset(this.bb_pos, 18);
-  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+  return offset ? (obj || new Battlefield()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
 }
 
 static startBattleStarted(builder:flatbuffers.Builder) {
-  builder.startObject(8);
+  builder.startObject(7);
 }
 
 static addMatchTime(builder:flatbuffers.Builder, matchTime:bigint) {
@@ -100,24 +90,8 @@ static addStarted(builder:flatbuffers.Builder, started:bigint) {
   builder.addFieldInt64(5, started, BigInt('0'));
 }
 
-static addRoundMs(builder:flatbuffers.Builder, roundMs:number) {
-  builder.addFieldInt32(6, roundMs, 0);
-}
-
-static addRoster(builder:flatbuffers.Builder, rosterOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(7, rosterOffset, 0);
-}
-
-static createRosterVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
-  builder.startVector(4, data.length, 4);
-  for (let i = data.length - 1; i >= 0; i--) {
-    builder.addOffset(data[i]!);
-  }
-  return builder.endVector();
-}
-
-static startRosterVector(builder:flatbuffers.Builder, numElems:number) {
-  builder.startVector(4, numElems, 4);
+static addField(builder:flatbuffers.Builder, fieldOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(6, fieldOffset, 0);
 }
 
 static endBattleStarted(builder:flatbuffers.Builder):flatbuffers.Offset {
@@ -125,18 +99,6 @@ static endBattleStarted(builder:flatbuffers.Builder):flatbuffers.Offset {
   return offset;
 }
 
-static createBattleStarted(builder:flatbuffers.Builder, matchTime:bigint, battle:number, planetOffset:flatbuffers.Offset, attacker:number, defender:number, started:bigint, roundMs:number, rosterOffset:flatbuffers.Offset):flatbuffers.Offset {
-  BattleStarted.startBattleStarted(builder);
-  BattleStarted.addMatchTime(builder, matchTime);
-  BattleStarted.addBattle(builder, battle);
-  BattleStarted.addPlanet(builder, planetOffset);
-  BattleStarted.addAttacker(builder, attacker);
-  BattleStarted.addDefender(builder, defender);
-  BattleStarted.addStarted(builder, started);
-  BattleStarted.addRoundMs(builder, roundMs);
-  BattleStarted.addRoster(builder, rosterOffset);
-  return BattleStarted.endBattleStarted(builder);
-}
 
 unpack(): BattleStartedT {
   return new BattleStartedT(
@@ -146,8 +108,7 @@ unpack(): BattleStartedT {
     this.attacker(),
     this.defender(),
     this.started(),
-    this.roundMs(),
-    this.bb!.createObjList<Combatant, CombatantT>(this.roster.bind(this), this.rosterLength())
+    (this.field() !== null ? this.field()!.unpack() : null)
   );
 }
 
@@ -159,8 +120,7 @@ unpackTo(_o: BattleStartedT): void {
   _o.attacker = this.attacker();
   _o.defender = this.defender();
   _o.started = this.started();
-  _o.roundMs = this.roundMs();
-  _o.roster = this.bb!.createObjList<Combatant, CombatantT>(this.roster.bind(this), this.rosterLength());
+  _o.field = (this.field() !== null ? this.field()!.unpack() : null);
 }
 }
 
@@ -172,24 +132,23 @@ constructor(
   public attacker: number = 0,
   public defender: number = -1,
   public started: bigint = BigInt('0'),
-  public roundMs: number = 0,
-  public roster: (CombatantT)[] = []
+  public field: BattlefieldT|null = null
 ){}
 
 
 pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const planet = (this.planet !== null ? builder.createString(this.planet!) : 0);
-  const roster = BattleStarted.createRosterVector(builder, builder.createObjectOffsetList(this.roster));
+  const field = (this.field !== null ? this.field!.pack(builder) : 0);
 
-  return BattleStarted.createBattleStarted(builder,
-    this.matchTime,
-    this.battle,
-    planet,
-    this.attacker,
-    this.defender,
-    this.started,
-    this.roundMs,
-    roster
-  );
+  BattleStarted.startBattleStarted(builder);
+  BattleStarted.addMatchTime(builder, this.matchTime);
+  BattleStarted.addBattle(builder, this.battle);
+  BattleStarted.addPlanet(builder, planet);
+  BattleStarted.addAttacker(builder, this.attacker);
+  BattleStarted.addDefender(builder, this.defender);
+  BattleStarted.addStarted(builder, this.started);
+  BattleStarted.addField(builder, field);
+
+  return BattleStarted.endBattleStarted(builder);
 }
 }

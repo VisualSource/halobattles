@@ -3,6 +3,7 @@ package nakama
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
 	"github.com/VisualSource/halobattles/server/internal/content"
@@ -113,7 +114,14 @@ func testContent() *content.Content {
 		return ps
 	}
 	win := contentschema.Win{PlanetShare: 0.6, HoldSeconds: 90}
+	base, err := content.Load([]string{filepath.Join("..", "..", "..", "mods", "base")})
+	if err != nil {
+		panic(err)
+	}
+	rules := base.Doc.Rulesets["base:rules"]
 	return &content.Content{Hash: "hash1", Doc: contentschema.Content{
+		// The base Mod's, so Battles run on real Battlefields.
+		Terrains: base.Doc.Terrains, TerrainPresets: base.Doc.TerrainPresets, UnitClasses: base.Doc.UnitClasses,
 		Maps: map[string]contentschema.GalaxyMap{
 			"base:b-map": {Planets: planets("x", "y", "z"), Starts: []contentschema.LocalID{"x", "y", "z"}, MinPlayers: 2, Win: win},
 			"base:a-map": {
@@ -129,7 +137,10 @@ func testContent() *content.Content {
 			Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
 		}},
 		Resources: map[string]contentschema.Resource{"base:credits": {}},
-		Rulesets:  map[string]contentschema.Ruleset{"base:rules": {PaydaySeconds: 90, UnitSlotsPerStack: 10, ResultsSeconds: 60, GracePeriodSeconds: 180, StartingResources: map[string]int{"base:credits": 1000}}},
+		Rulesets: map[string]contentschema.Ruleset{"base:rules": {
+			PaydaySeconds: 90, UnitSlotsPerStack: 10, ResultsSeconds: 60, GracePeriodSeconds: 180,
+			StartingResources: map[string]int{"base:credits": 1000}, Battlefield: rules.Battlefield, Battle: rules.Battle,
+		}},
 	}}
 }
 

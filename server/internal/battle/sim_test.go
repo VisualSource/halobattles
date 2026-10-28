@@ -318,3 +318,37 @@ func BenchmarkStep(b *testing.B) {
 		s.Step()
 	}
 }
+
+func TestSnapshotsHideWhatASideCantSee(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	s := newSim(c, unsc, cov, 3)
+	s.see()
+	var hidden *Squad
+	for _, sq := range s.Squads {
+		if sq.Side == Defender && !s.visible[Attacker][sq.ID] {
+			hidden = sq
+		}
+	}
+	if hidden == nil {
+		t.Fatal("every defender is in the attacker's Sight at the start; the test needs one out of it")
+	}
+	has := func(snap Snapshot, id int) bool {
+		return slices.ContainsFunc(snap.Squads, func(v SquadView) bool { return v.ID == id })
+	}
+	if has(s.Snapshot(Attacker), hidden.ID) {
+		t.Errorf("the attacker's snapshot shows hidden squad %d", hidden.ID)
+	}
+	if !has(s.Snapshot(Defender), hidden.ID) || !has(s.Snapshot(Attacker), s.Squads[0].ID) {
+		t.Error("a side should see all its own squads")
+	}
+
+	shot := Volley{Actor: hidden.ID, Target: s.Squads[0].ID, Shots: 1}
+	if got := s.VolleysFor(Attacker, []Volley{shot}); len(got) != 1 || got[0].Actor != 0 {
+		t.Errorf("fire from the fog at the attacker: %+v, want it shown with the shooter hidden", got)
+	}
+	unseen := Volley{Actor: hidden.ID, Target: hidden.ID}
+	if got := s.VolleysFor(Attacker, []Volley{unseen}); len(got) != 0 {
+		t.Errorf("fire the attacker can't see at all: %+v, want none", got)
+	}
+}

@@ -21,10 +21,10 @@ func lineContent() *cs.Content {
 	stacks := func(unit string, n int) cs.Stacks {
 		return cs.Stacks{cs.Stack{{Unit: cs.ID(unit), Count: n}}}
 	}
-	return &cs.Content{
+	return withBattles(&cs.Content{
 		Rulesets: map[string]cs.Ruleset{RulesetID: {
 			PaydaySeconds: 90, CancelRefundPercent: 50, SellRefundPercent: 50, UnitSlotsPerStack: 10,
-			ToHit: 3, InitiativeDie: 20, RoundCap: 40, RoundSeconds: 3,
+			ToHit: 3,
 		}},
 		WeaponTypes: battleContent().WeaponTypes,
 		Resources:   map[string]cs.Resource{"base:credits": {Name: "Credits"}, "base:materials": {Name: "Materials"}},
@@ -70,7 +70,7 @@ func lineContent() *cs.Content {
 			Starts: []cs.LocalID{"a", "c", "e"},
 			Win:    cs.Win{PlanetShare: 0.6, HoldSeconds: 90},
 		}},
-	}
+	})
 }
 
 func twoPlayerMatch(t *testing.T, seed uint64) *State {

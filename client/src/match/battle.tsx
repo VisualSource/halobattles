@@ -4,26 +4,37 @@ import type { ContentLookups } from "../content";
 import { seatColour } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
 import {
-  applyActions,
-  type BattleAction,
+  BATTLE_TICKS,
+  type Battle,
   type BattleReport,
-  type Combatant,
+  type Side,
+  type Squad,
   type View,
+  type Volley,
 } from "./store";
 import { formatAge, useMatchNow } from "./time";
 import { Floating, label, Tag, Tile, windowTitle } from "./windows";
 
-type RoundEvent = { battle: number; round: number; actions: BattleAction[] };
-
-/** Where a Round's playback has got to: the first `shown` actions. */
-type Playback = { round: number; actions: BattleAction[]; shown: number };
+type TickEvent = { battle: number; tick: number; volleys: Volley[] };
 
 const NEUTRAL = "#9ca3af";
+const SIDES: Side[] = ["attacker", "defender"];
+const POINT_NAMES = "ABCDEFGH";
 
 const sideName = (view: View | null, seat: number | null) =>
   seat === null
     ? "Neutral"
     : view?.players[seat]?.displayName || `Player ${seat + 1}`;
+
+const seatOf = (b: { attacker: number; defender: number | null }, s: Side) =>
+  s === "attacker" ? b.attacker : b.defender;
+
+const colourOf = (seat: number | null) =>
+  seat === null ? NEUTRAL : seatColour(seat);
+
+/** "1:05" */
+const clock = (seconds: number) =>
+  `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 
 /** Opens centred at the top of the map. */
 const topCentre = (map: HTMLElement, self: HTMLElement) => ({
@@ -32,10 +43,9 @@ const topCentre = (map: HTMLElement, self: HTMLElement) => ({
 });
 
 /**
- * The Battle you're watching, in a window: both sides' units grouped by
- * type, with Shield, Armor and HP bars. Each Round's actions play out in
- * order across the Round duration, on top of the View's roster as of the
- * last completed Round. Units are grouped by type, never shown one by one.
+ * The Battle you're watching, in a window: the Control Points, the clock,
+ * and each side's squads as your side sees them, grouped by unit type, with
+ * the latest fire. Enemies outside your Sight don't show.
  */
 export function BattlePanel(props: {
   conn: MatchConnection;
@@ -50,32 +60,17 @@ export function BattlePanel(props: {
     id === null ? undefined : s.reports.get(id),
   );
   const view = useStore(conn.store, (s) => s.view);
-  const [play, setPlay] = useState<Playback | null>(null);
-  const roundMs = battle?.roundMs ?? 3000;
+  const [fire, setFire] = useState<Volley[]>([]);
 
   useEffect(() => {
-    setPlay(null);
-    let timers: ReturnType<typeof setTimeout>[] = [];
-    const onRound = (e: Event) => {
-      const r = (e as CustomEvent<RoundEvent>).detail;
-      if (r.battle !== id) return;
-      for (const t of timers) clearTimeout(t);
-      setPlay({ round: r.round, actions: r.actions, shown: 0 });
-      const step = roundMs / Math.max(1, r.actions.length);
-      timers = r.actions.map((_, i) =>
-        setTimeout(
-          () =>
-            setPlay((p) => (p?.round === r.round ? { ...p, shown: i + 1 } : p)),
-          i * step,
-        ),
-      );
+    setFire([]);
+    const onTick = (e: Event) => {
+      const t = (e as CustomEvent<TickEvent>).detail;
+      if (t.battle === id) setFire((f) => [...f, ...t.volleys].slice(-3));
     };
-    conn.events.addEventListener("battleRound", onRound);
-    return () => {
-      for (const t of timers) clearTimeout(t);
-      conn.events.removeEventListener("battleRound", onRound);
-    };
-  }, [conn, id, roundMs]);
+    conn.events.addEventListener("battleTick", onTick);
+    return () => conn.events.removeEventListener("battleTick", onTick);
+  }, [conn, id]);
 
   if (id === null) return null;
   const close = () => conn.local.setState({ watching: null });
@@ -111,21 +106,20 @@ export function BattlePanel(props: {
     );
   }
 
-  // The View's roster is after the completed Rounds; the Round now playing
-  // is the next one.
-  const current = play?.round === battle.round + 1 ? play : null;
-  const shown = current?.actions.slice(0, current.shown) ?? [];
-  const roster = applyActions(battle.roster, shown);
-  const last = shown.at(-1);
-  const unitOf = new Map(battle.roster.map((c) => [c.id, c.unit]));
+  const rules = content.rules.battle;
+  const seconds = battle.tick / BATTLE_TICKS;
+  const unitOf = new Map(
+    [...(report?.squads.values() ?? []), ...battle.squads].map((q) => [
+      q.id,
+      q.unit,
+    ]),
+  );
   const name = (unit: string | undefined) =>
     content.units.get(unit ?? "")?.name ??
     content.buildings.get(unit ?? "")?.name ??
     unit ??
     "?";
-  const done = current
-    ? current.shown / Math.max(1, current.actions.length)
-    : 0;
+  const last = fire.at(-1);
 
   return (
     <Floating
@@ -145,21 +139,25 @@ export function BattlePanel(props: {
       }
       tools={
         <span className="mr-2 font-mono">
-          <span className={label}>Round </span>
-          {current ? current.round : battle.round}
-          <span className="text-ink-3"> / {content.rules.roundCap}</span>
+          {clock(seconds)}
+          <span className="text-ink-3"> / {clock(rules.timeCap)}</span>
         </span>
       }
     >
       <div className="h-0.75 bg-well">
         <div
           className="h-full bg-accent transition-[width] duration-200"
-          style={{ width: `${done * 100}%` }}
+          style={{ width: `${Math.min(1, seconds / rules.timeCap) * 100}%` }}
         />
       </div>
+      <Points
+        battle={battle}
+        holdSeconds={rules.holdSeconds}
+        captureSeconds={rules.captureSeconds}
+      />
       <div className="grid grid-cols-2 gap-5 p-4">
-        {(["attacker", "defender"] as const).map((side) => {
-          const seat = side === "attacker" ? battle.attacker : battle.defender;
+        {SIDES.map((side) => {
+          const seat = seatOf(battle, side);
           const faction = seat === null ? "" : view?.players[seat]?.faction;
           return (
             <section key={side} className="flex flex-col gap-2">
@@ -167,9 +165,7 @@ export function BattlePanel(props: {
                 <span
                   aria-hidden="true"
                   className="size-2.5 rounded-sm"
-                  style={{
-                    background: seat === null ? NEUTRAL : seatColour(seat),
-                  }}
+                  style={{ background: colourOf(seat) }}
                 />
                 <h3 className="font-semibold">
                   {side === "attacker" ? "Attackers" : "Defenders"}
@@ -181,8 +177,7 @@ export function BattlePanel(props: {
                 </span>
               </div>
               <UnitGrid
-                roster={roster.filter((c) => c.side === side)}
-                content={content}
+                squads={battle.squads.filter((q) => q.side === side)}
                 name={name}
                 actor={last?.actor}
                 target={last?.target}
@@ -191,39 +186,27 @@ export function BattlePanel(props: {
           );
         })}
       </div>
-      <div className="mx-4 flex flex-col gap-1.5 rounded-md bg-well px-3.5 py-3 text-sm">
-        <span className={label}>This Round</span>
-        {shown.length === 0 ? (
-          <span className="text-ink-3">Waiting for the next Round…</span>
+      <div className="mx-4 flex h-24 flex-col gap-1.5 overflow-hidden rounded-md bg-well px-3.5 py-3 text-sm">
+        <span className={label}>Latest fire</span>
+        {fire.length === 0 ? (
+          <span className="text-ink-3">Nobody in range yet…</span>
         ) : (
-          // The newest three, newest first; n is its place in the Round.
-          shown
-            .map((a, n) => ({ a, n }))
-            .slice(-3)
+          fire
+            .map((v, n) => ({ v, n }))
             .reverse()
-            .map(({ a, n }) => (
+            .map(({ v, n }) => (
               <span
-                key={n}
-                className={n === shown.length - 1 ? "" : "text-ink-3"}
+                key={`${battle.tick}-${n}`}
+                className={n === fire.length - 1 ? "" : "text-ink-3"}
               >
-                {a.hit ? (
-                  <>
-                    {name(unitOf.get(a.actor))} hits{" "}
-                    {name(unitOf.get(a.target))} · rolled{" "}
-                    <span className="font-mono">{a.roll}</span>,{" "}
-                    <span className="font-mono">{damage(a)}</span>
-                  </>
-                ) : (
-                  <>
-                    {name(unitOf.get(a.actor))} misses{" "}
-                    {name(unitOf.get(a.target))}
-                  </>
-                )}
-                {a.killed && (
-                  <span className="text-danger">
-                    {" "}
-                    · {name(unitOf.get(a.target))} down
-                  </span>
+                {v.actor ? name(unitOf.get(v.actor)) : "Unseen fire"} on{" "}
+                {name(unitOf.get(v.target))} ·{" "}
+                <span className="font-mono">
+                  {v.hits}/{v.shots}
+                </span>{" "}
+                hit, <span className="font-mono">{damage(v)}</span>
+                {v.kills > 0 && (
+                  <span className="text-danger"> · {v.kills} down</span>
                 )}
               </span>
             ))
@@ -234,6 +217,44 @@ export function BattlePanel(props: {
         Stacks are frozen until the Battle ends.
       </p>
     </Floating>
+  );
+}
+
+/** Each Control Point's holder and capture progress, and the hold timer. */
+function Points(props: {
+  battle: Battle;
+  holdSeconds: number;
+  captureSeconds: number;
+}) {
+  const { battle } = props;
+  const hold = battle.hold / BATTLE_TICKS;
+  return (
+    <div className="flex items-center gap-3 px-4 pt-3 text-sm">
+      <span className={label}>Points</span>
+      {battle.points.map((p, i) => (
+        <span
+          key={`${p.x},${p.y}`}
+          className="flex items-center gap-1.5 rounded-md border border-line px-2 py-1"
+          title={`Held by the ${p.owner}`}
+        >
+          <span
+            aria-hidden="true"
+            className="size-2.5 rounded-full"
+            style={{ background: colourOf(seatOf(battle, p.owner)) }}
+          />
+          <span className="font-mono">{POINT_NAMES[i]}</span>
+          <span className="w-8 font-mono text-ink-3 text-xs">
+            {p.progress > 0
+              ? `${Math.round((p.progress / BATTLE_TICKS / Math.max(props.captureSeconds, 0.2)) * 100)}%`
+              : ""}
+          </span>
+        </span>
+      ))}
+      <span className="flex-1" />
+      <span className="font-mono text-ink-3">
+        Hold {clock(hold)} / {clock(props.holdSeconds)}
+      </span>
+    </div>
   );
 }
 
@@ -253,8 +274,10 @@ function Report(props: {
   const now = useMatchNow(conn.local);
   const you = view?.you;
   const won = r.winner === you;
-  const left = (side: Combatant["side"]) =>
-    r.roster.filter((c) => c.side === side && c.hp > 0).length;
+  const squads = [...r.squads.values()];
+  const count = (side: Side, f: (q: Squad) => number) =>
+    squads.filter((q) => q.side === side).reduce((n, q) => n + f(q), 0);
+  const left = (side: Side) => count(side, (q) => q.count);
   const enemy = (seat: number | null) =>
     seat === null ? "the neutral garrison" : sideName(view, seat);
   const outcome =
@@ -293,40 +316,37 @@ function Report(props: {
       }
       tools={
         <span className="mr-2 font-mono">
-          <span className={label}>Rounds </span>
-          {r.rounds}
-          <span className="text-ink-3"> / {content.rules.roundCap}</span>
+          <span className={label}>Lasted </span>
+          {clock(r.ticks / BATTLE_TICKS)}
         </span>
       }
     >
       <div className="flex flex-col gap-1 px-4 pt-3.5">
         <p>{outcome}</p>
         <p className="text-ink-3 text-sm">
-          Ended {formatAge(now - (r.endedAt ?? now))} ago · lasted{" "}
-          {Math.round((r.rounds * r.roundMs) / 1000)} s
+          Ended {formatAge(now - (r.endedAt ?? now))} ago · enemies you never
+          saw aren't counted
         </p>
       </div>
       <div className="grid grid-cols-2 gap-5 p-4">
-        {(["attacker", "defender"] as const).map((side) => {
-          const seat = side === "attacker" ? r.attacker : r.defender;
+        {SIDES.map((side) => {
+          const seat = seatOf(r, side);
           const faction = seat === null ? "" : view?.players[seat]?.faction;
           const units = new Map<string, { started: number; left: number }>();
-          for (const c of r.roster.filter((c) => c.side === side)) {
-            const u = units.get(c.unit) ?? { started: 0, left: 0 };
-            u.started++;
-            if (c.hp > 0) u.left++;
-            units.set(c.unit, u);
+          for (const q of squads.filter((q) => q.side === side)) {
+            const u = units.get(q.unit) ?? { started: 0, left: 0 };
+            u.started += q.start;
+            u.left += q.count;
+            units.set(q.unit, u);
           }
-          const started = r.roster.filter((c) => c.side === side).length;
+          const started = count(side, (q) => q.start);
           return (
             <section key={side} className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <span
                   aria-hidden="true"
                   className="size-2.5 rounded-sm"
-                  style={{
-                    background: seat === null ? NEUTRAL : seatColour(seat),
-                  }}
+                  style={{ background: colourOf(seat) }}
                 />
                 <h3 className="font-semibold">
                   {side === "attacker" ? "Attackers" : "Defenders"}
@@ -397,12 +417,12 @@ function Report(props: {
   );
 }
 
-/** "15 SH, 13 HP": the damage one hit did to each layer. */
-function damage(a: BattleAction) {
+/** "15 SH, 13 HP": the damage a volley did to each layer. */
+function damage(v: Volley) {
   const layers: [number, string][] = [
-    [a.shieldDmg, "SH"],
-    [a.armorDmg, "AR"],
-    [a.hpDmg, "HP"],
+    [v.shieldDmg, "SH"],
+    [v.armorDmg, "AR"],
+    [v.hpDmg, "HP"],
   ];
   const parts = layers
     .filter(([n]) => n > 0)
@@ -411,69 +431,53 @@ function damage(a: BattleAction) {
 }
 
 /**
- * One side's units as rows, one per unit type: the living count out of how
- * many started, and the summed Shield, Armor and HP left. The row of the
- * unit acting is outlined in blue, the one being hit in red.
+ * One side's squads in sight as rows, one per unit type: the living count
+ * out of how many started. The row of the squad that fired last is outlined
+ * in blue, the one it hit in red. The list scrolls inside a fixed height.
  */
 function UnitGrid(props: {
-  roster: Combatant[];
-  content: ContentLookups;
+  squads: Squad[];
   name: (unit: string) => string;
-  actor?: string;
-  target?: string;
+  actor?: number;
+  target?: number;
 }) {
-  const { roster, content } = props;
-  const slots = new Map<string, Combatant[]>();
-  for (const c of roster) slots.set(c.unit, [...(slots.get(c.unit) ?? []), c]);
+  const units = new Map<string, Squad[]>();
+  for (const q of props.squads)
+    units.set(q.unit, [...(units.get(q.unit) ?? []), q]);
+  if (units.size === 0) {
+    return (
+      <p className="flex h-64 items-center justify-center rounded-md border border-line border-dashed text-ink-3 text-sm">
+        None in sight
+      </p>
+    );
+  }
   return (
-    <ul className="flex flex-col gap-2">
-      {[...slots].map(([unit, cs]) => {
-        const def = content.units.get(unit) ?? content.buildings.get(unit);
-        const stats = def?.combat;
-        const alive = cs.filter((c) => c.hp > 0).length;
-        const sum = (f: (c: Combatant) => number) =>
-          cs.reduce((n, c) => n + f(c), 0);
-        const ids = new Set(cs.map((c) => c.id));
-        const hit = ids.has(props.target ?? "");
-        const acting = ids.has(props.actor ?? "");
+    <ul className="flex h-64 flex-col gap-2 overflow-y-auto">
+      {[...units].map(([unit, qs]) => {
+        const left = qs.reduce((n, q) => n + q.count, 0);
+        const started = qs.reduce((n, q) => n + q.start, 0);
+        const ids = new Set(qs.map((q) => q.id));
+        const hit = ids.has(props.target ?? 0);
+        const acting = ids.has(props.actor ?? 0);
         return (
           <li
             key={unit}
-            className={`grid grid-cols-[44px_minmax(0,1fr)_160px] items-center gap-3 rounded-md border p-2.5 ${hit ? "border-danger bg-danger-wash" : acting ? "border-[#5fb4f0] bg-[#12212e]" : "border-line bg-item"}`}
+            className={`grid grid-cols-[44px_minmax(0,1fr)_120px] items-center gap-3 rounded-md border p-2.5 ${hit ? "border-danger bg-danger-wash" : acting ? "border-[#5fb4f0] bg-[#12212e]" : "border-line bg-item"}`}
           >
             <Tile name={props.name(unit)} size="size-11" />
             <div className="min-w-0">
               <div className="truncate">
                 {props.name(unit)}{" "}
                 {acting && (
-                  <span className={`${label} text-[#5fb4f0]`}>acting</span>
+                  <span className={`${label} text-[#5fb4f0]`}>firing</span>
                 )}
                 {hit && <span className={`${label} text-danger`}>hit</span>}
               </div>
               <div className="font-mono text-ink-3 text-xs">
-                {alive} of {cs.length} left
+                {left} of {started} left
               </div>
             </div>
-            <div className="flex flex-col gap-1.25">
-              <Bar
-                label="SH"
-                colour="bg-[#5fb4f0]"
-                value={sum((c) => c.shield)}
-                max={cs.length * (stats?.shield ?? 0)}
-              />
-              <Bar
-                label="AR"
-                colour="bg-idle"
-                value={sum((c) => c.armor)}
-                max={cs.length * (stats?.armor ?? 0)}
-              />
-              <Bar
-                label="HP"
-                colour="bg-ok"
-                value={sum((c) => c.hp)}
-                max={cs.length * (stats?.hp ?? 0)}
-              />
-            </div>
+            <Bar label="Left" colour="bg-ok" value={left} max={started} />
           </li>
         );
       })}
@@ -487,7 +491,7 @@ function Bar(props: {
   value: number;
   max: number;
 }) {
-  if (props.max <= 0) return null; // e.g. no Shield at all
+  if (props.max <= 0) return null;
   return (
     // biome-ignore lint/a11y/useSemanticElements: a <meter>'s bar can't be coloured per layer across browsers
     <div
@@ -497,15 +501,12 @@ function Bar(props: {
       aria-valuemax={props.max}
       aria-valuenow={props.value}
       title={`${props.label} ${Math.round(props.value)} / ${Math.round(props.max)}`}
-      className="grid grid-cols-[22px_minmax(0,1fr)] items-center gap-1.5 font-mono text-[10px] text-ink-3"
+      className="h-1.5 overflow-hidden rounded-sm bg-well"
     >
-      {props.label}
-      <div className="h-1.5 overflow-hidden rounded-sm bg-well">
-        <div
-          className={`h-full ${props.colour}`}
-          style={{ width: `${(props.value / props.max) * 100}%` }}
-        />
-      </div>
+      <div
+        className={`h-full ${props.colour}`}
+        style={{ width: `${(props.value / props.max) * 100}%` }}
+      />
     </div>
   );
 }

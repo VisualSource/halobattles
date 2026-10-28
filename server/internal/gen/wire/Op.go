@@ -29,7 +29,7 @@ const (
 	OpPaydayPaid           Op = 104
 	OpPlanetCaptured       Op = 105
 	OpBattleStarted        Op = 106
-	OpBattleRound          Op = 107
+	OpBattleTick           Op = 107
 	OpBattleEnded          Op = 108
 	OpPlayerEliminated     Op = 109
 	OpMatchEnded           Op = 110
@@ -58,7 +58,7 @@ var EnumNamesOp = map[Op]string{
 	OpPaydayPaid:           "PaydayPaid",
 	OpPlanetCaptured:       "PlanetCaptured",
 	OpBattleStarted:        "BattleStarted",
-	OpBattleRound:          "BattleRound",
+	OpBattleTick:           "BattleTick",
 	OpBattleEnded:          "BattleEnded",
 	OpPlayerEliminated:     "PlayerEliminated",
 	OpMatchEnded:           "MatchEnded",
@@ -87,7 +87,7 @@ var EnumValuesOp = map[string]Op{
 	"PaydayPaid":           OpPaydayPaid,
 	"PlanetCaptured":       OpPlanetCaptured,
 	"BattleStarted":        OpBattleStarted,
-	"BattleRound":          OpBattleRound,
+	"BattleTick":           OpBattleTick,
 	"BattleEnded":          OpBattleEnded,
 	"PlayerEliminated":     OpPlayerEliminated,
 	"MatchEnded":           OpMatchEnded,

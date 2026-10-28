@@ -17,7 +17,7 @@ func rosterFiles() map[string]string {
 		"base/data/units/marine.jsonc": `{"id": "marine", "name": "Marine", "faction": "unsc",
 			"cost": {"credits": 50}, "buildTime": 15, "commandPoints": 1,
 			"combat": {"unitClass": "infantry", "weaponType": "kinetic", "shield": 0, "armor": 0, "hp": 100,
-				"damage": "1d4", "initiative": 10, "tiers": {"infantry": "advantage"}}}`,
+				"damage": "1d4", "tiers": {"infantry": "advantage"}}}`,
 		"base/data/buildings/barracks.jsonc": `{"id": "barracks", "name": "Barracks", "faction": "unsc",
 			"cost": {"credits": 150}, "buildTime": 30, "upkeep": {"credits": 10}, "yield": {},
 			"commandPointBonus": 0, "trains": ["marine"]}`,
@@ -63,7 +63,7 @@ func TestDanglingReferencesAreReported(t *testing.T) {
 	files["base/data/units/marine.jsonc"] = `{"id": "marine", "name": "Marine", "faction": "innie",
 		"cost": {"gold": 1}, "buildTime": 15, "commandPoints": 1,
 		"combat": {"unitClass": "robot", "weaponType": "laser", "shield": 0, "armor": 0, "hp": 100,
-			"damage": "1d4", "initiative": 10, "tiers": {"ghost": "advantage"}},
+			"damage": "1d4", "tiers": {"ghost": "advantage"}},
 		"icon": "__base__/marine.png"}`
 	files["base/data/buildings/barracks.jsonc"] = `{"id": "barracks", "name": "Barracks", "faction": "unsc",
 		"cost": {}, "buildTime": 30, "upkeep": {}, "yield": {}, "commandPointBonus": 0, "trains": ["spartan"]}`
@@ -101,12 +101,12 @@ func TestDanglingReferencesAreReported(t *testing.T) {
 
 func TestBrokenRulesetStillListsOtherProblems(t *testing.T) {
 	files := rosterFiles()
-	files["base/data/rulesets/rules.jsonc"] = strings.Replace(baseRules, `"roundCap": 40`, `"roundCap": "lots"`, 1)
+	files["base/data/rulesets/rules.jsonc"] = strings.Replace(baseRules, `"toHit": 3`, `"toHit": "lots"`, 1)
 	files["base/data/factions/unsc.jsonc"] = `{"id": "unsc", "name": "UNSC", "startingKit": {"buildings": ["bunker"], "stacks": []}}`
 
 	// Tier and Lane type checks need the Ruleset; without it they're skipped.
 	wantErr(t, writeMods(t, files, "base"),
-		"rulesets base:rules (from base/data/rulesets/rules.jsonc): at /roundCap",
+		"rulesets base:rules (from base/data/rulesets/rules.jsonc): at /toHit",
 		"factions base:unsc: startingKit: unknown Building base:bunker")
 }
 
@@ -121,7 +121,7 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 			"unitClasses base:infanterí (from base/data/unitClasses/infantry.jsonc): at /id: 'base:infanterí' does not match pattern"},
 		"unmarked redefinition": {"base/data/units/marine2.jsonc",
 			`{"id": "marine", "name": "Marine II", "faction": "unsc", "cost": {}, "buildTime": 1, "commandPoints": 1,
-				"combat": {"unitClass": "infantry", "weaponType": "kinetic", "shield": 0, "armor": 0, "hp": 1, "damage": "1d1", "initiative": 1}}`,
+				"combat": {"unitClass": "infantry", "weaponType": "kinetic", "shield": 0, "armor": 0, "hp": 1, "damage": "1d1"}}`,
 			`base/data/units/marine2.jsonc: redefines base:marine; add "replace": true or write a Patch`},
 		"unknown tier": {"base/data/units/marine.jsonc",
 			strings.Replace(rosterFiles()["base/data/units/marine.jsonc"], `"advantage"`, `"mighty"`, 1),
@@ -176,7 +176,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 		s.Combat.Tiers["base:aircraft"] != "none" || s.Cost["base:materials"] != 100 || s.CommandPoints != 4 {
 		t.Errorf("scorpion = %+v", s)
 	}
-	if b := d.Units["base:banshee"]; b.Combat.Shield != 13 || b.Combat.Initiative != 18 || b.BuildTime != 50 {
+	if b := d.Units["base:banshee"]; b.Combat.Shield != 13 || b.Combat.Hp != 20 || b.BuildTime != 50 {
 		t.Errorf("banshee = %+v", b)
 	}
 	if w := d.WeaponTypes["base:plasma"]; w.Shield != 1.5 || w.Armor != 0.75 || w.Hp != 1 {

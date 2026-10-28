@@ -252,21 +252,11 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 
 ## On the wire
 
-- **`BattleStarted`**, sent to both sides:
-  - the Battlefield grid: width, height, one Terrain index per cell, and one height level per cell (a few KB);
-  - the Terrain index table;
-  - the Control Points;
-  - the time cap.
-
-  The rest of each side's opening data is filtered by its Sight. Squad ids are per Battle. Each Squad carries its unit type, side, slot, count and starting layers.
-- **`BattleTick`**, sent to each side every tick, **filtered to that side's Sight**:
-  - the moved Squads (`id, x, y`);
-  - Squads entering and leaving view;
-  - volleys: `{actor, target, shots, hits, shieldDmg, armorDmg, hpDmg, kills}`, with `actor` omitted when the shooter is hidden;
-  - the Control Points' owners and capture progress;
-  - the hold timer;
-  - Retreat state;
-  - buildings seen or destroyed.
+- **`BattleView`**, in each side's View: the Battle as that side sees it. That's the sim tick, the attacker's edge, the side's own squads plus the enemies in its Sight, every Control Point and the hold timer. Each squad carries its id, side, unit, cell, count, starting count, and its front member's layers.
+  - It's diffed and upserted in `ViewDelta` like any other entity, so it changes every tick while anything moves. Fog is enforced where the server builds it, in the sim's `Snapshot(side)`.
+  - **The Battlefield** goes only in `ViewFull` and `BattleStarted`: width, height, the Terrain id table, then one Terrain index and one height level per cell. Deltas leave it out, and the client keeps it.
+- **`BattleStarted`**: the two sides, the Planet, the start time and the Battlefield.
+- **`BattleTick`**: one tick's volleys, `{actor, target, shots, hits, kills, shieldDmg, armorDmg, hpDmg}`. It's sent to a side only on ticks with fire that side may know about: fire at its own squads, or by or at squads it can see. A shooter it can't see is sent as `actor` 0.
 - **Commands:** `BattleRetreat {planet}` and `BattleCancelRetreat {planet}`. A Battle is keyed by its Planet on the wire, as the other Battle messages are.
 - A side that reconnects gets the Battle's current filtered state in its `ViewFull`. It doesn't get a replay.
 - Other players with Vision see only the Locked flag and `BattleEnded`, as before.
