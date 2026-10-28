@@ -219,35 +219,30 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 
 ### Squad planner (GOAP)
 
-- Each Squad plans with **Goal-Oriented Action Planning**: an A* search over world-state facts, from its current state to its goal.
+- Each Squad plans with **Goal-Oriented Action Planning**: the cheapest steps from its facts now to the facts its goal wants, searched over the few states the facts make.
 - **Facts:**
-  - `atCell`
-  - `targetVisible`
-  - `targetInRange`
-  - `inCover`
-  - `onHighGround`
-  - `nearFriendly`
-  - `healthy` (count ≥ 50% of its start)
-- **Actions:**
-  - `moveTo`
-  - `attack`
-  - `takeCover`: move to the nearest cover cell within 4
-  - `takeHighGround`
-  - `regroup`: move toward the nearest friendly Squad
-  - `hold`
-
-  Each action has preconditions, effects and a cost.
+  - `atGoal`: within capture radius of its point, or close to any other goal
+  - `inRange`: its target can be hit from where it stands
+  - `inCover`: on a Terrain with cover
+  - `nearFriendly`: another of its side's squads within 3 cells
+- **What a goal wants:**
+  - capture and scout: `atGoal`;
+  - defend: `atGoal`, and `inCover` too when the Faction's `cover` weight is 1 or more and there's cover by the point;
+  - kill and raid: `inRange`, and `nearFriendly` too when the squad is under half strength and the Faction's `caution` weight is 1 or more.
+- **Actions**, each with a cost in seconds of walking, or a flat cost scaled by a weight:
+  - `goTo` the goal;
+  - `approach`: a firing position in range of the target, trading the walk against high ground and cover by the `cover` weight (this covers the spec's `takeHighGround`);
+  - `takeCover`: the nearest covered cell within 3;
+  - `regroup`: to the nearest friendly squad.
 - **Budget:** plans are at most 4 actions deep.
-- **When it replans:**
-  - its goal changes;
-  - its target dies or leaves view;
-  - it loses a member;
-  - a Control Point changes hands;
-  - otherwise every 1 s.
+- **When it replans:** a Control Point changes hands, it loses a member, or otherwise once a second, staggered by Squad id. A replan whose next step hasn't changed keeps the destination it already sent, since every new destination costs a path.
+- **Code and data:** goals, actions and facts are Go code. Their **weights** are content: a Faction's optional `ai` block of `aggression`, `caution`, `cover`, `raid` and `scout`, each defaulting to 1. The base Covenant rush in (aggression 1.4, caution 0.7, cover 0.7); the UNSC hold cover and regroup (aggression 0.9, caution 1.2, cover 1.5). The planner looks up weights **per Squad** even though v1 only has Faction weights, so per-unit weights can be added later (see [Later](#later)). A neutral garrison plays the defaults.
+- **Determinism:** ties between equal plan costs or equal goal scores go to the earlier goal or the action declared first, and squads are planned in id order. Any randomness comes from the Battle RNG.
 
-  The 1 s fallback is staggered by Squad id across the 5 ticks of each second, so no single tick replans every Squad.
-- **Code and data:** goals, actions, facts, preconditions and effects are Go code. Their **costs and weights** are content: a Faction's `ai` block, such as `aggression`, `caution`, `cover`, `raid` and `scout`. A Covenant preset can rush; a UNSC one can hold cover. The planner looks up weights **per Squad** even though v1 only has Faction weights, so per-unit weights can be added later (see [Later](#later)).
-- **Determinism:** ties between equal plan costs or equal goal scores go to the lowest id, then to action declaration order. Any randomness comes from the Battle RNG.
+### Movement among other squads
+
+- Long routes are A* over the terrain alone. Other squads are handled locally: a blocked squad waits; after 1 s it re-routes around occupied cells, or swaps places with an idle friendly; within 3 cells of its goal it stops.
+- If jams show up in play, the next step is grid steering (sidestep into a free neighbouring cell that's no further from the goal). After that would come flow fields for the few shared destinations (points and exits), or a cooperative reservation table. Continuous-space avoidance (RVO/ORCA) doesn't fit a one-squad-per-cell grid.
 
 ## Determinism and the input log
 

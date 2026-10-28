@@ -14,7 +14,7 @@ func ruleset(c *cs.Content) cs.Ruleset { return c.Rulesets["base:rules"] }
 func newSim(c *cs.Content, attack, defend Force, seed uint64) *Sim {
 	r := ruleset(c)
 	s := New(c, r, Generate(c, r.Battlefield, nil, seed), attack, defend, seed)
-	s.Controllers = [2]Controller{Rush{}, Rush{}}
+	s.Controllers = [2]Controller{NewAI(WeightsOf(nil)), NewAI(WeightsOf(nil))}
 	return s
 }
 

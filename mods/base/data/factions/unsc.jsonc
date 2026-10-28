@@ -2,6 +2,8 @@
   "$schema": "../../../../schema/content/faction.schema.json",
   "id": "unsc",
   "name": "UNSC",
+  // Battle AI: holds cover and high ground, regroups when hurt.
+  "ai": { "aggression": 0.9, "caution": 1.2, "cover": 1.5 },
   "startingKit": {
     "buildings": ["barracks", "supply-pad"],
     "stacks": [

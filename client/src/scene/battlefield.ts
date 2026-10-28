@@ -37,6 +37,7 @@ export type BattlefieldLook = {
 type Token = {
   mesh: THREE.Mesh;
   label: CSS2DObject;
+  prev: THREE.Vector2; // where the move before this one started: it shapes the curve
   from: THREE.Vector2;
   to: THREE.Vector2;
   t0: number;
@@ -54,6 +55,31 @@ type Marker = {
 export const POINT_NAMES = "ABCDEFGH";
 
 type Effect = { obj: THREE.Line | THREE.Mesh; t0: number; ms: number };
+
+/**
+ * A point k of the way from `from` to `to` on a Catmull-Rom-style curve:
+ * it leaves `from` heading the way the move before was going, from `prev`,
+ * so a turn is a bend rather than a corner. Drawing only: the server keeps
+ * every squad on the grid, so this never changes where one is.
+ */
+function curve(
+  prev: THREE.Vector2,
+  from: THREE.Vector2,
+  to: THREE.Vector2,
+  k: number,
+) {
+  const k2 = k * k;
+  const k3 = k2 * k;
+  // Hermite basis, with tangents (to - prev) / 2 at the start and (to - from) at the end.
+  const a = 2 * k3 - 3 * k2 + 1;
+  const b = k3 - 2 * k2 + k;
+  const c = -2 * k3 + 3 * k2;
+  const d = k3 - k2;
+  return new THREE.Vector2(
+    a * from.x + b * (to.x - prev.x) * 0.5 + c * to.x + d * (to.x - from.x),
+    a * from.y + b * (to.y - prev.y) * 0.5 + c * to.y + d * (to.y - from.y),
+  );
+}
 
 /** A cell's centre in world space: x right, y up, so a row goes down. */
 const centre = (x: number, y: number) => new THREE.Vector2(x + 0.5, -(y + 0.5));
@@ -176,6 +202,7 @@ export class BattlefieldScene {
         t = this.token(sq, at);
         this.tokens.set(sq.id, t);
       } else if (!t.to.equals(at)) {
+        t.prev.copy(t.from);
         t.from.set(t.mesh.position.x, t.mesh.position.y);
         t.to.copy(at);
         t.t0 = now;
@@ -281,7 +308,14 @@ export class BattlefieldScene {
     label.center.set(0.5, -0.4);
     mesh.add(label);
     this.scene.add(mesh);
-    return { mesh, label, from: at.clone(), to: at.clone(), t0: 0 };
+    return {
+      mesh,
+      label,
+      prev: at.clone(),
+      from: at.clone(),
+      to: at.clone(),
+      t0: 0,
+    };
   }
 
   /**
@@ -388,8 +422,9 @@ export class BattlefieldScene {
   private tick(t: number) {
     for (const tok of this.tokens.values()) {
       const k = this.still ? 1 : Math.min(1, (t - tok.t0) / TICK_MS);
-      tok.mesh.position.x = tok.from.x + (tok.to.x - tok.from.x) * k;
-      tok.mesh.position.y = tok.from.y + (tok.to.y - tok.from.y) * k;
+      const at = curve(tok.prev, tok.from, tok.to, k);
+      tok.mesh.position.x = at.x;
+      tok.mesh.position.y = at.y;
     }
     for (let i = this.effects.length - 1; i >= 0; i--) {
       const e = this.effects[i];

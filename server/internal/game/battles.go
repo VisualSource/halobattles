@@ -93,7 +93,7 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	defend.Buildings = slices.Clone(p.Buildings)
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
 	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID), attack, defend, s.Seed+uint64(b.ID))
-	b.Sim.Controllers = [2]battle.Controller{battle.Rush{}, battle.Rush{}}
+	b.Sim.Controllers = [2]battle.Controller{battle.NewAI(s.aiWeights(c, b.Attacker)), battle.NewAI(s.aiWeights(c, b.Defender))}
 	p.Locked = true
 	delete(s.Armies, a.ID)
 	if s.Battles == nil {
@@ -101,6 +101,15 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	}
 	s.Battles[b.ID] = b
 	ev.Started = append(ev.Started, b)
+}
+
+// aiWeights is how a Seat's Faction plays its Battles; a neutral garrison
+// plays the defaults.
+func (s *State) aiWeights(c *cs.Content, seat int) battle.Weights {
+	if seat == Neutral {
+		return battle.WeightsOf(nil)
+	}
+	return battle.WeightsOf(c.Factions[s.Players[seat].Faction].Ai)
 }
 
 // fightBattles steps each Battle's sim once per tick that's due, and ends

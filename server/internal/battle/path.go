@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"container/heap"
 	"math"
+	"sync"
 )
 
 const diagonal = 1.5 // a diagonal step costs this many straight ones
@@ -56,6 +57,15 @@ func octile(a, b Cell) float64 {
 	return max(dx, dy) + (diagonal-1)*min(dx, dy)
 }
 
+// search is A*'s per-call arrays, pooled: a path call on a big map would
+// otherwise allocate a few dozen KB.
+type search struct {
+	g    []float64
+	from []int
+}
+
+var scratch = sync.Pool{New: func() any { return &search{} }}
+
 type node struct {
 	i    int
 	f, h float64
@@ -90,8 +100,12 @@ func (f *Field) path(c costs, start, goal Cell, blocked func(int) bool) []Cell {
 		return nil
 	}
 	n := f.W * f.H
-	g := make([]float64, n)
-	from := make([]int, n)
+	buf := scratch.Get().(*search)
+	defer scratch.Put(buf)
+	if cap(buf.g) < n {
+		buf.g, buf.from = make([]float64, n), make([]int, n)
+	}
+	g, from := buf.g[:n], buf.from[:n]
 	for i := range g {
 		g[i], from[i] = math.Inf(1), -1
 	}

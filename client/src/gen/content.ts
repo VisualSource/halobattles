@@ -259,7 +259,33 @@ export interface Faction {
    * An asset in a Mod's assets/ folder, written `__mod__/path`.
    */
   icon?: string;
+  ai?: AIWeights;
   startingKit: StartingKit;
+}
+/**
+ * How the Faction's Battle AI plays: each weight scales one kind of choice; 1 is neutral.
+ */
+export interface AIWeights {
+  /**
+   * How much it goes after enemy squads it can see. Defaults to 1.
+   */
+  aggression?: number;
+  /**
+   * How much enemies near a goal put it off, and how readily a hurt squad regroups. Defaults to 1.
+   */
+  caution?: number;
+  /**
+   * How much it prefers cover and high ground when it stops to fight or hold. Defaults to 1.
+   */
+  cover?: number;
+  /**
+   * How much it goes after enemy buildings. Defaults to 1.
+   */
+  raid?: number;
+  /**
+   * How much it searches when it can see no enemy. Defaults to 1.
+   */
+  scout?: number;
 }
 /**
  * Placed on the Faction's Capital when a Match starts. Starting resources are a lobby setting, not part of the kit.

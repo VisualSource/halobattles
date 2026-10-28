@@ -2,6 +2,27 @@
 
 package contentschema
 
+// How the Faction's Battle AI plays: each weight scales one kind of choice; 1 is
+// neutral.
+type AIWeights struct {
+	// How much it goes after enemy squads it can see. Defaults to 1.
+	Aggression *float64 `json:"aggression,omitempty,omitzero"`
+
+	// How much enemies near a goal put it off, and how readily a hurt squad regroups.
+	// Defaults to 1.
+	Caution *float64 `json:"caution,omitempty,omitzero"`
+
+	// How much it prefers cover and high ground when it stops to fight or hold.
+	// Defaults to 1.
+	Cover *float64 `json:"cover,omitempty,omitzero"`
+
+	// How much it goes after enemy buildings. Defaults to 1.
+	Raid *float64 `json:"raid,omitempty,omitzero"`
+
+	// How much it searches when it can see no enemy. Defaults to 1.
+	Scout *float64 `json:"scout,omitempty,omitzero"`
+}
+
 // An asset in a Mod's assets/ folder, written `__mod__/path`.
 type Asset string
 
@@ -248,6 +269,10 @@ type Content struct {
 type Faction struct {
 	// Schema corresponds to the JSON schema field "$schema".
 	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// How the Faction's Battle AI plays: each weight scales one kind of choice; 1 is
+	// neutral.
+	Ai *AIWeights `json:"ai,omitempty,omitzero"`
 
 	// Icon corresponds to the JSON schema field "icon".
 	Icon *Asset `json:"icon,omitempty,omitzero"`
