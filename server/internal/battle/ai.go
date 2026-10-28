@@ -243,6 +243,10 @@ func (ai *AI) Orders(v View) []Order {
 				out = append(out, o)
 				continue
 			}
+			if o, ok := ai.takePost(v, sq, p); ok {
+				out = append(out, o)
+				continue
+			}
 		}
 		if p.steps == nil || flipped || len(sq.Members) < p.members || (v.Tick()+sq.ID)%TicksPerSecond == 0 {
 			ai.replan(v, sq, p)
@@ -439,6 +443,58 @@ func (ai *AI) walkBeat(v View, sq *Squad, p *plan) (Order, bool) {
 	p.beatUntil = v.Tick() + int(dist(sq.Cell, to)/max(sq.speed, 0.1)*TicksPerSecond) + beatPause*TicksPerSecond
 	p.steps, p.sent = nil, false // back to the point afterwards
 	return Order{Kind: Move, Squad: sq.ID, Cell: to}, true
+}
+
+// takePost moves a guard settled on its point to the best ground there, if
+// that's clearly better than where it stands: see guardPost.
+func (ai *AI) takePost(v View, sq *Squad, p *plan) (Order, bool) {
+	s := v.sim
+	if len(p.steps) > 0 || len(sq.path) > 0 || dist(sq.Cell, p.goal.cell) > s.rules.CaptureRadius ||
+		(v.Tick()+sq.ID)%TicksPerSecond != 0 {
+		return Order{}, false
+	}
+	w := ai.weightsOf(sq).Cover
+	best, ok := s.guardPost(sq, p.goal.cell, w)
+	if !ok || s.postScore(sq, p.goal.cell, sq.Cell, w)+0.5 >= s.postScore(sq, p.goal.cell, best, w) {
+		return Order{}, false
+	}
+	return Order{Kind: Move, Squad: sq.ID, Cell: best}, true
+}
+
+// guardPost is the best cell a guard can stand on within capture radius of
+// its point, so it still holds it: see postScore. Where there's cover there
+// and the guard cares for it, only covered cells will do, so a post never
+// takes it out of cover: without cover, Covenant attacks on UNSC won 62%
+// instead of 53%.
+func (s *Sim) guardPost(sq *Squad, point Cell, cover float64) (Cell, bool) {
+	r := s.rules.CaptureRadius
+	_, covered := s.coverNear(sq, point, r)
+	covered = covered && cover > 0 && !sq.air
+	best, bestScore, found := Cell{}, math.Inf(-1), false
+	for y := point.Y - int(r); y <= point.Y+int(r); y++ {
+		for x := point.X - int(r); x <= point.X+int(r); x++ {
+			c := Cell{x, y}
+			if dist(c, point) > r || !s.standable(sq, c) || covered && s.coverAt(c) >= 0 {
+				continue
+			}
+			if score := s.postScore(sq, point, c, cover); score > bestScore { // ties keep the first found
+				best, bestScore, found = c, score, true
+			}
+		}
+	}
+	return best, found
+}
+
+// postScore rates a guard's cell: high ground most (a to-hit bonus and more
+// Sight), then cover by the cover weight, then a little for the side of the
+// point facing the attacker's edge. A flyer gets neither high ground nor
+// cover, so only the facing counts.
+func (s *Sim) postScore(sq *Squad, point, c Cell, cover float64) float64 {
+	facing := float64(s.depth(s.Edge, point)-s.depth(s.Edge, c)) / max(s.rules.CaptureRadius, 1)
+	if sq.air {
+		return 0.5 * facing
+	}
+	return 2*float64(s.height(c)) - cover*float64(s.coverAt(c)) + 0.5*facing
 }
 
 // intruder is the enemy a guarding squad should leave its point to fight:
@@ -865,7 +921,7 @@ func (ai *AI) want(v View, sq *Squad, g goal) facts {
 		}
 		return inRange
 	case defend:
-		if w.Cover >= 1 && !sq.air {
+		if w.Cover > 0 && !sq.air {
 			if _, ok := v.sim.coverNear(sq, g.cell, v.sim.rules.CaptureRadius); ok {
 				return atGoal | inCover
 			}

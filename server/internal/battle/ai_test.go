@@ -2,6 +2,7 @@ package battle
 
 import (
 	"maps"
+	"math"
 	"slices"
 	"testing"
 )
@@ -107,21 +108,63 @@ func TestAHurtCautiousSquadRegroupsBeforeItFights(t *testing.T) {
 	}
 }
 
-func TestDefendersTakeCoverByTheirPoint(t *testing.T) {
+func TestAGuardTakesTheBestGroundOnItsPoint(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
 	d := s.Squads[1]
-	ai := NewAI(Weights{Aggression: 1, Caution: 1, Cover: 1.5, Raid: 1, Scout: 1})
-	v := View{s, Defender}
 	for _, p := range s.Points {
-		if _, ok := s.coverNear(d, p.Cell, s.rules.CaptureRadius); ok {
-			g := goal{kind: defend, cell: p.Cell}
-			if ai.want(v, d, g)&inCover == 0 {
-				t.Error("a defender holding a point with cover by it should want the cover")
+		post, ok := s.guardPost(d, p.Cell, 1)
+		if !ok {
+			continue
+		}
+		if dist(post, p.Cell) > s.rules.CaptureRadius {
+			t.Errorf("post %v is off point %v: it wouldn't hold it", post, p.Cell)
+		}
+		// In cover if there's any there; and nothing it could pick is higher,
+		// or as high with more cover.
+		_, covered := s.coverNear(d, p.Cell, s.rules.CaptureRadius)
+		if covered && s.coverAt(post) >= 0 {
+			t.Errorf("point %v: post %v is in the open with cover at hand", p.Cell, post)
+		}
+		r := int(s.rules.CaptureRadius)
+		for y := -r; y <= r; y++ {
+			for x := -r; x <= r; x++ {
+				c := p.Cell.add(Cell{x, y})
+				if dist(c, p.Cell) > s.rules.CaptureRadius || !s.standable(d, c) || covered && s.coverAt(c) >= 0 {
+					continue
+				}
+				if s.height(c) > s.height(post) || s.height(c) == s.height(post) && s.coverAt(c) < s.coverAt(post) {
+					t.Errorf("point %v: post %v (height %d, cover %d), but %v has height %d, cover %d",
+						p.Cell, post, s.height(post), s.coverAt(post), c, s.height(c), s.coverAt(c))
+				}
 			}
-			return
 		}
 	}
-	t.Skip("no cover by any point on this Battlefield")
+
+	// Settled on its point on worse ground, it moves to the post.
+	p := s.Points[0].Cell
+	post, _ := s.guardPost(d, p, 1)
+	ai := NewAI(WeightsOf(nil))
+	pl := &plan{goal: goal{kind: defend, cell: p}, steps: []action{}}
+	worst, worstScore := Cell{}, math.Inf(1)
+	r := int(s.rules.CaptureRadius)
+	for y := -r; y <= r; y++ {
+		for x := -r; x <= r; x++ {
+			c := p.add(Cell{x, y})
+			if dist(c, p) <= s.rules.CaptureRadius && s.standable(d, c) {
+				if sc := s.postScore(d, p, c, 1); sc < worstScore {
+					worst, worstScore = c, sc
+				}
+			}
+		}
+	}
+	if s.postScore(d, p, post, 1)-worstScore <= 0.5 {
+		t.Skip("point 0's ground is all alike")
+	}
+	s.relocate(d, worst)
+	s.Tick = TicksPerSecond - d.ID%TicksPerSecond // its slot
+	if o, ok := ai.takePost(View{s, Defender}, d, pl); !ok || o.Cell != post {
+		t.Errorf("order %+v, %v; want a move to the post %v", o, ok, post)
+	}
 }
 
 // flipWatch counts how often each squad's goal changes.

@@ -227,6 +227,8 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 - Caution's threat penalty applies to every goal except holding a point: a threatened point is the one to hold.
 - Threat counts enemy squads the side has **seen lately**, not only those in view: each is remembered where it was last seen for 10 s, or until that spot is back in Sight without it. Without this, a squad that sighted the enemy, turned away, and lost sight of it turned straight back, over and over.
 - A squad's current goal scores a quarter more (**stickiness**), so near-ties don't flip it back and forth.
+- **Guard posts:** a guard settled on its point moves to the best ground within capture radius of it, so it still holds the point. Where there's cover there, it picks among covered cells only. Then it prefers high ground, then more cover by its `cover` weight, then the side facing the attacker's edge. It moves only if the post is clearly better than where it stands. Leaving cover for open high ground cost the defender: Covenant attacks on UNSC rose from 53% to 62% wins.
+- Any positive `cover` weight makes a side want cover and covered posts. A cutoff of 1 had left the Covenant (0.9) out in the open while UNSC attackers took covered, high firing positions.
 - **Sentry beats:** a guard settled on its point walks a short beat every 8 s, but only while its side knows of no enemy: to a covered cell within 2 cells of the point, or else a spot that far out each way. It pauses there 3 s, then returns. Staying inside the capture radius keeps the point contested. Walking out to 4 cells and to nearby pads got guards caught away from their points: attacker wins rose from 54% to 59%. This version costs about 2 points.
 - **Leash:** a squad guarding a point goes after the enemy it can see and hurt, best matchup first and then nearest, that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. At 8 cells, guards left their points open often enough to tip balance toward the attacker.
 - While the attacker's hold timer runs, the defender values retaking a point at 5 instead of 3.
@@ -258,7 +260,7 @@ On top of the usual goals, the Commander gives some squads a job:
   - `nearFriendly`: another of its side's squads within 3 cells
 - **What a goal wants:**
   - capture and scout: `atGoal`;
-  - defend: `atGoal`, and `inCover` too when the Faction's `cover` weight is 1 or more and there's cover by the point;
+  - defend: `atGoal`, and `inCover` too when the Faction's `cover` weight is above 0 and there's cover by the point;
   - kill and raid: `inRange`, and `nearFriendly` too when the squad is under half strength and the Faction's `caution` weight is 1 or more.
 - **Actions**, each with a cost in seconds of walking, or a flat cost scaled by a weight:
   - `goTo` the goal;
@@ -341,8 +343,8 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
 
 - Two evenly matched forces should fight for about **1–3 minutes**.
 - The two Starting Kits should stay roughly even: either one attacking wins about 45–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights.
-- A Go test checks both over 100 seeds per matchup, allowing 40–60% for sampling noise. When last tuned: about 97 s per Battle; UNSC attacking wins 51%, Covenant attacking 53%.
-- **Big Battles** (three Starting Kit Stacks a side) aren't in the test yet, as they're still off target: UNSC attacking wins 66%, mostly by elimination; Covenant attacking 56%. Pausing the hold timer and fewer skirmishers brought them down from 64% / 65%.
+- A Go test checks both over 100 seeds per matchup, allowing 40–60% for sampling noise. When last tuned: about 96 s per Battle; UNSC attacking wins 48%, Covenant attacking 53%.
+- The test covers **big Battles** too (three Starting Kit Stacks a side): UNSC attacking wins 56%, Covenant attacking 60%, right at the allowance. They were 73% / 67% before roles, the paused hold timer, guard posts, and cover for any positive weight.
 - Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 
 ## Ruleset additions

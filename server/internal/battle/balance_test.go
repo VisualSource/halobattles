@@ -26,8 +26,8 @@ func kitForce(c *cs.Content, faction string, defending bool) Force {
 	return f
 }
 
-// The roster's pacing and balance targets: the two Starting Kits fight for
-// 1–3 minutes on average, and either attacking the other wins 45–55% of the
+// The roster's pacing and balance targets: the two Starting Kits, alone and
+// three Stacks a side, fight for 1–3 minutes on average, and either attacking the other wins 45–55% of the
 // time, each side playing its Faction's AI weights. Over 100 seeds the rate
 // is within about 5 points of the truth, so the test allows 40–60%.
 func TestStartingKitsArePacedAndBalanced(t *testing.T) {
@@ -36,16 +36,30 @@ func TestStartingKitsArePacedAndBalanced(t *testing.T) {
 	}
 	c := baseContent(t)
 	r := ruleset(c)
-	for _, tc := range []struct{ name, attack, defend string }{
-		{"UNSC attacks Covenant", "base:unsc", "base:covenant"},
-		{"Covenant attacks UNSC", "base:covenant", "base:unsc"},
+	// Big: three Stacks a side, where spreading over the points and roles
+	// count for more.
+	three := func(f Force) Force {
+		return Force{Formations: [][]Slot{f.Formations[0], f.Formations[0], f.Formations[0]}, Buildings: f.Buildings}
+	}
+	for _, tc := range []struct {
+		name, attack, defend string
+		big                  bool
+	}{
+		{"UNSC attacks Covenant", "base:unsc", "base:covenant", false},
+		{"Covenant attacks UNSC", "base:covenant", "base:unsc", false},
+		{"big: UNSC attacks Covenant", "base:unsc", "base:covenant", true},
+		{"big: Covenant attacks UNSC", "base:covenant", "base:unsc", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			const seeds = 100
 			wins, ticks := 0, 0
 			reasons := map[string]int{}
 			for seed := range uint64(seeds) {
-				s := New(c, r, Generate(c, r.Battlefield, nil, seed), kitForce(c, tc.attack, false), kitForce(c, tc.defend, true), seed)
+				attack, defend := kitForce(c, tc.attack, false), kitForce(c, tc.defend, true)
+				if tc.big {
+					attack, defend = three(attack), three(defend)
+				}
+				s := New(c, r, Generate(c, r.Battlefield, nil, seed), attack, defend, seed)
 				s.Controllers = [2]Controller{
 					NewAI(WeightsOf(c.Factions[tc.attack].Ai)), NewAI(WeightsOf(c.Factions[tc.defend].Ai)),
 				}
