@@ -81,6 +81,7 @@ type plan struct {
 	members int  // its count when planned: a loss replans
 	moveTo  Cell // where the current step sent it
 	sent    bool
+	engaged int // guarding a point: the enemy it has left the point to fight, or 0
 }
 
 // AI drives a side: a Commander that hands each squad a goal, and a
@@ -89,19 +90,37 @@ type plan struct {
 type AI struct {
 	weights Weights
 	plans   map[int]*plan
-	seen    map[int]Cell // enemy buildings seen, by id, where they stand
-	owners  []Side       // Control Point holders last tick, to notice a flip
-	own     []*Squad     // the side's squads on the field this tick
+	seen    map[int]Cell     // enemy buildings seen, by id, where they stand
+	sighted map[int]sighting // enemy squads seen lately, by id
+	owners  []Side           // Control Point holders last tick, to notice a flip
+	own     []*Squad         // the side's squads on the field this tick
 }
 
 func NewAI(w Weights) *AI {
-	return &AI{weights: w, plans: map[int]*plan{}, seen: map[int]Cell{}}
+	return &AI{weights: w, plans: map[int]*plan{}, seen: map[int]Cell{}, sighted: map[int]sighting{}}
+}
+
+// sighting is where an enemy squad was last seen, how many it had, and when.
+type sighting struct {
+	cell    Cell
+	members int
+	tick    int
 }
 
 // weightsOf is looked up per squad, so unit types can tune their own later.
 func (ai *AI) weightsOf(*Squad) Weights { return ai.weights }
 
 const (
+	// recallTicks is how long the AI keeps counting an enemy it can no longer
+	// see. Without it, a squad that sights an enemy, turns away from the
+	// threat, and loses sight of it would turn straight back, over and over.
+	recallTicks = 10 * TicksPerSecond
+	// stickiness is how much better another goal must score before a squad
+	// drops the one it has.
+	stickiness = 1.25
+	// leash is how far from its point, in cells, a guarding squad chases an
+	// enemy, times its aggression weight.
+	leash        = 6
 	nearRadius   = 3 // cells: a friendly this close is near
 	threatRadius = 6 // cells: enemies this close to a goal threaten it
 	distScale    = 12.0
@@ -141,6 +160,15 @@ func (ai *AI) Orders(v View) []Order {
 				p.goal.cell = t.Cell
 			}
 		}
+		if p.goal.kind == defend {
+			if e := ai.intruder(v, sq, p, enemies); e != nil {
+				out = append(out, ai.engage(v, sq, p, e)...)
+				continue
+			}
+			if p.engaged != 0 { // it's dead or gone: back to the point
+				p.engaged, p.steps, p.sent = 0, nil, false
+			}
+		}
 		if p.steps == nil || flipped || len(sq.Members) < p.members || (v.Tick()+sq.ID)%TicksPerSecond == 0 {
 			ai.replan(v, sq, p)
 		}
@@ -155,6 +183,20 @@ func (ai *AI) remember(v View, own, enemies []*Squad) {
 	for _, e := range enemies {
 		if e.Building {
 			ai.seen[e.ID] = e.Cell
+		} else {
+			ai.sighted[e.ID] = sighting{e.Cell, len(e.Members), v.Tick()}
+		}
+	}
+	inSight := func(at Cell) bool {
+		return slices.ContainsFunc(own, func(o *Squad) bool {
+			r := v.sim.sightOf(o)
+			return float64(dist2(o.Cell, at)) <= r*r
+		})
+	}
+	for _, id := range slices.Sorted(maps.Keys(ai.sighted)) {
+		// Forgotten after a while, or once the spot is in Sight and it's gone.
+		if sg := ai.sighted[id]; v.Tick()-sg.tick > recallTicks || sg.tick != v.Tick() && inSight(sg.cell) {
+			delete(ai.sighted, id)
 		}
 	}
 	for _, id := range slices.Sorted(maps.Keys(ai.seen)) {
@@ -172,8 +214,9 @@ func (ai *AI) remember(v View, own, enemies []*Squad) {
 
 // command is the Commander: it lists goals and hands each mobile squad the
 // one it scores highest. A goal's score is its value, less for distance, for
-// squads already on it, and, except for holding a point, for enemies near it
-// the side can see.
+// squads already on it, and, except for holding a point, for enemies the
+// side has seen near it lately. A squad's current goal scores a quarter more,
+// so near-ties don't flip it back and forth.
 func (ai *AI) command(v View, own, enemies []*Squad) {
 	s := v.sim
 	var goals []goal
@@ -221,11 +264,12 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		return
 	}
 
+	// Threat counts enemies seen lately, not only those in view now.
 	threat := make([]float64, len(goals))
 	for i, g := range goals {
-		for _, e := range enemies {
-			if e.ID != g.target && !e.Building && dist(e.Cell, g.cell) <= threatRadius {
-				threat[i] += float64(len(e.Members))
+		for _, id := range slices.Sorted(maps.Keys(ai.sighted)) {
+			if sg := ai.sighted[id]; id != g.target && dist(sg.cell, g.cell) <= threatRadius {
+				threat[i] += float64(sg.members)
 			}
 		}
 	}
@@ -239,6 +283,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			continue
 		}
 		best, bestScore := -1, math.Inf(-1)
+		current := ai.plans[sq.ID]
 		for i, g := range goals {
 			if g.target != 0 && s.tier(sq, s.squad(g.target)) == None {
 				continue // it can't hurt that
@@ -246,6 +291,9 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			score := values[i] / (1 + dist(sq.Cell, g.cell)/distScale) / (1 + assigned[i])
 			if g.kind != defend { // a threatened point is the one to hold, not to shy from
 				score /= 1 + w.Caution*threat[i]/max(1, strength)
+			}
+			if current != nil && current.goal.same(g) {
+				score *= stickiness
 			}
 			if score > bestScore { // ties keep the earlier goal
 				best, bestScore = i, score
@@ -261,6 +309,51 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		}
 		ai.plans[sq.ID] = &plan{goal: goals[best]}
 	}
+}
+
+// intruder is the enemy a guarding squad should leave its point to fight:
+// the one it's already fighting while that's still on the leash, or else the
+// nearest it can see and hurt within the leash of the point.
+func (ai *AI) intruder(v View, sq *Squad, p *plan, enemies []*Squad) *Squad {
+	s := v.sim
+	reach := leash * ai.weightsOf(sq).Aggression
+	onLeash := func(e *Squad) bool {
+		return e.alive() && !e.Building && s.visible[v.Side][e.ID] && s.tier(sq, e) != None &&
+			dist(e.Cell, p.goal.cell) <= reach
+	}
+	if e := s.squad(p.engaged); e != nil && onLeash(e) {
+		return e
+	}
+	var best *Squad
+	for _, e := range enemies {
+		if onLeash(e) && (best == nil || dist2(sq.Cell, e.Cell) < dist2(sq.Cell, best.Cell)) {
+			best = e
+		}
+	}
+	return best
+}
+
+// engage has a guarding squad fight e: stop and fire if it's in range, or
+// else move to a firing position on it, refreshed once a second.
+func (ai *AI) engage(v View, sq *Squad, p *plan, e *Squad) []Order {
+	s := v.sim
+	fresh := p.engaged != e.ID
+	p.engaged = e.ID
+	if s.canHit(sq, e) {
+		if len(sq.path) > 0 {
+			return []Order{{Kind: Hold, Squad: sq.ID}}
+		}
+		return nil
+	}
+	if !fresh && len(sq.path) > 0 && (v.Tick()+sq.ID)%TicksPerSecond != 0 {
+		return nil
+	}
+	to, ok := s.firingPosition(sq, e.Cell, ai.weightsOf(sq).Cover)
+	if !ok || (!fresh && len(sq.path) > 0 && dist(p.moveTo, to) <= 2) {
+		return nil
+	}
+	p.moveTo, p.sent = to, false // sent is for its plan's steps; this isn't one
+	return []Order{{Kind: Move, Squad: sq.ID, Cell: to}}
 }
 
 // state reads a squad's facts now.

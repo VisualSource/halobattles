@@ -211,6 +211,9 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
   - the enemy strength the side can see near it;
   - the strength already assigned to it, so all Squads don't pile onto one point.
 - Caution's threat penalty applies to every goal except holding a point: a threatened point is the one to hold.
+- Threat counts enemy squads the side has **seen lately**, not only those in view: each is remembered where it was last seen for 10 s, or until that spot is back in Sight without it. Without this, a squad that sighted the enemy, turned away, and lost sight of it turned straight back, over and over.
+- A squad's current goal scores a quarter more (**stickiness**), so near-ties don't flip it back and forth.
+- **Leash:** a squad guarding a point goes after the nearest enemy it can see and hurt that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. At 8 cells, guards left their points open often enough to tip balance toward the attacker.
 - While the attacker's hold timer runs, the defender values retaking a point at 5 instead of 3.
 - **Goals:**
   - `capturePoint(p)`

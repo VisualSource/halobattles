@@ -123,3 +123,90 @@ func TestDefendersTakeCoverByTheirPoint(t *testing.T) {
 	}
 	t.Skip("no cover by any point on this Battlefield")
 }
+
+// flipWatch counts how often each squad's goal changes.
+type flipWatch struct {
+	ai    *AI
+	last  map[int]goal
+	flips map[int]int
+}
+
+func (f *flipWatch) Orders(v View) []Order {
+	out := f.ai.Orders(v)
+	for id, p := range f.ai.plans {
+		if old, ok := f.last[id]; ok && !old.same(p.goal) {
+			f.flips[id]++
+		}
+		f.last[id] = p.goal
+	}
+	return out
+}
+
+// Regression: a squad sighting the enemy near its point turned away from the
+// threat, lost sight of it, forgot it, and turned back, over and over: 128
+// goal changes in one Battle against the Vault garrison.
+func TestSquadsDontFlipFlopBetweenGoals(t *testing.T) {
+	c := baseContent(t)
+	r := ruleset(c)
+	vault := Force{Formations: [][]Slot{{{"base:grunt", 10, 0}, {"base:wraith", 1, 1}}}}
+	cov := Force{Formations: [][]Slot{{{"base:grunt", 10, 0}, {"base:ghost", 2, 1}, {"base:grunt", 6, 2}}}}
+	worst := 0
+	for seed := range uint64(20) {
+		s := New(c, r, Generate(c, r.Battlefield, nil, seed), cov, vault, seed)
+		w := &flipWatch{NewAI(WeightsOf(c.Factions["base:covenant"].Ai)), map[int]goal{}, map[int]int{}}
+		s.Controllers = [2]Controller{w, NewAI(WeightsOf(nil))}
+		for !s.Over {
+			s.Step()
+		}
+		for _, n := range w.flips {
+			worst = max(worst, n)
+		}
+	}
+	if worst > 12 {
+		t.Errorf("a squad changed goals %d times in one Battle; want at most 12", worst)
+	}
+}
+
+// freeAt puts sq on a cell it can stand on about r cells from around.
+func freeAt(t *testing.T, s *Sim, sq *Squad, around Cell, r int) {
+	t.Helper()
+	for k := r; k <= r+3; k++ {
+		for _, d := range steps {
+			if c := around.add(d.scale(k)); s.standable(sq, c) && dist(c, around) >= float64(r) {
+				s.relocate(sq, c)
+				return
+			}
+		}
+	}
+	t.Fatalf("nowhere about %d cells from %v", r, around)
+}
+
+func TestGuardsChaseOnALeashThenGoBack(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
+	a, d := s.Squads[0], s.Squads[1]
+	point := s.Points[0].Cell
+	ai := NewAI(WeightsOf(nil))
+	p := &plan{goal: goal{kind: defend, cell: point}}
+	ai.plans[d.ID] = p
+	s.Tick = 1 // between the Commander's runs, so the goal stays as set
+
+	freeAt(t, s, d, point, 0)
+	freeAt(t, s, a, point, 6) // on the leash (6), out of a Grunt's range (5)
+	s.see()
+	if !s.visible[Defender][a.ID] {
+		t.Skip("the Marines aren't in sight from here on this Battlefield")
+	}
+	orders := ai.Orders(View{s, Defender})
+	if p.engaged != a.ID || !slices.ContainsFunc(orders, func(o Order) bool { return o.Squad == d.ID && o.Kind == Move }) {
+		t.Fatalf("orders %+v, engaged %d; want the guard to go after the Marines", orders, p.engaged)
+	}
+
+	freeAt(t, s, d, point, 4)  // as if it gave chase
+	freeAt(t, s, a, point, 14) // and the Marines fell back, off the leash
+	s.see()
+	s.Tick = 2
+	orders = ai.Orders(View{s, Defender})
+	if p.engaged != 0 || !slices.ContainsFunc(orders, func(o Order) bool { return o.Squad == d.ID && o.Kind == Move && o.Cell == point }) {
+		t.Errorf("orders %+v, engaged %d; want the guard back to its point", orders, p.engaged)
+	}
+}
