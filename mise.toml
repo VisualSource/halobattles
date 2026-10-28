@@ -49,6 +49,15 @@ run = [
   "MSYS_NO_PATHCONV=1 ${CONTAINER:-podman} run --rm -w /builder -v ./:/builder:z docker.io/heroiclabs/nakama-pluginbuilder:3.41.0 build -buildmode=plugin -trimpath -mod=vendor -o ./build/halobattles.so .",
 ]
 
+[tasks.image]
+description = "Build the Pterodactyl server image (localhost/halobattles:dev)"
+run = "MSYS_NO_PATHCONV=1 ${CONTAINER:-podman} build -f deploy/pterodactyl/Dockerfile -t halobattles:dev ."
+
+[tasks."image:smoke"]
+description = "Run the server image the way Wings does and check it"
+depends = ["image"]
+run = "bash deploy/pterodactyl/smoke.sh localhost/halobattles:dev"
+
 [tasks.dev]
 description = "Run Nakama with .so rebuilds on Go changes, plus Vite"
 depends = ["dev:server", "dev:mods", "dev:client"]

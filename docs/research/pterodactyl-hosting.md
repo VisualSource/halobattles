@@ -1,6 +1,14 @@
 # Hosting the halobattles server on Pterodactyl
 
-Researched 2026-10-26. Status: findings only. Nothing here has been built or run yet.
+Researched 2026-10-26. Status: **built** on 2026-10-28; see [deploy/pterodactyl/](../../deploy/pterodactyl/README.md). Building it settled these:
+
+- **Fixed in the build:** the sketch's `--logger.stdout true` ended Nakama's flag parsing at `true`, so every flag after it, keys included, was silently dropped and the stock keys were used. A bool needs `--logger.stdout=true`.
+- **Verified** under Wings' constraints:
+  - Nakama runs with a read-only root, as an arbitrary uid, writing nothing outside `/home/container`;
+  - `useradd` works on bookworm-slim;
+  - JSON log lines carry `Startup done`, so Wings sees it;
+  - SIGINT shuts down cleanly with exit 0.
+- **Changed:** the entrypoint builds Nakama's command from the egg's variables instead of evaluating the startup line, so keys aren't shell-evaluated or echoed. The install script does nothing: flags replace the YAML file.
 
 ## Verdict
 
@@ -147,7 +155,7 @@ exec env ${PARSED}
 - **Version lockstep.** These must change together on every Nakama upgrade: the image tag, the pluginbuilder tag, `go` in `go.mod`, Go in `mise.toml`, and `nakama-common`. Building the `.so` inside the image's multi-stage build keeps them consistent.
 - **The client is built for one server.** Host, port, SSL and key are baked in at build time. A Pterodactyl-assigned port therefore needs either a client rebuild or a reverse proxy.
 - **TLS.** Nakama's own SSL flags are "NOT recommended for production". Expect a TLS-terminating proxy outside Pterodactyl for `wss://`.
-- **Mods in two places.** The static asset host and the image must carry the same mods. To change mods you either rebuild the image, or point `HALO_MODS_DIR` at `/home/container/mods` and upload them over SFTP.
+- **Mods in two places.** The static asset host and the image must carry the same mods. *Done:* `HALO_MODS_DIR` is now a search path, so the image finds its own Mods and then any uploaded to the server's `mods/` folder over SFTP; only Mods with assets also need the static host.
 - **Restarts end Matches.** A restart or reinstall ends every in-memory Match.
 - **Not verified:**
   - Whether Nakama writes anything outside `data_dir` under a read-only rootfs.

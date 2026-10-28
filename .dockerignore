@@ -1,0 +1,9 @@
+# Only server/ and mods/ (and deploy/pterodactyl/) go into the image; the
+# rest is kept out so builds are reproducible and fast.
+**/node_modules
+client/
+server/vendor/
+server/build/
+.git/
+.claude/
+docs/

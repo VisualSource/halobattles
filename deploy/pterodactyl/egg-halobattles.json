@@ -1,0 +1,142 @@
+{
+    "_comment": "Halo Battles game server (Nakama with the halobattles plugin). See deploy/pterodactyl/README.md.",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2026-10-28T00:00:00+00:00",
+    "name": "Halo Battles",
+    "author": "halobattles@users.noreply.github.com",
+    "description": "The Halo Battles game server: Nakama 3.41.0 with the halobattles plugin and the base Mod baked into the image. Needs a Postgres 16 database elsewhere, such as a second server on the community Postgres egg.",
+    "features": null,
+    "docker_images": {
+        "halobattles": "docker.io/visualsource/halobattles:latest"
+    },
+    "file_denylist": [],
+    "startup": "/nakama/nakama (started by the image's entrypoint from the variables below, on port {{SERVER_PORT}})",
+    "config": {
+        "files": "{}",
+        "startup": "{\r\n    \"done\": \"Startup done\"\r\n}",
+        "logs": "{}",
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/ash\n# The server and the base Mod are in the image. mods/ is where the server's\n# owner uploads more, each in a folder named after it.\nmkdir -p /mnt/server/mods",
+            "container": "ghcr.io/pterodactyl/installers:alpine",
+            "entrypoint": "ash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Database address",
+            "description": "The Postgres database, as user:password@host:port/database. Migrated on every start.",
+            "env_variable": "DB_ADDRESS",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "required|string|max:255",
+            "field_type": "text"
+        },
+        {
+            "name": "Server key",
+            "description": "The key clients send to connect. Must match the client build's VITE_NAKAMA_SERVER_KEY. Not secret: it ships in the client.",
+            "env_variable": "SERVER_KEY",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "required|string|max:128",
+            "field_type": "text"
+        },
+        {
+            "name": "Session encryption key",
+            "description": "Signs session tokens. Long and random; changing it signs everyone out.",
+            "env_variable": "SESSION_ENCRYPTION_KEY",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "required|string|min:32|max:128",
+            "field_type": "text"
+        },
+        {
+            "name": "Session refresh encryption key",
+            "description": "Signs refresh tokens. Long and random, and different from the session key.",
+            "env_variable": "SESSION_REFRESH_ENCRYPTION_KEY",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "required|string|min:32|max:128",
+            "field_type": "text"
+        },
+        {
+            "name": "Runtime HTTP key",
+            "description": "Guards server-to-server RPC calls. Long and random.",
+            "env_variable": "RUNTIME_HTTP_KEY",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "required|string|min:32|max:128",
+            "field_type": "text"
+        },
+        {
+            "name": "Console username",
+            "description": "The Nakama admin console's login.",
+            "env_variable": "CONSOLE_USERNAME",
+            "default_value": "admin",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "required|string|max:64",
+            "field_type": "text"
+        },
+        {
+            "name": "Console password",
+            "description": "The Nakama admin console's password.",
+            "env_variable": "CONSOLE_PASSWORD",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "required|string|min:12|max:128",
+            "field_type": "text"
+        },
+        {
+            "name": "Console signing key",
+            "description": "Signs console sessions. Long and random.",
+            "env_variable": "CONSOLE_SIGNING_KEY",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "required|string|min:32|max:128",
+            "field_type": "text"
+        },
+        {
+            "name": "Console port",
+            "description": "Leave empty to keep the admin console private to the container. To reach it, add a second allocation and enter its port here.",
+            "env_variable": "CONSOLE_PORT",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": false,
+            "rules": "nullable|integer|between:1024,65535",
+            "field_type": "text"
+        },
+        {
+            "name": "Mods",
+            "description": "Comma-separated Mods to load, base first. Each is found in the image, or else in the server's mods/ folder (upload a Mod there as a folder named after it, then restart). Every Match on this server uses all of them.",
+            "env_variable": "HALO_MODS",
+            "default_value": "base",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|regex:/^base(,[a-z0-9_-]+)*$/",
+            "field_type": "text"
+        },
+        {
+            "name": "Log level",
+            "description": "How much the server logs.",
+            "env_variable": "LOG_LEVEL",
+            "default_value": "INFO",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:DEBUG,INFO,WARN,ERROR",
+            "field_type": "text"
+        }
+    ]
+}

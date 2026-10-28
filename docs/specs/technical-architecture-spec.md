@@ -113,7 +113,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 
 ### Which Mods run, and delivery
 
-- The server config lists the enabled Mods, and every Match on that server uses all of them. The lobby picks only the map, the Factions and the starting resources.
+- The server config lists the enabled Mods, and every Match on that server uses all of them. `HALO_MODS` names them; `HALO_MODS_DIR` is a search path (folders separated as in `PATH`), and each Mod comes from the first folder that has it. The Pterodactyl image searches its own Mods, then the server's uploaded `mods/` folder. The lobby picks only the map, the Factions and the starting resources.
 - At startup the server merges, validates and hashes the content into **one JSON document in the file shape**, keyed `kind → id → definition`, with every Patch applied.
 - Clients fetch that document, cache it by hash, and type it with the same generated TS types. They never handle load order or Patches. Players never install Mods.
 
@@ -353,7 +353,7 @@ deploy/                  compose, local.yml, runtime.env
 
 - **Content:** a `get_content` RPC takes an optional `{hash}`. If it matches the server's hash, the reply is `{hash}` alone ("unchanged"); otherwise it is `{hash, content}`, the merged document. That is one round trip whether the cache hits or misses. `ViewFull` still carries the hash as a check.
 - **Assets:** static files at `/mods/<mod>/…`, served by Vite in dev (from the repo's `mods/`) and copied into `dist/mods/` by `vite build`, so `assetUrl()` has one rule. The static host must carry the same Mods as the server (accepted for MVP).
-- The client connects to Nakama directly on `:7350`, with no proxy.
+- In dev, the client connects to Nakama directly on `:7350`, with no proxy. Deployed, Caddy serves the client and proxies `/v2/*`, `/ws` and `/healthcheck` to Nakama on one TLS domain ([deploy/pterodactyl](../../deploy/pterodactyl/README.md)).
 
 ### Dev loop
 
