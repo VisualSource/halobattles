@@ -94,6 +94,9 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
 	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID), attack, defend, s.Seed+uint64(b.ID))
 	b.Sim.Controllers = [2]battle.Controller{battle.NewAI(s.aiWeights(c, b.Attacker)), battle.NewAI(s.aiWeights(c, b.Defender))}
+	if b.Defender == Neutral { // no economy: a budget for pad turrets instead
+		b.Sim.Funds[battle.Defender] = maps.Clone(c.Rulesets[RulesetID].Battle.NeutralFunds)
+	}
 	p.Locked = true
 	delete(s.Armies, a.ID)
 	if s.Battles == nil {
@@ -143,6 +146,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	for _, sq := range b.Sim.Squads {
 		n := len(sq.Members)
 		switch {
+		case sq.OnPad > 0: // a pad turret lasts only the Battle
 		case sq.Building:
 			if n == 0 {
 				p.Buildings[sq.Slot] = ""
@@ -202,18 +206,9 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 // or with cancel calls off a Retreat still counting down. A defender needs
 // another Planet to Retreat to.
 func (s *State) RetreatFromBattle(seat int, planet string, cancel bool) error {
-	var b *Battle
-	for _, bt := range s.Battles {
-		if bt.Planet == planet && (bt.Attacker == seat || bt.Defender == seat) {
-			b = bt
-		}
-	}
-	if b == nil {
-		return errors.New("you aren't fighting a Battle there")
-	}
-	side := battle.Attacker
-	if seat != b.Attacker {
-		side = battle.Defender
+	b, side, err := s.sideIn(seat, planet)
+	if err != nil {
+		return err
 	}
 	switch {
 	case cancel && (b.Sim.Retreating[side] || b.Sim.RetreatAt[side] == 0):
@@ -227,6 +222,46 @@ func (s *State) RetreatFromBattle(seat int, planet string, cancel bool) error {
 		return errors.New("you have no other Planet to Retreat to")
 	}
 	b.Sim.Command(side, battle.Order{Kind: battle.Retreat})
+	return nil
+}
+
+// sideIn is the Battle on planet that seat is fighting, and its side there.
+func (s *State) sideIn(seat int, planet string) (*Battle, battle.Side, error) {
+	for _, id := range slices.Sorted(maps.Keys(s.Battles)) {
+		if b := s.Battles[id]; b.Planet == planet && (b.Attacker == seat || b.Defender == seat) {
+			if seat == b.Attacker {
+				return b, battle.Attacker, nil
+			}
+			return b, battle.Defender, nil
+		}
+	}
+	return nil, 0, errors.New("you aren't fighting a Battle there")
+}
+
+// BuildTurret builds a pad turret of seat's Faction on a build pad its side
+// holds in the Battle on planet, paying its cost from seat's Resources now.
+func (s *State) BuildTurret(c *cs.Content, seat int, planet string, pad int, building string) error {
+	b, side, err := s.sideIn(seat, planet)
+	if err != nil {
+		return err
+	}
+	if string(c.Buildings[building].Faction) != s.Players[seat].Faction {
+		return errors.New("that isn't your Faction's")
+	}
+	if err := b.Sim.CanBuild(side, pad, building); err != nil {
+		return err
+	}
+	res := s.Players[seat].Resources
+	cost := c.Buildings[building].Cost
+	for r, n := range cost {
+		if res[r] < n {
+			return errors.New("you can't afford that")
+		}
+	}
+	for r, n := range cost {
+		res[r] -= n
+	}
+	b.Sim.Command(side, battle.Order{Kind: battle.Build, Target: pad, Building: building})
 	return nil
 }
 

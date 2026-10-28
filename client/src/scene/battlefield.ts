@@ -6,6 +6,7 @@ import {
 import type {
   Battle,
   Battlefield,
+  BuildPad,
   ControlPoint,
   Side,
   Squad,
@@ -50,6 +51,17 @@ type Marker = {
   label: CSS2DObject;
   progress: number;
 };
+
+type PadMark = {
+  outline: THREE.Mesh;
+  fill: THREE.Mesh;
+  arc: THREE.Mesh;
+  label: CSS2DObject;
+  progress: number;
+};
+
+/** The colour of a build pad nobody holds. */
+const UNHELD = "#9ca3af";
 
 /** Control Points by index, as the Battle window names them. */
 export const POINT_NAMES = "ABCDEFGH";
@@ -106,6 +118,7 @@ export class BattlefieldScene {
   private readonly fog: THREE.DataTexture;
   private readonly tokens = new Map<number, Token>();
   private readonly markers: Marker[] = [];
+  private readonly padMarks: PadMark[] = [];
   private readonly effects: Effect[] = [];
   private readonly shapes = {
     unit: new THREE.CircleGeometry(0.42, 24),
@@ -174,6 +187,7 @@ export class BattlefieldScene {
     this.observer.disconnect();
     for (const t of this.tokens.values()) t.label.element.remove();
     for (const m of this.markers) m.label.element.remove();
+    for (const m of this.padMarks) m.label.element.remove();
     this.scene.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
         obj.geometry.dispose();
@@ -219,6 +233,7 @@ export class BattlefieldScene {
       this.tokens.delete(id);
     }
     this.drawPoints(battle.points);
+    this.drawPads(battle.pads);
     this.drawFog(battle.squads);
   }
 
@@ -380,6 +395,80 @@ export class BattlefieldScene {
                 r + 0.1,
                 r + 0.5,
                 48,
+                1,
+                Math.PI / 2,
+                -Math.PI * 2 * done,
+              )
+            : new THREE.BufferGeometry();
+      }
+    });
+  }
+
+  /**
+   * Each build pad: a square outline in its holder's colour (grey for
+   * nobody) with its number, filled amber while a turret goes up, and an arc
+   * of the taker's colour for capture progress. A finished turret draws as
+   * a building token. Over the fog, since pads are always visible.
+   */
+  private drawPads(pads: BuildPad[]) {
+    const material = (opacity: number) =>
+      new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity,
+        depthTest: false,
+        depthWrite: false,
+      });
+    pads.forEach((p, i) => {
+      let m = this.padMarks[i];
+      if (!m) {
+        const at = centre(p.x, p.y);
+        const group = new THREE.Group();
+        group.position.set(at.x, at.y, 0.8);
+        // Four segments from 45°: a square ring, edges along the grid.
+        const outline = new THREE.Mesh(
+          new THREE.RingGeometry(0.75, 0.95, 4, 1, Math.PI / 4),
+          material(0.95),
+        );
+        const fill = new THREE.Mesh(
+          new THREE.PlaneGeometry(1.2, 1.2),
+          material(0.45),
+        );
+        (fill.material as THREE.MeshBasicMaterial).color.set("#f0a93b");
+        const arc = new THREE.Mesh(new THREE.BufferGeometry(), material(0.95));
+        for (const o of [fill, outline, arc]) {
+          o.renderOrder = 2.5;
+          group.add(o);
+        }
+        const el = document.createElement("div");
+        el.className =
+          "font-mono text-[10px] text-white [text-shadow:0_0_3px_#000,0_0_2px_#000]";
+        el.textContent = String(i + 1);
+        const label = new CSS2DObject(el);
+        label.center.set(0.5, 1.6);
+        group.add(label);
+        this.scene.add(group);
+        m = { outline, fill, arc, label, progress: 0 };
+        this.padMarks.push(m);
+      }
+      const colour = (s: Side | null) => (s ? this.look.sideColour[s] : UNHELD);
+      (m.outline.material as THREE.MeshBasicMaterial).color.set(
+        colour(p.owner),
+      );
+      (m.arc.material as THREE.MeshBasicMaterial).color.set(colour(p.taker));
+      m.fill.visible = p.building !== "";
+      if (p.progress !== m.progress) {
+        m.progress = p.progress;
+        const done = Math.min(
+          1,
+          p.progress / Math.max(1, this.look.captureTicks),
+        );
+        m.arc.geometry.dispose();
+        m.arc.geometry =
+          p.progress > 0
+            ? new THREE.RingGeometry(
+                1.05,
+                1.3,
+                32,
                 1,
                 Math.PI / 2,
                 -Math.PI * 2 * done,

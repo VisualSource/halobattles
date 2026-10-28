@@ -23,6 +23,7 @@ enum Op : int {
   Surrender = 14,
   BattleRetreat = 15,
   BattleCancelRetreat = 16,
+  BattleBuildTurret = 17,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -150,6 +151,15 @@ table BattleCancelRetreat { // only while the countdown runs
   planet: string;
 }
 
+// A side builds a pad turret, building, on a build pad it holds in the Battle
+// on planet, paying its cost now.
+table BattleBuildTurret {
+  seq: uint32;
+  planet: string;
+  pad: ubyte;              // the pad's index in BattleView.pads
+  building: string;
+}
+
 // Server messages.
 
 table Seat {
@@ -269,6 +279,18 @@ table ControlPoint {
   progress: ushort;        // sim ticks the taker has held it alone
 }
 
+// A build pad: public, like the Control Points.
+table BuildPad {
+  x: ushort;
+  y: ushort;
+  owner: byte = -1;        // 0 attacker, 1 defender; -1 is nobody
+  taker: byte = -1;
+  progress: ushort;        // sim ticks the taker has held it alone
+  turret: ushort;          // the turret squad on it, or 0
+  building: string;        // a turret under construction, or ""
+  ready_at: uint32;        // the tick it's built
+}
+
 // A Battle you're a side of, as your side sees it: your own squads and the
 // enemies in your Sight. Anyone else with vision sees only the Locked flag.
 table BattleView {
@@ -282,6 +304,7 @@ table BattleView {
   field: Battlefield;      // in ViewFull only; deltas leave it out
   squads: [BattleSquad];
   points: [ControlPoint];
+  pads: [BuildPad];
   hold: uint32;            // sim ticks the attacker has held enough points
   retreat_at: uint32;      // the tick your side's Retreat countdown ends; 0 is none
   attacker_retreating: bool; // public: you see a side turn and run

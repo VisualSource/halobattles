@@ -477,3 +477,27 @@ func TestScoutsAndSkirmishersAreAHandfulInABigForce(t *testing.T) {
 		t.Errorf("%d skirmishers with 2 squads to spare", n)
 	}
 }
+
+func TestATwoSquadGarrisonScoutsOnce(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(1)},
+		Force{Formations: [][]Slot{{{"base:grunt", 10, 0}, {"base:wraith", 1, 1}}}}) // the Vault's garrison
+	wraith := s.Squads[2]
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Defender}
+	ai.look(v, v.Own())
+	ai.assignRoles(v, v.Own(), nil)
+	if ai.roles[wraith.ID] != scouting {
+		t.Fatalf("roles %v; want the faster Wraith out scouting", ai.roles)
+	}
+
+	// It met the enemy, fell back, and rested long since.
+	delete(ai.roles, wraith.ID)
+	ai.rested[wraith.ID] = s.Tick
+	s.Tick += 2 * restTicks
+	ai.assignRoles(v, v.Own(), nil)
+	for id, r := range ai.roles {
+		if r == scouting {
+			t.Errorf("squad %d went scouting again; a two-squad garrison scouts once", id)
+		}
+	}
+}

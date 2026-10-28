@@ -168,6 +168,19 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 - Destroying buildings has no effect on the win conditions.
 - A building with no `combat` block gets the Ruleset's `battle.structure` (Unit Class Structure, 0/20/30), so it can be hit. It never fires and doesn't count for elimination.
 
+## Build pads
+
+Spots on the Battlefield where a side that holds one can build a turret, as on Empire at War's ground maps.
+
+- **Placement:** the generator places `battlefield.buildPads` (4) pads in the main region, away from the map edges, at least 6 cells from the Control Points and from each other.
+- **Owners at the start:** pads within 10 cells of a Control Point start as the defender's; the rest start with no owner. The attacker starts with none.
+- **Capture:** like a Control Point, using the same radius and time: one side's ground squads alone near it for `captureSeconds` take it. A pad with a turret on it can't be captured; the enemy has to destroy the turret first. A pad being built on can be captured, which cancels the build without a refund.
+- **Building:** the side holding an empty pad can build one turret on it. A turret is a Building with `padTurret: true` and a `combat` block, of the side's own Faction. It costs that Building's `cost`, paid at once from the player's Resources, the same pool as the galaxy. It's built after `battle.padBuildSeconds` (10 s), and it exists only for this Battle. The base Mod's pad turrets are the Turret and the Plasma Turret.
+- **Who decides:** a player builds with the Battle window's button; the AI never spends a player's money. A **neutral garrison** has no economy, so it gets `battle.neutralFunds` (400 Credits and 100 Materials, two turrets' worth) for the Battle, and its AI builds turrets on the pads it holds, the cheapest it can afford first.
+- **Winning:** a defender's pad turrets count against its elimination, like its armed buildings. An attacker's don't: an attacker with only turrets left has lost.
+- **After the Battle:** pad turrets are gone, whoever won. They aren't Planet buildings.
+- **On the wire:** each pad in `BattleView`: its cell, owner, capture progress, any turret's squad id, and any build under way with the tick it finishes. The command is `BattleBuildTurret {planet, pad, building}`.
+
 ## Retreat in Battle
 
 - **Either side** can Retreat. A **neutral** garrison never does. A defender with no other Planet to Retreat to can't, and its button is disabled.
@@ -228,11 +241,11 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 
 On top of the usual goals, the Commander gives some squads a job:
 
-- **Scouts** (the defender only, once it has at least 3 mobile squads): about 20% × its `scout` weight of them, at least 1 and at most 3, roam to the part of the map the side has looked at least lately. Blocks are 8 × 8 cells; the pick leans toward the attacker's edge and away from the side's own points. A scout keeps its waypoint until it gets there. Units tagged `scout` go first, then small squads (1–2 units), then the fastest; units tagged `skirmisher` only if nothing else fits.
+- **Scouts** (the defender only, once it has at least 2 mobile squads): about 20% × its `scout` weight of them, at least 1 and at most 3, roam to the part of the map the side has looked at least lately. Blocks are 8 × 8 cells; the pick leans toward the attacker's edge and away from the side's own points. A scout keeps its waypoint until it gets there. A defender with fewer than 3 mobile squads, such as a small neutral garrison, scouts **once**: after its scout has fallen back, every squad stays for the points. Units tagged `scout` go first, then small squads (1–2 units), then the fastest; units tagged `skirmisher` only if nothing else fits.
 - **Skirmishers:** a handful of squads a side can spare beyond one per point for the defender (held or to win back) and two per point for the attacker: 30% × its `aggression` weight of its mobile squads, but never fewer than 1 or more than 5. They find and delay the enemy for the main force; they aren't the main force. If the force shrinks and there are too many, the newest go back to the usual goals. Each patrols a round of the Control Points and the halfway marks between them. Units tagged `skirmisher` go first, then the fastest.
 - **Contact:** a scout that meets the enemy falls back. So does a skirmisher, unless the nearest enemy in its Sight is one it doesn't have Disadvantage against and doesn't outnumber it 1.5 to 1; that one it hunts. Falling back goes to the nearest point the side holds, or else the nearest friendly squad. Once there the squad rests for 20 s as an ordinary squad before it can take a role again.
 - A unit's `roles` hint is content (see [Content additions](#content-additions)). The base Warthog and Ghost are scouts; the Hornet and Banshee are skirmishers.
-- **Measured** with three Stacks a side: scouts spot the attacker sooner (2.6 s instead of 3.3 s) at a cost of 2–3 points of the defender's win rate. That's down from 7 points before scouts fell back, when they fought and died alone. Starting Kits are unaffected: a two-squad defender has too few squads to spare any.
+- **Measured** with three Stacks a side: scouts spot the attacker sooner (2.6 s instead of 3.3 s) at a cost of 2–3 points of the defender's win rate. That's down from 7 points before scouts fell back, when they fought and died alone. With Starting Kits, a two-squad defender's single scouting run moved attacker wins from 59% / 51% to 54% / 53%; letting it keep scouting made them 63% / 59%, as the points went unguarded.
 
 ### Squad planner (GOAP)
 
@@ -353,6 +366,9 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battle.structure` | Unit Class Structure, 0/20/30 |
 | `battle.classDefaults` | see [Stats](#stats) |
 | `battle.retreatCountdown` | 10 s |
+| `battlefield.buildPads` | 4 |
+| `battle.padBuildSeconds` | 10 s |
+| `battle.neutralFunds` | 400 Credits, 100 Materials |
 
 ## Content additions
 
@@ -365,6 +381,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
   The base Mod ships `base:temperate`, `base:desert` and `base:ice`.
 - **Planet** (in a map): an optional `battlefield {terrainPreset, width, height}`.
 - **Faction:** an optional `ai` weight block.
+- **Building:** an optional `padTurret` flag: it can be built on a build pad in Battle (it needs a `combat` block).
 - **Unit:** an optional `roles` list, `scout` and/or `skirmisher`: hints for which units the Battle AI picks for those jobs first.
 - **`combat` block:** see [Stats](#stats).
 

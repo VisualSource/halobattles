@@ -7,6 +7,7 @@
   "buildTime": 30,
   "upkeep": { "credits": 10 },
   "yield": {},
+  "padTurret": true,
   "combat": { "unitClass": "structure", "weaponType": "kinetic", "shield": 0, "armor": 25, "hp": 38, "damage": "2d4", "tiers": { "infantry": "advantage", "vehicle": "normal", "aircraft": "normal", "structure": "normal" } },
   "commandPointBonus": 0
 }

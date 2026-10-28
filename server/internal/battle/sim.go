@@ -2,6 +2,7 @@ package battle
 
 import (
 	"cmp"
+	"errors"
 	"math"
 	"math/rand/v2"
 	"slices"
@@ -18,6 +19,7 @@ type Side int
 const (
 	Attacker Side = iota
 	Defender
+	NoSide Side = -1 // a build pad nobody holds
 )
 
 // Slot is a Unit Slot going into a Battle: Cell is its place in its Stack's
@@ -50,6 +52,7 @@ type Squad struct {
 	Members         []Layers // the living members; Members[0] takes the hits
 	Start           int      // members at the start
 	Escaped         bool     // it Retreated off the field, keeping its Members
+	OnPad           int      // a pad turret: its pad's index + 1; it isn't a Planet building
 
 	class                  string
 	air                    bool
@@ -73,6 +76,22 @@ type Squad struct {
 // alive is whether it's still on the field: it has members and hasn't
 // Retreated off it.
 func (sq *Squad) alive() bool { return len(sq.Members) > 0 && !sq.Escaped }
+
+// Pad is a build pad: a spot whoever holds it can build a turret on. One
+// with a turret can't change hands until the turret is destroyed.
+type Pad struct {
+	Cell     Cell
+	Owner    Side // NoSide: nobody's
+	Taker    Side
+	Progress int    // ticks Taker has held it alone
+	Turret   int    // the turret squad on it, or 0
+	Building string // the turret under construction, or ""
+	ReadyAt  int    // the tick it's built
+}
+
+// padStart is how near a Control Point, in cells, a pad starts as the
+// defender's.
+const padStart = 10
 
 // Point is a Control Point. Taker has been in range alone for Progress ticks.
 type Point struct {
@@ -104,6 +123,10 @@ type Sim struct {
 	Field  *Field
 	Squads []*Squad // by id; dead ones stay, with no Members
 	Points []Point
+	Pads   []Pad
+	// Funds is what a side without an economy, a neutral garrison, has to
+	// spend on pad turrets; nil for a player, who pays from their Resources.
+	Funds  [2]map[string]int
 	Edge   int // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
 	Tick   int
 	Hold   int // ticks the attacker has held enough points
@@ -162,6 +185,13 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	s.main = f.largestRegion(func(i int) bool { return foot[i] > 0 })
 	for _, p := range f.Points {
 		s.Points = append(s.Points, Point{Cell: p, Owner: Defender, Taker: Defender})
+	}
+	for _, c := range f.Pads {
+		owner := NoSide
+		if slices.ContainsFunc(f.Points, func(p Cell) bool { return dist(p, c) <= padStart }) {
+			owner = Defender
+		}
+		s.Pads = append(s.Pads, Pad{Cell: c, Owner: owner, Taker: owner})
 	}
 	s.Edge = s.rng.IntN(4)
 	in, side := inward[s.Edge], along[s.Edge]
@@ -354,6 +384,7 @@ func (s *Sim) Step() []Volley {
 		}
 	}
 	s.retreat()
+	s.raiseTurrets()
 	s.move()
 	s.see()
 	volleys := s.fire()
@@ -381,6 +412,18 @@ func (s *Sim) Command(side Side, o Order) {
 // side's squad, dead, Retreating, or a building told to move.
 func (s *Sim) apply(side Side, o Order) {
 	switch o.Kind {
+	case Build:
+		if s.CanBuild(side, o.Target, o.Building) != nil {
+			return
+		}
+		if f := s.Funds[side]; f != nil {
+			for r, n := range s.content.Buildings[o.Building].Cost {
+				f[r] -= n
+			}
+		}
+		p := &s.Pads[o.Target]
+		p.Building, p.ReadyAt = o.Building, s.Tick+max(1, ticks(s.rules.PadBuildSeconds))
+		return
 	case Retreat:
 		if s.RetreatAt[side] == 0 {
 			s.RetreatAt[side] = s.Tick + max(1, ticks(s.rules.RetreatCountdown))
@@ -720,22 +763,17 @@ func (s *Sim) fire() []Volley {
 	return out
 }
 
-// capture updates each Control Point. A point changes hands after one side
-// alone has a ground squad in range for captureSeconds; a contested or empty
-// point resets its progress. Then the attacker's hold timer runs while it
+// capture updates each Control Point, then each build pad. One changes
+// hands after one side alone has a ground squad in range for
+// captureSeconds; a contested or empty one resets its progress, and so does
+// a pad with a turret on it. Then the attacker's hold timer runs while it
 // holds enough points.
 func (s *Sim) capture() {
-	r := s.rules.CaptureRadius
 	need := ticks(s.rules.CaptureSeconds)
 	held := 0
 	for i := range s.Points {
 		p := &s.Points[i]
-		var present [2]bool
-		for _, sq := range s.Squads {
-			if sq.alive() && !sq.Building && !sq.air && !sq.retreating && float64(dist2(sq.Cell, p.Cell)) <= r*r {
-				present[sq.Side] = true
-			}
-		}
+		present := s.presence(p.Cell)
 		switch {
 		case present[Attacker] == present[Defender]:
 			p.Progress = 0
@@ -759,6 +797,33 @@ func (s *Sim) capture() {
 			held++
 		}
 	}
+	for i := range s.Pads {
+		p := &s.Pads[i]
+		if t := s.squad(p.Turret); t != nil && !t.alive() {
+			p.Turret = 0 // destroyed: the pad can be taken
+		}
+		present := s.presence(p.Cell)
+		switch {
+		case p.Turret != 0 || present[Attacker] == present[Defender]:
+			p.Progress = 0
+		default:
+			side := Defender
+			if present[Attacker] {
+				side = Attacker
+			}
+			if side == p.Owner {
+				p.Progress = 0
+				break
+			}
+			if p.Taker != side {
+				p.Taker, p.Progress = side, 0
+			}
+			if p.Progress++; p.Progress >= need {
+				// Taken: any build under way is lost, with no refund.
+				p.Owner, p.Progress, p.Building, p.ReadyAt = side, 0, "", 0
+			}
+		}
+	}
 	if held >= s.rules.HoldPoints {
 		s.Hold++
 	} else {
@@ -766,11 +831,73 @@ func (s *Sim) capture() {
 	}
 }
 
+// CanBuild reports why side can't build building on pad, or nil if it can:
+// it must hold the pad, the pad must be empty and not already building, and
+// the building must be a pad turret. A side with Funds must afford it; a
+// player's Resources are checked by the game.
+func (s *Sim) CanBuild(side Side, pad int, building string) error {
+	if pad < 0 || pad >= len(s.Pads) {
+		return errors.New("no such build pad")
+	}
+	p := s.Pads[pad]
+	b, ok := s.content.Buildings[building]
+	switch {
+	case p.Owner != side:
+		return errors.New("you don't hold that build pad")
+	case p.Turret != 0 || p.Building != "":
+		return errors.New("that build pad is taken")
+	case !ok || b.PadTurret == nil || !*b.PadTurret || b.Combat == nil:
+		return errors.New("that can't be built on a build pad")
+	case s.Retreating[side]:
+		return errors.New("you're Retreating")
+	}
+	if f := s.Funds[side]; f != nil {
+		for r, n := range b.Cost {
+			if f[r] < n {
+				return errors.New("not enough to build that")
+			}
+		}
+	}
+	return nil
+}
+
+// raiseTurrets puts up each pad turret whose build is done, once nobody is
+// standing on its pad.
+func (s *Sim) raiseTurrets() {
+	for i := range s.Pads {
+		p := &s.Pads[i]
+		if p.Building == "" || s.Tick < p.ReadyAt || s.ground[s.Field.index(p.Cell)] != 0 {
+			continue
+		}
+		cb := s.content.Buildings[p.Building].Combat
+		sq := &Squad{Side: p.Owner, Unit: p.Building, Building: true, Armed: true, Slot: -1, OnPad: i + 1}
+		s.stats(sq, cb)
+		sq.speed = 0
+		sq.Members = []Layers{{float64(cb.Shield), float64(cb.Armor), float64(cb.Hp)}}
+		s.place(sq, p.Cell)
+		p.Turret, p.Building, p.ReadyAt = sq.ID, "", 0
+		s.see() // a new squad: the visibility tables grow with it
+	}
+}
+
+// presence is which sides have a ground squad, not Retreating, near c.
+func (s *Sim) presence(c Cell) [2]bool {
+	r := s.rules.CaptureRadius
+	var present [2]bool
+	for _, sq := range s.Squads {
+		if sq.alive() && !sq.Building && !sq.air && !sq.retreating && float64(dist2(sq.Cell, c)) <= r*r {
+			present[sq.Side] = true
+		}
+	}
+	return present
+}
+
 // end checks whether the Battle is over. A side whose Retreat has started
 // loses once every squad that could leave has left or died. Wiping each
 // other out, or both Retreating, goes to the defender.
 func (s *Sim) end() {
-	attackers := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Attacker && sq.alive() })
+	// Pad turrets don't keep an attacker in the fight.
+	attackers := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Attacker && sq.alive() && sq.OnPad == 0 })
 	defenders := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Defender && sq.alive() && sq.Armed })
 	left := func(side Side) bool {
 		return s.Retreating[side] && !slices.ContainsFunc(s.Squads, func(sq *Squad) bool {
@@ -814,6 +941,7 @@ type Snapshot struct {
 	Edge       int
 	Squads     []SquadView // on the field, by id
 	Points     []Point
+	Pads       []Pad // public, like the Points
 	Hold       int
 	RetreatAt  int     // the tick the side's own Retreat countdown ends, or 0
 	Retreating [2]bool // public: you see the enemy turn and run
@@ -821,7 +949,7 @@ type Snapshot struct {
 
 func (s *Sim) Snapshot(side Side) Snapshot {
 	snap := Snapshot{
-		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Hold: s.Hold,
+		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: slices.Clone(s.Pads), Hold: s.Hold,
 		RetreatAt: s.RetreatAt[side], Retreating: s.Retreating,
 	}
 	for _, sq := range s.Squads {

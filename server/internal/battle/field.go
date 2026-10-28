@@ -22,6 +22,7 @@ type Field struct {
 	Terrain  []uint8
 	Height   []uint8
 	Points   []Cell
+	Pads     []Cell // build pads
 }
 
 func (f *Field) index(c Cell) int { return c.Y*f.W + c.X }
@@ -77,7 +78,40 @@ func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlef
 		}
 	}
 	f.Points = f.placePoints(main, rules.ControlPoints, rules.ControlPointSpacing, rand.New(rand.NewPCG(seed, 3)))
+	f.Pads = f.placePads(main, rules.BuildPads, rules.DeployDepth, rand.New(rand.NewPCG(seed, 5)))
 	return f
+}
+
+// padSpacing is the fewest cells between a build pad and a Control Point or
+// another pad.
+const padSpacing = 6
+
+// placePads picks build pads in the main region, clear of the edges (where
+// attackers deploy) and spaced from the Control Points and each other. Where
+// they don't all fit, it places what it can.
+func (f *Field) placePads(main []bool, n, edge int, rng *rand.Rand) []Cell {
+	margin := edge + 2
+	var candidates []Cell
+	for i, m := range main {
+		c := f.cell(i)
+		if m && c.X >= margin && c.Y >= margin && c.X < f.W-margin && c.Y < f.H-margin {
+			candidates = append(candidates, c)
+		}
+	}
+	rng.Shuffle(len(candidates), func(i, j int) { candidates[i], candidates[j] = candidates[j], candidates[i] })
+	var pads []Cell
+	far := func(c Cell, from []Cell) bool {
+		return !slices.ContainsFunc(from, func(p Cell) bool { return dist2(p, c) < padSpacing*padSpacing })
+	}
+	for _, c := range candidates {
+		if len(pads) == n {
+			break
+		}
+		if far(c, f.Points) && far(c, pads) {
+			pads = append(pads, c)
+		}
+	}
+	return pads
 }
 
 func deref(p *int) int {
@@ -262,13 +296,15 @@ func (f *Field) placePoints(main []bool, n, spacing int, rng *rand.Rand) []Cell 
 func dist2(a, b Cell) int { return (a.X-b.X)*(a.X-b.X) + (a.Y-b.Y)*(a.Y-b.Y) }
 
 // String draws the Field for debugging: each Terrain's first letter,
-// upper case on high ground, and Control Points as digits.
+// upper case on high ground, Control Points as digits and build pads as #.
 func (f *Field) String() string {
 	var sb strings.Builder
 	for i := range f.Terrain {
 		c := f.cell(i)
 		if p := slices.Index(f.Points, c); p >= 0 {
 			sb.WriteByte(byte('1' + p))
+		} else if slices.Contains(f.Pads, c) {
+			sb.WriteByte('#')
 		} else {
 			_, name, _ := strings.Cut(f.Terrains[f.Terrain[i]], ":")
 			ch := name[0]

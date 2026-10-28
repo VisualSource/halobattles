@@ -23,8 +23,8 @@ const baseRules = `{
 	"armyVisionSeconds": 15,
 	"resultsSeconds": 60,
 	"battlefield": {"width": 32, "height": 24, "terrainPreset": "plain", "pathClass": "infantry",
-		"controlPoints": 3, "controlPointSpacing": 6, "deployDepth": 3},
-	"battle": {"startDelay": 30, "timeCap": 180, "captureRadius": 2, "captureSeconds": 5, "holdPoints": 2, "holdSeconds": 30,
+		"controlPoints": 3, "controlPointSpacing": 6, "deployDepth": 3, "buildPads": 2},
+	"battle": {"startDelay": 30, "timeCap": 180, "padBuildSeconds": 10, "neutralFunds": {"credits": 400}, "captureRadius": 2, "captureSeconds": 5, "holdPoints": 2, "holdSeconds": 30,
 		"highGroundToHit": 2, "heightSight": 1, "retreatCountdown": 10, "structure": {"unitClass": "infantry", "shield": 0, "armor": 20, "hp": 30},
 		"classDefaults": {"infantry": {"speed": 1.5, "range": 5, "fireInterval": 1.5, "sight": 8}}},
 }`

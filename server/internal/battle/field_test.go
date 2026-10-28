@@ -137,3 +137,29 @@ func TestCarvingJoinsAMostlyBlockedMap(t *testing.T) {
 		}
 	}
 }
+
+func TestPadsAreSpacedAwayFromPointsAndEdges(t *testing.T) {
+	c := baseContent(t)
+	r := rules(c)
+	for seed := range uint64(20) {
+		f := Generate(c, r, nil, seed)
+		if len(f.Pads) != r.BuildPads {
+			t.Fatalf("seed %d: %d pads, want %d\n%s", seed, len(f.Pads), r.BuildPads, f)
+		}
+		seen := reachable(c, f, string(r.PathClass), f.Points[0])
+		for i, p := range f.Pads {
+			if !seen[f.index(p)] {
+				t.Errorf("seed %d: pad %v can't be walked to", seed, p)
+			}
+			m := r.DeployDepth + 2
+			if p.X < m || p.Y < m || p.X >= f.W-m || p.Y >= f.H-m {
+				t.Errorf("seed %d: pad %v by an edge", seed, p)
+			}
+			for _, q := range append(slices.Clone(f.Points), f.Pads[:i]...) {
+				if dist2(p, q) < padSpacing*padSpacing {
+					t.Errorf("seed %d: pad %v within %d of %v", seed, p, padSpacing, q)
+				}
+			}
+		}
+	}
+}

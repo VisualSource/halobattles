@@ -17,6 +17,7 @@ type BattleViewT struct {
 	Field              *BattlefieldT    `json:"field"`
 	Squads             []*BattleSquadT  `json:"squads"`
 	Points             []*ControlPointT `json:"points"`
+	Pads               []*BuildPadT     `json:"pads"`
 	Hold               uint32           `json:"hold"`
 	RetreatAt          uint32           `json:"retreat_at"`
 	AttackerRetreating bool             `json:"attacker_retreating"`
@@ -58,6 +59,19 @@ func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		}
 		pointsOffset = builder.EndVector(pointsLength)
 	}
+	padsOffset := flatbuffers.UOffsetT(0)
+	if t.Pads != nil {
+		padsLength := len(t.Pads)
+		padsOffsets := make([]flatbuffers.UOffsetT, padsLength)
+		for j := 0; j < padsLength; j++ {
+			padsOffsets[j] = t.Pads[j].Pack(builder)
+		}
+		BattleViewStartPadsVector(builder, padsLength)
+		for j := padsLength - 1; j >= 0; j-- {
+			builder.PrependUOffsetT(padsOffsets[j])
+		}
+		padsOffset = builder.EndVector(padsLength)
+	}
 	BattleViewStart(builder)
 	BattleViewAddId(builder, t.Id)
 	BattleViewAddPlanet(builder, planetOffset)
@@ -69,6 +83,7 @@ func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleViewAddField(builder, fieldOffset)
 	BattleViewAddSquads(builder, squadsOffset)
 	BattleViewAddPoints(builder, pointsOffset)
+	BattleViewAddPads(builder, padsOffset)
 	BattleViewAddHold(builder, t.Hold)
 	BattleViewAddRetreatAt(builder, t.RetreatAt)
 	BattleViewAddAttackerRetreating(builder, t.AttackerRetreating)
@@ -98,6 +113,13 @@ func (rcv *BattleView) UnPackTo(t *BattleViewT) {
 		x := ControlPoint{}
 		rcv.Points(&x, j)
 		t.Points[j] = x.UnPack()
+	}
+	padsLength := rcv.PadsLength()
+	t.Pads = make([]*BuildPadT, padsLength)
+	for j := 0; j < padsLength; j++ {
+		x := BuildPad{}
+		rcv.Pads(&x, j)
+		t.Pads[j] = x.UnPack()
 	}
 	t.Hold = rcv.Hold()
 	t.RetreatAt = rcv.RetreatAt()
@@ -328,19 +350,27 @@ func (rcv *BattleView) PointsLength() int {
 	return 0
 }
 
-func (rcv *BattleView) Hold() uint32 {
+func (rcv *BattleView) Pads(obj *BuildPad, j int) bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
 	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *BattleView) PadsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
 	}
 	return 0
 }
 
-func (rcv *BattleView) MutateHold(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(24, n)
-}
-
-func (rcv *BattleView) RetreatAt() uint32 {
+func (rcv *BattleView) Hold() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
 	if o != 0 {
 		return rcv._tab.GetUint32(o + rcv._tab.Pos)
@@ -348,23 +378,23 @@ func (rcv *BattleView) RetreatAt() uint32 {
 	return 0
 }
 
-func (rcv *BattleView) MutateRetreatAt(n uint32) bool {
+func (rcv *BattleView) MutateHold(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(26, n)
 }
 
-func (rcv *BattleView) AttackerRetreating() bool {
+func (rcv *BattleView) RetreatAt() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
 	if o != 0 {
-		return rcv._tab.GetBool(o + rcv._tab.Pos)
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
-	return false
+	return 0
 }
 
-func (rcv *BattleView) MutateAttackerRetreating(n bool) bool {
-	return rcv._tab.MutateBoolSlot(28, n)
+func (rcv *BattleView) MutateRetreatAt(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(28, n)
 }
 
-func (rcv *BattleView) DefenderRetreating() bool {
+func (rcv *BattleView) AttackerRetreating() bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
 	if o != 0 {
 		return rcv._tab.GetBool(o + rcv._tab.Pos)
@@ -372,12 +402,24 @@ func (rcv *BattleView) DefenderRetreating() bool {
 	return false
 }
 
-func (rcv *BattleView) MutateDefenderRetreating(n bool) bool {
+func (rcv *BattleView) MutateAttackerRetreating(n bool) bool {
 	return rcv._tab.MutateBoolSlot(30, n)
 }
 
+func (rcv *BattleView) DefenderRetreating() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleView) MutateDefenderRetreating(n bool) bool {
+	return rcv._tab.MutateBoolSlot(32, n)
+}
+
 func BattleViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(14)
+	builder.StartObject(15)
 }
 func BattleViewAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -415,17 +457,23 @@ func BattleViewAddPoints(builder *flatbuffers.Builder, points flatbuffers.UOffse
 func BattleViewStartPointsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
+func BattleViewAddPads(builder *flatbuffers.Builder, pads flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(pads), 0)
+}
+func BattleViewStartPadsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
 func BattleViewAddHold(builder *flatbuffers.Builder, hold uint32) {
-	builder.PrependUint32Slot(10, hold, 0)
+	builder.PrependUint32Slot(11, hold, 0)
 }
 func BattleViewAddRetreatAt(builder *flatbuffers.Builder, retreatAt uint32) {
-	builder.PrependUint32Slot(11, retreatAt, 0)
+	builder.PrependUint32Slot(12, retreatAt, 0)
 }
 func BattleViewAddAttackerRetreating(builder *flatbuffers.Builder, attackerRetreating bool) {
-	builder.PrependBoolSlot(12, attackerRetreating, false)
+	builder.PrependBoolSlot(13, attackerRetreating, false)
 }
 func BattleViewAddDefenderRetreating(builder *flatbuffers.Builder, defenderRetreating bool) {
-	builder.PrependBoolSlot(13, defenderRetreating, false)
+	builder.PrependBoolSlot(14, defenderRetreating, false)
 }
 func BattleViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

@@ -20,6 +20,7 @@ export enum Op {
   Surrender = 14,
   BattleRetreat = 15,
   BattleCancelRetreat = 16,
+  BattleBuildTurret = 17,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,

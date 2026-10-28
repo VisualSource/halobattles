@@ -13,14 +13,17 @@ const (
 	// runs out, every squad that can move heads off the field.
 	Retreat
 	CancelRetreat // calls the countdown off, until it runs out
+	// Build starts a pad turret, Building, on pad Target; Squad is ignored.
+	Build
 )
 
 // Order is one instruction to one of a side's squads.
 type Order struct {
-	Kind   OrderKind
-	Squad  int
-	Cell   Cell
-	Target int
+	Kind     OrderKind
+	Squad    int
+	Cell     Cell
+	Target   int    // a squad id, or for Build a pad's index
+	Building string // for Build: the pad turret
 }
 
 // Controller drives one side: each tick it reads the side's View and returns

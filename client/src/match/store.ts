@@ -97,6 +97,18 @@ export type ControlPoint = {
   progress: number; // sim ticks the taker has held it alone
 };
 
+/** A build pad: whoever holds it can build a turret on it. */
+export type BuildPad = {
+  x: number;
+  y: number;
+  owner: Side | null; // null is nobody
+  taker: Side | null;
+  progress: number; // sim ticks the taker has held it alone
+  turret: number; // the turret squad on it, or 0
+  building: string; // a turret under construction, or ""
+  readyAt: number; // the tick it's built
+};
+
 /** A Battle's grid, row by row; it never changes. */
 export type Battlefield = {
   width: number;
@@ -133,6 +145,7 @@ export type Battle = {
   field: Battlefield | null; // null until it arrives
   squads: Squad[]; // your own, and enemies in Sight
   points: ControlPoint[];
+  pads: BuildPad[];
   hold: number; // sim ticks the attacker has held enough points
   retreatAt: number; // the tick your side's Retreat countdown ends; 0 is none
   retreating: Record<Side, boolean>; // public: you see a side turn and run

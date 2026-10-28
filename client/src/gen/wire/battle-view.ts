@@ -6,6 +6,7 @@ import * as flatbuffers from 'flatbuffers';
 
 import { BattleSquad, BattleSquadT } from '../wire/battle-squad.js';
 import { Battlefield, BattlefieldT } from '../wire/battlefield.js';
+import { BuildPad, BuildPadT } from '../wire/build-pad.js';
 import { ControlPoint, ControlPointT } from '../wire/control-point.js';
 
 
@@ -89,28 +90,38 @@ pointsLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
-hold():number {
+pads(index: number, obj?:BuildPad):BuildPad|null {
   const offset = this.bb!.__offset(this.bb_pos, 24);
-  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
+  return offset ? (obj || new BuildPad()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
 }
 
-retreatAt():number {
+padsLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 24);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
+hold():number {
   const offset = this.bb!.__offset(this.bb_pos, 26);
   return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
 }
 
-attackerRetreating():boolean {
+retreatAt():number {
   const offset = this.bb!.__offset(this.bb_pos, 28);
-  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
 }
 
-defenderRetreating():boolean {
+attackerRetreating():boolean {
   const offset = this.bb!.__offset(this.bb_pos, 30);
   return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
 }
 
+defenderRetreating():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 32);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startBattleView(builder:flatbuffers.Builder) {
-  builder.startObject(14);
+  builder.startObject(15);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -177,20 +188,36 @@ static startPointsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addPads(builder:flatbuffers.Builder, padsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(10, padsOffset, 0);
+}
+
+static createPadsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startPadsVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
 static addHold(builder:flatbuffers.Builder, hold:number) {
-  builder.addFieldInt32(10, hold, 0);
+  builder.addFieldInt32(11, hold, 0);
 }
 
 static addRetreatAt(builder:flatbuffers.Builder, retreatAt:number) {
-  builder.addFieldInt32(11, retreatAt, 0);
+  builder.addFieldInt32(12, retreatAt, 0);
 }
 
 static addAttackerRetreating(builder:flatbuffers.Builder, attackerRetreating:boolean) {
-  builder.addFieldInt8(12, +attackerRetreating, +false);
+  builder.addFieldInt8(13, +attackerRetreating, +false);
 }
 
 static addDefenderRetreating(builder:flatbuffers.Builder, defenderRetreating:boolean) {
-  builder.addFieldInt8(13, +defenderRetreating, +false);
+  builder.addFieldInt8(14, +defenderRetreating, +false);
 }
 
 static endBattleView(builder:flatbuffers.Builder):flatbuffers.Offset {
@@ -211,6 +238,7 @@ unpack(): BattleViewT {
     (this.field() !== null ? this.field()!.unpack() : null),
     this.bb!.createObjList<BattleSquad, BattleSquadT>(this.squads.bind(this), this.squadsLength()),
     this.bb!.createObjList<ControlPoint, ControlPointT>(this.points.bind(this), this.pointsLength()),
+    this.bb!.createObjList<BuildPad, BuildPadT>(this.pads.bind(this), this.padsLength()),
     this.hold(),
     this.retreatAt(),
     this.attackerRetreating(),
@@ -230,6 +258,7 @@ unpackTo(_o: BattleViewT): void {
   _o.field = (this.field() !== null ? this.field()!.unpack() : null);
   _o.squads = this.bb!.createObjList<BattleSquad, BattleSquadT>(this.squads.bind(this), this.squadsLength());
   _o.points = this.bb!.createObjList<ControlPoint, ControlPointT>(this.points.bind(this), this.pointsLength());
+  _o.pads = this.bb!.createObjList<BuildPad, BuildPadT>(this.pads.bind(this), this.padsLength());
   _o.hold = this.hold();
   _o.retreatAt = this.retreatAt();
   _o.attackerRetreating = this.attackerRetreating();
@@ -249,6 +278,7 @@ constructor(
   public field: BattlefieldT|null = null,
   public squads: (BattleSquadT)[] = [],
   public points: (ControlPointT)[] = [],
+  public pads: (BuildPadT)[] = [],
   public hold: number = 0,
   public retreatAt: number = 0,
   public attackerRetreating: boolean = false,
@@ -261,6 +291,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const field = (this.field !== null ? this.field!.pack(builder) : 0);
   const squads = BattleView.createSquadsVector(builder, builder.createObjectOffsetList(this.squads));
   const points = BattleView.createPointsVector(builder, builder.createObjectOffsetList(this.points));
+  const pads = BattleView.createPadsVector(builder, builder.createObjectOffsetList(this.pads));
 
   BattleView.startBattleView(builder);
   BattleView.addId(builder, this.id);
@@ -273,6 +304,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   BattleView.addField(builder, field);
   BattleView.addSquads(builder, squads);
   BattleView.addPoints(builder, points);
+  BattleView.addPads(builder, pads);
   BattleView.addHold(builder, this.hold);
   BattleView.addRetreatAt(builder, this.retreatAt);
   BattleView.addAttackerRetreating(builder, this.attackerRetreating);

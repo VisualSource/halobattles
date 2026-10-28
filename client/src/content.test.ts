@@ -24,10 +24,13 @@ const rules = {
     controlPoints: 3,
     controlPointSpacing: 10,
     deployDepth: 4,
+    buildPads: 4,
   },
   battle: {
     startDelay: 30,
     timeCap: 180,
+    padBuildSeconds: 10,
+    neutralFunds: { "base:credits": 400 },
     captureRadius: 2,
     captureSeconds: 5,
     holdPoints: 2,

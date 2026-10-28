@@ -129,6 +129,11 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
 			return s.play.RetreatFromBattle(s.seat(user), string(c.Planet()), true)
 		}
+	case wire.OpBattleBuildTurret:
+		c := wire.GetRootAsBattleBuildTurret(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.BuildTurret(doc, s.seat(user), string(c.Planet()), int(c.Pad()), string(c.Building()))
+		}
 	case wire.OpSetRallyStack:
 		c := wire.GetRootAsSetRallyStack(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {

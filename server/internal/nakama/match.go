@@ -406,6 +406,12 @@ func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 				X: uint16(p.Cell.X), Y: uint16(p.Cell.Y), Owner: uint8(p.Owner), Taker: uint8(p.Taker), Progress: uint16(p.Progress),
 			})
 		}
+		for _, p := range b.Pads {
+			bv.Pads = append(bv.Pads, &wire.BuildPadT{
+				X: uint16(p.Cell.X), Y: uint16(p.Cell.Y), Owner: int8(p.Owner), Taker: int8(p.Taker), Progress: uint16(p.Progress),
+				Turret: uint16(p.Turret), Building: p.Building, ReadyAt: uint32(p.ReadyAt),
+			})
+		}
 		out = append(out, bv)
 	}
 	return out

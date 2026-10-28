@@ -71,6 +71,13 @@ type BattleRules struct {
 	// How long the attacker must hold them to win.
 	HoldSeconds float64 `json:"holdSeconds"`
 
+	// What a neutral garrison has to spend on pad turrets in each Battle, having no
+	// economy.
+	NeutralFunds map[string]int `json:"neutralFunds"`
+
+	// Seconds a turret takes to build on a build pad.
+	PadBuildSeconds float64 `json:"padBuildSeconds"`
+
 	// Seconds from ordering a Retreat until the side turns and heads off the field;
 	// it fights on meanwhile, and can call it off.
 	RetreatCountdown float64 `json:"retreatCountdown"`
@@ -89,6 +96,10 @@ type BattleRules struct {
 
 // How Battlefields are generated. A map's Planet can override the size and preset.
 type BattlefieldRules struct {
+	// Build pads the generator places: spots a side can capture and build a turret
+	// on.
+	BuildPads int `json:"buildPads"`
+
 	// The fewest cells between two Control Points, where the map has room.
 	ControlPointSpacing int `json:"controlPointSpacing"`
 
@@ -141,6 +152,10 @@ type Building struct {
 
 	// Name corresponds to the JSON schema field "name".
 	Name Name `json:"name"`
+
+	// Can be built on a build pad in Battle, lasting only that Battle. Needs a combat
+	// block.
+	PadTurret *bool `json:"padTurret,omitempty,omitzero"`
 
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`

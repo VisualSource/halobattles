@@ -142,15 +142,20 @@ const (
 	// stickiness is how much better another goal must score before a squad
 	// drops the one it has.
 	stickiness = 1.25
+	// padValue is how much the Commander wants a build pad it doesn't hold,
+	// against 3 for a Control Point.
+	padValue = 1.2
 	// block is the side, in cells, of the squares the AI tracks looking at.
 	block = 8
 	// scoutShare is the part of a defender's mobile squads sent scouting,
 	// times its scout weight; at least one once it has minForScouts, and at
-	// most maxScouts. With
-	// fewer, sending one leaves the points too thin: two-squad Starting Kit
-	// defenders that scouted lost 60% of the time instead of about half.
+	// most maxScouts. A two-squad defender whose scout kept going out lost
+	// its points: 63% attacker wins; scouting once, 55%.
 	scoutShare   = 0.2
-	minForScouts = 3
+	minForScouts = 2
+	// minForRepeat is how many mobile squads a defender needs before a scout
+	// that fell back goes out again; with fewer it scouts once.
+	minForRepeat = 3
 	maxScouts    = 3
 	// skirmishShare is the part of a side's mobile squads it sends
 	// skirmishing, times its aggression weight, out of those it can spare
@@ -189,12 +194,13 @@ func (ai *AI) Orders(v View) []Order {
 	for _, p := range s.Points {
 		ai.owners = append(ai.owners, p.Owner)
 	}
+	var out []Order
 	if flipped || v.Tick()%TicksPerSecond == 0 {
 		ai.look(v, own)
 		ai.command(v, own, enemies)
+		out = append(out, ai.build(v)...)
 	}
 
-	var out []Order
 	for _, sq := range own {
 		p := ai.plans[sq.ID]
 		if p == nil || sq.speed == 0 || sq.retreating {
@@ -286,6 +292,11 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			add(goal{kind: defend, cell: p.Cell}, 2)
 		} else {
 			add(goal{kind: defend, cell: p.Cell}, 1.2)
+		}
+	}
+	for _, p := range s.Pads {
+		if p.Owner != v.Side && p.Turret == 0 {
+			add(goal{kind: capture, cell: p.Cell}, padValue)
 		}
 	}
 	for _, e := range enemies {
@@ -413,6 +424,52 @@ func (ai *AI) engage(v View, sq *Squad, p *plan, e *Squad) []Order {
 	return []Order{{Kind: Move, Squad: sq.ID, Cell: to}}
 }
 
+// build spends a side's own funds, which only a neutral garrison has, on
+// a turret for each empty pad it holds: the cheapest it can afford. A
+// player's money is theirs to spend, so their side never builds on its own.
+func (ai *AI) build(v View) []Order {
+	s := v.sim
+	if s.Funds[v.Side] == nil {
+		return nil
+	}
+	var turrets []string
+	for _, id := range slices.Sorted(maps.Keys(s.content.Buildings)) {
+		if b := s.content.Buildings[id]; b.PadTurret != nil && *b.PadTurret && b.Combat != nil {
+			turrets = append(turrets, id)
+		}
+	}
+	total := func(id string) int {
+		n := 0
+		for _, c := range s.content.Buildings[id].Cost {
+			n += c
+		}
+		return n
+	}
+	slices.SortStableFunc(turrets, func(a, b string) int { return cmp.Compare(total(a), total(b)) })
+	left := maps.Clone(s.Funds[v.Side]) // spent pad by pad this tick
+	affords := func(id string) bool {
+		for r, n := range s.content.Buildings[id].Cost {
+			if left[r] < n {
+				return false
+			}
+		}
+		return true
+	}
+	var out []Order
+	for i := range s.Pads {
+		for _, id := range turrets {
+			if s.CanBuild(v.Side, i, id) == nil && affords(id) {
+				out = append(out, Order{Kind: Build, Target: i, Building: id})
+				for r, n := range s.content.Buildings[id].Cost {
+					left[r] -= n
+				}
+				break
+			}
+		}
+	}
+	return out
+}
+
 // look marks the blocks whose middles the side can see now.
 func (ai *AI) look(v View, own []*Squad) {
 	f := v.sim.Field
@@ -514,7 +571,10 @@ func (ai *AI) assignRoles(v View, own, enemies []*Squad) map[int]bool {
 	}
 
 	scouts := 0
-	if v.Side == Defender && len(mobile) >= minForScouts && w.Scout > 0 {
+	// A small force sends one scout out once: after it has fallen back, the
+	// points need every squad more.
+	scoutedOnce := len(ai.rested) > 0 && len(mobile) < minForRepeat
+	if v.Side == Defender && len(mobile) >= minForScouts && w.Scout > 0 && !scoutedOnce {
 		scouts = min(max(1, int(math.Round(float64(len(mobile))*scoutShare*w.Scout))), maxScouts, len(mobile)-1)
 	}
 	if want := scouts - count(scouting); want > 0 {

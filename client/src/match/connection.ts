@@ -4,6 +4,7 @@ import {
   AmountT,
   ArmyUnitsT,
   type ArmyViewT,
+  BattleBuildTurretT,
   BattleCancelRetreatT,
   BattleEnded,
   type BattlefieldT,
@@ -198,6 +199,16 @@ const toBattle = (
     owner: side(p.owner),
     taker: side(p.taker),
     progress: p.progress,
+  })),
+  pads: b.pads.map((p) => ({
+    x: p.x,
+    y: p.y,
+    owner: p.owner < 0 ? null : side(p.owner),
+    taker: p.taker < 0 ? null : side(p.taker),
+    progress: p.progress,
+    turret: p.turret,
+    building: str(p.building),
+    readyAt: p.readyAt,
   })),
   hold: b.hold,
   retreatAt: b.retreatAt,
@@ -421,6 +432,15 @@ export class MatchConnection {
   /** A Forfeit: it eliminates you. */
   surrender() {
     this.send(Op.Surrender, "surrender", (seq) => new SurrenderT(seq));
+  }
+
+  /** Builds a pad turret on a build pad your side holds in the Battle on planet. */
+  buildTurret(planet: string, pad: number, building: string) {
+    this.send(
+      Op.BattleBuildTurret,
+      "padTurret",
+      (seq) => new BattleBuildTurretT(seq, planet, pad, building),
+    );
   }
 
   /** Starts your side's Retreat countdown in the Battle on planet, or calls it off. */

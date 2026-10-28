@@ -156,6 +156,10 @@ export interface BattlefieldRules {
    * Depth in cells of the strip along each edge an attacker can deploy in.
    */
   deployDepth: number;
+  /**
+   * Build pads the generator places: spots a side can capture and build a turret on.
+   */
+  buildPads: number;
 }
 /**
  * How a Battle runs on its Battlefield.
@@ -165,6 +169,11 @@ export interface BattleRules {
    * Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.
    */
   startDelay: number;
+  /**
+   * Seconds a turret takes to build on a build pad.
+   */
+  padBuildSeconds: number;
+  neutralFunds: ResourceMap1;
   /**
    * Seconds of fighting, after startDelay, until the defender wins.
    */
@@ -204,6 +213,12 @@ export interface BattleRules {
   classDefaults: {
     [k: string]: ClassStats;
   };
+}
+/**
+ * What a neutral garrison has to spend on pad turrets in each Battle, having no economy.
+ */
+export interface ResourceMap1 {
+  [k: string]: number;
 }
 /**
  * What a building without a combat block is in a Battle: a target that never fires.
@@ -322,7 +337,7 @@ export interface Unit {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   faction: string;
-  cost: ResourceMap1;
+  cost: ResourceMap2;
   /**
    * Seconds to train one.
    */
@@ -352,7 +367,7 @@ export interface Unit {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap1 {
+export interface ResourceMap2 {
   [k: string]: number;
 }
 /**
@@ -422,18 +437,22 @@ export interface Building {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   faction: string;
-  cost: ResourceMap1;
+  cost: ResourceMap2;
   /**
    * Seconds to build.
    */
   buildTime: number;
-  upkeep: ResourceMap2;
-  yield: ResourceMap3;
+  upkeep: ResourceMap3;
+  yield: ResourceMap4;
   commandPointBonus: number;
   /**
    * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   trains?: string[];
+  /**
+   * Can be built on a build pad in Battle, lasting only that Battle. Needs a combat block.
+   */
+  padTurret?: boolean;
   combat?: Combat;
   /**
    * An asset in a Mod's assets/ folder, written `__mod__/path`.
@@ -443,13 +462,13 @@ export interface Building {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap2 {
+export interface ResourceMap3 {
   [k: string]: number;
 }
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap3 {
+export interface ResourceMap4 {
   [k: string]: number;
 }
 /**
@@ -512,7 +531,7 @@ export interface PlanetType {
    * Inline English display name.
    */
   name: string;
-  income: ResourceMap4;
+  income: ResourceMap5;
   buildingSlots: number;
   commandPointBonus: number;
   /**
@@ -523,7 +542,7 @@ export interface PlanetType {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap4 {
+export interface ResourceMap5 {
   [k: string]: number;
 }
 /**
@@ -605,7 +624,7 @@ export interface PlanetBattlefield {
  * Values that replace this Planet's Planet Type values.
  */
 export interface PlanetOverrides {
-  income?: ResourceMap1;
+  income?: ResourceMap2;
   buildingSlots?: number;
   commandPointBonus?: number;
   /**

@@ -23,12 +23,17 @@
     "pathClass": "infantry",
     "controlPoints": 3,
     "controlPointSpacing": 10,
-    "deployDepth": 4
+    "deployDepth": 4,
+    "buildPads": 4
   },
   "battle": {
     // Seconds to open the Battle before the fighting starts.
     "startDelay": 30,
     "timeCap": 180,
+    "padBuildSeconds": 10,
+    // A neutral garrison's budget for pad turrets, having no economy: two
+    // turrets' worth (each costs 200 Credits and 50 Materials).
+    "neutralFunds": { "credits": 400, "materials": 100 },
     "captureRadius": 2,
     "captureSeconds": 5,
     "holdPoints": 2,

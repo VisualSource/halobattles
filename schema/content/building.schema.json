@@ -17,6 +17,7 @@
     "yield": { "description": "Paid at each Payday.", "$ref": "defs.schema.json#/definitions/resourceMap" },
     "commandPointBonus": { "type": "integer", "minimum": 0 },
     "trains": { "type": "array", "items": { "$ref": "defs.schema.json#/definitions/id" } },
+    "padTurret": { "description": "Can be built on a build pad in Battle, lasting only that Battle. Needs a combat block.", "type": "boolean" },
     "combat": { "$ref": "defs.schema.json#/definitions/combat" },
     "icon": { "$ref": "defs.schema.json#/definitions/asset" }
   }

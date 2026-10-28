@@ -14,7 +14,7 @@ import {
   type Volley,
 } from "./store";
 import { formatAge, useMatchNow } from "./time";
-import { Floating, label, Tag, Tile, windowTitle } from "./windows";
+import { amounts, Floating, label, Tag, Tile, windowTitle } from "./windows";
 
 type TickEvent = { battle: number; tick: number; volleys: Volley[] };
 
@@ -63,6 +63,9 @@ export function BattlePanel(props: {
   const now = useMatchNow(conn.local);
   const retreatSent = useStore(conn.local, (s) =>
     [...s.pending.values()].includes("retreat"),
+  );
+  const buildSent = useStore(conn.local, (s) =>
+    [...s.pending.values()].includes("padTurret"),
   );
   const [fire, setFire] = useState<Volley[]>([]);
   const [full, setFull] = useState(false);
@@ -184,6 +187,81 @@ export function BattlePanel(props: {
       captureSeconds={rules.captureSeconds}
     />
   );
+  const mySide: Side = battle.attacker === view?.you ? "attacker" : "defender";
+  const faction = view ? view.players[view.you]?.faction : undefined;
+  // Your Faction's pad turret, if it has one: the cheapest.
+  const turret = [...content.buildings.entries()]
+    .filter(([, b]) => b.padTurret && b.combat && b.faction === faction)
+    .sort(
+      ([, a], [, b]) =>
+        Object.values(a.cost).reduce((n, c) => n + c, 0) -
+        Object.values(b.cost).reduce((n, c) => n + c, 0),
+    )[0];
+  const affords =
+    !!turret &&
+    Object.entries(turret[1].cost).every(
+      ([r, n]) => (view?.economy.resources.get(r) ?? 0) >= n,
+    );
+  const pads = battle.pads.length > 0 && (
+    <div className="flex flex-wrap items-center gap-2 px-4 pt-2 text-sm">
+      <span className={label}>Pads</span>
+      {battle.pads.map((p, i) => {
+        const yours = p.owner === mySide;
+        const state = p.turret
+          ? "Turret up"
+          : p.building
+            ? `Building · ${Math.max(0, Math.ceil((p.readyAt - battle.tick) / BATTLE_TICKS))} s`
+            : p.owner
+              ? "Empty"
+              : "Nobody's";
+        return (
+          <span
+            key={`${p.x},${p.y}`}
+            className="flex items-center gap-1.5 rounded-md border border-line py-0.5 pr-0.5 pl-2"
+          >
+            <span
+              aria-hidden="true"
+              className="size-2.5 rounded-sm"
+              style={{
+                background: p.owner
+                  ? colourOf(seatOf(battle, p.owner))
+                  : NEUTRAL,
+              }}
+            />
+            <span className="font-mono">{i + 1}</span>
+            <span className="w-20 text-ink-3 text-xs">{state}</span>
+            <button
+              type="button"
+              disabled={
+                !yours ||
+                !!p.turret ||
+                !!p.building ||
+                !turret ||
+                !affords ||
+                buildSent
+              }
+              title={
+                turret
+                  ? `Build a ${turret[1].name} for ${amounts(content, turret[1].cost)}`
+                  : "Your Faction has no pad turret"
+              }
+              onClick={() =>
+                turret && conn.buildTurret(battle.planet, i, turret[0])
+              }
+              className="min-h-7 w-14 rounded border-edge bg-raised px-2 text-xs disabled:opacity-40"
+            >
+              Build
+            </button>
+          </span>
+        );
+      })}
+      {turret && (
+        <span className="text-ink-3 text-xs">
+          {turret[1].name}: {amounts(content, turret[1].cost)}
+        </span>
+      )}
+    </div>
+  );
   const sides = (
     <div className={`grid gap-4 p-4 ${full ? "grid-cols-1" : "grid-cols-2"}`}>
       {SIDES.map((side) => {
@@ -248,15 +326,14 @@ export function BattlePanel(props: {
       )}
     </div>
   );
-  const mine: Side = battle.attacker === view?.you ? "attacker" : "defender";
-  const running = battle.retreating[mine];
+  const running = battle.retreating[mySide];
   const counting = battle.retreatAt > 0 && !running;
   const countdown = Math.max(
     1,
     Math.ceil((battle.retreatAt - battle.tick) / BATTLE_TICKS),
   );
   const nowhere =
-    mine === "defender" &&
+    mySide === "defender" &&
     ![...(view?.planets.values() ?? [])].some(
       (p) => p.owner === view?.you && p.id !== battle.planet,
     );
@@ -319,6 +396,8 @@ export function BattlePanel(props: {
           {map}
           <aside className="flex w-105 flex-none flex-col overflow-y-auto border-line border-l bg-panel">
             {points}
+            {pads}
+            {pads}
             {sides}
             {latest}
             <span className="flex-1" />
