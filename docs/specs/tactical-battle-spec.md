@@ -209,6 +209,8 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
   - distance;
   - the enemy strength the side can see near it;
   - the strength already assigned to it, so all Squads don't pile onto one point.
+- Caution's threat penalty applies to every goal except holding a point: a threatened point is the one to hold.
+- While the attacker's hold timer runs, the defender values retaking a point at 5 instead of 3.
 - **Goals:**
   - `capturePoint(p)`
   - `defendPoint(p)`
@@ -236,7 +238,7 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
   - `regroup`: to the nearest friendly squad.
 - **Budget:** plans are at most 4 actions deep.
 - **When it replans:** a Control Point changes hands, it loses a member, or otherwise once a second, staggered by Squad id. A replan whose next step hasn't changed keeps the destination it already sent, since every new destination costs a path.
-- **Code and data:** goals, actions and facts are Go code. Their **weights** are content: a Faction's optional `ai` block of `aggression`, `caution`, `cover`, `raid` and `scout`, each defaulting to 1. The base Covenant rush in (aggression 1.4, caution 0.7, cover 0.7); the UNSC hold cover and regroup (aggression 0.9, caution 1.2, cover 1.5). The planner looks up weights **per Squad** even though v1 only has Faction weights, so per-unit weights can be added later (see [Later](#later)). A neutral garrison plays the defaults.
+- **Code and data:** goals, actions and facts are Go code. Their **weights** are content: a Faction's optional `ai` block of `aggression`, `caution`, `cover`, `raid` and `scout`, each defaulting to 1. The base Covenant lean keener (aggression 1.05, caution 0.9, cover 0.9); the UNSC lean careful (aggression 0.95, caution 1.1, cover 1.25). Keep them close to 1: aggression especially is a strong lever, and at 1.4 the Covenant won 80% of their attacks. The planner looks up weights **per Squad** even though v1 only has Faction weights, so per-unit weights can be added later (see [Later](#later)). A neutral garrison plays the defaults.
 - **Determinism:** ties between equal plan costs or equal goal scores go to the earlier goal or the action declared first, and squads are planned in id order. Any randomness comes from the Battle RNG.
 
 ### Movement among other squads
@@ -287,8 +289,9 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 ## Pacing
 
 - Two evenly matched forces should fight for about **1–3 minutes**.
-- The two Starting Kits should stay roughly even: either one attacking wins about 45–55% of the time, on a range of seeded Battlefields.
-- A Go test checks both, as the round-based test did.
+- The two Starting Kits should stay roughly even: either one attacking wins about 45–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights.
+- A Go test checks both over 100 seeds per matchup, allowing 40–60% for sampling noise. When last tuned: about 105 s per Battle; UNSC attacking wins 55%, Covenant attacking 51%.
+- Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 
 ## Ruleset additions
 

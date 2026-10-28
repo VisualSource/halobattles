@@ -161,7 +161,7 @@ The base Mod ships **no icons or sprites**; the client draws placeholders.
 
 The rosters mirror each other's roles and costs. Covenant units put part of their durability into Shields; UNSC units carry more Armor and HP. Movement, range, fire-rate and Sight come from the [Unit Class defaults](tactical-battle-spec.md#stats) until playtests give units their own.
 
-Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 45–55% of the time) and fight for 1–3 minutes; a Go test keeps both. They were first balanced for round-based Battles and need re-tuning for tactical ones.
+Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 45–55% of the time) and fight for 1–3 minutes; a Go test keeps both (see [Pacing](tactical-battle-spec.md#pacing)).
 
 | Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Tiers Inf/Veh/Air/Str | Cost | Time | CP | Trained at |
 |---|---|---|---|---|---|---|---|---|---|---|

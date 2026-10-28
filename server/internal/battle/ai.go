@@ -170,7 +170,8 @@ func (ai *AI) remember(v View, own, enemies []*Squad) {
 
 // command is the Commander: it lists goals and hands each mobile squad the
 // one it scores highest. A goal's score is its value, less for distance, for
-// squads already on it, and for enemies near it the side can see.
+// squads already on it, and, except for holding a point, for enemies near it
+// the side can see.
 func (ai *AI) command(v View, own, enemies []*Squad) {
 	s := v.sim
 	var goals []goal
@@ -180,9 +181,13 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		values = append(values, value)
 	}
 	w := ai.weights
+	retake := 3.0
+	if v.Side == Defender && s.Hold > 0 {
+		retake = 5 // the attacker's hold timer is running: a point back stops it
+	}
 	for _, p := range s.Points {
 		if p.Owner != v.Side {
-			add(goal{kind: capture, cell: p.Cell}, 3)
+			add(goal{kind: capture, cell: p.Cell}, retake)
 		} else if v.Side == Defender {
 			add(goal{kind: defend, cell: p.Cell}, 2)
 		} else {
@@ -236,8 +241,10 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			if g.target != 0 && s.tier(sq, s.squad(g.target)) == None {
 				continue // it can't hurt that
 			}
-			score := values[i] / (1 + dist(sq.Cell, g.cell)/distScale) / (1 + assigned[i]) /
-				(1 + w.Caution*threat[i]/max(1, strength))
+			score := values[i] / (1 + dist(sq.Cell, g.cell)/distScale) / (1 + assigned[i])
+			if g.kind != defend { // a threatened point is the one to hold, not to shy from
+				score /= 1 + w.Caution*threat[i]/max(1, strength)
+			}
 			if score > bestScore { // ties keep the earlier goal
 				best, bestScore = i, score
 			}
