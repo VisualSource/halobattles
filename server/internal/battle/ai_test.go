@@ -384,15 +384,15 @@ func TestSpareSquadsSkirmishBetweenThePoints(t *testing.T) {
 	v := View{s, Defender}
 	ai.look(v, v.Own())
 	ai.assignRoles(v, v.Own(), nil)
-	// 8 mobile, 3 points held: 3 guards, 2 scouts, and up to round(8 × 0.3) = 2 skirmishers.
+	// 8 mobile, 3 points: 3 guards, 2 scouts, and round(8 × 0.1) = 1 skirmisher.
 	n := 0
 	for _, r := range ai.roles {
 		if r == skirmish {
 			n++
 		}
 	}
-	if n != 2 || ai.roles[banshee.ID] != skirmish {
-		t.Fatalf("roles %v; want 2 skirmishers, the tagged Banshee first", ai.roles)
+	if n != 1 || ai.roles[banshee.ID] != skirmish {
+		t.Fatalf("roles %v; want 1 skirmisher, the tagged Banshee", ai.roles)
 	}
 	stops := ai.stops(v)
 	if g := ai.plans[banshee.ID].goal; g.kind != patrol || !slices.Contains(stops, g.cell) {
@@ -525,5 +525,29 @@ func TestAnIdleGuardWalksABeatUntilTheEnemyShows(t *testing.T) {
 	ai.sighted[marines.ID] = sighting{marines.Cell, 5, s.Tick}
 	if _, ok := ai.walkBeat(v, d, p); ok {
 		t.Error("walked its beat with the enemy seen")
+	}
+}
+
+func TestRolesGrowWithTheForce(t *testing.T) {
+	for _, tc := range []struct{ squads, scouts, skirmishers int }{
+		{3, 1, 0},
+		{10, 2, 1},
+	} {
+		var f []Slot
+		for cell := range tc.squads {
+			f = append(f, Slot{"base:grunt", 3, cell})
+		}
+		s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{f}})
+		ai := NewAI(WeightsOf(nil))
+		v := View{s, Defender}
+		ai.look(v, v.Own())
+		ai.assignRoles(v, v.Own(), nil)
+		got := map[role]int{}
+		for _, r := range ai.roles {
+			got[r]++
+		}
+		if got[scouting] != tc.scouts || got[skirmish] != tc.skirmishers {
+			t.Errorf("%d squads: %d scouts and %d skirmishers, want %d and %d", tc.squads, got[scouting], got[skirmish], tc.scouts, tc.skirmishers)
+		}
 	}
 }

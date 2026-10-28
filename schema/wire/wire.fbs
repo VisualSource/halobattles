@@ -306,6 +306,7 @@ table BattleView {
   points: [ControlPoint];
   pads: [BuildPad];
   hold: uint32;            // sim ticks the attacker has held enough points
+  hold_paused: bool;       // the attacker holds enough points, but a defender stands on one
   retreat_at: uint32;      // the tick your side's Retreat countdown ends; 0 is none
   attacker_retreating: bool; // public: you see a side turn and run
   defender_retreating: bool;

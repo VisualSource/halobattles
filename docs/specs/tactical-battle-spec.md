@@ -152,7 +152,7 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 ### Winning
 
 - **Attacker wins** by:
-  - holding **2 of 3 points for 30 s in a row**; the hold timer resets the moment it holds fewer than 2;
+  - holding **2 of 3 points for 30 s in a row**; the hold timer resets the moment it holds fewer than 2, and **pauses**, keeping its count, while a defender ground squad stands within capture radius of one of the points it holds (as on Empire at War's maps). The Battle window shows it as paused;
   - **elimination**: the defender has no Squads and no armed buildings left.
 - **Defender wins** by:
   - the **time cap, 3 min** of fighting, counted after the start delay;
@@ -243,7 +243,7 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
 On top of the usual goals, the Commander gives some squads a job:
 
 - **Scouts** (the defender only, once it has at least 2 mobile squads): about 20% × its `scout` weight of them, at least 1 and at most 3, roam to the part of the map the side has looked at least lately. Blocks are 8 × 8 cells; the pick leans toward the attacker's edge and away from the side's own points. A scout keeps its waypoint until it gets there. A defender with fewer than 3 mobile squads, such as a small neutral garrison, scouts **once**: after its scout has fallen back, every squad stays for the points. Units tagged `scout` go first, then small squads (1–2 units), then the fastest; units tagged `skirmisher` only if nothing else fits.
-- **Skirmishers:** a handful of squads a side can spare beyond one per point for the defender (held or to win back) and two per point for the attacker: 30% × its `aggression` weight of its mobile squads, but never fewer than 1 or more than 5. They find and delay the enemy for the main force; they aren't the main force. If the force shrinks and there are too many, the newest go back to the usual goals. Each patrols a round of the Control Points and the halfway marks between them. Units tagged `skirmisher` go first, then the fastest.
+- **Skirmishers:** a handful of squads a side can spare beyond one per point for the defender (held or to win back) and two per point for the attacker: 10% × its `aggression` weight of its mobile squads, but never fewer than 1 or more than 5. With the scouts' 20%, a 3-squad side gets 1 scout and no skirmisher; a 10-squad side, 2 scouts and 1 skirmisher. They find and delay the enemy for the main force; they aren't the main force. If the force shrinks and there are too many, the newest go back to the usual goals. Each patrols a round of the Control Points and the halfway marks between them. Units tagged `skirmisher` go first, then the fastest.
 - **Contact:** a scout that meets the enemy falls back. So does a skirmisher, unless the nearest enemy in its Sight is one it doesn't have Disadvantage against and doesn't outnumber it 1.5 to 1; that one it hunts. Falling back goes to the nearest point the side holds, or else the nearest friendly squad. Once there the squad rests for 20 s as an ordinary squad before it can take a role again.
 - A unit's `roles` hint is content (see [Content additions](#content-additions)). The base Warthog and Ghost are scouts; the Hornet and Banshee are skirmishers.
 - **Measured** with three Stacks a side: scouts spot the attacker sooner (2.6 s instead of 3.3 s) at a cost of 2–3 points of the defender's win rate. That's down from 7 points before scouts fell back, when they fought and died alone. With Starting Kits, a two-squad defender's single scouting run moved attacker wins from 59% / 51% to 54% / 53%; letting it keep scouting made them 63% / 59%, as the points went unguarded.
@@ -341,7 +341,8 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
 
 - Two evenly matched forces should fight for about **1–3 minutes**.
 - The two Starting Kits should stay roughly even: either one attacking wins about 45–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights.
-- A Go test checks both over 100 seeds per matchup, allowing 40–60% for sampling noise. When last tuned: about 99 s per Battle; UNSC attacking wins 58%, Covenant attacking 51%.
+- A Go test checks both over 100 seeds per matchup, allowing 40–60% for sampling noise. When last tuned: about 97 s per Battle; UNSC attacking wins 51%, Covenant attacking 53%.
+- **Big Battles** (three Starting Kit Stacks a side) aren't in the test yet, as they're still off target: UNSC attacking wins 66%, mostly by elimination; Covenant attacking 56%. Pausing the hold timer and fewer skirmishers brought them down from 64% / 65%.
 - Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 
 ## Ruleset additions

@@ -488,3 +488,35 @@ func TestASquadInTheWayIsCostlyNotAWall(t *testing.T) {
 		t.Errorf("path %v: with a free gap next to it, it should go round the friend", got)
 	}
 }
+
+func TestADefenderOnAHeldPointPausesTheHoldTimer(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	s := newSim(c, unsc, cov, 3)
+	s.Controllers = [2]Controller{}
+	clearPoints(s)
+	for i := range s.rules.HoldPoints {
+		s.Points[i].Owner = Attacker
+	}
+	for range 10 {
+		s.capture()
+	}
+	if s.Hold != 10 || s.HoldPaused {
+		t.Fatalf("hold %d, paused %v; want 10 ticks running", s.Hold, s.HoldPaused)
+	}
+
+	d := s.Squads[2] // the Grunts walk onto a held point
+	freeAt(t, s, d, s.Points[0].Cell, 1)
+	for range 20 {
+		s.capture()
+	}
+	if s.Hold != 10 || !s.HoldPaused || s.Points[0].Owner != Attacker {
+		t.Errorf("hold %d, paused %v, point 0 %v; want the timer waiting at 10 and the point still the attacker's", s.Hold, s.HoldPaused, s.Points[0].Owner)
+	}
+
+	clearPoints(s) // they leave
+	s.capture()
+	if s.Hold != 11 || s.HoldPaused {
+		t.Errorf("hold %d, paused %v; want it running on from where it stopped", s.Hold, s.HoldPaused)
+	}
+}

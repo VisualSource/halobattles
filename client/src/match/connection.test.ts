@@ -522,6 +522,7 @@ describe("MatchConnection", () => {
       [new ControlPointT(2, 1, 1, 0, 3)],
       [new BuildPadT(5, 6, 1, 0, 2, 0, "base:plasma-turret", 60)],
       0,
+      true,
       60,
       false,
       true,
@@ -599,6 +600,7 @@ describe("MatchConnection", () => {
         },
       ],
       hold: 0,
+      holdPaused: true,
       retreatAt: 60,
       retreating: { attacker: false, defender: true },
     });

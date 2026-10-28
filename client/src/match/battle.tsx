@@ -539,8 +539,16 @@ function Points(props: {
         </span>
       ))}
       <span className="flex-1" />
-      <span className="font-mono text-ink-3">
+      <span
+        className={`font-mono ${battle.holdPaused ? "text-accent" : "text-ink-3"}`}
+        title={
+          battle.holdPaused
+            ? "A defender stands on a held point: the hold waits"
+            : undefined
+        }
+      >
         Hold {clock(hold)} / {clock(props.holdSeconds)}
+        {battle.holdPaused ? " · paused" : ""}
       </span>
     </div>
   );

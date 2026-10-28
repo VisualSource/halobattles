@@ -211,6 +211,7 @@ const toBattle = (
     readyAt: p.readyAt,
   })),
   hold: b.hold,
+  holdPaused: b.holdPaused,
   retreatAt: b.retreatAt,
   retreating: {
     attacker: b.attackerRetreating,

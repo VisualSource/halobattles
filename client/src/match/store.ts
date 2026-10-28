@@ -147,6 +147,7 @@ export type Battle = {
   points: ControlPoint[];
   pads: BuildPad[];
   hold: number; // sim ticks the attacker has held enough points
+  holdPaused: boolean; // a defender stands on one of them: the hold waits
   retreatAt: number; // the tick your side's Retreat countdown ends; 0 is none
   retreating: Record<Side, boolean>; // public: you see a side turn and run
 };

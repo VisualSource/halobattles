@@ -163,8 +163,10 @@ const (
 	// skirmishShare is the part of a side's mobile squads it sends
 	// skirmishing, times its aggression weight, out of those it can spare
 	// (beyond one per point for the defender, two per point for the
-	// attacker): at least 1 and at most maxSkirmishers.
-	skirmishShare  = 0.3
+	// attacker): at least 1 and at most maxSkirmishers. With scoutShare, a
+	// 3-squad side gets 1 scout and no skirmisher; a 10-squad one, 2 scouts
+	// and 1 skirmisher.
+	skirmishShare  = 0.1
 	maxSkirmishers = 5
 	// restTicks is how long a squad that fell back is left to the usual
 	// goals before it can take a role again.

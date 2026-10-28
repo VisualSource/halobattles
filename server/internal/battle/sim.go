@@ -126,13 +126,16 @@ type Sim struct {
 	Pads   []Pad
 	// Funds is what a side without an economy, a neutral garrison, has to
 	// spend on pad turrets; nil for a player, who pays from their Resources.
-	Funds  [2]map[string]int
-	Edge   int // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
-	Tick   int
-	Hold   int // ticks the attacker has held enough points
-	Over   bool
-	Winner Side
-	Reason string
+	Funds [2]map[string]int
+	Edge  int // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
+	Tick  int
+	Hold  int // ticks the attacker has held enough points
+	// HoldPaused: the attacker holds enough points, but a defender stands on
+	// one, so the hold timer waits.
+	HoldPaused bool
+	Over       bool
+	Winner     Side
+	Reason     string
 	// RetreatAt is the tick each side's Retreat countdown ends, or 0; once it
 	// has, the side is Retreating and can't call it off.
 	RetreatAt  [2]int
@@ -770,7 +773,7 @@ func (s *Sim) fire() []Volley {
 // holds enough points.
 func (s *Sim) capture() {
 	need := ticks(s.rules.CaptureSeconds)
-	held := 0
+	held, contested := 0, false
 	for i := range s.Points {
 		p := &s.Points[i]
 		present := s.presence(p.Cell)
@@ -795,6 +798,7 @@ func (s *Sim) capture() {
 		}
 		if p.Owner == Attacker {
 			held++
+			contested = contested || present[Defender]
 		}
 	}
 	for i := range s.Pads {
@@ -824,10 +828,14 @@ func (s *Sim) capture() {
 			}
 		}
 	}
-	if held >= s.rules.HoldPoints {
-		s.Hold++
-	} else {
+	// The hold timer runs while the attacker holds enough points, and pauses,
+	// keeping its count, while a defender stands on one of them.
+	s.HoldPaused = held >= s.rules.HoldPoints && contested
+	switch {
+	case held < s.rules.HoldPoints:
 		s.Hold = 0
+	case !contested:
+		s.Hold++
 	}
 }
 
@@ -943,13 +951,14 @@ type Snapshot struct {
 	Points     []Point
 	Pads       []Pad // public, like the Points
 	Hold       int
+	HoldPaused bool
 	RetreatAt  int     // the tick the side's own Retreat countdown ends, or 0
 	Retreating [2]bool // public: you see the enemy turn and run
 }
 
 func (s *Sim) Snapshot(side Side) Snapshot {
 	snap := Snapshot{
-		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: slices.Clone(s.Pads), Hold: s.Hold,
+		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: slices.Clone(s.Pads), Hold: s.Hold, HoldPaused: s.HoldPaused,
 		RetreatAt: s.RetreatAt[side], Retreating: s.Retreating,
 	}
 	for _, sq := range s.Squads {
