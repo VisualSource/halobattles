@@ -1,5 +1,5 @@
 import { createStore } from "zustand/vanilla";
-import type { PlanetView } from "./store";
+import type { BattleReport, PlanetView } from "./store";
 
 // Client-only state. Pending commands are keyed by seq; a control shows as
 // pending while its kind is in here.
@@ -27,6 +27,8 @@ export type LocalState = {
   watching: number | null; // the Battle open in the Battle panel
   /** Planets out of vision, as last seen. In memory only: lost on reload. */
   lastSeen: Map<string, LastSeen>;
+  /** Your Battles, running and over, by id. In memory only: lost on reload. */
+  reports: Map<number, BattleReport>;
   clockOffset: number; // Match Time = performance.now() + clockOffset
 };
 
@@ -38,6 +40,7 @@ export const createLocalStore = () =>
     hovered: null,
     watching: null,
     lastSeen: new Map(),
+    reports: new Map(),
     clockOffset: 0,
   }));
 

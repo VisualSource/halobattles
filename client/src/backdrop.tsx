@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { create } from "zustand";
 import { RingScene } from "./scene/ring";
 
@@ -13,7 +13,9 @@ const useBackdrop = create<{ ring: number; noHeader: number }>(() => ({
 /** Shows the ring behind this screen; `header: false` also hides the header. */
 export function useRingBackdrop(opts: { header?: boolean } = {}) {
   const hideHeader = opts.header === false;
-  useEffect(() => {
+  // A layout effect, so the header and ring change in the same commit as
+  // the screen: a page's view transition then snapshots its final layout.
+  useLayoutEffect(() => {
     const bump = (by: number) =>
       useBackdrop.setState((s) => ({
         ring: s.ring + by,
@@ -26,7 +28,7 @@ export function useRingBackdrop(opts: { header?: boolean } = {}) {
 
 /** Hides the header while this screen is up, for screens with their own. */
 export function useHideHeader() {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const bump = (by: number) =>
       useBackdrop.setState((s) => ({ noHeader: s.noHeader + by }));
     bump(1);

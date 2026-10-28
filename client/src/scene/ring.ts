@@ -36,6 +36,67 @@ export function canvasTexture(
 
 export const rgb = (c: number[]) => `rgb(${c.join(",")})`;
 
+/**
+ * A Halo ring of radius r and band width w, its axis up: land, sea and
+ * cloud inside, metal hull outside, bright rims. The galaxy map draws
+ * Installation 04 with it too.
+ */
+export function haloRing(rnd: () => number, r: number, w: number) {
+  const land = [
+    [58, 108, 70],
+    [44, 92, 132],
+    [124, 110, 78],
+    [72, 118, 84],
+    [36, 80, 120],
+  ];
+  const segments = 260;
+  const surface = canvasTexture(2048, 32, (g) => {
+    const step = 2048 / segments;
+    for (let i = 0; i < segments; i++) {
+      const n = (Math.sin(i * 0.09) + Math.sin(i * 0.037 + 2.1) + 2) / 4;
+      const c =
+        land[Math.min(land.length - 1, Math.floor(n * land.length))] ?? [];
+      const cloud = rnd() < 0.18 ? 0.35 + rnd() * 0.3 : 0;
+      g.fillStyle = rgb(c.map((v) => Math.round(v + (235 - v) * cloud)));
+      g.fillRect(i * step, 0, step + 1, 32);
+    }
+  });
+  const band = new THREE.CylinderGeometry(r, r, w, segments, 1, true);
+  const group = new THREE.Group();
+  group.add(
+    new THREE.Mesh(
+      band,
+      new THREE.MeshStandardMaterial({
+        map: surface,
+        side: THREE.BackSide,
+        roughness: 0.9,
+      }),
+    ),
+    new THREE.Mesh(
+      band.clone(),
+      new THREE.MeshStandardMaterial({
+        color: "#5c6670",
+        metalness: 0.6,
+        roughness: 0.5,
+      }),
+    ),
+  );
+  for (const y of [-w / 2, w / 2]) {
+    const rim = new THREE.Mesh(
+      new THREE.TorusGeometry(r, w * 0.05, 6, segments),
+      new THREE.MeshStandardMaterial({
+        color: "#c8d6e4",
+        metalness: 0.8,
+        roughness: 0.35,
+      }),
+    );
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = y;
+    group.add(rim);
+  }
+  return group;
+}
+
 export class RingScene {
   private readonly renderer = new THREE.WebGLRenderer({ antialias: true });
   private readonly scene = new THREE.Scene();
@@ -150,60 +211,9 @@ export class RingScene {
     return glow;
   }
 
-  /** The band: land, sea and cloud inside, metal hull outside, bright rims. */
+  /** The Halo ring, tilted towards the camera. */
   private ring(rnd: () => number) {
-    const land = [
-      [58, 108, 70],
-      [44, 92, 132],
-      [124, 110, 78],
-      [72, 118, 84],
-      [36, 80, 120],
-    ];
-    const segments = 260;
-    const surface = canvasTexture(2048, 32, (g) => {
-      const step = 2048 / segments;
-      for (let i = 0; i < segments; i++) {
-        const n = (Math.sin(i * 0.09) + Math.sin(i * 0.037 + 2.1) + 2) / 4;
-        const c =
-          land[Math.min(land.length - 1, Math.floor(n * land.length))] ?? [];
-        const cloud = rnd() < 0.18 ? 0.35 + rnd() * 0.3 : 0;
-        g.fillStyle = rgb(c.map((v) => Math.round(v + (235 - v) * cloud)));
-        g.fillRect(i * step, 0, step + 1, 32);
-      }
-    });
-    const band = new THREE.CylinderGeometry(R, R, W, segments, 1, true);
-    const group = new THREE.Group();
-    group.add(
-      new THREE.Mesh(
-        band,
-        new THREE.MeshStandardMaterial({
-          map: surface,
-          side: THREE.BackSide,
-          roughness: 0.9,
-        }),
-      ),
-      new THREE.Mesh(
-        band.clone(),
-        new THREE.MeshStandardMaterial({
-          color: "#5c6670",
-          metalness: 0.6,
-          roughness: 0.5,
-        }),
-      ),
-    );
-    for (const y of [-W / 2, W / 2]) {
-      const rim = new THREE.Mesh(
-        new THREE.TorusGeometry(R, 0.45, 6, segments),
-        new THREE.MeshStandardMaterial({
-          color: "#c8d6e4",
-          metalness: 0.8,
-          roughness: 0.35,
-        }),
-      );
-      rim.rotation.x = Math.PI / 2;
-      rim.position.y = y;
-      group.add(rim);
-    }
+    const group = haloRing(rnd, R, W);
     group.rotation.set(0.38, 0, 0.22, "ZYX");
     return group;
   }

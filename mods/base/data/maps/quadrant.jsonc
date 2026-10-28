@@ -23,7 +23,7 @@
     { "id": "requiem", "name": "Requiem", "type": "standard", "position": { "x": 0, "y": 267 } },
     { "id": "trevelyan", "name": "Trevelyan", "type": "fortress", "position": { "x": 0, "y": 133 } },
 
-    { "id": "alpha-halo", "name": "Installation 04", "type": "rich", "position": { "x": 200, "y": 200 } }
+    { "id": "alpha-halo", "name": "Installation 04", "type": "rich", "position": { "x": 200, "y": 200 }, "model": "ring" }
   ],
   "lanes": [
     // Capital to the near Planet on each of its two edges.

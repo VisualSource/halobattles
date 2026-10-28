@@ -424,6 +424,10 @@ export interface MapPlanet {
    */
   type: string;
   position: Position;
+  /**
+   * How the client draws it: a planet (the default), or a Halo ring.
+   */
+  model?: "planet" | "ring";
   overrides?: PlanetOverrides;
 }
 export interface Position {

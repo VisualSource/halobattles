@@ -1,10 +1,9 @@
 import { type ReactNode, useEffect } from "react";
 import { ToastContainer, toast } from "react-toastify";
 
-export type NoteKind = "payday" | "battle" | "captured" | "player" | "rejected";
+export type NoteKind = "battle" | "captured" | "player" | "rejected";
 
 const KINDS: Record<NoteKind, { label: string; colour: string }> = {
-  payday: { label: "Payday", colour: "text-ok" },
   battle: { label: "Battle", colour: "text-accent" },
   captured: { label: "Captured", colour: "text-ok" },
   player: { label: "Player", colour: "text-danger" },

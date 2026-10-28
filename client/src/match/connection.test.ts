@@ -5,7 +5,9 @@ import {
   AmountT,
   ArmyViewT,
   BattleActionT,
+  BattleEndedT,
   BattleRoundT,
+  BattleStartedT,
   BattleViewT,
   CombatantT,
   EconomyT,
@@ -663,6 +665,70 @@ describe("MatchConnection", () => {
     expect(conn.local.getState().lastSeen.size).toBe(0);
   });
 
+  it("keeps a report of each Battle you're a side of", async () => {
+    const { conn, send } = await playing();
+    send(
+      Op.BattleStarted,
+      pack(
+        new BattleStartedT(0n, 5, "c", 0, -1, 0n, 3000, [
+          new CombatantT("a0001", 0, "base:marine", 0, 0, 100),
+          new CombatantT("d0001", 1, "base:grunt", 20, 0, 70),
+        ]),
+      ),
+    );
+    const hit = (actor: string, target: string, hp: number, killed: boolean) =>
+      new BattleActionT(actor, target, "base:kinetic", 0, 0, hp, killed);
+
+    send(
+      Op.BattleRound,
+      pack(
+        new BattleRoundT(0n, 5, "c", 1, [
+          new BattleActionT("a0001", "d0001", "base:kinetic", 20, 0, 50, false),
+          hit("d0001", "a0001", 9, false),
+        ]),
+      ),
+    );
+    send(
+      Op.BattleRound,
+      pack(
+        new BattleRoundT(3000n, 5, "c", 2, [hit("a0001", "d0001", 20, true)]),
+      ),
+    );
+    send(Op.BattleEnded, pack(new BattleEndedT(6000n, 5, "c", 0)));
+
+    const r = conn.local.getState().reports.get(5);
+    expect(r).toMatchObject({
+      planet: "c",
+      attacker: 0,
+      defender: null,
+      rounds: 2,
+      damage: { attacker: 90, defender: 9 },
+      winner: 0,
+      endedAt: 6000,
+    });
+    expect(r?.roster.map((c) => c.hp)).toEqual([91, 0]);
+  });
+
+  it("starts a report from the View after a reconnect", async () => {
+    const { conn, send } = await playing();
+    const battle = new BattleViewT(5, "c", 0, -1, 0n, 3000, 3, [
+      new CombatantT("a0001", 0, "base:marine", 0, 0, 40),
+      new CombatantT("d0001", 1, "base:grunt", 0, 0, 0),
+    ]);
+
+    send(
+      Op.ViewDelta,
+      pack(new ViewDeltaT(9000n, [], [], [], null, [], [], [battle], [])),
+    );
+    send(Op.BattleEnded, pack(new BattleEndedT(12000n, 5, "c", 0)));
+
+    expect(conn.local.getState().reports.get(5)).toMatchObject({
+      rounds: 3,
+      winner: 0,
+      roster: [{ hp: 40 }, { hp: 0 }],
+    });
+  });
+
   it("sends PlanetCaptured out as a captured event", async () => {
     const { conn, send } = await playing();
     const got: unknown[] = [];
@@ -728,6 +794,17 @@ describe("MatchConnection", () => {
     socket.ondisconnect(new Event("close"));
 
     expect(conn.store.getState().disconnected).toBe(true);
+  });
+
+  it("doesn't count leaving on purpose as a lost connection", async () => {
+    const { socket } = fakeSocket();
+    const conn = new MatchConnection(socket, { log: false });
+    await conn.open({} as Session, "m1");
+
+    await conn.close();
+    socket.ondisconnect(new Event("close")); // the socket's own close handler
+
+    expect(conn.store.getState().disconnected).toBe(false);
   });
 
   it("logs each message as JSON when logging is on", async () => {

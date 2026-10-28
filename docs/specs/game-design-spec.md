@@ -52,7 +52,7 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 
 ## Travel
 
-- A Lane's travel time is its length × its Lane-type multiplier: `fast` 1.0, `slow` 2.0. One length unit is 1 s. Map data may set an explicit `time` on a Lane, which overrides that.
+- A Lane's travel time is its length × its Lane-type multiplier: `fast` 0.6, `slow` 2.0. One length unit is 1 s. Map data may set an explicit `time` on a Lane, which overrides that.
 - An Army can be ordered to any Planet. Its route is found automatically with Dijkstra and goes **straight through the player's own Planets and neutral ones**, with no Battle and no capture. Entering an **enemy** Planet ends the move there with a Battle; if the Army wins, it stays on the Planet it took.
 - The route enters as few enemy Planets as it can, whatever the time; then it's the fastest; then, on equal times, it passes the fewest neutral Planets. Remaining ties go to the lowest Planet-id sequence.
 - A route is fixed once ordered. Each Planet on it is judged as the Army reaches it: one that has turned enemy ends the move there with a Battle, and a **Locked** one makes the Army wait in orbit until its Battle ends, then go on or, if the Planet is now an enemy's, fight there.
@@ -223,8 +223,8 @@ Planet names and the map's id are left to implementation.
 
 | From | To | Type | Length | Time |
 |---|---|---|---|---|
-| Capital | the near Planet on each of its two edges | Fast | 30 | 30 s |
-| Edge Planet | the other Planet on the same edge | Fast | 40 | 40 s |
+| Capital | the near Planet on each of its two edges | Fast | 30 | 18 s |
+| Edge Planet | the other Planet on the same edge | Fast | 40 | 24 s |
 | Hub | each of the 4 Standard edge Planets | Slow | 30 | 60 s |
 
 - **Win:** `planetShare` 0.6, `holdSeconds` 90, which means holding 8 Planets for 90 s.
@@ -294,7 +294,7 @@ The single `base:rules` definition.
 | Sell refund | 50% |
 | Unit Slots per Stack | 15 |
 | Tiers | `none` 0, `weak` 0.6, `average` 1.0, `strong` 1.4 |
-| Lane types | `fast` 1.0, `slow` 2.0 |
+| Lane types | `fast` 0.6, `slow` 2.0 |
 | Initiative die | 20 |
 | Round duration | 3 s |
 | Round cap | 40 |

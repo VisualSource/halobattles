@@ -1,4 +1,5 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { ViewTransition } from "react";
 import { RingBackdrop, useHeaderWanted, useRingWanted } from "../backdrop";
 import { rootContext } from "../session";
 
@@ -21,7 +22,11 @@ export const Route = createRootRoute({
             </header>
           )}
           <main className="flex flex-1 flex-col">
-            <Outlet />
+            {/* The router navigates in a React transition, so every page
+                change (menu, lobby, play, results) cross-fades. */}
+            <ViewTransition>
+              <Outlet />
+            </ViewTransition>
           </main>
         </div>
         <TooSmall />

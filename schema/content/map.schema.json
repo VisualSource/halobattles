@@ -29,6 +29,10 @@
             "required": ["x", "y"],
             "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
           },
+          "model": {
+            "description": "How the client draws it: a planet (the default), or a Halo ring.",
+            "enum": ["planet", "ring"]
+          },
           "overrides": {
             "title": "Planet Overrides",
             "description": "Values that replace this Planet's Planet Type values.",

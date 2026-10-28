@@ -3,11 +3,17 @@ import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import { seatColour } from "../scene/galaxy";
 import type { MatchConnection } from "./connection";
-import type { BattleAction, Combatant, View } from "./store";
+import {
+  applyActions,
+  type BattleAction,
+  type BattleReport,
+  type Combatant,
+  type View,
+} from "./store";
+import { formatAge, useMatchNow } from "./time";
 import { Floating, label, Tag, Tile, windowTitle } from "./windows";
 
 type RoundEvent = { battle: number; round: number; actions: BattleAction[] };
-type EndEvent = { battle: number; winner: number | null };
 
 /** Where a Round's playback has got to: the first `shown` actions. */
 type Playback = { round: number; actions: BattleAction[]; shown: number };
@@ -40,14 +46,15 @@ export function BattlePanel(props: {
   const battle = useStore(conn.store, (s) =>
     id === null ? undefined : s.view?.battles.get(id),
   );
+  const report = useStore(conn.local, (s) =>
+    id === null ? undefined : s.reports.get(id),
+  );
   const view = useStore(conn.store, (s) => s.view);
   const [play, setPlay] = useState<Playback | null>(null);
-  const [winner, setWinner] = useState<{ seat: number | null } | null>(null);
   const roundMs = battle?.roundMs ?? 3000;
 
   useEffect(() => {
     setPlay(null);
-    setWinner(null);
     let timers: ReturnType<typeof setTimeout>[] = [];
     const onRound = (e: Event) => {
       const r = (e as CustomEvent<RoundEvent>).detail;
@@ -63,16 +70,10 @@ export function BattlePanel(props: {
         ),
       );
     };
-    const onEnded = (e: Event) => {
-      const d = (e as CustomEvent<EndEvent>).detail;
-      if (d.battle === id) setWinner({ seat: d.winner });
-    };
     conn.events.addEventListener("battleRound", onRound);
-    conn.events.addEventListener("battleEnded", onEnded);
     return () => {
       for (const t of timers) clearTimeout(t);
       conn.events.removeEventListener("battleRound", onRound);
-      conn.events.removeEventListener("battleEnded", onEnded);
     };
   }, [conn, id, roundMs]);
 
@@ -83,6 +84,19 @@ export function BattlePanel(props: {
       ?.name ?? p;
 
   if (!battle) {
+    if (report?.winner !== undefined) {
+      return (
+        <Report
+          conn={conn}
+          content={content}
+          report={report}
+          view={view}
+          planetName={planetName(report.planet)}
+          onClose={close}
+        />
+      );
+    }
+    // Ended, but this client never saw it play: nothing to report.
     return (
       <Floating
         label="Battle"
@@ -92,9 +106,7 @@ export function BattlePanel(props: {
         className="w-100"
         title={<h2 className={windowTitle}>Battle over</h2>}
       >
-        <p className="p-4">
-          {winner ? `${sideName(view, winner.seat)} won.` : "It has ended."}
-        </p>
+        <p className="p-4">It has ended.</p>
       </Floating>
     );
   }
@@ -214,6 +226,166 @@ export function BattlePanel(props: {
   );
 }
 
+/**
+ * A finished Battle: who won and what it cost each side, per unit type, in
+ * the same window and layout as the live view.
+ */
+function Report(props: {
+  conn: MatchConnection;
+  content: ContentLookups;
+  report: BattleReport;
+  view: View | null;
+  planetName: string;
+  onClose: () => void;
+}) {
+  const { conn, content, report: r, view, planetName } = props;
+  const now = useMatchNow(conn.local);
+  const you = view?.you;
+  const won = r.winner === you;
+  const left = (side: Combatant["side"]) =>
+    r.roster.filter((c) => c.side === side && c.hp > 0).length;
+  const enemy = (seat: number | null) =>
+    seat === null ? "the neutral garrison" : sideName(view, seat);
+  const outcome =
+    r.attacker === you
+      ? won
+        ? `You took ${planetName} from ${enemy(r.defender)}. Your survivors moved in.`
+        : `Your attack on ${planetName} failed. ${
+            left("attacker") > 0
+              ? `${left("attacker")} survivors are Retreating.`
+              : "None survived."
+          }`
+      : won
+        ? `You held ${planetName} against ${enemy(r.attacker)}.`
+        : `${enemy(r.attacker)} took ${planetName} from you.`;
+  const name = (unit: string) =>
+    content.units.get(unit)?.name ?? content.buildings.get(unit)?.name ?? unit;
+
+  return (
+    <Floating
+      label="Battle report"
+      start={topCentre}
+      remember="battle"
+      onClose={props.onClose}
+      className="w-200"
+      title={
+        <>
+          <h2 className={windowTitle}>Battle of {planetName}</h2>
+          <Tag
+            className={
+              won ? "bg-ok-wash text-ok" : "bg-danger-wash text-danger"
+            }
+          >
+            {won ? "Victory" : "Defeat"}
+          </Tag>
+        </>
+      }
+      tools={
+        <span className="mr-2 font-mono">
+          <span className={label}>Rounds </span>
+          {r.rounds}
+          <span className="text-ink-3"> / {content.rules.roundCap}</span>
+        </span>
+      }
+    >
+      <div className="flex flex-col gap-1 px-4 pt-3.5">
+        <p>{outcome}</p>
+        <p className="text-ink-3 text-sm">
+          Ended {formatAge(now - (r.endedAt ?? now))} ago · lasted{" "}
+          {Math.round((r.rounds * r.roundMs) / 1000)} s
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-5 p-4">
+        {(["attacker", "defender"] as const).map((side) => {
+          const seat = side === "attacker" ? r.attacker : r.defender;
+          const faction = seat === null ? "" : view?.players[seat]?.faction;
+          const units = new Map<string, { started: number; left: number }>();
+          for (const c of r.roster.filter((c) => c.side === side)) {
+            const u = units.get(c.unit) ?? { started: 0, left: 0 };
+            u.started++;
+            if (c.hp > 0) u.left++;
+            units.set(c.unit, u);
+          }
+          const started = r.roster.filter((c) => c.side === side).length;
+          return (
+            <section key={side} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="size-2.5 rounded-sm"
+                  style={{
+                    background: seat === null ? NEUTRAL : seatColour(seat),
+                  }}
+                />
+                <h3 className="font-semibold">
+                  {side === "attacker" ? "Attackers" : "Defenders"}
+                </h3>
+                <span className="text-ink-3 text-sm">
+                  {seat === you ? "You" : sideName(view, seat)}
+                  {faction &&
+                    ` · ${content.factions.get(faction)?.name ?? faction}`}
+                </span>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {[...units].map(([unit, u]) => (
+                  <li
+                    key={unit}
+                    className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-line bg-item p-2.5"
+                  >
+                    <Tile
+                      name={name(unit)}
+                      size="size-11"
+                      dashed={seat === null}
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate">{name(unit)}</div>
+                      <div className="font-mono text-ink-3 text-xs">
+                        {u.started} → {u.left} left
+                      </div>
+                    </div>
+                    <span
+                      className={`font-mono text-sm ${u.left < u.started ? "text-danger" : "text-ink-3"}`}
+                    >
+                      {u.left < u.started ? `−${u.started - u.left}` : "—"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <dl className="mt-1 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 rounded-md bg-well px-3 py-2.5 text-sm">
+                <dt className="text-ink-3">Lost</dt>
+                <dd className="font-mono">
+                  {started - left(side)} of {started}
+                </dd>
+                <dt className="text-ink-3">Damage dealt</dt>
+                <dd className="font-mono">
+                  {Math.round(r.damage[side]).toLocaleString()}
+                </dd>
+              </dl>
+            </section>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-2 border-line border-t px-4 py-3">
+        <button
+          type="button"
+          onClick={() => conn.local.setState({ selected: r.planet })}
+          className="min-h-11 rounded-md border-edge bg-raised px-4 text-sm"
+        >
+          Show {planetName}
+        </button>
+        <span className="flex-1" />
+        <button
+          type="button"
+          onClick={props.onClose}
+          className="min-h-11 rounded-md border-edge bg-transparent px-4 text-ink-2 text-sm"
+        >
+          Close
+        </button>
+      </div>
+    </Floating>
+  );
+}
+
 /** "15 SH, 13 HP": the damage one hit did to each layer. */
 function damage(a: BattleAction) {
   const layers: [number, string][] = [
@@ -225,18 +397,6 @@ function damage(a: BattleAction) {
     .filter(([n]) => n > 0)
     .map(([n, l]) => `${Math.round(n)} ${l}`);
   return parts.join(", ") || "no damage";
-}
-
-function applyActions(roster: Combatant[], actions: BattleAction[]) {
-  const out = new Map(roster.map((c) => [c.id, { ...c }]));
-  for (const a of actions) {
-    const t = out.get(a.target);
-    if (!t) continue;
-    t.shield = Math.max(0, t.shield - a.shieldDmg);
-    t.armor = Math.max(0, t.armor - a.armorDmg);
-    t.hp = Math.max(0, t.hp - a.hpDmg);
-  }
-  return [...out.values()];
 }
 
 /**

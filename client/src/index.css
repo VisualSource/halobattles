@@ -88,3 +88,16 @@
     @apply text-accent hover:underline;
   }
 }
+
+/* Page changes cross-fade (a React <ViewTransition> in the root route); not for reduced motion. */
+/* Only the page content is snapshotted: the backdrop ring and the header keep drawing live, not frozen. */
+:root {
+  view-transition-name: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none;
+  }
+}

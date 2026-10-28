@@ -1,14 +1,73 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useRingBackdrop } from "../backdrop";
 import type { LocalStore } from "./local";
 import type { Phase } from "./store";
 import { useMatchNow } from "./time";
 
-const primary =
+export const primary =
   "inline-flex min-h-12 items-center justify-center rounded-lg border-0 bg-accent px-6 font-bold font-display text-accent-ink tracking-[0.1em] hover:no-underline";
 const secondary =
   "inline-flex min-h-12 items-center rounded-lg border border-edge bg-raised px-5 font-medium text-ink hover:no-underline";
+const danger =
+  "inline-flex min-h-12 items-center justify-center rounded-lg border-0 bg-danger px-6 font-bold font-display text-accent-ink tracking-[0.1em]";
+
+/**
+ * A yes/no question in the style of the alert cards, as a modal dialog: it
+ * holds focus, and Escape or the safe choice (focused first) cancels.
+ */
+export function ConfirmDialog(props: {
+  open: boolean;
+  eyebrow: string;
+  title: string;
+  children: ReactNode;
+  confirm: string; // the destructive choice
+  cancel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (props.open && d && !d.open) d.showModal();
+    if (!props.open && d?.open) d.close();
+  }, [props.open]);
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby="confirm-title"
+      onCancel={(e) => {
+        e.preventDefault(); // Escape: closed by the open prop, not the browser
+        props.onCancel();
+      }}
+      className="m-auto w-full max-w-140 rounded-xl border border-edge/80 bg-panel p-8 text-ink backdrop:bg-scrim/70"
+    >
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-1">
+          <p className="font-semibold text-ink-3 text-xs tracking-[0.14em]">
+            {props.eyebrow}
+          </p>
+          <h2
+            id="confirm-title"
+            className="font-display font-semibold text-[28px]"
+          >
+            {props.title}
+          </h2>
+        </div>
+        <div className="text-ink-2 leading-relaxed">{props.children}</div>
+        <div className="flex flex-wrap gap-3">
+          {/* First, so showModal focuses the safe choice. */}
+          <button type="button" onClick={props.onCancel} className={secondary}>
+            {props.cancel}
+          </button>
+          <button type="button" onClick={props.onConfirm} className={danger}>
+            {props.confirm}
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}
 
 /** Shown while joining a Match, until its first LobbyState lands. */
 export function Joining(props: { matchId?: string }) {
@@ -46,17 +105,18 @@ export function Joining(props: { matchId?: string }) {
   );
 }
 
-function AlertCard(props: {
+export function AlertCard(props: {
   eyebrow: string;
   title: string;
   icon: ReactNode;
   iconBg: string;
   children: ReactNode;
+  role?: "alert" | "status"; // status for news that isn't an error
 }) {
   return (
     <div className="flex flex-1 items-center justify-center p-8">
       <div
-        role="alert"
+        role={props.role ?? "alert"}
         className="flex w-full max-w-140 flex-col gap-6 rounded-xl border border-edge/80 bg-panel/85 p-8 backdrop-blur-sm"
       >
         <div className="flex items-center gap-4">

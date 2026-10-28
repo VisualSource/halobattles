@@ -191,3 +191,66 @@ export const createMatchStore = () =>
     view: null,
     disconnected: false,
   }));
+
+/** A roster after some actions: each hit taken off its target's layers. */
+export function applyActions(roster: Combatant[], actions: BattleAction[]) {
+  const out = new Map(roster.map((c) => [c.id, { ...c }]));
+  for (const a of actions) {
+    const t = out.get(a.target);
+    if (!t) continue;
+    t.shield = Math.max(0, t.shield - a.shieldDmg);
+    t.armor = Math.max(0, t.armor - a.armorDmg);
+    t.hp = Math.max(0, t.hp - a.hpDmg);
+  }
+  return [...out.values()];
+}
+
+/**
+ * One of your Battles as this client saw it, kept after it ends for its
+ * report. The roster holds every combatant, dead ones at 0 HP, so it gives
+ * both how many started and how many are left. Damage counts only the
+ * Rounds this client received.
+ */
+export type BattleReport = {
+  id: number;
+  planet: string;
+  attacker: number;
+  defender: number | null;
+  roundMs: number;
+  roster: Combatant[]; // as it stands now
+  rounds: number; // Rounds played so far
+  damage: { attacker: number; defender: number }; // dealt by each side
+  winner?: number | null; // set when it ends; null is neutral
+  endedAt?: number; // Match Time
+};
+
+export function reportRound(
+  r: BattleReport,
+  round: number,
+  actions: BattleAction[],
+): BattleReport {
+  const side = new Map(r.roster.map((c) => [c.id, c.side]));
+  const damage = { ...r.damage };
+  for (const a of actions) {
+    const s = side.get(a.actor);
+    if (s) damage[s] += a.shieldDmg + a.armorDmg + a.hpDmg;
+  }
+  return {
+    ...r,
+    roster: applyActions(r.roster, actions),
+    rounds: Math.max(r.rounds, round),
+    damage,
+  };
+}
+
+/** A report for a Battle first seen in a View, as after a reconnect. */
+export const reportFromView = (b: Battle): BattleReport => ({
+  id: b.id,
+  planet: b.planet,
+  attacker: b.attacker,
+  defender: b.defender,
+  roundMs: b.roundMs,
+  roster: b.roster,
+  rounds: b.round,
+  damage: { attacker: 0, defender: 0 },
+});

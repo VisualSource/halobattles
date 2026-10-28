@@ -9,7 +9,7 @@
   "sellRefundPercent": 50,
   "unitSlotsPerStack": 15,
   "tiers": { "none": 0, "weak": 0.6, "average": 1.0, "strong": 1.4 },
-  "laneTypes": { "fast": 1.0, "slow": 2.0 },
+  "laneTypes": { "fast": 0.6, "slow": 2.0 },
   "initiativeDie": 20,
   "roundSeconds": 3,
   "roundCap": 40,

@@ -147,45 +147,48 @@ export function Menu(props: {
             </svg>
           </button>
         </div>
-        {props.openMatches.length === 0 ? (
-          <div className="rounded-[10px] border border-edge border-dashed bg-panel/60 px-5 py-4.5 text-center">
-            <p className="font-semibold">No open Matches right now</p>
-            <p className="mt-1 text-ink-3 text-sm">
-              Create one and send the invite to your friends.
-            </p>
-          </div>
-        ) : (
-          <ul className="flex gap-3 overflow-x-auto pb-1">
-            {props.openMatches.map((m) => {
-              const map = props.content.maps.get(m.map);
-              return (
-                <li
-                  key={m.id}
-                  className="flex flex-[0_0_260px] items-center gap-3 rounded-[10px] border border-edge/80 bg-panel/85 p-2"
-                >
-                  <span className="flex size-11 flex-none items-center justify-center rounded-md bg-tile">
-                    {map && <MapGlyph map={map} />}
-                  </span>
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="truncate font-display font-semibold">
-                      {map?.name ?? m.map}
-                    </span>
-                    <span className="text-ink-3 text-sm">
-                      {m.seats} of {m.max} Seats
-                    </span>
-                  </span>
-                  <Link
-                    to="/match/$matchId/lobby"
-                    params={{ matchId: m.id }}
-                    className="inline-flex min-h-10 items-center rounded-md bg-accent px-4 font-semibold text-accent-ink hover:no-underline"
+        {/* One card, the same size either way: the message, or the Matches in it. */}
+        <div className="flex h-24 items-center rounded-[10px] border border-edge border-dashed bg-panel/60 px-3">
+          {props.openMatches.length === 0 ? (
+            <div className="w-full text-center">
+              <p className="font-semibold">No open Matches right now</p>
+              <p className="mt-1 text-ink-3 text-sm">
+                Create one and send the invite to your friends.
+              </p>
+            </div>
+          ) : (
+            <ul className="flex w-full gap-3 overflow-x-auto py-1">
+              {props.openMatches.map((m) => {
+                const map = props.content.maps.get(m.map);
+                return (
+                  <li
+                    key={m.id}
+                    className="flex flex-[0_0_260px] items-center gap-3 rounded-[10px] border border-edge/80 bg-panel/85 p-2"
                   >
-                    Join
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                    <span className="flex size-11 flex-none items-center justify-center rounded-md bg-tile">
+                      {map && <MapGlyph map={map} />}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate font-display font-semibold">
+                        {map?.name ?? m.map}
+                      </span>
+                      <span className="text-ink-3 text-sm">
+                        {m.seats} of {m.max} Seats
+                      </span>
+                    </span>
+                    <Link
+                      to="/match/$matchId/lobby"
+                      params={{ matchId: m.id }}
+                      className="inline-flex min-h-10 items-center rounded-md bg-accent px-4 font-semibold text-accent-ink hover:no-underline"
+                    >
+                      Join
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </section>
     </div>
   );

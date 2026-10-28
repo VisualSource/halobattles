@@ -11,6 +11,7 @@ import { isPending } from "./local";
 import { inMatch } from "./phase";
 import { laneTimes } from "./route";
 import { useMatchContext } from "./screen";
+import { ConfirmDialog } from "./status";
 import { formatAge, useMatchNow } from "./time";
 import { notify } from "./toasts";
 import {
@@ -34,13 +35,10 @@ export function PlayScreen(props: {
   const { matchId } = useMatchContext();
   // Leaving a Match in play is a final Forfeit. A reload only drops the
   // connection, which keeps the Seat for the Grace Period, so it isn't asked.
-  useBlocker({
-    shouldBlockFn: ({ next }) =>
-      !inMatch(next.pathname, matchId) &&
-      !confirm(
-        "Leaving forfeits the Match: you'll be eliminated. Leave anyway?",
-      ),
+  const leaving = useBlocker({
+    shouldBlockFn: ({ next }) => !inMatch(next.pathname, matchId),
     enableBeforeUnload: false,
+    withResolver: true,
   });
   useHideHeader();
   usePlayNotes(conn, content);
@@ -69,10 +67,22 @@ export function PlayScreen(props: {
   if (!map) return <p className="p-8">Loading the galaxy…</p>;
   return (
     <div className="flex h-screen flex-col">
+      <ConfirmDialog
+        open={leaving.status === "blocked"}
+        eyebrow="LEAVE MATCH"
+        title="Leave and Forfeit?"
+        confirm="LEAVE"
+        cancel="Stay"
+        onConfirm={() => leaving.proceed?.()}
+        onCancel={() => leaving.reset?.()}
+      >
+        Leaving a Match in play is final: you'll be eliminated, and your Planets
+        turn neutral.
+      </ConfirmDialog>
       <Hud conn={conn} content={content} />
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div ref={container} className="size-full" />
-        <Players conn={conn} content={content} />
+        <Players conn={conn} />
         <PlanetWindow
           conn={conn}
           content={content}
@@ -206,18 +216,41 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
       <Mode conn={conn} content={content} />
       <Notifications />
       {!view.players[view.you]?.eliminated && (
-        <button
-          type="button"
-          disabled={isPending(local, "surrender")}
-          onClick={() =>
-            confirm("Surrender? You'll be eliminated.") && conn.surrender()
-          }
-          className="min-h-9 rounded-md bg-transparent px-3.5 text-danger"
-        >
-          Surrender
-        </button>
+        <SurrenderButton conn={conn} pending={isPending(local, "surrender")} />
       )}
     </header>
+  );
+}
+
+/** Surrender, after asking: it's a Forfeit. */
+function SurrenderButton(props: { conn: MatchConnection; pending: boolean }) {
+  const [asking, setAsking] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        disabled={props.pending}
+        onClick={() => setAsking(true)}
+        className="min-h-9 rounded-md bg-transparent px-3.5 text-danger"
+      >
+        Surrender
+      </button>
+      <ConfirmDialog
+        open={asking}
+        eyebrow="SURRENDER"
+        title="Surrender this Match?"
+        confirm="SURRENDER"
+        cancel="Keep playing"
+        onConfirm={() => {
+          setAsking(false);
+          props.conn.surrender();
+        }}
+        onCancel={() => setAsking(false)}
+      >
+        Surrendering is a Forfeit: you'll be eliminated, your Planets turn
+        neutral, and your Armies are lost.
+      </ConfirmDialog>
+    </>
   );
 }
 
@@ -366,16 +399,15 @@ function Notifications() {
 }
 
 /**
- * Every player's Planet count and whether they're out, all public. Closed by
+ * Every player, and whether they're offline or out, all public. Closed by
  * default; it opens upward from the map's corner.
  */
-function Players(props: { conn: MatchConnection; content: ContentLookups }) {
-  const { conn, content } = props;
+function Players(props: { conn: MatchConnection }) {
+  const { conn } = props;
   const view = useStore(conn.store, (s) => s.view);
   const now = useMatchNow(conn.local);
   const pop = usePopover();
   if (!view) return null;
-  const total = content.maps.get(view.map)?.planets.length ?? 0;
   return (
     <div ref={pop.ref} className="absolute bottom-4 left-4 z-10">
       <button
@@ -422,9 +454,7 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
                   </span>
                 )}
               </span>
-              <span className="font-mono text-sm">
-                {p.eliminated ? "out" : `${p.planetCount} / ${total}`}
-              </span>
+              {p.eliminated && <span className="font-mono text-sm">out</span>}
             </li>
           ))}
         </ul>
@@ -433,7 +463,7 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
   );
 }
 
-/** Toasts for what happens in play: Paydays, captures, Battles, eliminations. */
+/** Toasts for what happens in play: captures, Battles, eliminations. */
 function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
   useEffect(() => {
     const view = () => conn.store.getState().view;
@@ -451,18 +481,13 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
       onClick: () => conn.local.setState({ selected: id }),
     });
     const detail = <T,>(e: Event) => (e as CustomEvent<T>).detail;
+    /** A Battle you're a side of: it has a report, running or over. */
+    const mine = (battle: number) =>
+      conn.local.getState().reports.has(battle) ||
+      !!view()?.battles.has(battle);
 
+    // No Payday toast: the header shows each Payday's change already.
     const handlers: Record<string, (e: Event) => void> = {
-      payday: (e) =>
-        notify(
-          "payday",
-          [...detail<Map<string, number>>(e)]
-            .map(
-              ([r, n]) =>
-                `${n < 0 ? n : `+${n}`} ${content.resources.get(r)?.name ?? r}`,
-            )
-            .join(" · "),
-        ),
       captured: (e) => {
         const {
           planet: id,
@@ -489,22 +514,33 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
         }>(e);
         notify("battle", `Battle at ${planet(id)}`, {
           label: "Watch",
-          // Only the two sides can watch; others just hear of it.
+          // Live while it runs, its report once it's over. Only the two
+          // sides have either; others just hear of it.
           onClick: () =>
-            view()?.battles.has(battle)
+            mine(battle)
               ? conn.local.setState({ watching: battle })
               : conn.local.setState({ selected: id }),
         });
       },
       battleEnded: (e) => {
-        const { planet: id, winner } = detail<{
+        const {
+          battle,
+          planet: id,
+          winner,
+        } = detail<{
+          battle: number;
           planet: string;
           winner: number | null;
         }>(e);
         notify(
           "battle",
           `Battle at ${planet(id)} is over: ${who(winner)} won`,
-          show(id),
+          mine(battle)
+            ? {
+                label: "Report",
+                onClick: () => conn.local.setState({ watching: battle }),
+              }
+            : show(id),
         );
       },
       eliminated: (e) => {

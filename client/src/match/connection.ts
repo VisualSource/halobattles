@@ -48,6 +48,7 @@ import {
   applyDelta,
   type Battle,
   type BattleAction,
+  type BattleReport,
   type Combatant,
   createMatchStore,
   type ViewDelta as Delta,
@@ -56,6 +57,8 @@ import {
   type PlanetView,
   type PlayerView,
   type QueueItem,
+  reportFromView,
+  reportRound,
   type View,
 } from "./store";
 
@@ -267,6 +270,9 @@ export class MatchConnection {
 
   /** Waits for the server to drop the Seat before disconnecting. */
   async close() {
+    // Leaving on purpose isn't a lost connection: the socket's own close
+    // handler calls ondisconnect even with disconnect(false).
+    this.socket.ondisconnect = () => {};
     if (this.matchId)
       await this.socket.leaveMatch(this.matchId).catch(() => {});
     this.socket.disconnect(false);
@@ -431,6 +437,7 @@ export class MatchConnection {
         this.debug("ViewFull", view);
         this.syncClock(view.matchTime);
         this.store.setState({ view });
+        this.seedReports(view.battles.values());
         this.local.setState((s) => ({
           lastSeen: updateLastSeen(
             s.lastSeen,
@@ -449,6 +456,7 @@ export class MatchConnection {
         const { view } = this.store.getState();
         if (!view) return;
         this.store.setState({ view: applyDelta(view, delta) });
+        this.seedReports(delta.battles);
         this.local.setState((s) => ({
           lastSeen: updateLastSeen(
             s.lastSeen,
@@ -488,6 +496,16 @@ export class MatchConnection {
         const t = BattleStarted.getRootAsBattleStarted(bb).unpack();
         this.debug("BattleStarted", t);
         this.syncClock(Number(t.matchTime));
+        this.setReport(t.battle, () => ({
+          id: t.battle,
+          planet: str(t.planet),
+          attacker: t.attacker,
+          defender: t.defender < 0 ? null : t.defender,
+          roundMs: t.roundMs,
+          roster: t.roster.map(toCombatant),
+          rounds: 0,
+          damage: { attacker: 0, defender: 0 },
+        }));
         this.emit("battleStarted", { battle: t.battle, planet: str(t.planet) });
         return;
       }
@@ -504,6 +522,7 @@ export class MatchConnection {
           hpDmg: a.hpDmg,
           killed: a.killed,
         }));
+        this.setReport(t.battle, (r) => r && reportRound(r, t.round, actions));
         this.emit("battleRound", { battle: t.battle, round: t.round, actions });
         return;
       }
@@ -511,6 +530,11 @@ export class MatchConnection {
         const t = BattleEnded.getRootAsBattleEnded(bb).unpack();
         this.debug("BattleEnded", t);
         this.syncClock(Number(t.matchTime));
+        const winner = t.winner < 0 ? null : t.winner;
+        this.setReport(
+          t.battle,
+          (r) => r && { ...r, winner, endedAt: Number(t.matchTime) },
+        );
         this.emit("battleEnded", {
           battle: t.battle,
           planet: str(t.planet),
@@ -544,6 +568,23 @@ export class MatchConnection {
       default:
         console.warn(`[match] unknown opcode ${op}`);
     }
+  }
+
+  /** Updates one Battle's report; returning undefined leaves it out. */
+  private setReport(
+    id: number,
+    f: (r: BattleReport | undefined) => BattleReport | undefined,
+  ) {
+    this.local.setState((s) => {
+      const next = f(s.reports.get(id));
+      return next ? { reports: new Map(s.reports).set(id, next) } : {};
+    });
+  }
+
+  /** A Battle first seen in a View (a reconnect) starts its report there. */
+  private seedReports(battles: Iterable<Battle>) {
+    for (const b of battles)
+      this.setReport(b.id, (r) => r ?? reportFromView(b));
   }
 
   private emit(type: string, detail: unknown) {

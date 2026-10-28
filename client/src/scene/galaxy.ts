@@ -8,7 +8,7 @@ import type { LocalStore } from "../match/local";
 import { type Lanes, route } from "../match/route";
 import type { Army, createMatchStore, PlanetView } from "../match/store";
 import { formatAge } from "../match/time";
-import { canvasTexture, random, rgb } from "./ring";
+import { canvasTexture, haloRing, random, rgb } from "./ring";
 
 // Player colour comes from Seat order.
 const SEAT_COLOURS = ["#3b82f6", "#ef4444", "#22c55e", "#eab308"];
@@ -127,6 +127,7 @@ type Dragged = { from: string; stack?: number; army?: number };
 type PlanetObject = {
   mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>;
   atmosphere: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
+  tint: THREE.MeshStandardMaterial[]; // dimmed while out of vision
   label: HTMLDivElement; // the Stacks, above the Planet
   name: HTMLDivElement; // its name and status, below
 };
@@ -250,9 +251,9 @@ export class GalaxyScene {
       color: "#e6ebef",
       font: "12px 'IBM Plex Sans', sans-serif",
       whiteSpace: "nowrap",
-      // Beside the pointer, so the pile it's over stays visible, lit.
-      transform: "translate(16px, 12px)",
-      opacity: "0.9",
+      // Centred on the pointer, and see-through, so the lit pile under it shows.
+      transform: "translate(-50%, -50%)",
+      opacity: "0.7",
     });
     container.append(this.ghost);
 
@@ -349,7 +350,8 @@ export class GalaxyScene {
     for (const p of this.map.planets) {
       const pos = positions.get(p.id) as THREE.Vector3;
       box.expandByPoint(pos);
-      const { mesh, atmosphere } = gasGiant(p.id, p.type);
+      const { mesh, atmosphere, tint } =
+        p.model === "ring" ? ringPlanet(p.id) : gasGiant(p.id, p.type);
       mesh.position.copy(pos);
       this.scene.add(mesh);
 
@@ -373,7 +375,7 @@ export class GalaxyScene {
         obj.position.copy(pos).add(new THREE.Vector3(0, 0, PLANET_RADIUS * dz));
         this.scene.add(obj);
       }
-      this.planets.set(p.id, { mesh, atmosphere, label, name });
+      this.planets.set(p.id, { mesh, atmosphere, tint, label, name });
     }
     box.getCenter(this.target);
     this.home.copy(this.target);
@@ -395,7 +397,7 @@ export class GalaxyScene {
       // Ownership shows in the atmosphere; out of vision the clouds dim too.
       obj.atmosphere.material.color.set(last ? UNSEEN : colourOf(seen));
       obj.atmosphere.material.opacity = seen ? 0.45 : 0.12;
-      obj.mesh.material.color.set(seen ? "#ffffff" : "#5a6470");
+      for (const m of obj.tint) m.color.set(seen ? "#ffffff" : "#5a6470");
       const mine = seen?.owner === view?.you && !seen?.locked;
       const parts = labelParts(
         p.name,
@@ -425,17 +427,24 @@ export class GalaxyScene {
     for (const [id, mesh] of this.armies) {
       if (armies.has(id)) continue;
       this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      (mesh.material as THREE.Material).dispose();
+      // The arrow and its glow, if it has one (they share the geometry).
+      mesh.traverse((o) => {
+        if (o instanceof THREE.Mesh) {
+          o.geometry.dispose();
+          (o.material as THREE.Material).dispose();
+        }
+      });
       this.armies.delete(id);
     }
+    const you = this.stores.store.getState().view?.you;
     for (const a of armies.values()) {
       if (this.armies.has(a.id)) continue;
       const mesh = new THREE.Mesh(
-        new THREE.ConeGeometry(6, 14, 12),
+        fatArrow(),
         new THREE.MeshStandardMaterial({ color: seatColour(a.owner) }),
       );
       mesh.userData.army = a.id;
+      if (a.owner === you) mesh.add(...arrowGlow(mesh.geometry, a.id));
       this.armies.set(a.id, mesh);
       this.scene.add(mesh);
     }
@@ -863,10 +872,14 @@ export class GalaxyScene {
       const to = a && this.planets.get(a.to)?.mesh.position;
       if (!a || !to) continue;
       if (a.waiting || !from) {
+        // In orbit, pointing at the Planet it waits at.
         mesh.position.copy(to).add(ORBIT);
+        pointAlong(mesh, mesh.position, to);
         continue;
       }
-      mesh.position.lerpVectors(from, to, progress(a, now)).setY(10);
+      // Centred on its Lane, which is drawn at y 0, so the line runs through it.
+      mesh.position.lerpVectors(from, to, progress(a, now)).setY(0);
+      pointAlong(mesh, from, to);
     }
   }
 
@@ -943,6 +956,73 @@ function isTyping(target: EventTarget | null) {
 }
 
 const ORBIT = new THREE.Vector3(18, 10, -18);
+
+/**
+ * An Army's marker: a fat arrow lying flat on the map, pointing along +x,
+ * centred on its middle. pointAlong turns it to face its way.
+ */
+function fatArrow() {
+  const [length, head, width, shaft] = [20, 9, 14, 6];
+  const shape = new THREE.Shape()
+    .moveTo(length / 2, 0)
+    .lineTo(length / 2 - head, width / 2)
+    .lineTo(length / 2 - head, shaft / 2)
+    .lineTo(-length / 2, shaft / 2)
+    .lineTo(-length / 2, -shaft / 2)
+    .lineTo(length / 2 - head, -shaft / 2)
+    .lineTo(length / 2 - head, -width / 2)
+    .closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: 3,
+    bevelEnabled: true,
+    bevelThickness: 0.6,
+    bevelSize: 0.6,
+    bevelSegments: 1,
+  });
+  // From the shape's XY plane onto the map's XZ plane, thickness up.
+  geometry.rotateX(-Math.PI / 2);
+  geometry.center();
+  return geometry;
+}
+
+/**
+ * A soft glow outline for your own Armies: two larger copies of the arrow
+ * behind it, added on in white so it stands out from the arrow's own colour,
+ * the outer one fainter. Hits on the glow count as the Army, as with a
+ * Planet's atmosphere.
+ */
+function arrowGlow(geometry: THREE.BufferGeometry, army: number) {
+  return [
+    [1.25, 0.35],
+    [1.5, 0.15],
+  ].map(([scale, opacity]) => {
+    const glow = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({
+        color: "#ffffff",
+        transparent: true,
+        opacity,
+        side: THREE.BackSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    glow.scale.set(scale ?? 1, 1, scale ?? 1); // wider and longer, not taller
+    glow.userData.army = army;
+    return glow;
+  });
+}
+
+/** Turns an arrow made by fatArrow to point from one place to another. */
+function pointAlong(
+  mesh: THREE.Object3D,
+  from: THREE.Vector3,
+  to: THREE.Vector3,
+) {
+  const dx = to.x - from.x;
+  const dz = to.z - from.z;
+  if (dx || dz) mesh.rotation.y = Math.atan2(-dz, dx);
+}
 
 export const seatColour = (seat: number) =>
   SEAT_COLOURS[seat % SEAT_COLOURS.length] ?? NEUTRAL;
@@ -1089,6 +1169,14 @@ function gasGiant(id: string, type: string) {
     new THREE.MeshStandardMaterial({ map: bands, roughness: 1 }),
   );
   mesh.rotation.z = 0.2; // a slight axial tilt
+  const atmosphere = glow(id);
+  mesh.userData.planet = id;
+  mesh.add(atmosphere);
+  return { mesh, atmosphere, tint: [mesh.material] };
+}
+
+/** The atmosphere that shows a Planet's owner. */
+function glow(id: string) {
   const atmosphere = new THREE.Mesh(
     new THREE.SphereGeometry(PLANET_RADIUS * 1.35, 32, 20),
     new THREE.MeshBasicMaterial({
@@ -1101,10 +1189,39 @@ function gasGiant(id: string, type: string) {
     }),
   );
   // Hits on the glow count as the Planet: a bigger target to click or drop on.
-  mesh.userData.planet = id;
   atmosphere.userData.planet = id;
-  mesh.add(atmosphere);
-  return { mesh, atmosphere };
+  return atmosphere;
+}
+
+/**
+ * A Planet drawn as a Halo ring, the menu's own, in place of a gas giant.
+ * An unseen sphere stands in for the Planet, so picking, dropping and the
+ * owner's glow work as for any other. The tilt is on that sphere: the map
+ * spins it about its own axis, so the ring turns in its plane, no wobble.
+ */
+function ringPlanet(id: string) {
+  const atmosphere = glow(id);
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(PLANET_RADIUS, 16, 12),
+    new THREE.MeshStandardMaterial({
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    }),
+  );
+  mesh.rotation.set(0.35, 0, 0.2); // leans a little, like the menu's
+  const ring = haloRing(
+    random(hash(id) || 1),
+    PLANET_RADIUS * 1.3,
+    PLANET_RADIUS * 0.35,
+  );
+  const tint: THREE.MeshStandardMaterial[] = [];
+  ring.traverse((o) => {
+    if (o instanceof THREE.Mesh) tint.push(o.material);
+  });
+  mesh.userData.planet = id;
+  mesh.add(ring, atmosphere);
+  return { mesh, atmosphere, tint };
 }
 
 /** Lays a tile's content out 3 × 3, so a layer wrapped within one tile still covers the screen. */
