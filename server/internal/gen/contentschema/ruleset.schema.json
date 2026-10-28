@@ -74,7 +74,7 @@
       "description": "How a Battle runs on its Battlefield.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["startDelay", "timeCap", "captureRadius", "captureSeconds", "holdPoints", "holdSeconds", "highGroundToHit", "heightSight", "structure", "classDefaults"],
+      "required": ["startDelay", "timeCap", "captureRadius", "captureSeconds", "holdPoints", "holdSeconds", "highGroundToHit", "heightSight", "retreatCountdown", "structure", "classDefaults"],
       "properties": {
         "startDelay": { "description": "Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.", "type": "integer", "minimum": 0 },
         "timeCap": { "description": "Seconds of fighting, after startDelay, until the defender wins.", "type": "integer", "minimum": 1 },
@@ -83,6 +83,7 @@
         "holdPoints": { "description": "How many Control Points the attacker must hold to start the hold timer.", "type": "integer", "minimum": 1 },
         "holdSeconds": { "description": "How long the attacker must hold them to win.", "type": "number", "minimum": 0 },
         "highGroundToHit": { "description": "Added to the To-hit roll of a ground attack from a higher height level.", "type": "integer" },
+        "retreatCountdown": { "description": "Seconds from ordering a Retreat until the side turns and heads off the field; it fights on meanwhile, and can call it off.", "type": "number", "minimum": 0 },
         "heightSight": { "description": "Extra Sight, in cells, per height level a ground unit stands on.", "type": "number", "minimum": 0 },
         "structure": {
           "title": "Structure",

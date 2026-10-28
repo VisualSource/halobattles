@@ -546,3 +546,12 @@ func TestLeavingOrSurrenderingInPlayIsAForfeit(t *testing.T) {
 		})
 	}
 }
+
+func TestRetreatingFromNoBattleIsRejected(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	h.loop(cmd(u1, wire.OpBattleRetreat, &wire.BattleRetreatT{Seq: 103, Planet: "y"}))
+	if r := h.rejection(u1, 103); r != "you aren't fighting a Battle there" {
+		t.Errorf("rejection %q", r)
+	}
+}

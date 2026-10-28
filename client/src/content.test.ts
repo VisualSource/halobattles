@@ -34,6 +34,7 @@ const rules = {
     holdSeconds: 30,
     highGroundToHit: 2,
     heightSight: 1,
+    retreatCountdown: 10,
     structure: { unitClass: "base:structure", shield: 0, armor: 20, hp: 30 },
     classDefaults: {},
   },

@@ -119,6 +119,16 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 			s.play.Forfeit(s.seat(user))
 			return nil
 		}
+	case wire.OpBattleRetreat:
+		c := wire.GetRootAsBattleRetreat(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.RetreatFromBattle(s.seat(user), string(c.Planet()), false)
+		}
+	case wire.OpBattleCancelRetreat:
+		c := wire.GetRootAsBattleCancelRetreat(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.RetreatFromBattle(s.seat(user), string(c.Planet()), true)
+		}
 	case wire.OpSetRallyStack:
 		c := wire.GetRootAsSetRallyStack(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {

@@ -134,6 +134,8 @@ export type Battle = {
   squads: Squad[]; // your own, and enemies in Sight
   points: ControlPoint[];
   hold: number; // sim ticks the attacker has held enough points
+  retreatAt: number; // the tick your side's Retreat countdown ends; 0 is none
+  retreating: Record<Side, boolean>; // public: you see a side turn and run
 };
 
 /** The public part of every player. */

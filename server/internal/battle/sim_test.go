@@ -379,3 +379,83 @@ func TestEveryAttackerGetsMoving(t *testing.T) {
 		}
 	}
 }
+
+func TestRetreatWaitsOutItsCountdownAndCanBeCalledOff(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	s := newSim(c, unsc, cov, 3)
+	countdown := ticks(s.rules.RetreatCountdown)
+
+	s.Command(Attacker, Order{Kind: Retreat})
+	if s.RetreatAt[Attacker] != countdown || len(s.Log) != 1 {
+		t.Fatalf("RetreatAt %d, log %v; want the countdown to end at tick %d, logged", s.RetreatAt[Attacker], s.Log, countdown)
+	}
+	s.Step()
+	s.Command(Attacker, Order{Kind: CancelRetreat})
+	if s.RetreatAt[Attacker] != 0 {
+		t.Fatal("a Retreat in its countdown should be called off")
+	}
+
+	s.Command(Attacker, Order{Kind: Retreat})
+	for s.Tick < s.RetreatAt[Attacker] { // it starts in the step for that tick
+		s.Step()
+	}
+	if s.Retreating[Attacker] {
+		t.Fatal("Retreating before the countdown ran out")
+	}
+	s.Step()
+	if !s.Retreating[Attacker] {
+		t.Fatal("not Retreating once the countdown ran out")
+	}
+	s.Command(Attacker, Order{Kind: CancelRetreat})
+	if s.RetreatAt[Attacker] == 0 {
+		t.Error("a Retreat under way can't be called off")
+	}
+}
+
+func TestARetreatingAttackerLeavesTheFieldAndLoses(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	s := newSim(c, unsc, cov, 3)
+	s.Command(Attacker, Order{Kind: Retreat})
+	for !s.Over {
+		for _, v := range s.Step() {
+			if s.Retreating[Attacker] && s.squad(v.Actor).Side == Attacker {
+				t.Fatalf("tick %d: a Retreating squad fired", s.Tick)
+			}
+		}
+	}
+	if s.Winner != Defender || s.Reason != Retreated {
+		t.Errorf("winner %v by %q, want the defender by retreat", s.Winner, s.Reason)
+	}
+	for _, sq := range s.Squads {
+		if sq.Side == Attacker && len(sq.Members) > 0 && !sq.Escaped {
+			t.Errorf("attacker squad %d alive but still on the field", sq.ID)
+		}
+		if sq.Escaped && s.depth(s.Edge, sq.Cell) >= s.deployDepth {
+			t.Errorf("squad %d escaped from %v, outside its exit strip", sq.ID, sq.Cell)
+		}
+	}
+	if !slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Escaped }) {
+		t.Error("nobody escaped")
+	}
+}
+
+func TestARetreatingDefenderLeavesItsBuildingsBehind(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	s := newSim(c, unsc, cov, 3)
+	s.Controllers = [2]Controller{} // the attacker sits still
+	s.Command(Defender, Order{Kind: Retreat})
+	for !s.Over {
+		s.Step()
+	}
+	if s.Winner != Attacker || s.Reason != Retreated {
+		t.Errorf("winner %v by %q, want the attacker as the defender left", s.Winner, s.Reason)
+	}
+	for _, sq := range s.Squads {
+		if sq.Building && (sq.Escaped || !sq.alive()) {
+			t.Errorf("building %s escaped or died; it should stay", sq.Unit)
+		}
+	}
+}

@@ -12,6 +12,10 @@ const (
 	Move   OrderKind = iota // go to Cell
 	Attack                  // fire at Target whenever it can
 	Hold                    // stop, and fire at whatever's in range
+	// Retreat starts the side's Retreat countdown; Squad is ignored. When it
+	// runs out, every squad that can move heads off the field.
+	Retreat
+	CancelRetreat // calls the countdown off, until it runs out
 )
 
 // Order is one instruction to one of a side's squads.

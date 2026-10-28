@@ -190,6 +190,10 @@ export interface BattleRules {
    */
   highGroundToHit: number;
   /**
+   * Seconds from ordering a Retreat until the side turns and heads off the field; it fights on meanwhile, and can call it off.
+   */
+  retreatCountdown: number;
+  /**
    * Extra Sight, in cells, per height level a ground unit stands on.
    */
   heightSight: number;

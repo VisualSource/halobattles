@@ -4,8 +4,10 @@ import {
   AmountT,
   ArmyUnitsT,
   type ArmyViewT,
+  BattleCancelRetreatT,
   BattleEnded,
   type BattlefieldT,
+  BattleRetreatT,
   BattleStarted,
   BattleTick,
   type BattleViewT,
@@ -198,6 +200,11 @@ const toBattle = (
     progress: p.progress,
   })),
   hold: b.hold,
+  retreatAt: b.retreatAt,
+  retreating: {
+    attacker: b.attackerRetreating,
+    defender: b.defenderRetreating,
+  },
 });
 
 const toQueueItem = (q: QueueItemT): QueueItem => ({
@@ -414,6 +421,18 @@ export class MatchConnection {
   /** A Forfeit: it eliminates you. */
   surrender() {
     this.send(Op.Surrender, "surrender", (seq) => new SurrenderT(seq));
+  }
+
+  /** Starts your side's Retreat countdown in the Battle on planet, or calls it off. */
+  retreat(planet: string, cancel = false) {
+    this.send(
+      cancel ? Op.BattleCancelRetreat : Op.BattleRetreat,
+      "retreat",
+      (seq) =>
+        cancel
+          ? new BattleCancelRetreatT(seq, planet)
+          : new BattleRetreatT(seq, planet),
+    );
   }
 
   setRallyStack(planet: string, stack: number) {

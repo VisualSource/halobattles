@@ -97,7 +97,7 @@ How a Battle plays out (the Battlefield, Squads, movement, fog of war, Control P
 
 The win conditions (Control Points, elimination, the time cap and Retreat) are in [Winning](tactical-battle-spec.md#winning). Then:
 
-- **Attacker wins:** the Planet is captured (see [Ownership](#ownership-elimination-and-winning)).
+- **Attacker wins:** the Planet is captured (see [Ownership](#ownership-elimination-and-winning)). The defender's surviving units Retreat, unless they're a neutral garrison, which loses them.
 - **Defender wins:** the surviving attackers Retreat.
 - **Mutual wipe-out:** the defender keeps the Planet. A neutral Planet stays neutral with an empty garrison.
 - Either side can order a Retreat mid-Battle; a neutral garrison can't ([Retreat in Battle](tactical-battle-spec.md#retreat-in-battle)).

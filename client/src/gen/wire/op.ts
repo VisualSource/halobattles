@@ -18,6 +18,8 @@ export enum Op {
   OrderArmy = 12,
   ReorderArmy = 13,
   Surrender = 14,
+  BattleRetreat = 15,
+  BattleCancelRetreat = 16,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,

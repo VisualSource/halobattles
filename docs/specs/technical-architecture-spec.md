@@ -226,7 +226,7 @@ Every command carries a client-assigned `seq`.
 Messages and commands are listed in the tactical spec's [On the wire](tactical-battle-spec.md#on-the-wire). Decision: [ADR 0004](../adr/0004-real-time-battle-sim.md).
 
 - **Sim loop:** each running Battle steps once per match tick inside `MatchLoop`, after commands are applied and before Views are computed. The sim is its own Go package with no Nakama imports. It takes orders and returns events, and it owns all Battle state.
-- **Controllers:** each step, a side's Controller is given that side's filtered Battle view and returns orders. The AI Controller and player orders (`BattleRetreat`, `BattleCancelRetreat`) take the same path.
+- **Controllers:** each step, a side's Controller is given that side's filtered Battle view and returns orders. Player orders (`BattleRetreat`, `BattleCancelRetreat`) are the same `battle.Order` values the AI returns. They go in through `Sim.Command`, which applies them between ticks, after the AI's, and adds them to the input log.
 - **Per-side filter:** the sim's `Snapshot(side)` and `VolleysFor(side)` are the only places Battle fog is enforced, just as `view(state, player)` is for galaxy Vision. The snapshot rides in each side's View as its `BattleView`, diffed like any other entity, so hidden enemies never leave the server.
 - **Determinism:** each Battle's RNG is seeded from the Match seed plus the Battle id, and its Battlefield from the Match seed plus the Planet id. A Battle is a pure function of (Battlefield, forces, seed, player orders by tick), and the server keeps that input log until the Match ends.
 - **Budget:** ≤ 2 ms per Battle step, enforced by a Go benchmark. If it's exceeded, Battles step in parallel goroutines joined before the tick returns.

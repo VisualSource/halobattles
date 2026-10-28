@@ -7,17 +7,20 @@ import (
 )
 
 type BattleViewT struct {
-	Id       uint32           `json:"id"`
-	Planet   string           `json:"planet"`
-	Attacker int8             `json:"attacker"`
-	Defender int8             `json:"defender"`
-	Started  int64            `json:"started"`
-	Tick     uint32           `json:"tick"`
-	Edge     byte             `json:"edge"`
-	Field    *BattlefieldT    `json:"field"`
-	Squads   []*BattleSquadT  `json:"squads"`
-	Points   []*ControlPointT `json:"points"`
-	Hold     uint32           `json:"hold"`
+	Id                 uint32           `json:"id"`
+	Planet             string           `json:"planet"`
+	Attacker           int8             `json:"attacker"`
+	Defender           int8             `json:"defender"`
+	Started            int64            `json:"started"`
+	Tick               uint32           `json:"tick"`
+	Edge               byte             `json:"edge"`
+	Field              *BattlefieldT    `json:"field"`
+	Squads             []*BattleSquadT  `json:"squads"`
+	Points             []*ControlPointT `json:"points"`
+	Hold               uint32           `json:"hold"`
+	RetreatAt          uint32           `json:"retreat_at"`
+	AttackerRetreating bool             `json:"attacker_retreating"`
+	DefenderRetreating bool             `json:"defender_retreating"`
 }
 
 func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -67,6 +70,9 @@ func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleViewAddSquads(builder, squadsOffset)
 	BattleViewAddPoints(builder, pointsOffset)
 	BattleViewAddHold(builder, t.Hold)
+	BattleViewAddRetreatAt(builder, t.RetreatAt)
+	BattleViewAddAttackerRetreating(builder, t.AttackerRetreating)
+	BattleViewAddDefenderRetreating(builder, t.DefenderRetreating)
 	return BattleViewEnd(builder)
 }
 
@@ -94,6 +100,9 @@ func (rcv *BattleView) UnPackTo(t *BattleViewT) {
 		t.Points[j] = x.UnPack()
 	}
 	t.Hold = rcv.Hold()
+	t.RetreatAt = rcv.RetreatAt()
+	t.AttackerRetreating = rcv.AttackerRetreating()
+	t.DefenderRetreating = rcv.DefenderRetreating()
 }
 
 func (rcv *BattleView) UnPack() *BattleViewT {
@@ -331,8 +340,44 @@ func (rcv *BattleView) MutateHold(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(24, n)
 }
 
+func (rcv *BattleView) RetreatAt() uint32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleView) MutateRetreatAt(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(26, n)
+}
+
+func (rcv *BattleView) AttackerRetreating() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleView) MutateAttackerRetreating(n bool) bool {
+	return rcv._tab.MutateBoolSlot(28, n)
+}
+
+func (rcv *BattleView) DefenderRetreating() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleView) MutateDefenderRetreating(n bool) bool {
+	return rcv._tab.MutateBoolSlot(30, n)
+}
+
 func BattleViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(14)
 }
 func BattleViewAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -372,6 +417,15 @@ func BattleViewStartPointsVector(builder *flatbuffers.Builder, numElems int) fla
 }
 func BattleViewAddHold(builder *flatbuffers.Builder, hold uint32) {
 	builder.PrependUint32Slot(10, hold, 0)
+}
+func BattleViewAddRetreatAt(builder *flatbuffers.Builder, retreatAt uint32) {
+	builder.PrependUint32Slot(11, retreatAt, 0)
+}
+func BattleViewAddAttackerRetreating(builder *flatbuffers.Builder, attackerRetreating bool) {
+	builder.PrependBoolSlot(12, attackerRetreating, false)
+}
+func BattleViewAddDefenderRetreating(builder *flatbuffers.Builder, defenderRetreating bool) {
+	builder.PrependBoolSlot(13, defenderRetreating, false)
 }
 func BattleViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

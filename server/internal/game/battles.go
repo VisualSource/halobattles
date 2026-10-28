@@ -2,6 +2,7 @@ package game
 
 import (
 	"cmp"
+	"errors"
 	"hash/fnv"
 	"maps"
 	"slices"
@@ -118,13 +119,17 @@ func (s *State) fightBattles(c *cs.Content, now int64, ev *Events) {
 	}
 }
 
-// endBattle puts the survivors back, back to full Shield, Armor and HP:
-// only unit counts carry over. Buildings that died are destroyed, whoever
-// won. A winning attacker captures the Planet and moves in; a beaten one
-// Retreats.
+// endBattle settles a Battle; only unit counts carry over, back to full
+// Shield, Armor and HP. Buildings that died are destroyed, whoever won. A
+// winning attacker captures the Planet and moves in; a beaten one Retreats,
+// with any squads that escaped the field. A beaten defender's survivors
+// Retreat too, on the field or escaped, unless it's a neutral garrison, which
+// has nowhere to go; a holding defender's go back to their slots.
 func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	p := s.Planets[b.Planet]
-	var attackers Stack
+	// Eliminated mid-Battle: their Armies are gone, and the Planet holds.
+	attackerWins := b.Sim.Winner == battle.Attacker && !s.Players[b.Attacker].Eliminated
+	var attackers, defenders Stack
 	var stacks [StacksPerPlanet]Stack
 	for _, sq := range b.Sim.Squads {
 		n := len(sq.Members)
@@ -133,10 +138,11 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 			if n == 0 {
 				p.Buildings[sq.Slot] = ""
 			}
+		case n == 0:
 		case sq.Side == battle.Attacker:
-			if n > 0 {
-				attackers = attackers.add(sq.Unit, n, 0)
-			}
+			attackers = attackers.add(sq.Unit, n, 0)
+		case attackerWins:
+			defenders = defenders.add(sq.Unit, n, 0)
 		default:
 			for range n {
 				stacks[sq.Formation] = stacks[sq.Formation].addToCell(sq.Unit, sq.Slot) // back to its own slot
@@ -147,11 +153,8 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	delete(s.Battles, b.ID)
 
 	winner := b.Defender
-	if b.Sim.Winner == battle.Attacker {
+	if attackerWins {
 		winner = b.Attacker
-	}
-	if s.Players[b.Attacker].Eliminated {
-		attackers = nil // eliminated mid-Battle: their Armies are gone
 	}
 	viewers := []int{}
 	for seat := range s.Players {
@@ -160,23 +163,62 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 		}
 	}
 	ev.Ended = append(ev.Ended, BattleEnded{Battle: b.ID, Planet: p.ID, Winner: winner, Viewers: viewers})
-	if len(attackers) == 0 {
-		return // a winning attacker always has survivors, unless eliminated mid-Battle
-	}
 
-	s.LastID++
-	a := &Army{ID: s.LastID, Owner: b.Attacker, Units: attackers, From: p.ID, To: p.ID, ToStack: b.ToStack}
-	if winner == b.Attacker {
-		s.capture(p, b.Attacker, ev)
-		a.Waiting = true
-		s.Armies[a.ID] = a
-		s.land(c, a, p) // with overflow; what doesn't fit waits in orbit
-		return
+	if len(attackers) > 0 && !s.Players[b.Attacker].Eliminated {
+		s.LastID++
+		a := &Army{ID: s.LastID, Owner: b.Attacker, Units: attackers, From: p.ID, To: p.ID, ToStack: b.ToStack}
+		if attackerWins {
+			s.capture(p, b.Attacker, ev)
+			a.Waiting = true
+			s.Armies[a.ID] = a
+			s.land(c, a, p) // with overflow; what doesn't fit waits in orbit
+		} else {
+			a.Retreating = true
+			if s.retreat(a, s.Time) {
+				s.Armies[a.ID] = a
+			}
+		}
 	}
-	a.Retreating = true
-	if s.retreat(a, s.Time) {
-		s.Armies[a.ID] = a
+	// After the capture: losing a Capital can eliminate the defender.
+	if len(defenders) > 0 && b.Defender != Neutral && !s.Players[b.Defender].Eliminated {
+		s.LastID++
+		d := &Army{ID: s.LastID, Owner: b.Defender, Units: defenders, From: p.ID, To: p.ID, Retreating: true}
+		if s.retreat(d, s.Time) {
+			s.Armies[d.ID] = d
+		}
 	}
+}
+
+// RetreatFromBattle orders seat's side of the Battle on planet to Retreat,
+// or with cancel calls off a Retreat still counting down. A defender needs
+// another Planet to Retreat to.
+func (s *State) RetreatFromBattle(seat int, planet string, cancel bool) error {
+	var b *Battle
+	for _, bt := range s.Battles {
+		if bt.Planet == planet && (bt.Attacker == seat || bt.Defender == seat) {
+			b = bt
+		}
+	}
+	if b == nil {
+		return errors.New("you aren't fighting a Battle there")
+	}
+	side := battle.Attacker
+	if seat != b.Attacker {
+		side = battle.Defender
+	}
+	switch {
+	case cancel && (b.Sim.Retreating[side] || b.Sim.RetreatAt[side] == 0):
+		return errors.New("there's no Retreat to call off")
+	case cancel:
+		b.Sim.Command(side, battle.Order{Kind: battle.CancelRetreat})
+		return nil
+	case b.Sim.RetreatAt[side] != 0:
+		return errors.New("you're already Retreating")
+	case side == battle.Defender && s.retreatRoute(planet, seat) == nil:
+		return errors.New("you have no other Planet to Retreat to")
+	}
+	b.Sim.Command(side, battle.Order{Kind: battle.Retreat})
+	return nil
 }
 
 // retreat sends an Army from where it is now to its owner's nearest Planet,

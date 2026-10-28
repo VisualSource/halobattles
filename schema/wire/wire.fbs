@@ -21,6 +21,8 @@ enum Op : int {
   OrderArmy = 12,
   ReorderArmy = 13,
   Surrender = 14,
+  BattleRetreat = 15,
+  BattleCancelRetreat = 16,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -134,6 +136,18 @@ table ReorderArmy {       // owner only; finishes its current Lane hop first
 
 table Surrender {         // any Seat, in play: a Forfeit
   seq: uint32;
+}
+
+// A side of the Battle on planet starts its Retreat countdown. A defender
+// needs another Planet to Retreat to.
+table BattleRetreat {
+  seq: uint32;
+  planet: string;
+}
+
+table BattleCancelRetreat { // only while the countdown runs
+  seq: uint32;
+  planet: string;
 }
 
 // Server messages.
@@ -269,6 +283,9 @@ table BattleView {
   squads: [BattleSquad];
   points: [ControlPoint];
   hold: uint32;            // sim ticks the attacker has held enough points
+  retreat_at: uint32;      // the tick your side's Retreat countdown ends; 0 is none
+  attacker_retreating: bool; // public: you see a side turn and run
+  defender_retreating: bool;
 }
 
 // One squad's fire in one sim tick: every living member's shot at one

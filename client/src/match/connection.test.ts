@@ -520,6 +520,9 @@ describe("MatchConnection", () => {
       ],
       [new ControlPointT(2, 1, 1, 0, 3)],
       0,
+      60,
+      false,
+      true,
     );
 
     send(
@@ -582,6 +585,8 @@ describe("MatchConnection", () => {
         { x: 2, y: 1, owner: "defender", taker: "attacker", progress: 3 },
       ],
       hold: 0,
+      retreatAt: 60,
+      retreating: { attacker: false, defender: true },
     });
     expect(ticks).toEqual([
       {

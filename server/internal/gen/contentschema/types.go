@@ -50,6 +50,10 @@ type BattleRules struct {
 	// How long the attacker must hold them to win.
 	HoldSeconds float64 `json:"holdSeconds"`
 
+	// Seconds from ordering a Retreat until the side turns and heads off the field;
+	// it fights on meanwhile, and can call it off.
+	RetreatCountdown float64 `json:"retreatCountdown"`
+
 	// Seconds from an Army's arrival to the first sim tick: both sides are deployed
 	// and the Planet Locked, so players can open the Battle.
 	StartDelay int `json:"startDelay"`

@@ -157,8 +157,9 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
   - the **time cap, 3 min** of fighting, counted after the start delay;
   - **elimination**: the attacker has no Squads left;
   - the attacker **Retreating** ([Retreat](#retreat-in-battle)).
+- The attacker also wins when the defender Retreats.
 - **Mutual wipe-out**, or both sides finishing a Retreat on the same tick: the defender keeps the Planet, as before.
-- An attacker win captures the Planet; a defender win sends the attacker into Retreat. All of this follows the game-design spec's [Ending](game-design-spec.md#ending) rules.
+- An attacker win captures the Planet; a defender win sends the attacker into Retreat. A beaten defender's surviving units, whether escaped or still on the field, Retreat too, unless they're a neutral garrison, which loses them. All of this follows the game-design spec's [Ending](game-design-spec.md#ending) rules.
 
 ### Buildings
 
@@ -168,17 +169,20 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 ## Retreat in Battle
 
-- **Either side** can Retreat. A **neutral** garrison never does. The button is disabled for a defender with no other Planet to retreat to.
-- Pressing **Retreat** starts a **10 s countdown**, during which the side keeps fighting normally. Pressing it again cancels the countdown.
-- When the countdown ends, every Squad on that side gets a `retreat` order. It moves toward its **exit** and doesn't fire, while enemies keep firing at it.
-  - The attacker's exit is its deployment edge.
-  - The defender's exit is the nearest map edge.
-- A Squad that reaches its exit cell **leaves the Battle**. When every one of the side's Squads has left or died, the Battle ends and **the other side wins**.
+- **Either side** can Retreat. A **neutral** garrison never does. A defender with no other Planet to Retreat to can't, and its button is disabled.
+- Pressing **Retreat** starts a countdown of `battle.retreatCountdown` (10 s) of fighting. Ordered during the start delay, it counts from the first tick. The side keeps fighting meanwhile, and pressing again calls it off.
+- When the countdown ends, every squad on that side that can move turns for its **exit**:
+  - the attacker's exit is its own edge;
+  - each defending squad's exit is the map edge nearest to it.
+
+  A Retreating squad holds fire, doesn't count for Control Points, and takes no more orders. Enemies keep firing at it.
+- A squad that reaches its exit's deployment strip (`deployDepth` cells in from the edge) **leaves the field**. When every squad of the side that could move has left or died, the Battle ends and **the other side wins**. Both sides finishing on the same tick goes to the defender.
 - Units that escape return to full layers and become a Retreating Army under the game-design spec's [Retreat](game-design-spec.md#retreat) rules.
   - **Attacker Retreats:** the defender keeps the Planet.
   - **Defender Retreats:** the attacker captures the Planet. Its buildings left standing are destroyed as on capture, and the escaped units Retreat to the defender's nearest friendly Planet.
-- Armed buildings can't Retreat.
+- Buildings can't Retreat; they stay behind.
 - In v1 the AI never Retreats on its own.
+- The order is logged with its tick in the Battle's input log.
 
 ## Controllers
 
@@ -313,7 +317,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battle.heightSight` | +1 per level |
 | `battle.structure` | Unit Class Structure, 0/20/30 |
 | `battle.classDefaults` | see [Stats](#stats) |
-| `retreatCountdown` | 10 s |
+| `battle.retreatCountdown` | 10 s |
 
 ## Content additions
 

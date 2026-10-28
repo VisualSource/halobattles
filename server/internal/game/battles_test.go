@@ -267,3 +267,83 @@ func TestOnlyTheTwoSidesSeeTheBattle(t *testing.T) {
 		t.Errorf("tick %d after 1 s, want 5", got)
 	}
 }
+
+func TestAnAttackerCanRetreatAndItsSurvivorsHeadHome(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	_ = s.OrderArmy(0, "a", marines(10), "b", 1)
+	s.Advance(c, 30_000)
+
+	if err := s.RetreatFromBattle(1, "b", false); err == nil {
+		t.Error("Seat 1 Retreated from a Battle it isn't in")
+	}
+	if err := s.RetreatFromBattle(0, "b", true); err == nil {
+		t.Error("called off a Retreat that wasn't ordered")
+	}
+	if err := s.RetreatFromBattle(0, "b", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RetreatFromBattle(0, "b", false); err == nil || !strings.Contains(err.Error(), "already") {
+		t.Errorf("a second Retreat: err = %v", err)
+	}
+
+	ev := fight(t, s, c)
+
+	if ev.Ended[0].Winner != Neutral || s.Planets["b"].Owner != Neutral {
+		t.Fatalf("ended %+v, want the garrison to hold", ev.Ended)
+	}
+	r := onlyArmy(t, s)
+	if !r.Retreating || r.To != "a" || r.Units[0].Unit != "base:marine" {
+		t.Errorf("survivors %+v, want the Marines Retreating to a", r)
+	}
+}
+
+func TestADefenderNeedsAPlanetToRetreatTo(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Planets["b"].Owner = 0
+	s.LastID++
+	army := &Army{ID: s.LastID, Owner: 1, Units: Stack{{Unit: "base:marine", Count: 1}}, To: "b"}
+	s.Armies = map[uint32]*Army{army.ID: army}
+	var ev Events
+	s.startBattle(c, army, s.Planets["b"], &ev)
+
+	s.Planets["a"].Owner = 1 // Seat 0's only other Planet falls
+	if err := s.RetreatFromBattle(0, "b", false); err == nil || !strings.Contains(err.Error(), "no other Planet") {
+		t.Errorf("Retreat with nowhere to go: err = %v", err)
+	}
+	s.Planets["a"].Owner = 0
+	if err := s.RetreatFromBattle(0, "b", false); err != nil {
+		t.Errorf("Retreat to a: %v", err)
+	}
+}
+
+// Regression: an attacker that won on Control Points captured the Planet
+// with the defender's survivors still in its Stacks, so it got them too.
+func TestABeatenDefendersSurvivorsRetreatInsteadOfChangingSides(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	b := s.Planets["b"]
+	b.Owner, b.Stacks = 0, [StacksPerPlanet]Stack{{{Unit: "base:marine", Count: 4}}}
+	s.LastID++
+	army := &Army{ID: s.LastID, Owner: 1, Units: Stack{{Unit: "base:grunt", Count: 2}}, To: "b"}
+	s.Armies = map[uint32]*Army{army.ID: army}
+	var ev Events
+	s.startBattle(c, army, b, &ev)
+	bt := onlyBattle(t, s)
+	bt.Sim.Over, bt.Sim.Winner = true, battle.Attacker // as if it held the points
+
+	s.endBattle(c, bt, &ev)
+
+	if b.Owner != 1 || slices.ContainsFunc(b.Stacks[:], func(st Stack) bool {
+		return slices.ContainsFunc(st, func(u UnitSlot) bool { return u.Unit == "base:marine" })
+	}) {
+		t.Errorf("b = %+v; want Seat 1's, with no Marines", b)
+	}
+	var fled *Army
+	for _, a := range s.Armies {
+		if a.Owner == 0 {
+			fled = a
+		}
+	}
+	if fled == nil || !fled.Retreating || fled.To != "a" || fled.Units[0] != (UnitSlot{Unit: "base:marine", Count: 4}) {
+		t.Errorf("Seat 0's survivors = %+v, want 4 Marines Retreating to a", fled)
+	}
+}

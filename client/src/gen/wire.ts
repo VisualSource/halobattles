@@ -5,7 +5,9 @@
 export { Amount, AmountT } from './wire/amount.js';
 export { ArmyUnits, ArmyUnitsT } from './wire/army-units.js';
 export { ArmyView, ArmyViewT } from './wire/army-view.js';
+export { BattleCancelRetreat, BattleCancelRetreatT } from './wire/battle-cancel-retreat.js';
 export { BattleEnded, BattleEndedT } from './wire/battle-ended.js';
+export { BattleRetreat, BattleRetreatT } from './wire/battle-retreat.js';
 export { BattleSquad, BattleSquadT } from './wire/battle-squad.js';
 export { BattleStarted, BattleStartedT } from './wire/battle-started.js';
 export { BattleTick, BattleTickT } from './wire/battle-tick.js';

@@ -61,6 +61,9 @@ export function BattlePanel(props: {
   );
   const view = useStore(conn.store, (s) => s.view);
   const now = useMatchNow(conn.local);
+  const retreatSent = useStore(conn.local, (s) =>
+    [...s.pending.values()].includes("retreat"),
+  );
   const [fire, setFire] = useState<Volley[]>([]);
   const [full, setFull] = useState(false);
 
@@ -197,6 +200,9 @@ export function BattlePanel(props: {
               <h3 className="font-semibold">
                 {side === "attacker" ? "Attackers" : "Defenders"}
               </h3>
+              {battle.retreating[side] && (
+                <Tag className="bg-danger-wash text-danger">Retreating</Tag>
+              )}
               <span className="truncate text-ink-3 text-sm">
                 {sideName(view, seat)}
                 {faction &&
@@ -242,6 +248,43 @@ export function BattlePanel(props: {
       )}
     </div>
   );
+  const mine: Side = battle.attacker === view?.you ? "attacker" : "defender";
+  const running = battle.retreating[mine];
+  const counting = battle.retreatAt > 0 && !running;
+  const countdown = Math.max(
+    1,
+    Math.ceil((battle.retreatAt - battle.tick) / BATTLE_TICKS),
+  );
+  const nowhere =
+    mine === "defender" &&
+    ![...(view?.planets.values() ?? [])].some(
+      (p) => p.owner === view?.you && p.id !== battle.planet,
+    );
+  const retreat = (
+    <div className="flex flex-none items-center gap-3 border-line border-t px-4 py-3">
+      <button
+        type="button"
+        disabled={retreatSent || running || (nowhere && !counting)}
+        onClick={() => conn.retreat(battle.planet, counting)}
+        className="min-h-11 w-52 flex-none rounded-md border-edge bg-raised px-4 text-sm disabled:opacity-50"
+      >
+        {running
+          ? "Retreating…"
+          : counting
+            ? `Call off Retreat · ${countdown} s`
+            : "Retreat"}
+      </button>
+      <p className="text-ink-3 text-sm">
+        {running
+          ? "Your squads are heading off the field, holding fire. Whatever gets away Retreats to your nearest Planet."
+          : counting
+            ? "Your side fights on until the countdown ends, then turns and runs."
+            : nowhere
+              ? "You have no other Planet to Retreat to."
+              : `${planetName(battle.planet)} is Locked: its queues are paused and its Stacks are frozen until the Battle ends.`}
+      </p>
+    </div>
+  );
   const map = (
     <BattlefieldView
       conn={conn}
@@ -274,10 +317,12 @@ export function BattlePanel(props: {
         {timeBar}
         <div className="flex min-h-0 flex-1">
           {map}
-          <aside className="flex w-105 flex-none flex-col overflow-y-auto border-line border-l bg-panel pb-4">
+          <aside className="flex w-105 flex-none flex-col overflow-y-auto border-line border-l bg-panel">
             {points}
             {sides}
             {latest}
+            <span className="flex-1" />
+            {retreat}
           </aside>
         </div>
       </section>
@@ -300,10 +345,8 @@ export function BattlePanel(props: {
       {map}
       {sides}
       {latest}
-      <p className="px-4 py-3 text-ink-3 text-sm">
-        {planetName(battle.planet)} is Locked: its queues are paused and its
-        Stacks are frozen until the Battle ends.
-      </p>
+      <div className="h-3" />
+      {retreat}
     </Floating>
   );
 }

@@ -49,6 +49,7 @@ type Squad struct {
 	Cell            Cell
 	Members         []Layers // the living members; Members[0] takes the hits
 	Start           int      // members at the start
+	Escaped         bool     // it Retreated off the field, keeping its Members
 
 	class                  string
 	air                    bool
@@ -64,9 +65,13 @@ type Squad struct {
 	goal                   Cell
 	target                 int // an ordered target's id, or 0
 	blocked                int // ticks spent waiting for a cell
+	retreating             bool
+	exit                   int // the edge it Retreats off: 0 top, 1 right, 2 bottom, 3 left
 }
 
-func (sq *Squad) alive() bool { return len(sq.Members) > 0 }
+// alive is whether it's still on the field: it has members and hasn't
+// Retreated off it.
+func (sq *Squad) alive() bool { return len(sq.Members) > 0 && !sq.Escaped }
 
 // Point is a Control Point. Taker has been in range alone for Progress ticks.
 type Point struct {
@@ -81,7 +86,16 @@ const (
 	Eliminated = "elimination"
 	HeldPoints = "points"
 	TimeUp     = "time"
+	Retreated  = "retreat"
 )
+
+// Logged is a player's order and the tick it came in before, so a Battle can
+// be re-simulated from its inputs.
+type Logged struct {
+	Tick  int
+	Side  Side
+	Order Order
+}
 
 // Sim is a running Battle. It's a pure function of its inputs: the same
 // content, Field, forces, seed and orders give the same Battle.
@@ -95,6 +109,11 @@ type Sim struct {
 	Over   bool
 	Winner Side
 	Reason string
+	// RetreatAt is the tick each side's Retreat countdown ends, or 0; once it
+	// has, the side is Retreating and can't call it off.
+	RetreatAt  [2]int
+	Retreating [2]bool
+	Log        []Logged // every player order, in order
 
 	Controllers [2]Controller
 
@@ -102,6 +121,7 @@ type Sim struct {
 	rules       cs.BattleRules
 	toHit       int
 	pathClass   string
+	deployDepth int
 	rng         *rand.Rand
 	ground, air []int // the squad id in each cell, or 0
 	visible     [2]map[int]bool
@@ -133,7 +153,7 @@ func (s *Sim) layer(sq *Squad) []int {
 // starts Over.
 func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed uint64) *Sim {
 	s := &Sim{
-		Field: f, content: c, rules: rules.Battle, toHit: rules.ToHit, pathClass: string(rules.Battlefield.PathClass),
+		Field: f, content: c, rules: rules.Battle, toHit: rules.ToHit, pathClass: string(rules.Battlefield.PathClass), deployDepth: rules.Battlefield.DeployDepth,
 		rng: rand.New(rand.NewPCG(seed, 4)), ground: make([]int, f.W*f.H), air: make([]int, f.W*f.H),
 		costCache: map[string]costs{}, reach: map[string][]bool{},
 	}
@@ -329,6 +349,7 @@ func (s *Sim) Step() []Volley {
 			}
 		}
 	}
+	s.retreat()
 	s.move()
 	s.see()
 	volleys := s.fire()
@@ -345,11 +366,30 @@ func (s *Sim) squad(id int) *Squad {
 	return s.Squads[id-1]
 }
 
-// apply carries out one order from side's Controller, ignoring any that
-// isn't valid: not its squad, dead, or a building told to move.
+// Command carries out a player's order for side now, between ticks, and logs
+// it. A player's order comes after the AI's for the tick, so it wins.
+func (s *Sim) Command(side Side, o Order) {
+	s.Log = append(s.Log, Logged{Tick: s.Tick, Side: side, Order: o})
+	s.apply(side, o)
+}
+
+// apply carries out one order, ignoring any that isn't valid: not the
+// side's squad, dead, Retreating, or a building told to move.
 func (s *Sim) apply(side Side, o Order) {
+	switch o.Kind {
+	case Retreat:
+		if s.RetreatAt[side] == 0 {
+			s.RetreatAt[side] = s.Tick + max(1, ticks(s.rules.RetreatCountdown))
+		}
+		return
+	case CancelRetreat:
+		if !s.Retreating[side] {
+			s.RetreatAt[side] = 0
+		}
+		return
+	}
 	sq := s.squad(o.Squad)
-	if sq == nil || sq.Side != side || !sq.alive() {
+	if sq == nil || sq.Side != side || !sq.alive() || sq.retreating {
 		return
 	}
 	switch o.Kind {
@@ -402,7 +442,7 @@ func (s *Sim) move() {
 				if s.swaps(sq, other, cost) {
 					continue
 				}
-				if dist(sq.Cell, sq.goal) <= closeEnough {
+				if !sq.retreating && dist(sq.Cell, sq.goal) <= closeEnough {
 					sq.path = nil // a crowd round the goal: this will do
 					break
 				}
@@ -420,8 +460,80 @@ func (s *Sim) move() {
 			sq.blocked = 0
 			s.relocate(sq, next)
 			sq.path = sq.path[1:]
+			if s.escapes(sq) {
+				break
+			}
 		}
 	}
+}
+
+// retreat starts each side's Retreat when its countdown runs out: every
+// squad that can move stops firing and heads for its exit. Squads still on
+// the way look for a way out again once a second.
+func (s *Sim) retreat() {
+	for side := range s.RetreatAt {
+		if at := s.RetreatAt[side]; at != 0 && !s.Retreating[side] && s.Tick >= at {
+			s.Retreating[side] = true
+			for _, sq := range s.Squads {
+				if sq.Side == Side(side) && sq.alive() && sq.speed > 0 {
+					sq.retreating, sq.target = true, 0
+					s.headOut(sq)
+				}
+			}
+		}
+	}
+	for _, sq := range s.Squads {
+		if sq.retreating && sq.alive() && len(sq.path) == 0 && (s.Tick+sq.ID)%TicksPerSecond == 0 {
+			s.headOut(sq)
+		}
+	}
+}
+
+// depth is how many cells c is in from edge e.
+func (s *Sim) depth(e int, c Cell) int {
+	return [4]int{c.Y, s.Field.W - 1 - c.X, s.Field.H - 1 - c.Y, c.X}[e]
+}
+
+// headOut picks a squad's exit, the attacker's own edge or the nearest edge
+// for the defender, and paths to the nearest cell it can stand on in that
+// edge's deployment strip.
+func (s *Sim) headOut(sq *Squad) {
+	sq.exit = s.Edge
+	if sq.Side == Defender {
+		sq.exit = 0
+		for e := 1; e < 4; e++ {
+			if s.depth(e, sq.Cell) < s.depth(sq.exit, sq.Cell) {
+				sq.exit = e
+			}
+		}
+	}
+	if s.escapes(sq) {
+		return
+	}
+	f, c, reach := s.Field, s.costsFor(sq.class), s.reachFor(sq.class)
+	best, found := Cell{}, false
+	for i := range c {
+		at := f.cell(i)
+		if c[i] > 0 && (sq.air || reach[i]) && s.depth(sq.exit, at) < s.deployDepth &&
+			(!found || dist2(sq.Cell, at) < dist2(sq.Cell, best)) {
+			best, found = at, true
+		}
+	}
+	if found {
+		sq.goal, sq.blocked = best, 0
+		sq.path = f.path(c, sq.Cell, best, nil)
+	}
+}
+
+// escapes takes a Retreating squad off the field once it's in its exit's
+// strip, and reports whether it did.
+func (s *Sim) escapes(sq *Squad) bool {
+	if !sq.retreating || s.depth(sq.exit, sq.Cell) >= s.deployDepth {
+		return false
+	}
+	s.layer(sq)[s.Field.index(sq.Cell)] = 0
+	sq.Escaped, sq.path = true, nil
+	return true
 }
 
 // swaps trades places with an idle friendly squad in the way, if each can
@@ -539,7 +651,7 @@ type Volley struct {
 func (s *Sim) fire() []Volley {
 	var out []Volley
 	for _, sq := range s.Squads {
-		if !sq.alive() || !sq.Armed {
+		if !sq.alive() || !sq.Armed || sq.retreating {
 			continue
 		}
 		if sq.cooldown > 0 {
@@ -591,7 +703,7 @@ func (s *Sim) capture() {
 		p := &s.Points[i]
 		var present [2]bool
 		for _, sq := range s.Squads {
-			if sq.alive() && !sq.Building && !sq.air && float64(dist2(sq.Cell, p.Cell)) <= r*r {
+			if sq.alive() && !sq.Building && !sq.air && !sq.retreating && float64(dist2(sq.Cell, p.Cell)) <= r*r {
 				present[sq.Side] = true
 			}
 		}
@@ -625,14 +737,24 @@ func (s *Sim) capture() {
 	}
 }
 
-// end checks whether the Battle is over. Wiping each other out goes to the
-// defender.
+// end checks whether the Battle is over. A side whose Retreat has started
+// loses once every squad that could leave has left or died. Wiping each
+// other out, or both Retreating, goes to the defender.
 func (s *Sim) end() {
 	attackers := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Attacker && sq.alive() })
 	defenders := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Defender && sq.alive() && sq.Armed })
+	left := func(side Side) bool {
+		return s.Retreating[side] && !slices.ContainsFunc(s.Squads, func(sq *Squad) bool {
+			return sq.Side == side && sq.alive() && sq.speed > 0
+		})
+	}
 	switch {
+	case left(Attacker):
+		s.Over, s.Winner, s.Reason = true, Defender, Retreated
 	case !attackers:
 		s.Over, s.Winner, s.Reason = true, Defender, Eliminated
+	case left(Defender):
+		s.Over, s.Winner, s.Reason = true, Attacker, Retreated
 	case !defenders:
 		s.Over, s.Winner, s.Reason = true, Attacker, Eliminated
 	case s.Hold > 0 && s.Hold >= ticks(s.rules.HoldSeconds):
@@ -659,15 +781,20 @@ type SquadView struct {
 // it can see, and the public state. It's the only Battle state a side is
 // sent, so it's where fog of war is enforced.
 type Snapshot struct {
-	Tick   int
-	Edge   int
-	Squads []SquadView // living, by id
-	Points []Point
-	Hold   int
+	Tick       int
+	Edge       int
+	Squads     []SquadView // on the field, by id
+	Points     []Point
+	Hold       int
+	RetreatAt  int     // the tick the side's own Retreat countdown ends, or 0
+	Retreating [2]bool // public: you see the enemy turn and run
 }
 
 func (s *Sim) Snapshot(side Side) Snapshot {
-	snap := Snapshot{Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Hold: s.Hold}
+	snap := Snapshot{
+		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Hold: s.Hold,
+		RetreatAt: s.RetreatAt[side], Retreating: s.Retreating,
+	}
 	for _, sq := range s.Squads {
 		if sq.alive() && s.visible[side][sq.ID] {
 			snap.Squads = append(snap.Squads, SquadView{
