@@ -68,7 +68,7 @@ Base-Mod Terrains:
 
 - A **Squad** is one Unit Slot in battle: one unit type, a count, and **each member's own Shield, Armor and HP**. It sits in one cell, whatever its count.
 - Squads never split or merge mid-Battle.
-- Each armed or unarmed building is a stationary combatant in one cell. Unarmed buildings are now targets (see [Buildings](#buildings)).
+- Each armed or unarmed building is a stationary combatant in one cell, whatever its size; bigger footprints can come with building sites (see [Later](#later)). Unarmed buildings are now targets (see [Buildings](#buildings)).
 - **Occupancy:** one ground Squad or building per cell. An Aircraft Squad can share a cell with one ground Squad, but not with another Aircraft Squad. Squads can't pass through each other; pathfinding routes around them.
 
 ### Deployment
@@ -143,9 +143,10 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 ### Control Points
 
-- The generator places **3 Control Points** in the main region, in the middle half of the map each way, at least `controlPointSpacing` (10) cells apart. Where they don't fit, the spacing shrinks until they do.
+- The generator places **3 Control Points** in the main region, in the middle half of the map each way, at least `controlPointSpacing` (10) cells apart. Where they don't fit, the spacing shrinks until they do. This placement is good enough for v1; revisit it with handmade maps or the capital-world variant.
 - The **defender holds all three** when the Battle starts.
 - **Capture:** a point changes hands after one side has a ground Squad within **2 cells** of it, and the other side has none, for **5 s** in a row. If the lone side leaves or the other side arrives, progress resets.
+- **Aircraft** neither capture nor contest a point, and nor do buildings: only ground Squads hold ground.
 - **Contested:** when both sides are in range, nothing changes.
 
 ### Winning
@@ -367,12 +368,3 @@ Not in v1, but kept in mind:
 - **Halo-style Shield regeneration** during Battles.
 - **Parallel Battle stepping** (see [Performance](#performance)).
 - **Native pathfinding** (Rust or C): only if profiling, after flow fields and parallel stepping, still shows pathing as the cost. Until then the gains come from doing less work, not faster work, and cgo in the Nakama plugin build adds a toolchain to every build.
-
-## Open questions
-
-Defaults picked while writing this spec, not settled in the design session:
-
-- **Aircraft and Control Points:** the spec counts only ground Squads for capturing and contesting.
-- **Building footprint:** every building is one cell.
-- **Unarmed building layers:** a single Ruleset default (`battle.structure`), not per building.
-- **Placement:** points in the middle half each way; the defender zone is a radius around the points.
