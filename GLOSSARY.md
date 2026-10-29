@@ -61,7 +61,7 @@ A player's cap on the total size of their living and queued units; not spent, on
 _Avoid_: Supply, population, pop cap
 
 **Upkeep**:
-A recurring cost a building charges its owner at each Payday; units have none.
+A recurring cost a building or a living unit charges its owner at each Payday.
 _Avoid_: Maintenance
 
 **Payday**:
@@ -173,8 +173,28 @@ The single set of game-wide tuning values (Payday interval, refunds, Unit Slots 
 _Avoid_: Settings, config, game rules
 
 **Resource**:
-A stockpiled currency that players earn at Payday and spend, e.g. Credits or Materials; Command Points is not a Resource.
+A stockpiled currency that players earn at Payday and spend: Credits, Materials or Alloys; Command Points is not a Resource.
 _Avoid_: Currency, Command Points (a cap, not a stockpile)
+
+**Alloys**:
+The refined Resource, made from Materials by a Foundry or Forge at each Payday, that heavy units and Turrets cost.
+_Avoid_: Refined materials
+
+**Richness**:
+How much of a Resource a Planet's extractor buildings can draw from it: none, poor, normal or rich, multiplying their yield.
+_Avoid_: Deposit size, planet bonus
+
+**Stockpile cap**:
+The most of a Resource a player can hold; anything over it is lost at Payday, and storage buildings raise it.
+_Avoid_: Limit, storage
+
+**Sprawl**:
+The surcharge on new unit and building costs for each Planet a player owns beyond a free number.
+_Avoid_: Expansion penalty, admin cap
+
+**Exchange**:
+The trade of a Resource for Credits, or Credits for a Resource, at fixed poor rates.
+_Avoid_: Market, trade
 
 **Starting Kit**:
 The buildings and units a Faction places on its Capital when a Match starts.
