@@ -1,5 +1,6 @@
 import type { Client, Session } from "@heroiclabs/nakama-js";
-import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { setDisplayName } from "./auth";
 import { useRingBackdrop } from "./backdrop";
@@ -42,25 +43,24 @@ export function Menu(props: {
   client: Client;
   session: Session;
   content: ContentLookups;
-  openMatches: OpenMatch[];
 }) {
   useRingBackdrop({ header: false });
   const navigate = useNavigate();
-  const router = useRouter();
   const [invite, setInvite] = useState("");
-  const [creating, setCreating] = useState(false);
-
-  function create() {
-    setCreating(true);
-    // .finally, not try/finally: the React Compiler can't lower a try without a catch.
-    return props.client
-      .rpc(props.session, "create_match", {})
-      .then((res) => {
-        const { matchId } = res.payload as { matchId: string };
-        return navigate({ to: "/match/$matchId/lobby", params: { matchId } });
-      })
-      .finally(() => setCreating(false));
-  }
+  const open = useQuery({
+    queryKey: ["openMatches"],
+    queryFn: () => listOpenMatches(props.client, props.session),
+    refetchInterval: 5000, // paused while the tab is hidden
+  });
+  const create = useMutation({
+    mutationFn: () => props.client.rpc(props.session, "create_match", {}),
+    // Returned, so the button stays disabled until the lobby has loaded.
+    onSuccess: (res) => {
+      const { matchId } = res.payload as { matchId: string };
+      return navigate({ to: "/match/$matchId/lobby", params: { matchId } });
+    },
+  });
+  const matches = open.data ?? [];
 
   function join(e: FormEvent) {
     e.preventDefault();
@@ -81,16 +81,23 @@ export function Menu(props: {
       >
         <button
           type="button"
-          onClick={create}
-          disabled={creating}
+          onClick={() => create.mutate()}
+          disabled={create.isPending}
           className={`min-h-15 text-xl ${primary}`}
         >
           CREATE MATCH
         </button>
-        <p className="text-ink-3 text-sm">
-          You'll be the Host: pick the map and starting resources, then share
-          the invite.
-        </p>
+        {/* The error takes the hint's place, so the card keeps its size. */}
+        {create.isError ? (
+          <p role="alert" className="text-danger text-sm">
+            Couldn't create a Match: the server didn't answer. Try again.
+          </p>
+        ) : (
+          <p className="text-ink-3 text-sm">
+            You'll be the Host: pick the map and starting resources, then share
+            the invite.
+          </p>
+        )}
         <div className="bg-line my-1.5 h-px" />
         <form onSubmit={join} className="flex flex-col gap-2">
           <label htmlFor="invite" className="text-ink-2 text-sm font-semibold">
@@ -129,11 +136,13 @@ export function Menu(props: {
           <button
             type="button"
             aria-label="Refresh open Matches"
-            onClick={() => void router.invalidate()}
+            onClick={() => void open.refetch()}
+            disabled={open.isFetching}
             className="text-ink-2 inline-flex size-11 items-center justify-center rounded-md border-0 bg-transparent"
           >
             <svg
               aria-hidden="true"
+              className={open.isFetching ? "motion-safe:animate-spin" : ""}
               width="18"
               height="18"
               viewBox="0 0 24 24"
@@ -150,16 +159,29 @@ export function Menu(props: {
         </div>
         {/* One card, the same size either way: the message, or the Matches in it. */}
         <div className="border-edge bg-panel/60 flex h-24 items-center rounded-[10px] border border-dashed px-3">
-          {props.openMatches.length === 0 ? (
+          {matches.length === 0 ? (
             <div className="w-full text-center">
-              <p className="font-semibold">No open Matches right now</p>
-              <p className="text-ink-3 mt-1 text-sm">
-                Create one and send the invite to your friends.
-              </p>
+              {open.isPending ? (
+                <p className="text-ink-3">Looking for open Matches…</p>
+              ) : open.isError ? (
+                <>
+                  <p className="font-semibold">Couldn't list open Matches</p>
+                  <p className="text-ink-3 mt-1 text-sm">
+                    It tries again every few seconds, or use Refresh.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold">No open Matches right now</p>
+                  <p className="text-ink-3 mt-1 text-sm">
+                    Create one and send the invite to your friends.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <ul className="flex w-full gap-3 overflow-x-auto py-1">
-              {props.openMatches.map((m) => {
+              {matches.map((m) => {
                 const map = props.content.maps.get(m.map);
                 return (
                   <li
@@ -202,11 +224,14 @@ export function DisplayNamePrompt(props: {
 }) {
   useRingBackdrop({ header: false });
   const [name, setName] = useState("");
+  const save = useMutation({
+    mutationFn: (n: string) => setDisplayName(props.client, props.session, n),
+    onSuccess: props.onDone,
+  });
 
-  async function submit(e: FormEvent) {
+  function submit(e: FormEvent) {
     e.preventDefault();
-    await setDisplayName(props.client, props.session, name.trim());
-    props.onDone();
+    save.mutate(name.trim());
   }
 
   return (
@@ -237,9 +262,13 @@ export function DisplayNamePrompt(props: {
             className={`${field} min-h-12 text-base`}
           />
         </label>
+        {/* A line kept for the error, so the form doesn't grow. */}
+        <p role="alert" className="text-danger -mt-3 min-h-5 text-sm">
+          {save.isError && "Couldn't save your name. Try again."}
+        </p>
         <button
           type="submit"
-          disabled={!name.trim()}
+          disabled={!name.trim() || save.isPending}
           className={`min-h-13 text-lg ${primary}`}
         >
           CONTINUE
