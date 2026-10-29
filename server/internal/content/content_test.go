@@ -19,6 +19,7 @@ const baseRules = `{
 	"toHit": 3,
 	"laneTypes": {"fast": 1, "slow": 2},
 	"startingResources": {"credits": 1000},
+	"stockpileCaps": {"credits": 3000},
 	"gracePeriodSeconds": 180,
 	"armyVisionSeconds": 15,
 	"resultsSeconds": 60,
@@ -94,8 +95,10 @@ func with(files map[string]string, more map[string]string) map[string]string {
 func TestPatchMergesFieldsAndNullDeletes(t *testing.T) {
 	dirs := writeMods(t, with(baseFiles(), map[string]string{
 		"base/data/resources/materials.jsonc": `{"id": "materials", "name": "Materials"}`,
-		"base/data/rulesets/rules.jsonc": strings.Replace(baseRules,
-			`{"credits": 1000}`, `{"credits": 1000, "materials": 300}`, 1),
+		"base/data/rulesets/rules.jsonc": strings.NewReplacer(
+			`"startingResources": {"credits": 1000}`, `"startingResources": {"credits": 1000, "materials": 300}`,
+			`"stockpileCaps": {"credits": 3000}`, `"stockpileCaps": {"credits": 9000, "materials": 1500}`,
+		).Replace(baseRules),
 		"tweak/mod.jsonc": `{"name": "tweak", "version": "1.0.0", "title": "Tweak", "dependencies": ["base >= 1.0"]}`,
 		"tweak/data/rulesets/rules.jsonc": `{
 			"patch": "base:rules",

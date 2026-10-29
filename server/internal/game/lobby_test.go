@@ -14,6 +14,7 @@ func newTestLobby() *Lobby {
 			"base:solo":     {Starts: 1, MinPlayers: 1},
 		},
 		Factions:          []string{"base:unsc", "base:covenant"},
+		Caps:              map[string]int{"base:credits": 3000, "base:materials": 1500},
 		Resources:         []string{"base:credits", "base:materials"},
 		StartingResources: map[string]int{"base:credits": 1000, "base:materials": 300},
 	})
@@ -133,13 +134,13 @@ func TestOnlyTheHostChangesMapAndResources(t *testing.T) {
 func TestStartingResourcesMustNameEveryResourceInRange(t *testing.T) {
 	l := joined(t, "u1")
 
-	if err := l.SetStartingResources("u1", map[string]int{"base:credits": 0, "base:materials": 1_000_000}); err != nil {
+	if err := l.SetStartingResources("u1", map[string]int{"base:credits": 0, "base:materials": 1500}); err != nil {
 		t.Errorf("valid amounts rejected: %v", err)
 	}
 	wantReject(t, l.SetStartingResources("u1", map[string]int{"base:credits": 5}), "missing base:materials")
 	wantReject(t, l.SetStartingResources("u1", map[string]int{"base:credits": 5, "base:materials": 5, "base:gold": 5}), "unknown Resource base:gold")
-	wantReject(t, l.SetStartingResources("u1", map[string]int{"base:credits": 1_000_001, "base:materials": 5}), "base:credits must be a whole number from 0 to 1,000,000")
-	if l.StartingResources["base:materials"] != 1_000_000 {
+	wantReject(t, l.SetStartingResources("u1", map[string]int{"base:credits": 3001, "base:materials": 5}), "base:credits must be a whole number from 0 to its Stockpile cap, 3000")
+	if l.StartingResources["base:materials"] != 1500 {
 		t.Errorf("a rejected change must not apply, got %v", l.StartingResources)
 	}
 }

@@ -15,8 +15,6 @@ var (
 	errNotHost = errors.New("only the Host can do that")
 )
 
-const maxStartingResource = 1_000_000
-
 // Seat is a player's place in a Match.
 type Seat struct {
 	User        string
@@ -37,6 +35,7 @@ type LobbyContent struct {
 	Factions          []string
 	Resources         []string
 	StartingResources map[string]int // the Ruleset's defaults
+	Caps              map[string]int // the Ruleset's Stockpile caps
 }
 
 // Lobby is a Match before Start.
@@ -158,7 +157,7 @@ func (l *Lobby) SetMap(user, id string) error {
 }
 
 // SetStartingResources is Host only, and must name every Resource with a
-// whole number from 0 to 1,000,000.
+// whole number from 0 to its Stockpile cap.
 func (l *Lobby) SetStartingResources(user string, amounts map[string]int) error {
 	if err := l.mustBeHost(user); err != nil {
 		return err
@@ -167,8 +166,8 @@ func (l *Lobby) SetStartingResources(user string, amounts map[string]int) error 
 		if !slices.Contains(l.content.Resources, r) {
 			return fmt.Errorf("unknown Resource %s", r)
 		}
-		if a := amounts[r]; a < 0 || a > maxStartingResource {
-			return fmt.Errorf("%s must be a whole number from 0 to 1,000,000", r)
+		if a, cap := amounts[r], l.content.Caps[r]; a < 0 || a > cap {
+			return fmt.Errorf("%s must be a whole number from 0 to its Stockpile cap, %d", r, cap)
 		}
 	}
 	for _, r := range l.content.Resources {

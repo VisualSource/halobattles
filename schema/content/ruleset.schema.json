@@ -14,6 +14,7 @@
     "toHit",
     "laneTypes",
     "startingResources",
+    "stockpileCaps",
     "gracePeriodSeconds",
     "armyVisionSeconds",
     "resultsSeconds",
@@ -47,7 +48,11 @@
       "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }
     },
     "startingResources": {
-      "description": "Defaults the lobby fills in.",
+      "description": "Defaults the lobby fills in. Each must fit under its Stockpile cap.",
+      "$ref": "defs.schema.json#/definitions/resourceMap"
+    },
+    "stockpileCaps": {
+      "description": "The most of each Resource a player holds before storage buildings: anything over it is lost at Payday. Every Resource needs one.",
       "$ref": "defs.schema.json#/definitions/resourceMap"
     },
     "gracePeriodSeconds": { "description": "How long a disconnected player keeps their Seat.", "type": "integer", "minimum": 0 },

@@ -54,6 +54,7 @@ func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		Factions:          slices.Collect(maps.Keys(doc.Factions)),
 		Resources:         slices.Collect(maps.Keys(doc.Resources)),
 		StartingResources: doc.Rulesets[game.RulesetID].StartingResources,
+		Caps:              doc.Rulesets[game.RulesetID].StockpileCaps,
 	}
 	for id, gm := range doc.Maps {
 		lc.Maps[id] = game.LobbyMap{Starts: len(gm.Starts), MinPlayers: gm.MinPlayers}

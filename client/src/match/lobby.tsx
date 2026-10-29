@@ -666,7 +666,7 @@ function StartingResources(props: {
               <input
                 type="number"
                 min={0}
-                max={1_000_000}
+                max={props.content.rules.stockpileCaps[r.id]}
                 step={1}
                 required
                 value={draft.get(r.id) ?? 0}

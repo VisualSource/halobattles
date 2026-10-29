@@ -134,6 +134,12 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 			"buildings base:barracks: a padTurret needs a combat block"},
 		"class without Battle stats": {"base/data/unitClasses/vehicle.jsonc", `{"id": "vehicle", "name": "Vehicle"}`,
 			"rulesets base:rules: battle classDefaults has no entry for Unit Class base:vehicle"},
+		"starting resources over a cap": {"base/data/rulesets/rules.jsonc",
+			strings.Replace(baseRules, `"stockpileCaps": {"credits": 3000}`, `"stockpileCaps": {"credits": 500}`, 1),
+			"rulesets base:rules: startingResources base:credits is 1000, over its Stockpile cap of 500"},
+		"a Resource with no cap": {"base/data/rulesets/rules.jsonc",
+			strings.Replace(baseRules, `"stockpileCaps": {"credits": 3000}`, `"stockpileCaps": {}`, 1),
+			"rulesets base:rules: stockpileCaps has no cap for Resource base:credits"},
 		"dangling reference": {"base/data/buildings/barracks.jsonc",
 			strings.Replace(rosterFiles()["base/data/buildings/barracks.jsonc"], `["marine"]`, `["spartan"]`, 1),
 			"buildings base:barracks: trains: unknown Unit base:spartan"},
@@ -151,9 +157,9 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	d := c.Doc
 
 	counts := map[string][2]int{
-		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 12},
+		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 16},
 		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
-		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 2},
+		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 3},
 		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
 	}
 	for kind, n := range counts {

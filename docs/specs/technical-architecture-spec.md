@@ -86,7 +86,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 - **Resource:** a stockpile only, with an optional `icon`. Command Points is **not** a Resource; it is carried by `commandPoints` and `commandPointBonus` fields.
 - **Faction:** an optional `icon`, an optional `ai` weight block for the Battle AI ([AI](tactical-battle-spec.md#ai)), and a **Starting Kit**: the buildings and Stacks (`[{unit, count}]` per Stack) placed on its Capital. Starting resources are not part of the kit.
 - **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), optional `slotLimit` (the most one Unit Slot holds), optional `roles` (Battle AI hints: `scout`, `skirmisher`), `combat` (required), optional `icon`.
-- **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `padTurret` (it can be built on a build pad in Battle; needs `combat`), optional `icon`. There are no build limits or prerequisites.
+- **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `padTurret` (it can be built on a build pad in Battle; needs `combat`), optional `refines: {input, output}` (resource maps it converts at each Payday), optional `storage` (a resource map that raises its owner's Stockpile caps), optional `icon`. There are no build limits or prerequisites.
 - **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `tiers: {unitClassId: tier}`, and optional `speed`, `range`, `minRange`, `fireInterval` and `sight`, which default from the Ruleset's `classDefaults` ([Stats](tactical-battle-spec.md#stats)). `damage` is dice notation, `NdM` or `NdM+K`, checked by a schema pattern; a tier is `advantage`, `normal`, `disadvantage` or `none`, and a Unit Class missing from `tiers` counts as `normal` ([ADR 0003](../adr/0003-dice-damage.md)).
 - **Unit Class:** an id, a name, and an optional `air` flag: it flies, ignores cover and high ground, and shares a cell with one ground unit.
 - **Weapon Type:** a multiplier for each layer (`shield`, `armor`, `hp`).
@@ -100,7 +100,8 @@ Every definition has an `id` and an inline English `name`. Every asset reference
   - `toHit`, the d20 roll an attack needs to hit;
   - Lane types and their multipliers;
   - the tactical Battle fields ([Ruleset additions](tactical-battle-spec.md#ruleset-additions));
-  - `startingResources`, the defaults the lobby fills in (maps have none of their own);
+  - `startingResources`, the defaults the lobby fills in (maps have none of their own), each under its Stockpile cap;
+  - `stockpileCaps`, one per Resource;
   - `gracePeriodSeconds`, `resultsSeconds` and `armyVisionSeconds`, in whole seconds and converted to Match Time ms by the server.
 
   Defaults are in the game-design spec's [Ruleset defaults](game-design-spec.md#ruleset-defaults).
@@ -210,7 +211,7 @@ Every command carries a client-assigned `seq`.
 ### Trust boundary
 
 - There is **no client prediction**. A command shows as pending until the View changes or a `CommandRejected` arrives.
-- The server validates each command on the tick that processes it, against authoritative state: schema, size (< 4096 B), phase, ownership or Host role, Lock, debt, cost, Command Point cap, free slot, and route existence. Lobby validation adds the Seat cap on `SetMap` and the 0–1,000,000 whole-number range for every Resource on `SetStartingResources`.
+- The server validates each command on the tick that processes it, against authoritative state: schema, size (< 4096 B), phase, ownership or Host role, Lock, debt, cost, Command Point cap, free slot, and route existence. Lobby validation adds the Seat cap on `SetMap` and, on `SetStartingResources`, a whole number from 0 to that Resource's Stockpile cap for every Resource.
 - Each player is capped at **20 commands per tick**, and anything past that is rejected, so nobody can flood the 128-message input queue.
 
 ### Vision

@@ -123,7 +123,7 @@ func TestStartingResourcesAndMapAreValidated(t *testing.T) {
 		cmd(u1, wire.OpSetStartingResources, &wire.SetStartingResourcesT{Seq: 2, Amounts: []*wire.AmountT{{Resource: "base:credits", Amount: 500}}}),
 	)
 
-	if r := h.rejection(u1, 1); !strings.Contains(r, "0 to 1,000,000") {
+	if r := h.rejection(u1, 1); !strings.Contains(r, "0 to its Stockpile cap, 3000") {
 		t.Errorf("out-of-range rejection = %q", r)
 	}
 	if got := h.d.lobby.StartingResources; len(got) != 1 || got[0].Amount != 500 {

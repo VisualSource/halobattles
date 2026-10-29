@@ -112,6 +112,7 @@ export interface Ruleset {
     [k: string]: number;
   };
   startingResources: ResourceMap;
+  stockpileCaps: ResourceMap1;
   /**
    * How long a disconnected player keeps their Seat.
    */
@@ -128,9 +129,15 @@ export interface Ruleset {
   battle: BattleRules;
 }
 /**
- * Defaults the lobby fills in.
+ * Defaults the lobby fills in. Each must fit under its Stockpile cap.
  */
 export interface ResourceMap {
+  [k: string]: number;
+}
+/**
+ * The most of each Resource a player holds before storage buildings: anything over it is lost at Payday. Every Resource needs one.
+ */
+export interface ResourceMap1 {
   [k: string]: number;
 }
 /**
@@ -173,7 +180,7 @@ export interface BattleRules {
    * Seconds a turret takes to build on a build pad.
    */
   padBuildSeconds: number;
-  neutralFunds: ResourceMap1;
+  neutralFunds: ResourceMap2;
   /**
    * Seconds of fighting, after startDelay, until the defender wins.
    */
@@ -217,7 +224,7 @@ export interface BattleRules {
 /**
  * What a neutral garrison has to spend on pad turrets in each Battle, having no economy.
  */
-export interface ResourceMap1 {
+export interface ResourceMap2 {
   [k: string]: number;
 }
 /**
@@ -337,7 +344,7 @@ export interface Unit {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   faction: string;
-  cost: ResourceMap2;
+  cost: ResourceMap3;
   /**
    * Seconds to train one.
    */
@@ -367,7 +374,7 @@ export interface Unit {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap2 {
+export interface ResourceMap3 {
   [k: string]: number;
 }
 /**
@@ -437,13 +444,15 @@ export interface Building {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   faction: string;
-  cost: ResourceMap2;
+  cost: ResourceMap3;
   /**
    * Seconds to build.
    */
   buildTime: number;
-  upkeep: ResourceMap3;
-  yield: ResourceMap4;
+  upkeep: ResourceMap4;
+  yield: ResourceMap5;
+  refines?: Refining;
+  storage?: ResourceMap6;
   commandPointBonus: number;
   /**
    * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
@@ -462,13 +471,26 @@ export interface Building {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap3 {
+export interface ResourceMap4 {
   [k: string]: number;
 }
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap4 {
+export interface ResourceMap5 {
+  [k: string]: number;
+}
+/**
+ * Converts input into output at each Payday, after Upkeep. Short of input, it converts what there is at the same rate.
+ */
+export interface Refining {
+  input: ResourceMap3;
+  output: ResourceMap3;
+}
+/**
+ * Amounts keyed by Resource id.
+ */
+export interface ResourceMap6 {
   [k: string]: number;
 }
 /**
@@ -531,7 +553,7 @@ export interface PlanetType {
    * Inline English display name.
    */
   name: string;
-  income: ResourceMap5;
+  income: ResourceMap7;
   buildingSlots: number;
   commandPointBonus: number;
   /**
@@ -542,7 +564,7 @@ export interface PlanetType {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap5 {
+export interface ResourceMap7 {
   [k: string]: number;
 }
 /**
@@ -624,7 +646,7 @@ export interface PlanetBattlefield {
  * Values that replace this Planet's Planet Type values.
  */
 export interface PlanetOverrides {
-  income?: ResourceMap2;
+  income?: ResourceMap3;
   buildingSlots?: number;
   commandPointBonus?: number;
   /**

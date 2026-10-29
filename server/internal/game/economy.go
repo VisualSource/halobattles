@@ -1,6 +1,9 @@
 package game
 
 import (
+	"maps"
+	"slices"
+
 	"github.com/VisualSource/halobattles/server/internal/battle"
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
@@ -45,7 +48,8 @@ type Events struct {
 
 // payday pays each player, per Resource, their Planets' income plus their
 // buildings' yields, minus their buildings' Upkeep, as one lump sum. Debt is
-// allowed: a Resource can go below zero.
+// allowed: a Resource can go below zero. Then refining buildings convert
+// what's left, and anything over a Stockpile cap is lost.
 func (s *State) payday(c *cs.Content) []PaydayPaid {
 	nets := make([]map[string]int, len(s.Players))
 	for i := range nets {
@@ -77,6 +81,10 @@ func (s *State) payday(c *cs.Content) []PaydayPaid {
 		}
 		for r, a := range nets[i] {
 			pl.Resources[r] += a
+		}
+		s.refine(c, i, nets[i])
+		for r, cap := range s.caps(c, i) {
+			pl.Resources[r] = min(pl.Resources[r], cap)
 		}
 		paid[i] = PaydayPaid{Seat: i, Net: nets[i]}
 	}
@@ -137,4 +145,72 @@ func (s *State) units(seat int) map[string]int {
 		}
 	}
 	return n
+}
+
+// refine runs each of seat's refining buildings, in Planet and slot order,
+// on what they hold after income and Upkeep. Short of input, a building
+// converts whole batches of its recipe at its smallest whole ratio (40
+// Materials into 20 Alloys is 2 into 1), so nothing is wasted.
+func (s *State) refine(c *cs.Content, seat int, net map[string]int) {
+	res := s.Players[seat].Resources
+	for _, id := range slices.Sorted(maps.Keys(s.Planets)) {
+		p := s.Planets[id]
+		if p.Owner != seat {
+			continue
+		}
+		for _, b := range p.Buildings {
+			r := c.Buildings[b].Refines
+			if r == nil {
+				continue
+			}
+			g := 0
+			for _, a := range r.Input {
+				g = gcd(g, a)
+			}
+			for _, a := range r.Output {
+				g = gcd(g, a)
+			}
+			if g == 0 {
+				continue // a recipe of all zeros does nothing
+			}
+			batches := g
+			for in, a := range r.Input {
+				batches = min(batches, max(0, res[in])/(a/g))
+			}
+			for in, a := range r.Input {
+				res[in] -= batches * a / g
+				net[in] -= batches * a / g
+			}
+			for out, a := range r.Output {
+				res[out] += batches * a / g
+				net[out] += batches * a / g
+			}
+		}
+	}
+}
+
+func gcd(a, b int) int {
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
+}
+
+// caps is seat's Stockpile cap per Resource: the Ruleset's, raised by
+// their storage buildings.
+func (s *State) caps(c *cs.Content, seat int) map[string]int {
+	caps := maps.Clone(c.Rulesets[RulesetID].StockpileCaps)
+	for _, p := range s.Planets {
+		if p.Owner != seat {
+			continue
+		}
+		for _, b := range p.Buildings {
+			for r, a := range c.Buildings[b].Storage {
+				if _, ok := caps[r]; ok {
+					caps[r] += a
+				}
+			}
+		}
+	}
+	return caps
 }

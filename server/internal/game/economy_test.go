@@ -4,6 +4,8 @@ import (
 	"maps"
 	"slices"
 	"testing"
+
+	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
 func TestPaydayPaysIncomePlusYieldsMinusUpkeep(t *testing.T) {
@@ -124,5 +126,55 @@ func TestDiffUpsertsChangedEntitiesAndRemovesPlanetsLeavingVision(t *testing.T) 
 	}
 	if d.Economy == nil || d.Economy.CommandPointsUsed != 9+2*3 {
 		t.Errorf("economy %+v, want the lost Marine's Command Point freed", d.Economy)
+	}
+}
+
+// Seat 0's Capital a pays 300 Credits and 100 Materials at Payday, and has
+// two empty Building Slots, 2 and 3.
+
+func TestAFoundryRefinesMaterialsIntoAlloysAfterUpkeep(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Planets["a"].Buildings[2] = "base:foundry"
+
+	paid := s.Advance(c, 90_000).Paydays
+
+	if got := s.Players[0].Resources; got["base:materials"] != 60 || got["base:alloys"] != 20 {
+		t.Errorf("Resources = %v, want 100 Materials in, 40 refined into 20 Alloys", got)
+	}
+	if net := paid[0].Net; net["base:materials"] != 60 || net["base:alloys"] != 20 {
+		t.Errorf("PaydayPaid net = %v, want the refining in it", net)
+	}
+}
+
+func TestAShortFoundryRefinesWhatThereIsAtTheSameRate(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	a := s.Planets["a"]
+	a.Buildings[2], a.Buildings[3] = "base:foundry", "base:foundry"
+	a.Income = map[string]int{"base:materials": 51}
+
+	s.Advance(c, 90_000)
+
+	// The first takes 40 for 20; the second has 11, so 10 for 5, leaving 1.
+	if got := s.Players[0].Resources; got["base:materials"] != 1 || got["base:alloys"] != 25 {
+		t.Errorf("Resources = %v, want 1 Material and 25 Alloys", got)
+	}
+}
+
+func TestResourcesOverTheirStockpileCapAreLostAtPayday(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	c.Rulesets[RulesetID] = withRuleset(c, func(r *cs.Ruleset) {
+		r.StockpileCaps = map[string]int{"base:credits": 1200, "base:materials": 1500, "base:alloys": 500}
+	})
+
+	s.Advance(c, 90_000) // 1000 + 390 Credits
+
+	if got := s.Players[0].Resources["base:credits"]; got != 1200 {
+		t.Errorf("Credits = %d, want the 1200 cap", got)
+	}
+
+	s.Planets["a"].Buildings[2] = "base:depot" // +500 Credits of cap
+	s.Advance(c, 180_000)
+	if got := s.Players[0].Resources["base:credits"]; got != 1590 {
+		t.Errorf("Credits with a Depot = %d, want 1200 + 390 under the raised 1700 cap", got)
 	}
 }

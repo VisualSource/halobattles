@@ -181,7 +181,7 @@ Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and â€
 
 ### Buildings
 
-Six mirrored buildings per Faction. Every `commandPointBonus` is 0.
+Eight mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundry / Forge and Depot / Reliquary are from Economy v2; the rest of its changes land with the [economy spec](economy-spec.md)'s other sub-issues.
 
 | UNSC / Covenant | Cost | Time | Upkeep | Yield | Role |
 |---|---|---|---|---|---|
@@ -190,6 +190,8 @@ Six mirrored buildings per Faction. Every `commandPointBonus` is 0.
 | Air Pad / Summit | 300C 150M | 60s | 30C | none | trains the aircraft |
 | Supply Pad / Warehouse | 200C | 30s | 0 | +100C | economy |
 | Reactor / Generator | 200C | 30s | 0 | +50M | economy |
+| Foundry / Forge | 250C 100M | 45s | 10C | refines 40M into 20A | Alloys |
+| Depot / Reliquary | 150C | 30s | 0 | +1500C +750M +250A of Stockpile caps | storage |
 | Turret / Plasma Turret | 200C 50M | 30s | 10C | none | armed Structure |
 
 Both Turrets have a Damage roll of 2d4, have `advantage` against Infantry, and are `normal` against Vehicles and Aircraft.
@@ -297,7 +299,8 @@ The single `base:rules` definition.
 | `toHit` | 3 (a d20 roll of 1â€“2 misses: 90% of attacks hit before Advantage or Disadvantage) |
 | Lane types | `fast` 0.6, `slow` 2.0 |
 | Tactical Battle fields | see [Ruleset additions](tactical-battle-spec.md#ruleset-additions) |
-| `startingResources` | 1000 Credits, 300 Materials |
+| `startingResources` | 1000 Credits, 300 Materials, 50 Alloys |
+| `stockpileCaps` | 3000 Credits, 1500 Materials, 500 Alloys |
 | `gracePeriodSeconds` | 180 (3 min) |
 | `armyVisionSeconds` | 15 |
 | `resultsSeconds` | 60 |

@@ -157,8 +157,15 @@ type Building struct {
 	// block.
 	PadTurret *bool `json:"padTurret,omitempty,omitzero"`
 
+	// Converts input into output at each Payday, after Upkeep. Short of input, it
+	// converts what there is at the same rate.
+	Refines *Refining `json:"refines,omitempty,omitzero"`
+
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Raises its owner's Stockpile caps.
+	Storage map[string]int `json:"storage,omitempty,omitzero"`
 
 	// Trains corresponds to the JSON schema field "trains".
 	Trains []ID `json:"trains,omitempty,omitzero"`
@@ -488,6 +495,16 @@ type Position struct {
 	Y float64 `json:"y"`
 }
 
+// Converts input into output at each Payday, after Upkeep. Short of input, it
+// converts what there is at the same rate.
+type Refining struct {
+	// Input corresponds to the JSON schema field "input".
+	Input map[string]int `json:"input"`
+
+	// Output corresponds to the JSON schema field "output".
+	Output map[string]int `json:"output"`
+}
+
 // A stockpiled currency players earn at Payday and spend. Command Points is not a
 // Resource.
 type Resource struct {
@@ -551,8 +568,12 @@ type Ruleset struct {
 	// Refund for selling a building.
 	SellRefundPercent int `json:"sellRefundPercent"`
 
-	// Defaults the lobby fills in.
+	// Defaults the lobby fills in. Each must fit under its Stockpile cap.
 	StartingResources map[string]int `json:"startingResources"`
+
+	// The most of each Resource a player holds before storage buildings: anything
+	// over it is lost at Payday. Every Resource needs one.
+	StockpileCaps map[string]int `json:"stockpileCaps"`
 
 	// An attack's d20 roll below this misses.
 	ToHit int `json:"toHit"`

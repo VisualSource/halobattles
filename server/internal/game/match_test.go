@@ -40,6 +40,10 @@ func lineContent() *cs.Content {
 			"base:air-pad": {Faction: "base:unsc", BuildTime: 60, Cost: map[string]int{"base:credits": 300, "base:materials": 150},
 				Upkeep: map[string]int{"base:credits": 30}},
 			"base:hall": {Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150}},
+			"base:foundry": {Faction: "base:unsc", BuildTime: 45, Cost: map[string]int{"base:credits": 250},
+				Refines: &cs.Refining{Input: map[string]int{"base:materials": 40}, Output: map[string]int{"base:alloys": 20}}},
+			"base:depot": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
+				Storage: map[string]int{"base:credits": 500, "base:alloys": 100}},
 		},
 		Units: map[string]cs.Unit{
 			"base:marine": {CommandPoints: 1, BuildTime: 15, Cost: map[string]int{"base:credits": 50},

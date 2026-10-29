@@ -17,6 +17,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 	switch kind {
 	case "rulesets":
 		qualifyKeys(obj, "startingResources", ns)
+		qualifyKeys(obj, "stockpileCaps", ns)
 		if b, ok := obj["battlefield"].(map[string]any); ok {
 			qualifyField(b, "terrainPreset", ns)
 			qualifyField(b, "pathClass", ns)
@@ -38,6 +39,11 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		qualifyKeys(obj, "cost", ns)
 		qualifyKeys(obj, "upkeep", ns)
 		qualifyKeys(obj, "yield", ns)
+		qualifyKeys(obj, "storage", ns)
+		if r, ok := obj["refines"].(map[string]any); ok {
+			qualifyKeys(r, "input", ns)
+			qualifyKeys(r, "output", ns)
+		}
 		qualifyList(obj, "trains", ns)
 		if c, ok := obj["combat"].(map[string]any); ok {
 			qualifyField(c, "unitClass", ns)
@@ -149,6 +155,16 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		r := doc.Rulesets[id]
 		where := "rulesets " + id
 		c.resourceKeys(where+": startingResources", r.StartingResources)
+		c.resourceKeys(where+": stockpileCaps", r.StockpileCaps)
+		for _, res := range slices.Sorted(maps.Keys(doc.Resources)) {
+			cap, ok := r.StockpileCaps[res]
+			switch {
+			case !ok:
+				c.fail("%s: stockpileCaps has no cap for Resource %s", where, res)
+			case r.StartingResources[res] > cap:
+				c.fail("%s: startingResources %s is %d, over its Stockpile cap of %d", where, res, r.StartingResources[res], cap)
+			}
+		}
 		c.ref(where+": battlefield", "terrainPresets", string(r.Battlefield.TerrainPreset))
 		c.ref(where+": battlefield pathClass", "unitClasses", string(r.Battlefield.PathClass))
 		c.ref(where+": battle structure", "unitClasses", string(r.Battle.Structure.UnitClass))
@@ -189,6 +205,11 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		c.resourceKeys(where+": cost", b.Cost)
 		c.resourceKeys(where+": upkeep", b.Upkeep)
 		c.resourceKeys(where+": yield", b.Yield)
+		c.resourceKeys(where+": storage", b.Storage)
+		if b.Refines != nil {
+			c.resourceKeys(where+": refines input", b.Refines.Input)
+			c.resourceKeys(where+": refines output", b.Refines.Output)
+		}
 		for _, u := range b.Trains {
 			c.ref(where+": trains", "units", string(u))
 		}
