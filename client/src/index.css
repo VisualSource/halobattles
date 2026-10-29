@@ -38,6 +38,10 @@
   --color-scrim: #05080b; /* behind a modal */
   --color-hero: #0f1a26; /* the Faction picker's showcase */
   --color-ink-bright: #f2f5f7;
+  /* Resource icons in the HUD */
+  --color-res-credits: #f2c94c;
+  --color-res-materials: #e0735c;
+  --color-res-alloys: #b48cf0;
 }
 
 /* react-toastify's dark theme, in the app's colours; toasts clear the play HUD. */

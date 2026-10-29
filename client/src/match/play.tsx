@@ -1,13 +1,15 @@
+import { useQuery } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useNotificationCenter } from "react-toastify/addons/use-notification-center";
 import { useStore } from "zustand";
 import { useHideHeader } from "../backdrop";
 import type { ContentLookups } from "../content";
 import { GalaxyScene, seatColour } from "../scene/galaxy";
+import { planetIconsQuery } from "../scene/planet-icons";
 import { BattlePanel } from "./battle";
 import type { MatchConnection } from "./connection";
-import { moneyOf, quote } from "./exchange";
+import { moneyOf, presets, quote } from "./exchange";
 import { isPending } from "./local";
 import { inMatch } from "./phase";
 import { laneTimes } from "./route";
@@ -27,8 +29,11 @@ import {
 const label = "font-mono text-[11px] text-ink-3 uppercase tracking-[0.08em]";
 const popover =
   "absolute z-20 rounded-lg border border-edge bg-panel shadow-[0_12px_32px_#000a]";
-const chip =
-  "ml-1.5 rounded px-1 py-px font-sans font-semibold text-[9px] text-accent-ink tracking-[0.1em]";
+/** "18K", "1.4K" */
+const compact = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
 
 export function PlayScreen(props: {
   conn: MatchConnection;
@@ -86,6 +91,7 @@ export function PlayScreen(props: {
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div ref={container} className="size-full" />
         <Players conn={conn} />
+        <PlanetList conn={conn} content={content} />
         <PlanetWindow
           conn={conn}
           content={content}
@@ -103,6 +109,121 @@ export function PlayScreen(props: {
         <BattlePanel conn={conn} content={content} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Your Planets, Capital first, like Stellaris's outliner: a click selects
+ * one, a double-click (or Enter) also centres the map on it.
+ */
+function PlanetList(props: { conn: MatchConnection; content: ContentLookups }) {
+  const { conn, content } = props;
+  const view = useStore(conn.store, (s) => s.view);
+  const selected = useStore(conn.local, (s) => s.selected);
+  const [open, setOpen] = useState(true);
+  const map = view ? content.maps.get(view.map) : undefined;
+  const icons = useQuery(planetIconsQuery(map, 96)).data; // shown at 40px, sharp at 2x
+  if (!view || !map) return null;
+  const mine = map.planets
+    .map((mp) => ({ mp, p: view.planets.get(mp.id) }))
+    .filter(({ p }) => p?.owner === view.you)
+    .sort(
+      (a, b) =>
+        Number(b.p?.capital) - Number(a.p?.capital) ||
+        a.mp.name.localeCompare(b.mp.name),
+    );
+  const jump = (planet: string) =>
+    conn.local.setState({ selected: planet, focus: { planet } });
+
+  return (
+    <section
+      aria-label="Your Planets"
+      className={`border-edge bg-panel/95 absolute top-1/2 right-4 z-10 flex w-72 -translate-y-1/2 flex-col overflow-hidden rounded-lg border shadow-[0_12px_32px_#000a] ${open ? "h-[min(30rem,calc(100%-2rem))]" : ""}`}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="bg-bar border-line flex h-10 flex-none items-center gap-2 rounded-none border-0 border-b px-3 text-left"
+      >
+        <h2 className="font-display flex-1 text-base font-semibold">Planets</h2>
+        <span className="text-ink-3 font-mono text-sm">{mine.length}</span>
+        <span aria-hidden="true" className="text-ink-3 text-xs">
+          {open ? "▴" : "▾"}
+        </span>
+      </button>
+      {open && (
+        <ul className="min-h-0 flex-1 overflow-y-auto">
+          {mine.map(({ mp, p }) => {
+            if (!p) return null;
+            const units = p.stacks.flat().reduce((n, s) => n + s.count, 0);
+            const building = p.queue.length;
+            const training = p.unitQueue.length;
+            return (
+              <li key={mp.id}>
+                <button
+                  type="button"
+                  title="Double-click to jump to it"
+                  aria-current={selected === mp.id}
+                  onClick={() => conn.local.setState({ selected: mp.id })}
+                  onDoubleClick={() => jump(mp.id)}
+                  onKeyDown={(e) => e.key === "Enter" && jump(mp.id)}
+                  className={`border-divider flex w-full items-center gap-2.5 rounded-none border-0 border-b px-3 py-2 text-left ${selected === mp.id ? "bg-highlight" : "hover:bg-item bg-transparent"}`}
+                >
+                  <PlanetIcon url={icons?.get(mp.id)} />
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="flex items-center gap-1.5 truncate font-semibold">
+                      {p.capital && (
+                        <span title="Capital" className="text-host">
+                          ★
+                        </span>
+                      )}
+                      {mp.name}
+                    </span>
+                    <span className="text-ink-3 truncate text-xs">
+                      {content.planetTypes.get(mp.type)?.name ?? mp.type}
+                    </span>
+                  </span>
+                  <span className="flex flex-col items-end gap-0.5 font-mono text-xs">
+                    {p.locked ? (
+                      <span className="text-danger">In Battle</span>
+                    ) : (
+                      <span className="text-ink-2" title="Units in its Stacks">
+                        {units} units
+                      </span>
+                    )}
+                    {(building > 0 || training > 0) && (
+                      <span
+                        className="text-ok"
+                        title="Queued: buildings, units"
+                      >
+                        {building > 0 && `⚒${building}`}
+                        {building > 0 && training > 0 && " "}
+                        {training > 0 && `⚔${training}`}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** A Planet's rendered icon, or a dim disc in its place until it's ready. */
+function PlanetIcon(props: { url: string | undefined }) {
+  return props.url ? (
+    <img src={props.url} alt="" className="size-10 flex-none" />
+  ) : (
+    <span
+      aria-hidden="true"
+      className="flex size-10 flex-none items-center justify-center"
+    >
+      <span className="bg-raised size-6 rounded-full" />
+    </span>
   );
 }
 
@@ -145,58 +266,23 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
         HALO BATTLES
       </span>
       <span aria-hidden="true" className="bg-line h-7 w-px" />
-      {[...economy.resources].map(([id, amount]) => {
-        const name = content.resources.get(id)?.name ?? id;
-        const cap = economy.caps.get(id);
-        const net = economy.projected.get(id) ?? 0;
-        const full = cap !== undefined && amount >= cap;
-        const lost = cap === undefined ? 0 : Math.max(0, amount + net - cap);
-        return (
-          <div
-            key={id}
-            title={
-              lost > 0
-                ? `${lost} ${name} over the cap will be lost at the next Payday`
-                : undefined
-            }
-            className={`-mx-2 flex flex-col gap-0.5 rounded-md border px-2 py-0.5 ${full ? "border-accent/40 bg-accent-wash" : "border-transparent"}`}
-          >
-            <span className={`${label} ${full ? "text-accent" : ""}`}>
-              {name}
-              {full && <span className={`${chip} bg-accent`}>Full</span>}
-              {amount < 0 && <span className={`${chip} bg-danger`}>Debt</span>}
-            </span>
-            <span className="font-mono whitespace-nowrap">
-              <span
-                className={
-                  amount < 0 ? "text-danger" : full ? "text-accent" : ""
-                }
-              >
-                {amount}
-              </span>
-              {cap !== undefined && (
-                <span className="text-ink-4"> / {cap}</span>
-              )}
-              {net !== 0 && (
-                <span
-                  className={`text-xs ${full && net > 0 ? "text-ink-4 line-through" : net < 0 ? "text-danger" : "text-ok"}`}
-                >
-                  {" "}
-                  {net < 0 ? net : `+${net}`}
-                </span>
-              )}
-            </span>
-          </div>
-        );
-      })}
-      <Exchange conn={conn} content={content} />
-      <div className="flex flex-col gap-0.5">
-        <span className={label}>Command Points</span>
-        <span className="font-mono">
-          {economy.commandPointsUsed}{" "}
-          <span className="text-ink-3">/ {economy.commandPointsCap}</span>
+      <Stockpile conn={conn} content={content} />
+      <span
+        title="Command Points in use, of your cap"
+        className="flex flex-col items-center gap-0.5 font-mono leading-none"
+      >
+        <span className={`${label} flex h-4.5 items-center`}>CP</span>
+        <span
+          className={
+            economy.commandPointsUsed >= economy.commandPointsCap
+              ? "text-accent"
+              : ""
+          }
+        >
+          {economy.commandPointsUsed}
+          <span className="text-ink-4">/{economy.commandPointsCap}</span>
         </span>
-      </div>
+      </span>
       <div className="flex items-center gap-2.5">
         <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
           <circle
@@ -336,11 +422,75 @@ function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
   );
 }
 
+// shortcut: the base Mod's Resources drawn here, since Mods can't ship assets
+// yet; once they can, draw a Resource's own `icon` instead.
+const resourceGlyphs: Record<string, ReactNode> = {
+  "base:credits": (
+    <>
+      <circle cx="9" cy="9" r="7.5" fill="var(--color-res-credits)" />
+      <circle
+        cx="9"
+        cy="9"
+        r="4.5"
+        fill="none"
+        stroke="var(--color-bar)"
+        strokeWidth="1.5"
+      />
+    </>
+  ),
+  "base:materials": (
+    <>
+      <path
+        d="M9 1.5 15.5 6v6L9 16.5 2.5 12V6z"
+        fill="var(--color-res-materials)"
+      />
+      <path
+        d="M2.5 6 9 9l6.5-3M9 9v7.5"
+        fill="none"
+        stroke="var(--color-bar)"
+        strokeWidth="1.2"
+      />
+    </>
+  ),
+  "base:alloys": (
+    <>
+      <path d="M4 8.5 6 4h6l2 4.5z" fill="var(--color-res-alloys)" />
+      <path d="M1.5 15 3.5 10h11l2 5z" fill="var(--color-res-alloys)" />
+    </>
+  ),
+};
+
+/** A Resource's icon; one without its own shows its initial. */
+function ResourceIcon(props: { id: string; name: string; size?: number }) {
+  const size = props.size ?? 18;
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" aria-hidden="true">
+      {resourceGlyphs[props.id] ?? (
+        <>
+          <circle cx="9" cy="9" r="7.5" fill="var(--color-ink-3)" />
+          <text
+            x="9"
+            y="12.5"
+            textAnchor="middle"
+            fontSize="10"
+            fontWeight="600"
+            fill="var(--color-bar)"
+          >
+            {props.name[0]}
+          </text>
+        </>
+      )}
+    </svg>
+  );
+}
+
 /**
- * Trades for Credits and back at the Ruleset's rates. The amount always
- * counts the other Resource: how much to sell, or how much to buy.
+ * Your Resources, each its icon over its amount and the next Payday's change, coloured in
+ * debt or at its cap; the details are in its tooltip. Clicking one opens the
+ * Exchange on it: trades for Credits and back at the Ruleset's rates. The
+ * amount always counts the other Resource: how much to sell, or how much to buy.
  */
-function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
+function Stockpile(props: { conn: MatchConnection; content: ContentLookups }) {
   const { conn, content } = props;
   const economy = useStore(conn.store, (s) => s.view?.economy);
   const pending = useStore(conn.local, (s) => isPending(s, "exchange"));
@@ -350,166 +500,193 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
   const others = [...new Set(rates.flatMap((r) => [r.give, r.get]))].filter(
     (r) => r !== money,
   );
-  const [mode, setMode] = useState<"sell" | "buy">("sell");
   const [other, setOther] = useState(others[0] ?? "");
-  const [qty, setQty] = useState<number | null>(null); // null: one step
-  if (!economy || !money) return null;
+  if (!economy) return null;
 
   const have = economy.resources;
   const name = (r: string) => content.resources.get(r)?.name ?? r;
-  const step = quote(rates, money, mode, other, 0, have)?.step ?? 1;
-  const amount = qty ?? step;
-  const q = quote(rates, money, mode, other, amount, have);
-  const pick = (m: typeof mode, r: string) => {
-    setMode(m);
-    setOther(r);
-    setQty(null);
+  // Over its cap after this trade and the next Payday, so some is lost.
+  const overCap = (r: string, gain: number) => {
+    const cap = economy.caps.get(r);
+    const after = (have.get(r) ?? 0) + gain + (economy.projected.get(r) ?? 0);
+    return cap !== undefined && after > cap;
   };
-  const after = (r: string, d: number) => (have.get(r) ?? 0) + d;
-  const cap = q && economy.caps.get(q.rate.get);
-  const seg = (on: boolean) =>
-    `min-h-8 flex-1 rounded-none border-0 ${on ? "bg-raised text-ink shadow-[inset_0_-2px_0_var(--color-accent)]" : "bg-transparent text-ink-3"}`;
-  const error = !q
-    ? `${name(other)} can't be ${mode === "sell" ? "sold" : "bought"} here`
-    : !q.inSteps
-      ? `Amounts go in steps of ${q.step}`
-      : !q.affordable
-        ? `Not enough ${name(q.rate.give)}: you have ${have.get(q.rate.give) ?? 0}`
-        : null;
+
+  // Credits close it; another Resource switches to it, or closes it if it's showing.
+  const openOn = (r: string) => {
+    if (pop.open && (r === money || r === other)) return pop.toggle();
+    if (r !== money) setOther(r);
+    if (!pop.open) pop.toggle();
+  };
 
   return (
-    <div ref={popRef} className="relative">
-      <button
-        type="button"
-        aria-expanded={pop.open}
-        onClick={pop.toggle}
-        className={`min-h-9 rounded-md px-3 ${pop.open ? "border-accent bg-accent-wash text-accent" : "border-line bg-panel"}`}
-      >
-        ⇄ Exchange
-      </button>
-      {pop.open && (
-        <div
-          className={`${popover} top-11 left-0 flex w-85 flex-col gap-3 p-3.5 text-sm`}
-        >
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-base font-semibold">Exchange</h2>
-            <span className="text-ink-3 text-xs">any time, even in debt</span>
-          </div>
-          <div className="border-edge flex overflow-hidden rounded-md border">
-            {(["sell", "buy"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                aria-pressed={mode === m}
-                onClick={() => pick(m, other)}
-                className={seg(mode === m)}
-              >
-                {m === "sell" ? "Sell for" : "Buy with"} {name(money)}
-              </button>
-            ))}
-          </div>
-          <div className="border-edge flex overflow-hidden rounded-md border">
-            {others.map((r) => (
-              <button
-                key={r}
-                type="button"
-                aria-pressed={other === r}
-                onClick={() => pick(mode, r)}
-                className={seg(other === r)}
-              >
-                {name(r)}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-[2rem_1fr_2rem_auto] items-center gap-1.5">
-            <button
-              type="button"
-              aria-label={`${step} fewer`}
-              onClick={() => setQty(Math.max(step, amount - step))}
-              className="border-edge bg-raised min-h-8 rounded-md p-0"
-            >
-              −
-            </button>
-            <input
-              id="exchange-amount"
-              inputMode="numeric"
-              aria-label={`${name(other)} to ${mode}, in steps of ${step}`}
-              value={amount}
-              onChange={(e) => setQty(Number(e.target.value) || 0)}
-              className="border-edge bg-well min-h-8 rounded-md border text-center font-mono"
-            />
-            <button
-              type="button"
-              aria-label={`${step} more`}
-              onClick={() => setQty(amount + step)}
-              className="border-edge bg-raised min-h-8 rounded-md p-0"
-            >
-              +
-            </button>
-            <button
-              type="button"
-              disabled={!q || q.max === 0}
-              onClick={() => q && setQty(q.max)}
-              className="border-edge bg-raised min-h-8 rounded-md px-3"
-            >
-              Max
-            </button>
-          </div>
-          {q && (
-            <div className="border-line bg-well grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-md border p-2.5">
-              <div className="flex flex-col gap-0.5">
-                <span className={label}>You give</span>
-                <span
-                  className={`font-mono text-lg ${q.affordable ? "" : "text-danger"}`}
-                >
-                  {q.give}
-                </span>
-                <span className="text-ink-3 text-xs">
-                  {name(q.rate.give)} · {have.get(q.rate.give) ?? 0} →{" "}
-                  {after(q.rate.give, -q.give)}
-                </span>
-              </div>
-              <span aria-hidden="true" className="text-ink-4 text-lg">
-                →
-              </span>
-              <div className="flex flex-col gap-0.5 text-right">
-                <span className={label}>You get</span>
-                <span className="text-ok font-mono text-lg">{q.get}</span>
-                <span className="text-ink-3 text-xs">
-                  {name(q.rate.get)} · {have.get(q.rate.get) ?? 0} →{" "}
-                  {after(q.rate.get, q.get)}
-                </span>
-              </div>
-            </div>
-          )}
-          {q && (
-            <p className="text-ink-3 text-xs">
-              Rate: {q.rate.giveAmount} {name(q.rate.give)} → {q.rate.getAmount}{" "}
-              {name(q.rate.get)}.
-            </p>
-          )}
-          {error ? (
-            <p className="text-danger text-xs">{error}</p>
-          ) : (
-            q &&
-            cap !== undefined &&
-            cap !== null &&
-            after(q.rate.get, q.get) > cap && (
-              <p className="border-accent/40 bg-accent-wash text-accent rounded-md border px-2.5 py-2 text-xs">
-                {name(q.rate.get)} go over their cap of {cap}. Whatever is still
-                over it at the next Payday is lost.
-              </p>
-            )
-          )}
+    <div ref={popRef} className="relative flex items-center gap-1">
+      {[...have].map(([id, amount]) => {
+        const cap = economy.caps.get(id);
+        const net = economy.projected.get(id) ?? 0;
+        const full = cap !== undefined && amount >= cap;
+        const lost = cap === undefined ? 0 : Math.max(0, amount + net - cap);
+        const tip = [
+          `${name(id)}: ${amount}${cap === undefined ? "" : ` of ${cap}`}`,
+          `Next Payday: ${net < 0 ? net : `+${net}`}`,
+          amount < 0 &&
+            "In debt: you can't queue anything until it's paid off.",
+          lost > 0 && `${lost} over the cap will be lost.`,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        return (
           <button
+            key={id}
             type="button"
-            disabled={error !== null || pending}
-            onClick={() => q && conn.exchange(q.rate.give, q.rate.get, q.give)}
-            className="border-accent bg-accent text-accent-ink min-h-9 rounded-md font-semibold"
+            title={tip}
+            aria-label={`${tip} Open the Exchange.`}
+            aria-expanded={pop.open && other === id}
+            disabled={!money}
+            onClick={() => openOn(id)}
+            className={`flex flex-col items-center gap-0.5 rounded border-0 px-2 py-1 font-mono leading-none whitespace-nowrap ${pop.open && other === id ? "bg-raised" : "bg-transparent"}`}
           >
-            {mode === "sell" ? "Sell" : "Buy"} {amount} {name(other)}
+            <ResourceIcon id={id} name={name(id)} />
+            <span className="flex items-baseline gap-1">
+              <span
+                className={
+                  amount < 0 ? "text-danger" : full ? "text-accent" : "text-ink"
+                }
+              >
+                {compact.format(amount)}
+              </span>
+              {net !== 0 && (
+                <span
+                  className={`text-xs ${net < 0 ? "text-danger" : full ? "text-ink-4" : "text-ok"}`}
+                >
+                  {net < 0 ? compact.format(net) : `+${compact.format(net)}`}
+                </span>
+              )}
+            </span>
           </button>
-        </div>
+        );
+      })}
+      {pop.open && money && (
+        <section
+          aria-label="Exchange"
+          className={`${popover} top-full left-0 mt-2 flex w-150 flex-col text-sm`}
+        >
+          <header className="border-line flex items-center gap-3 border-b px-3.5 py-2.5">
+            <h2 className="font-display flex-1 text-base font-semibold">
+              Exchange
+            </h2>
+            <span className={label}>any time, even in debt</span>
+          </header>
+          <div className="border-line flex flex-col gap-2 border-b px-3.5 py-3">
+            <span className={label}>Select a resource</span>
+            <div className="flex flex-wrap gap-2">
+              {others.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  aria-pressed={other === r}
+                  onClick={() => setOther(r)}
+                  className={`flex items-center gap-2 rounded px-2.5 py-1.5 font-mono text-[13px] ${other === r ? "border-accent bg-accent-wash text-ink" : "border-line bg-well text-ink-2"}`}
+                >
+                  <ResourceIcon id={r} name={name(r)} />
+                  {have.get(r) ?? 0}
+                  <span className="text-ink-4">/{economy.caps.get(r)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2">
+            {(["buy", "sell"] as const).map((mode) => {
+              const rate = quote(rates, money, mode, other, 0, have)?.rate;
+              return (
+                <div
+                  key={mode}
+                  className="border-line flex min-w-0 flex-col gap-2.5 px-3.5 pt-3 pb-3.5 even:border-l"
+                >
+                  <div className="border-line flex items-baseline justify-between border-b pb-1.5">
+                    <h3 className="font-display text-[15px] font-semibold">
+                      {mode === "buy" ? "Buy" : "Sell"}
+                    </h3>
+                    {rate && (
+                      <span className="text-ink-3 flex items-center gap-1 font-mono text-xs">
+                        {mode === "buy" ? rate.getAmount : rate.giveAmount}
+                        <ResourceIcon id={other} name={name(other)} size={13} />
+                        for {mode === "buy" ? rate.giveAmount : rate.getAmount}
+                        <ResourceIcon id={money} name={name(money)} size={13} />
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-ink-3 text-center text-xs">
+                    Click an amount to {mode}
+                  </p>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-1.5">
+                    {rate &&
+                      presets(
+                        mode === "buy" ? rate.getAmount : rate.giveAmount,
+                        economy.caps.get(other),
+                      ).map((amount) => {
+                        const q = quote(
+                          rates,
+                          money,
+                          mode,
+                          other,
+                          amount,
+                          have,
+                        );
+                        if (!q) return null;
+                        const over =
+                          mode === "buy"
+                            ? overCap(other, q.get)
+                            : overCap(money, q.get);
+                        const sign = mode === "buy" ? 1 : -1;
+                        return (
+                          <button
+                            key={amount}
+                            type="button"
+                            disabled={!q.affordable || pending}
+                            onClick={() =>
+                              conn.exchange(q.rate.give, q.rate.get, q.give)
+                            }
+                            title={
+                              over
+                                ? "Over the cap: the extra is lost at the next Payday"
+                                : undefined
+                            }
+                            aria-label={`${mode === "buy" ? "Buy" : "Sell"} ${amount} ${name(other)} for ${mode === "buy" ? q.give : q.get} ${name(money)}${over ? ", over the cap" : ""}`}
+                            className="border-edge bg-tile hover:enabled:bg-raised flex flex-col overflow-hidden rounded p-0 font-mono text-[13px] disabled:opacity-40"
+                          >
+                            <span className="flex justify-center pt-2.5 pb-2">
+                              <ResourceIcon
+                                id={other}
+                                name={name(other)}
+                                size={22}
+                              />
+                            </span>
+                            <span
+                              className={`border-line border-t py-0.5 ${over ? "text-accent" : sign > 0 ? "text-ok" : "text-danger"}`}
+                            >
+                              {sign > 0 ? "+" : "−"}
+                              {amount}
+                            </span>
+                            <span
+                              className={`border-line bg-well flex items-center justify-center gap-1 border-t py-0.5 ${sign > 0 ? "text-danger" : "text-ok"}`}
+                            >
+                              <ResourceIcon
+                                id={money}
+                                name={name(money)}
+                                size={12}
+                              />
+                              {sign > 0 ? `−${q.give}` : `+${q.get}`}
+                            </span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );

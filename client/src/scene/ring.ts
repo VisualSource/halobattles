@@ -19,14 +19,13 @@ export function random(seed: number) {
   };
 }
 
+/** Offscreen, so the planet icon worker can draw textures too. */
 export function canvasTexture(
   w: number,
   h: number,
-  draw: (g: CanvasRenderingContext2D) => void,
+  draw: (g: OffscreenCanvasRenderingContext2D) => void,
 ) {
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
+  const canvas = new OffscreenCanvas(w, h);
   // biome-ignore lint/style/noNonNullAssertion: a fresh canvas always has a 2d context
   draw(canvas.getContext("2d")!);
   const texture = new THREE.CanvasTexture(canvas);

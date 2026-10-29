@@ -28,6 +28,8 @@ export type LocalState = {
   selectedArmy: number | null;
   hovered: string | null; // the Planet under the pointer
   watching: number | null; // the Battle open in the Battle panel
+  /** The camera centres on this Planet; a new object each time, so asking again re-centres. */
+  focus: { planet: string } | null;
   /** Planets out of vision, as last seen. In memory only: lost on reload. */
   lastSeen: Map<string, LastSeen>;
   /** Your Battles, running and over, by id. In memory only: lost on reload. */
@@ -42,6 +44,7 @@ export const createLocalStore = () =>
     selectedArmy: null,
     hovered: null,
     watching: null,
+    focus: null,
     lastSeen: new Map(),
     reports: new Map(),
     clockOffset: 0,

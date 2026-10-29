@@ -12,7 +12,8 @@
   "linter": {
     "domains": {
       "tailwind": "recommended",
-      "react": "recommended"
+      "react": "recommended",
+      "tanstackQuery": "recommended"
     },
     "rules": {
       "nursery": {

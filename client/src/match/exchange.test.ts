@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moneyOf, quote } from "./exchange";
+import { moneyOf, presets, quote } from "./exchange";
 
 const rates = [
   { give: "m", giveAmount: 2, get: "c", getAmount: 1 },
@@ -23,22 +23,25 @@ describe("the Exchange", () => {
       give: 40,
       get: 20,
       step: 2,
-      max: 40,
-      inSteps: true,
       affordable: true,
     });
     expect(quote(rates, "c", "buy", "a", 10, have)).toMatchObject({
       give: 60,
       get: 10,
       step: 1,
-      max: 16,
       affordable: true,
     });
   });
 
-  it("flags amounts off the step or over what you have", () => {
-    expect(quote(rates, "c", "sell", "m", 3, have)?.inSteps).toBe(false);
+  it("flags amounts over what you have, and pairs with no rate", () => {
     expect(quote(rates, "c", "buy", "a", 17, have)?.affordable).toBe(false);
     expect(quote(rates, "c", "sell", "x", 2, have)).toBeNull();
+  });
+
+  it("offers round amounts in the step, up to a third of the cap", () => {
+    expect(presets(1, 1500)).toEqual([25, 50, 100, 250, 500]);
+    expect(presets(2, 1500)).toEqual([10, 50, 100, 250, 500]);
+    expect(presets(1, 500)).toEqual([5, 10, 25, 50, 100]);
+    expect(presets(7, 500)).toEqual([7]);
   });
 });
