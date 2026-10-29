@@ -4,6 +4,7 @@
   "name": "Grunt",
   "faction": "covenant",
   "cost": { "credits": 50 },
+  "upkeep": { "credits": 5 },
   "buildTime": 15,
   "commandPoints": 1,
   "combat": {

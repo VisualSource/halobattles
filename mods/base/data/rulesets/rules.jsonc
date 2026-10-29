@@ -35,7 +35,7 @@
     "padBuildSeconds": 10,
     // A neutral garrison's budget for pad turrets, having no economy: two
     // turrets' worth (each costs 200 Credits and 50 Materials).
-    "neutralFunds": { "credits": 400, "materials": 100 },
+    "neutralFunds": { "credits": 400, "materials": 100, "alloys": 40 },
     "captureRadius": 2,
     "captureSeconds": 5,
     "holdPoints": 2,

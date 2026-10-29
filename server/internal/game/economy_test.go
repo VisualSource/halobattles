@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/VisualSource/halobattles/server/internal/battle"
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
@@ -223,5 +224,101 @@ func TestStartTakesRichnessFromThePlanetTypeOrTheMapsOverride(t *testing.T) {
 	}
 	if got := s.Planets["d"].Richness; !maps.Equal(got, map[string]string{"base:credits": "rich"}) {
 		t.Errorf("d = %v, want the override in full, replacing its type's", got)
+	}
+}
+
+// upkeepContent gives Marines, Warthogs and Grunts an Upkeep, and Spartans an
+// Alloy cost.
+func upkeepContent() *cs.Content {
+	c := lineContent()
+	c.Resources["base:alloys"] = cs.Resource{Name: "Alloys"}
+	for id, up := range map[string]map[string]int{
+		"base:marine":  {"base:credits": 5},
+		"base:warthog": {"base:credits": 15, "base:alloys": 1},
+		"base:grunt":   {"base:credits": 5},
+	} {
+		u := c.Units[id]
+		u.Upkeep = up
+		c.Units[id] = u
+	}
+	sp := c.Units["base:spartan"]
+	sp.Cost = map[string]int{"base:credits": 100, "base:alloys": 15}
+	c.Units["base:spartan"] = sp
+	return c
+}
+
+func TestLivingUnitsPayUpkeepButQueuedUnitsAndNeutralGarrisonsDont(t *testing.T) {
+	s, c := fixedMatch(t), upkeepContent() // a and e: 10 Marines, 2 Warthogs each; b: 6 neutral Grunts
+	s.Armies = map[uint32]*Army{}
+	s.Armies[99] = &Army{ID: 99, Owner: 0, Units: []UnitSlot{{Unit: "base:marine", Count: 3}}, From: "a", To: "b", Arrives: 1 << 40}
+	s.Planets["a"].UnitQueues = map[int][]QueueItem{0: {{ID: 98, Unit: "base:marine", Remaining: 15_000}}}
+	nets := []map[string]int{{}, {}}
+
+	s.unitUpkeep(c, nets)
+
+	if want := map[string]int{"base:credits": -95, "base:alloys": -2}; !maps.Equal(nets[0], want) {
+		t.Errorf("Seat 0 net %v, want %v: 13 Marines (3 in an Army) and 2 Warthogs, not the queued Marine", nets[0], want)
+	}
+	if want := map[string]int{"base:credits": -80, "base:alloys": -2}; !maps.Equal(nets[1], want) {
+		t.Errorf("Seat 1 net %v, want %v", nets[1], want)
+	}
+}
+
+func TestUnitsInABattlePayUpkeepOnlyWhileAlive(t *testing.T) {
+	s, c := fixedMatch(t), upkeepContent()
+	s.Planets["b"].Owner = 1 // Seat 1's 6 Grunts defend it
+	_ = s.OrderArmy(0, "a", marines(10), "b", 1)
+	s.Advance(c, 30_000)
+	for _, sq := range onlyBattle(t, s).Sim.Squads {
+		switch {
+		case sq.Side == battle.Attacker:
+			sq.Members = sq.Members[:4] // 6 Marines died
+		case !sq.Building:
+			sq.Members = sq.Members[:2] // 4 Grunts died
+		}
+	}
+	nets := []map[string]int{{}, {}}
+
+	s.unitUpkeep(c, nets)
+
+	if want := map[string]int{"base:credits": -50, "base:alloys": -2}; !maps.Equal(nets[0], want) {
+		t.Errorf("Seat 0 net %v, want %v: 4 living Marines and the 2 Warthogs at home", nets[0], want)
+	}
+	if want := map[string]int{"base:credits": -90, "base:alloys": -2}; !maps.Equal(nets[1], want) {
+		t.Errorf("Seat 1 net %v, want %v: its Kit and 2 living Grunts, not b's Stacks as well", nets[1], want)
+	}
+}
+
+func TestUnitUpkeepCanPushAPlayerIntoDebtWhichFreezesQueues(t *testing.T) {
+	s, c := fixedMatch(t), upkeepContent()
+	s.Players[0].Resources = map[string]int{"base:credits": 0, "base:alloys": 1}
+
+	paid := s.Advance(c, 90_000).Paydays
+
+	// 390C income less 50C and 30C 2A for the Kit's Marines and Warthogs.
+	if want := map[string]int{"base:credits": 310, "base:materials": 100, "base:alloys": -2}; !maps.Equal(paid[0].Net, want) {
+		t.Fatalf("net %v, want %v", paid[0].Net, want)
+	}
+	if got := s.Players[0].Resources["base:alloys"]; got != -1 {
+		t.Errorf("Alloys = %d, want -1", got)
+	}
+	if err := s.QueueUnit(c, 0, "a", 0, "base:marine", 1); err != errInDebt {
+		t.Errorf("queue in debt: %v, want %v", err, errInDebt)
+	}
+}
+
+func TestUnitsWithAnAlloyCostNeedAlloysToQueue(t *testing.T) {
+	s, c := fixedMatch(t), upkeepContent()
+	s.Players[0].Resources["base:alloys"] = 14
+
+	if err := s.QueueUnit(c, 0, "a", 0, "base:spartan", 1); err == nil || err.Error() != "not enough Alloys" {
+		t.Fatalf("queue with 14 Alloys: %v, want not enough Alloys", err)
+	}
+	s.Players[0].Resources["base:alloys"] = 15
+	if err := s.QueueUnit(c, 0, "a", 0, "base:spartan", 1); err != nil {
+		t.Fatal(err)
+	}
+	if r := s.Players[0].Resources; r["base:alloys"] != 0 || r["base:credits"] != 900 {
+		t.Errorf("Resources %v, want 900C 0A after paying 100C 15A", r)
 	}
 }

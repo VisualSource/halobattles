@@ -345,6 +345,7 @@ export interface Unit {
    */
   faction: string;
   cost: ResourceMap3;
+  upkeep?: ResourceMap4;
   /**
    * Seconds to train one.
    */
@@ -375,6 +376,12 @@ export interface Unit {
  * Amounts keyed by Resource id.
  */
 export interface ResourceMap3 {
+  [k: string]: number;
+}
+/**
+ * Amounts keyed by Resource id.
+ */
+export interface ResourceMap4 {
   [k: string]: number;
 }
 /**
@@ -449,11 +456,11 @@ export interface Building {
    * Seconds to build.
    */
   buildTime: number;
-  upkeep: ResourceMap4;
-  yield: ResourceMap5;
-  extracts?: ResourceMap6;
+  upkeep: ResourceMap5;
+  yield: ResourceMap6;
+  extracts?: ResourceMap7;
   refines?: Refining;
-  storage?: ResourceMap7;
+  storage?: ResourceMap8;
   commandPointBonus: number;
   /**
    * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
@@ -472,12 +479,6 @@ export interface Building {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap4 {
-  [k: string]: number;
-}
-/**
- * Amounts keyed by Resource id.
- */
 export interface ResourceMap5 {
   [k: string]: number;
 }
@@ -485,6 +486,12 @@ export interface ResourceMap5 {
  * Amounts keyed by Resource id.
  */
 export interface ResourceMap6 {
+  [k: string]: number;
+}
+/**
+ * Amounts keyed by Resource id.
+ */
+export interface ResourceMap7 {
   [k: string]: number;
 }
 /**
@@ -497,7 +504,7 @@ export interface Refining {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap7 {
+export interface ResourceMap8 {
   [k: string]: number;
 }
 /**
@@ -560,7 +567,7 @@ export interface PlanetType {
    * Inline English display name.
    */
   name: string;
-  income: ResourceMap8;
+  income: ResourceMap9;
   richness?: Richness;
   buildingSlots: number;
   commandPointBonus: number;
@@ -572,7 +579,7 @@ export interface PlanetType {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap8 {
+export interface ResourceMap9 {
   [k: string]: number;
 }
 /**

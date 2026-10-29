@@ -176,7 +176,7 @@ Spots on the Battlefield where a side that holds one can build a turret, as on E
 - **Owners at the start:** pads within 10 cells of a Control Point start as the defender's; the rest start with no owner. The attacker starts with none.
 - **Capture:** like a Control Point, using the same radius and time: one side's ground squads alone near it for `captureSeconds` take it. A pad with a turret on it can't be captured; the enemy has to destroy the turret first. A pad being built on can be captured, which cancels the build without a refund.
 - **Building:** the side holding an empty pad can build one turret on it. A turret is a Building with `padTurret: true` and a `combat` block, of the side's own Faction. It costs that Building's `cost`, paid at once from the player's Resources, the same pool as the galaxy. It's built after `battle.padBuildSeconds` (10 s), and it exists only for this Battle. The base Mod's pad turrets are the Turret and the Plasma Turret.
-- **Who decides:** a player builds with the Battle window's button; the AI never spends a player's money. A **neutral garrison** has no economy, so it gets `battle.neutralFunds` (400 Credits and 100 Materials, two turrets' worth) for the Battle, and its AI builds turrets on the pads it holds, the cheapest it can afford first.
+- **Who decides:** a player builds with the Battle window's button; the AI never spends a player's money. A **neutral garrison** has no economy, so it gets `battle.neutralFunds` (400 Credits, 100 Materials and 40 Alloys, two turrets' worth) for the Battle, and its AI builds turrets on the pads it holds, the cheapest it can afford first.
 - **Winning:** a defender's pad turrets count against its elimination, like its armed buildings. An attacker's don't: an attacker with only turrets left has lost.
 - **After the Battle:** pad turrets are gone, whoever won. They aren't Planet buildings.
 - **On the wire:** each pad in `BattleView`: its cell, owner, capture progress, any turret's squad id, and any build under way with the tick it finishes. The command is `BattleBuildTurret {planet, pad, building}`.
@@ -374,7 +374,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battle.retreatCountdown` | 10 s |
 | `battlefield.buildPads` | 4 |
 | `battle.padBuildSeconds` | 10 s |
-| `battle.neutralFunds` | 400 Credits, 100 Materials |
+| `battle.neutralFunds` | 400 Credits, 100 Materials, 40 Alloys |
 
 ## Content additions
 

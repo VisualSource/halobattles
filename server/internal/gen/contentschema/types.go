@@ -734,6 +734,10 @@ type Unit struct {
 	// The most of this unit one Unit Slot holds; more take another slot. Unset is no
 	// limit.
 	SlotLimit *int `json:"slotLimit,omitempty,omitzero"`
+
+	// Charged at each Payday for each living unit, from training until death. Left
+	// out is none.
+	Upkeep map[string]int `json:"upkeep,omitempty,omitzero"`
 }
 
 // A combat category that attackers are more or less effective against.

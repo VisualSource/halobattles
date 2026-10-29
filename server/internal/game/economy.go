@@ -50,7 +50,8 @@ type Events struct {
 var richness = map[string]float64{"none": 0, "poor": 0.5, "normal": 1, "rich": 1.5}
 
 // payday pays each player, per Resource, their Planets' income plus their
-// buildings' yields (an extractor's scaled by its Planet's Richness), minus their buildings' Upkeep, as one lump sum. Debt is
+// buildings' yields (an extractor's scaled by its Planet's Richness), minus
+// their buildings' and living units' Upkeep, as one lump sum. Debt is
 // allowed: a Resource can go below zero. Then refining buildings convert
 // what's left, and anything over a Stockpile cap is lost.
 func (s *State) payday(c *cs.Content) []PaydayPaid {
@@ -79,6 +80,7 @@ func (s *State) payday(c *cs.Content) []PaydayPaid {
 			}
 		}
 	}
+	s.unitUpkeep(c, nets)
 	paid := make([]PaydayPaid, len(s.Players))
 	for i := range s.Players {
 		pl := &s.Players[i]
@@ -151,6 +153,46 @@ func (s *State) units(seat int) map[string]int {
 		}
 	}
 	return n
+}
+
+// unitUpkeep takes each living unit's Upkeep off its owner's net: units in
+// Stacks, Armies and Battles. Queued units and neutral garrisons pay none.
+func (s *State) unitUpkeep(c *cs.Content, nets []map[string]int) {
+	charge := func(seat int, unit string, n int) {
+		if seat == Neutral {
+			return
+		}
+		for r, a := range c.Units[unit].Upkeep {
+			nets[seat][r] -= a * n
+		}
+	}
+	for _, p := range s.Planets {
+		if p.Locked {
+			continue // its Battle counts who's still alive
+		}
+		for _, st := range p.Stacks {
+			for _, u := range st {
+				charge(p.Owner, u.Unit, u.Count)
+			}
+		}
+	}
+	for _, a := range s.Armies {
+		for _, u := range a.Units {
+			charge(a.Owner, u.Unit, u.Count)
+		}
+	}
+	for _, b := range s.Battles {
+		for _, sq := range b.Sim.Squads {
+			if sq.Building || sq.OnPad > 0 {
+				continue
+			}
+			seat := b.Attacker
+			if sq.Side == battle.Defender {
+				seat = b.Defender
+			}
+			charge(seat, sq.Unit, len(sq.Members))
+		}
+	}
 }
 
 // refine runs each of seat's refining buildings, in Planet and slot order,

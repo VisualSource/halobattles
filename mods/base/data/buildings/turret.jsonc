@@ -3,7 +3,7 @@
   "id": "turret",
   "name": "Turret",
   "faction": "unsc",
-  "cost": { "credits": 200, "materials": 50 },
+  "cost": { "credits": 200, "materials": 50, "alloys": 20 },
   "buildTime": 30,
   "upkeep": { "credits": 10 },
   "yield": {},

@@ -162,22 +162,22 @@ The base Mod ships **no icons or sprites**; the client draws placeholders.
 
 ### Units
 
-The rosters mirror each other's roles and costs. Covenant units put part of their durability into Shields; UNSC units carry more Armor and HP. Movement, range, fire-rate and Sight come from the [Unit Class defaults](tactical-battle-spec.md#stats) until playtests give units their own.
+The rosters mirror each other's roles and costs. Covenant units put part of their durability into Shields; UNSC units carry more Armor and HP. Each living unit pays its Upkeep at every Payday, from training until death; queued units and neutral garrisons pay none ([economy spec](economy-spec.md#unit-upkeep)). Movement, range, fire-rate and Sight come from the [Unit Class defaults](tactical-battle-spec.md#stats) until playtests give units their own.
 
 Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 45–55% of the time) and fight for 1–3 minutes; a Go test keeps both (see [Pacing](tactical-battle-spec.md#pacing)).
 
-| Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Tiers Inf/Veh/Air/Str | Cost | Time | CP | Trained at |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Marine | UNSC | Inf | Kinetic | 0/0/12 | 1d4 | A/D/D/D | 50C | 15s | 1 | Barracks |
-| ODST | UNSC | Inf | Explosive | 0/2/19 | 2d6 | D/A/N/A | 100C 25M | 25s | 2 | Barracks |
-| Warthog | UNSC | Veh | Kinetic | 0/12/25 | 2d4 | A/D/N/D | 150C 50M | 30s | 3 | Vehicle Depot |
-| Scorpion | UNSC | Veh | Explosive | 0/38/38 | 4d6+1 | N/A/–/A | 250C 100M | 45s | 4 | Vehicle Depot |
-| Hornet | UNSC | Air | Kinetic | 0/12/25 | 1d12 | N/A/A/N | 300C 150M | 50s | 5 | Air Pad |
-| Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | A/D/D/D | 50C | 15s | 1 | Hall |
-| Elite | Covenant | Inf | Explosive | 10/0/10 | 2d6 | D/A/N/A | 100C 25M | 25s | 2 | Hall |
-| Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | A/D/N/D | 150C 50M | 30s | 3 | Summoning Foundry |
-| Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | N/A/–/A | 250C 100M | 45s | 4 | Summoning Foundry |
-| Banshee | Covenant | Air | Plasma | 13/5/20 | 1d12 | N/A/A/N | 300C 150M | 50s | 5 | Summit |
+| Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Tiers Inf/Veh/Air/Str | Cost | Upkeep | Time | CP | Trained at |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Marine | UNSC | Inf | Kinetic | 0/0/12 | 1d4 | A/D/D/D | 50C | 5C | 15s | 1 | Barracks |
+| ODST | UNSC | Inf | Explosive | 0/2/19 | 2d6 | D/A/N/A | 100C 25M | 10C | 25s | 2 | Barracks |
+| Warthog | UNSC | Veh | Kinetic | 0/12/25 | 2d4 | A/D/N/D | 150C 50M 15A | 15C 1A | 30s | 3 | Vehicle Depot |
+| Scorpion | UNSC | Veh | Explosive | 0/38/38 | 4d6+1 | N/A/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Vehicle Depot |
+| Hornet | UNSC | Air | Kinetic | 0/12/25 | 1d12 | N/A/A/N | 300C 150M 40A | 30C 2A | 50s | 5 | Air Pad |
+| Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | A/D/D/D | 50C | 5C | 15s | 1 | Hall |
+| Elite | Covenant | Inf | Explosive | 10/0/10 | 2d6 | D/A/N/A | 100C 25M | 10C | 25s | 2 | Hall |
+| Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | A/D/N/D | 150C 50M 15A | 15C 1A | 30s | 3 | Summoning Foundry |
+| Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | N/A/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Summoning Foundry |
+| Banshee | Covenant | Air | Plasma | 13/5/20 | 1d12 | N/A/A/N | 300C 150M 40A | 30C 2A | 50s | 5 | Summit |
 
 ### Buildings
 
@@ -192,7 +192,7 @@ Eight mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundr
 | Mine / Excavator | 200C | 30s | 0 | extracts 60M × Materials Richness | economy |
 | Foundry / Forge | 250C 100M | 45s | 10C | refines 40M into 20A | Alloys |
 | Depot / Reliquary | 150C | 30s | 0 | +1500C +750M +250A of Stockpile caps | storage |
-| Turret / Plasma Turret | 200C 50M | 30s | 10C | none | armed Structure |
+| Turret / Plasma Turret | 200C 50M 20A | 30s | 10C | none | armed Structure |
 
 Both Turrets have a Damage roll of 2d4, have `advantage` against Infantry, and are `normal` against Vehicles and Aircraft.
 

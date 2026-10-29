@@ -188,6 +188,12 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	if b := d.Units["base:banshee"]; b.Combat.Shield != 13 || b.Combat.Hp != 20 || b.BuildTime != 50 {
 		t.Errorf("banshee = %+v", b)
 	}
+	if g := d.Units["base:ghost"]; g.Cost["base:alloys"] != 15 || g.Upkeep["base:credits"] != 15 || g.Upkeep["base:alloys"] != 1 {
+		t.Errorf("ghost cost %v, upkeep %v", g.Cost, g.Upkeep)
+	}
+	if b := d.Buildings["base:plasma-turret"]; b.Cost["base:alloys"] != 20 {
+		t.Errorf("plasma-turret cost %v", b.Cost)
+	}
 	if w := d.WeaponTypes["base:plasma"]; w.Shield != 1.5 || w.Armor != 0.75 || w.Hp != 1 {
 		t.Errorf("plasma = %+v", w)
 	}

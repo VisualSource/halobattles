@@ -198,6 +198,7 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		where := "units " + id
 		c.ref(where, "factions", string(u.Faction))
 		c.resourceKeys(where+": cost", u.Cost)
+		c.resourceKeys(where+": upkeep", u.Upkeep)
 		c.combat(where, &u.Combat)
 		c.asset(where, u.Icon)
 	}
