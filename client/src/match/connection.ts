@@ -15,6 +15,7 @@ import {
   CancelQueueItemT,
   CommandRejected,
   type EconomyT,
+  ExchangeT,
   LobbyState,
   type LobbyStateT,
   MatchEnded,
@@ -137,6 +138,7 @@ const toPlanet = (p: PlanetViewT): PlanetView => ({
   queue: p.queue.map(toQueueItem),
   unitQueue: p.unitQueue.map(toQueueItem),
   rallyStack: p.rallyStack,
+  richness: new Map(p.richness.map((r) => [str(r.resource), str(r.level)])),
 });
 
 const toArmy = (a: ArmyViewT): Army => ({
@@ -236,6 +238,8 @@ const toEconomy = (e: EconomyT): Economy => ({
   commandPointsCap: e.commandPointsCap,
   paydayStart: Number(e.paydayStart),
   paydayEnd: Number(e.paydayEnd),
+  caps: toAmounts(e.caps),
+  projected: toAmounts(e.projected),
 });
 
 const NO_ECONOMY: Economy = {
@@ -244,6 +248,8 @@ const NO_ECONOMY: Economy = {
   commandPointsCap: 0,
   paydayStart: 0,
   paydayEnd: 0,
+  caps: new Map(),
+  projected: new Map(),
 };
 
 function toView(t: ViewFullT): View {
@@ -461,6 +467,15 @@ export class MatchConnection {
       Op.SetRallyStack,
       "rally",
       (seq) => new SetRallyStackT(seq, planet, stack),
+    );
+  }
+
+  /** Trades amount of give, a whole multiple of its rate, for get. */
+  exchange(give: string, get: string, amount: number) {
+    this.send(
+      Op.Exchange,
+      "exchange",
+      (seq) => new ExchangeT(seq, give, get, amount),
     );
   }
 

@@ -7,6 +7,7 @@ import type { ContentLookups } from "../content";
 import { GalaxyScene, seatColour } from "../scene/galaxy";
 import { BattlePanel } from "./battle";
 import type { MatchConnection } from "./connection";
+import { moneyOf, quote } from "./exchange";
 import { isPending } from "./local";
 import { inMatch } from "./phase";
 import { laneTimes } from "./route";
@@ -26,6 +27,8 @@ import {
 const label = "font-mono text-[11px] text-ink-3 uppercase tracking-[0.08em]";
 const popover =
   "absolute z-20 rounded-lg border border-edge bg-panel shadow-[0_12px_32px_#000a]";
+const chip =
+  "ml-1.5 rounded px-1 py-px font-sans font-semibold text-[9px] text-accent-ink tracking-[0.1em]";
 
 export function PlayScreen(props: {
   conn: MatchConnection;
@@ -117,22 +120,15 @@ const clock = (ms: number) => {
 };
 
 /**
- * Your Resources and Command Points, the Payday countdown, the game mode,
- * any running win-hold countdown, notifications and Surrender.
+ * Your Resources against their caps with the next Payday's projected
+ * change, the Exchange, Command Points, the Payday countdown, the game
+ * mode, any running win-hold countdown, notifications and Surrender.
  */
 function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
   const { conn, content } = props;
   const view = useStore(conn.store, (s) => s.view);
   const local = useStore(conn.local);
   const now = useMatchNow(conn.local);
-  const [lastNet, setLastNet] = useState<Map<string, number> | null>(null);
-
-  useEffect(() => {
-    const onPayday = (e: Event) =>
-      setLastNet((e as CustomEvent<Map<string, number>>).detail);
-    conn.events.addEventListener("payday", onPayday);
-    return () => conn.events.removeEventListener("payday", onPayday);
-  }, [conn]);
 
   if (!view) return null;
   const { economy, winHold } = view;
@@ -149,30 +145,50 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
       </span>
       <span aria-hidden="true" className="h-7 w-px bg-line" />
       {[...economy.resources].map(([id, amount]) => {
-        const net = lastNet?.get(id);
+        const name = content.resources.get(id)?.name ?? id;
+        const cap = economy.caps.get(id);
+        const net = economy.projected.get(id) ?? 0;
+        const full = cap !== undefined && amount >= cap;
+        const lost = cap === undefined ? 0 : Math.max(0, amount + net - cap);
         return (
-          <div key={id} className="flex flex-col gap-0.5">
-            <span className={label}>
-              {content.resources.get(id)?.name ?? id}
+          <div
+            key={id}
+            title={
+              lost > 0
+                ? `${lost} ${name} over the cap will be lost at the next Payday`
+                : undefined
+            }
+            className={`-mx-2 flex flex-col gap-0.5 rounded-md border px-2 py-0.5 ${full ? "border-accent/40 bg-accent-wash" : "border-transparent"}`}
+          >
+            <span className={`${label} ${full ? "text-accent" : ""}`}>
+              {name}
+              {full && <span className={`${chip} bg-accent`}>Full</span>}
+              {amount < 0 && <span className={`${chip} bg-danger`}>Debt</span>}
             </span>
-            <span className={`font-mono ${amount < 0 ? "text-danger" : ""}`}>
-              {amount}
-              {amount < 0 ? (
-                <span className="text-xs"> in debt</span>
-              ) : (
-                net !== undefined && (
-                  <span
-                    className={`text-xs ${net < 0 ? "text-danger" : "text-ok"}`}
-                  >
-                    {" "}
-                    {net < 0 ? net : `+${net}`}
-                  </span>
-                )
+            <span className="whitespace-nowrap font-mono">
+              <span
+                className={
+                  amount < 0 ? "text-danger" : full ? "text-accent" : ""
+                }
+              >
+                {amount}
+              </span>
+              {cap !== undefined && (
+                <span className="text-ink-4"> / {cap}</span>
+              )}
+              {net !== 0 && (
+                <span
+                  className={`text-xs ${full && net > 0 ? "text-ink-4 line-through" : net < 0 ? "text-danger" : "text-ok"}`}
+                >
+                  {" "}
+                  {net < 0 ? net : `+${net}`}
+                </span>
               )}
             </span>
           </div>
         );
       })}
+      <Exchange conn={conn} content={content} />
       <div className="flex flex-col gap-0.5">
         <span className={label}>Command Points</span>
         <span className="font-mono">
@@ -313,6 +329,185 @@ function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
                 : `${holder}: ${Math.max(0, Math.ceil((hold.ends - now) / 1000))} s left`}
             </span>
           </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Trades for Credits and back at the Ruleset's rates. The amount always
+ * counts the other Resource: how much to sell, or how much to buy.
+ */
+function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
+  const { conn, content } = props;
+  const economy = useStore(conn.store, (s) => s.view?.economy);
+  const pending = useStore(conn.local, (s) => isPending(s, "exchange"));
+  const pop = usePopover();
+  const rates = content.rules.exchange;
+  const money = moneyOf(rates);
+  const others = [...new Set(rates.flatMap((r) => [r.give, r.get]))].filter(
+    (r) => r !== money,
+  );
+  const [mode, setMode] = useState<"sell" | "buy">("sell");
+  const [other, setOther] = useState(others[0] ?? "");
+  const [qty, setQty] = useState<number | null>(null); // null: one step
+  if (!economy || !money) return null;
+
+  const have = economy.resources;
+  const name = (r: string) => content.resources.get(r)?.name ?? r;
+  const step = quote(rates, money, mode, other, 0, have)?.step ?? 1;
+  const amount = qty ?? step;
+  const q = quote(rates, money, mode, other, amount, have);
+  const pick = (m: typeof mode, r: string) => {
+    setMode(m);
+    setOther(r);
+    setQty(null);
+  };
+  const after = (r: string, d: number) => (have.get(r) ?? 0) + d;
+  const cap = q && economy.caps.get(q.rate.get);
+  const seg = (on: boolean) =>
+    `min-h-8 flex-1 rounded-none border-0 ${on ? "bg-raised text-ink shadow-[inset_0_-2px_0_var(--color-accent)]" : "bg-transparent text-ink-3"}`;
+  const error = !q
+    ? `${name(other)} can't be ${mode === "sell" ? "sold" : "bought"} here`
+    : !q.inSteps
+      ? `Amounts go in steps of ${q.step}`
+      : !q.affordable
+        ? `Not enough ${name(q.rate.give)}: you have ${have.get(q.rate.give) ?? 0}`
+        : null;
+
+  return (
+    <div ref={pop.ref} className="relative">
+      <button
+        type="button"
+        aria-expanded={pop.open}
+        onClick={pop.toggle}
+        className={`min-h-9 rounded-md px-3 ${pop.open ? "border-accent bg-accent-wash text-accent" : "border-line bg-panel"}`}
+      >
+        ⇄ Exchange
+      </button>
+      {pop.open && (
+        <div
+          className={`${popover} top-11 left-0 flex w-85 flex-col gap-3 p-3.5 text-sm`}
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="font-display font-semibold text-base">Exchange</h2>
+            <span className="text-ink-3 text-xs">any time, even in debt</span>
+          </div>
+          <div className="flex overflow-hidden rounded-md border border-edge">
+            {(["sell", "buy"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={mode === m}
+                onClick={() => pick(m, other)}
+                className={seg(mode === m)}
+              >
+                {m === "sell" ? "Sell for" : "Buy with"} {name(money)}
+              </button>
+            ))}
+          </div>
+          <div className="flex overflow-hidden rounded-md border border-edge">
+            {others.map((r) => (
+              <button
+                key={r}
+                type="button"
+                aria-pressed={other === r}
+                onClick={() => pick(mode, r)}
+                className={seg(other === r)}
+              >
+                {name(r)}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-[2rem_1fr_2rem_auto] items-center gap-1.5">
+            <button
+              type="button"
+              aria-label={`${step} fewer`}
+              onClick={() => setQty(Math.max(step, amount - step))}
+              className="min-h-8 rounded-md border-edge bg-raised p-0"
+            >
+              −
+            </button>
+            <input
+              id="exchange-amount"
+              inputMode="numeric"
+              aria-label={`${name(other)} to ${mode}, in steps of ${step}`}
+              value={amount}
+              onChange={(e) => setQty(Number(e.target.value) || 0)}
+              className="min-h-8 rounded-md border border-edge bg-well text-center font-mono"
+            />
+            <button
+              type="button"
+              aria-label={`${step} more`}
+              onClick={() => setQty(amount + step)}
+              className="min-h-8 rounded-md border-edge bg-raised p-0"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              disabled={!q || q.max === 0}
+              onClick={() => q && setQty(q.max)}
+              className="min-h-8 rounded-md border-edge bg-raised px-3"
+            >
+              Max
+            </button>
+          </div>
+          {q && (
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-md border border-line bg-well p-2.5">
+              <div className="flex flex-col gap-0.5">
+                <span className={label}>You give</span>
+                <span
+                  className={`font-mono text-lg ${q.affordable ? "" : "text-danger"}`}
+                >
+                  {q.give}
+                </span>
+                <span className="text-ink-3 text-xs">
+                  {name(q.rate.give)} · {have.get(q.rate.give) ?? 0} →{" "}
+                  {after(q.rate.give, -q.give)}
+                </span>
+              </div>
+              <span aria-hidden="true" className="text-ink-4 text-lg">
+                →
+              </span>
+              <div className="flex flex-col gap-0.5 text-right">
+                <span className={label}>You get</span>
+                <span className="font-mono text-lg text-ok">{q.get}</span>
+                <span className="text-ink-3 text-xs">
+                  {name(q.rate.get)} · {have.get(q.rate.get) ?? 0} →{" "}
+                  {after(q.rate.get, q.get)}
+                </span>
+              </div>
+            </div>
+          )}
+          {q && (
+            <p className="text-ink-3 text-xs">
+              Rate: {q.rate.giveAmount} {name(q.rate.give)} → {q.rate.getAmount}{" "}
+              {name(q.rate.get)}.
+            </p>
+          )}
+          {error ? (
+            <p className="text-danger text-xs">{error}</p>
+          ) : (
+            q &&
+            cap !== undefined &&
+            cap !== null &&
+            after(q.rate.get, q.get) > cap && (
+              <p className="rounded-md border border-accent/40 bg-accent-wash px-2.5 py-2 text-accent text-xs">
+                {name(q.rate.get)} go over their cap of {cap}. Whatever is still
+                over it at the next Payday is lost.
+              </p>
+            )
+          )}
+          <button
+            type="button"
+            disabled={error !== null || pending}
+            onClick={() => q && conn.exchange(q.rate.give, q.rate.get, q.give)}
+            className="min-h-9 rounded-md border-accent bg-accent font-semibold text-accent-ink"
+          >
+            {mode === "sell" ? "Sell" : "Buy"} {amount} {name(other)}
+          </button>
         </div>
       )}
     </div>

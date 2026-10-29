@@ -322,3 +322,27 @@ func TestUnitsWithAnAlloyCostNeedAlloysToQueue(t *testing.T) {
 		t.Errorf("Resources %v, want 900C 0A after paying 100C 15A", r)
 	}
 }
+
+func TestTheViewProjectsTheNextPaydayAndShowsCapsAndRichness(t *testing.T) {
+	s, c := fixedMatch(t), upkeepContent()
+	a := s.Planets["a"]
+	a.Buildings = append(a.Buildings[:2], "base:foundry", "base:depot")
+	a.Richness = map[string]string{"base:materials": "rich"}
+	s.Players[0].Resources = map[string]int{"base:credits": 100, "base:materials": 30}
+	r := c.Rulesets[RulesetID]
+	r.StockpileCaps = map[string]int{"base:credits": 3000, "base:materials": 1500, "base:alloys": 500}
+	c.Rulesets[RulesetID] = r
+
+	e := s.View(c, 0).Economy
+	paid := s.Advance(c, 90_000).Paydays
+
+	if !maps.Equal(e.Projected, paid[0].Net) {
+		t.Errorf("projected %v, but Payday paid %v", e.Projected, paid[0].Net)
+	}
+	if e.Caps["base:credits"] != 3500 || e.Caps["base:alloys"] != 600 {
+		t.Errorf("caps %v, want the Depot's storage added", e.Caps)
+	}
+	if got := s.View(c, 0).Planets[0].Richness; got["base:materials"] != "rich" {
+		t.Errorf("Planet a's Richness in the View = %v", got)
+	}
+}

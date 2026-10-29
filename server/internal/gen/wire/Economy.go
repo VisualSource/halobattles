@@ -12,6 +12,8 @@ type EconomyT struct {
 	CommandPointsCap  uint32     `json:"command_points_cap"`
 	PaydayStart       int64      `json:"payday_start"`
 	PaydayEnd         int64      `json:"payday_end"`
+	Caps              []*AmountT `json:"caps"`
+	Projected         []*AmountT `json:"projected"`
 }
 
 func (t *EconomyT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -31,12 +33,40 @@ func (t *EconomyT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		}
 		resourcesOffset = builder.EndVector(resourcesLength)
 	}
+	capsOffset := flatbuffers.UOffsetT(0)
+	if t.Caps != nil {
+		capsLength := len(t.Caps)
+		capsOffsets := make([]flatbuffers.UOffsetT, capsLength)
+		for j := 0; j < capsLength; j++ {
+			capsOffsets[j] = t.Caps[j].Pack(builder)
+		}
+		EconomyStartCapsVector(builder, capsLength)
+		for j := capsLength - 1; j >= 0; j-- {
+			builder.PrependUOffsetT(capsOffsets[j])
+		}
+		capsOffset = builder.EndVector(capsLength)
+	}
+	projectedOffset := flatbuffers.UOffsetT(0)
+	if t.Projected != nil {
+		projectedLength := len(t.Projected)
+		projectedOffsets := make([]flatbuffers.UOffsetT, projectedLength)
+		for j := 0; j < projectedLength; j++ {
+			projectedOffsets[j] = t.Projected[j].Pack(builder)
+		}
+		EconomyStartProjectedVector(builder, projectedLength)
+		for j := projectedLength - 1; j >= 0; j-- {
+			builder.PrependUOffsetT(projectedOffsets[j])
+		}
+		projectedOffset = builder.EndVector(projectedLength)
+	}
 	EconomyStart(builder)
 	EconomyAddResources(builder, resourcesOffset)
 	EconomyAddCommandPointsUsed(builder, t.CommandPointsUsed)
 	EconomyAddCommandPointsCap(builder, t.CommandPointsCap)
 	EconomyAddPaydayStart(builder, t.PaydayStart)
 	EconomyAddPaydayEnd(builder, t.PaydayEnd)
+	EconomyAddCaps(builder, capsOffset)
+	EconomyAddProjected(builder, projectedOffset)
 	return EconomyEnd(builder)
 }
 
@@ -52,6 +82,20 @@ func (rcv *Economy) UnPackTo(t *EconomyT) {
 	t.CommandPointsCap = rcv.CommandPointsCap()
 	t.PaydayStart = rcv.PaydayStart()
 	t.PaydayEnd = rcv.PaydayEnd()
+	capsLength := rcv.CapsLength()
+	t.Caps = make([]*AmountT, capsLength)
+	for j := 0; j < capsLength; j++ {
+		x := Amount{}
+		rcv.Caps(&x, j)
+		t.Caps[j] = x.UnPack()
+	}
+	projectedLength := rcv.ProjectedLength()
+	t.Projected = make([]*AmountT, projectedLength)
+	for j := 0; j < projectedLength; j++ {
+		x := Amount{}
+		rcv.Projected(&x, j)
+		t.Projected[j] = x.UnPack()
+	}
 }
 
 func (rcv *Economy) UnPack() *EconomyT {
@@ -175,8 +219,66 @@ func (rcv *Economy) MutatePaydayEnd(n int64) bool {
 	return rcv._tab.MutateInt64Slot(12, n)
 }
 
+func (rcv *Economy) Caps(obj *Amount, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *Economy) CapsByKey(obj *Amount, key string) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		return obj.LookupByKey(key, x, rcv._tab.Bytes)
+	}
+	return false
+}
+
+func (rcv *Economy) CapsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
+func (rcv *Economy) Projected(obj *Amount, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *Economy) ProjectedByKey(obj *Amount, key string) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		return obj.LookupByKey(key, x, rcv._tab.Bytes)
+	}
+	return false
+}
+
+func (rcv *Economy) ProjectedLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func EconomyStart(builder *flatbuffers.Builder) {
-	builder.StartObject(5)
+	builder.StartObject(7)
 }
 func EconomyAddResources(builder *flatbuffers.Builder, resources flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(resources), 0)
@@ -195,6 +297,18 @@ func EconomyAddPaydayStart(builder *flatbuffers.Builder, paydayStart int64) {
 }
 func EconomyAddPaydayEnd(builder *flatbuffers.Builder, paydayEnd int64) {
 	builder.PrependInt64Slot(4, paydayEnd, 0)
+}
+func EconomyAddCaps(builder *flatbuffers.Builder, caps flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(caps), 0)
+}
+func EconomyStartCapsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func EconomyAddProjected(builder *flatbuffers.Builder, projected flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(projected), 0)
+}
+func EconomyStartProjectedVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
 }
 func EconomyEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

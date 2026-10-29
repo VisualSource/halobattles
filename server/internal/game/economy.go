@@ -49,12 +49,34 @@ type Events struct {
 // Richness multiplies what a Planet's extractor buildings draw from it.
 var richness = map[string]float64{"none": 0, "poor": 0.5, "normal": 1, "rich": 1.5}
 
-// payday pays each player, per Resource, their Planets' income plus their
-// buildings' yields (an extractor's scaled by its Planet's Richness), minus
-// their buildings' and living units' Upkeep, as one lump sum. Debt is
-// allowed: a Resource can go below zero. Then refining buildings convert
-// what's left, and anything over a Stockpile cap is lost.
+// payday pays each player their paydayNets as one lump sum. Debt is
+// allowed: a Resource can go below zero. Then anything over a Stockpile cap
+// is lost.
 func (s *State) payday(c *cs.Content) []PaydayPaid {
+	nets := s.paydayNets(c)
+	paid := make([]PaydayPaid, len(s.Players))
+	for i := range s.Players {
+		pl := &s.Players[i]
+		if pl.Resources == nil {
+			pl.Resources = map[string]int{}
+		}
+		for r, a := range nets[i] {
+			pl.Resources[r] += a
+		}
+		for r, cap := range s.caps(c, i) {
+			pl.Resources[r] = min(pl.Resources[r], cap)
+		}
+		paid[i] = PaydayPaid{Seat: i, Net: nets[i]}
+	}
+	return paid
+}
+
+// paydayNets is what a Payday now would change, per Seat and Resource,
+// before caps: their Planets' income plus their buildings' yields (an
+// extractor's scaled by its Planet's Richness), minus their buildings' and
+// living units' Upkeep, then what refining buildings convert of the rest.
+// It changes nothing, so the View can show it as the projection.
+func (s *State) paydayNets(c *cs.Content) []map[string]int {
 	nets := make([]map[string]int, len(s.Players))
 	for i := range nets {
 		nets[i] = map[string]int{}
@@ -81,22 +103,17 @@ func (s *State) payday(c *cs.Content) []PaydayPaid {
 		}
 	}
 	s.unitUpkeep(c, nets)
-	paid := make([]PaydayPaid, len(s.Players))
 	for i := range s.Players {
-		pl := &s.Players[i]
-		if pl.Resources == nil {
-			pl.Resources = map[string]int{}
+		res := maps.Clone(s.Players[i].Resources)
+		if res == nil {
+			res = map[string]int{}
 		}
 		for r, a := range nets[i] {
-			pl.Resources[r] += a
+			res[r] += a
 		}
-		s.refine(c, i, nets[i])
-		for r, cap := range s.caps(c, i) {
-			pl.Resources[r] = min(pl.Resources[r], cap)
-		}
-		paid[i] = PaydayPaid{Seat: i, Net: nets[i]}
+		s.refine(c, i, res, nets[i])
 	}
-	return paid
+	return nets
 }
 
 // commandPoints is a player's Command Points in use and their cap. Units
@@ -196,11 +213,11 @@ func (s *State) unitUpkeep(c *cs.Content, nets []map[string]int) {
 }
 
 // refine runs each of seat's refining buildings, in Planet and slot order,
-// on what they hold after income and Upkeep. Short of input, a building
+// on res, what they hold after income and Upkeep, adding what it converts
+// to res and net. Short of input, a building
 // converts whole batches of its recipe at its smallest whole ratio (40
 // Materials into 20 Alloys is 2 into 1), so nothing is wasted.
-func (s *State) refine(c *cs.Content, seat int, net map[string]int) {
-	res := s.Players[seat].Resources
+func (s *State) refine(c *cs.Content, seat int, res, net map[string]int) {
 	for _, id := range slices.Sorted(maps.Keys(s.Planets)) {
 		p := s.Planets[id]
 		if p.Owner != seat {

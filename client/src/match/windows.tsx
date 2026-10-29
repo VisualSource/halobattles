@@ -1,6 +1,7 @@
 import { Feedback } from "@dnd-kit/dom";
 import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react";
 import {
+  Fragment,
   type ReactNode,
   useEffect,
   useLayoutEffect,
@@ -50,18 +51,50 @@ const addInto = (into: Map<string, number>, a: Record<string, number>) => {
   for (const [r, n] of Object.entries(a)) into.set(r, (into.get(r) ?? 0) + n);
 };
 
-/**
- * What a building makes at Payday: its flat yield plus what it extracts, at
- * its normal amount. shortcut: ignores the Planet's Richness; #29 shows it.
- */
-const outputOf = (b: {
+/** Richness multiplies what a Planet's extractor buildings draw from it. */
+const RICHNESS: Record<string, number> = {
+  none: 0,
+  poor: 0.5,
+  normal: 1,
+  rich: 1.5,
+};
+
+type Producer = {
   yield: Record<string, number>;
   extracts?: Record<string, number>;
-}) => {
+};
+
+/**
+ * What a building makes at Payday on a Planet: its flat yield plus what it
+ * extracts times the Planet's Richness, rounded down as the server does.
+ */
+const outputOf = (b: Producer, richness: Map<string, string>) => {
   const out = new Map<string, number>();
   addInto(out, b.yield);
-  addInto(out, b.extracts ?? {});
+  for (const [r, n] of Object.entries(b.extracts ?? {}))
+    out.set(
+      r,
+      (out.get(r) ?? 0) +
+        Math.floor(n * (RICHNESS[richness.get(r) ?? ""] ?? 0)),
+    );
   return Object.fromEntries(out);
+};
+
+/**
+ * A building's output on a Planet, with the Richness that scaled an
+ * extractor's: "+90 Materials · rich ×1.5". "" when it makes nothing.
+ */
+const outputText = (
+  content: ContentLookups,
+  b: Producer,
+  richness: Map<string, string>,
+) => {
+  const out = amounts(content, outputOf(b, richness));
+  const levels = Object.keys(b.extracts ?? {}).map(
+    (r) => richness.get(r) ?? "none",
+  );
+  if (!levels.length) return out && `+${out}`;
+  return `+${out || "0"} · ${levels.map((l) => `${l} ×${RICHNESS[l] ?? 0}`).join(", ")}`;
 };
 
 /**
@@ -358,6 +391,7 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
       ? "#9ca3af"
       : seatColour(owner);
 
+  const richness = planet?.richness ?? new Map<string, string>();
   const produces = new Map<string, number>();
   const upkeep = new Map<string, number>();
   const madeBy: string[] = [];
@@ -369,12 +403,29 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
   for (const id of planet?.buildings ?? []) {
     const b = content.buildings.get(id);
     if (!b) continue;
-    addInto(produces, outputOf(b));
+    addInto(produces, outputOf(b, richness));
     addInto(upkeep, b.upkeep);
-    if (amounts(content, outputOf(b)))
-      madeBy.push(`${b.name} ${amounts(content, outputOf(b))}`);
+    if (outputText(content, b, richness))
+      madeBy.push(`${b.name} ${outputText(content, b, richness)}`);
+    if (b.refines)
+      madeBy.push(
+        `${b.name} refines ${amounts(content, b.refines.input)} → ${amounts(content, b.refines.output)}`,
+      );
     if (amounts(content, b.upkeep))
       paidBy.push(`${b.name} ${amounts(content, b.upkeep)}`);
+  }
+  const garrison = new Map<string, number>();
+  for (const st of planet?.stacks ?? [])
+    for (const s of st)
+      garrison.set(s.unit, (garrison.get(s.unit) ?? 0) + s.count);
+  for (const [id, n] of garrison) {
+    const u = content.units.get(id);
+    if (!u?.upkeep || !amounts(content, u.upkeep)) continue;
+    addInto(
+      upkeep,
+      Object.fromEntries(Object.entries(u.upkeep).map(([r, a]) => [r, a * n])),
+    );
+    paidBy.push(`${n} ${u.name} ${amounts(content, u.upkeep, n)}`);
   }
   const used = planet?.buildings.filter(Boolean).length ?? 0;
 
@@ -420,6 +471,30 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
         </dd>
         <dt className={label}>Command</dt>
         <dd className="font-mono">+{type?.commandPointBonus ?? 0} CP</dd>
+        {planet &&
+          [...content.resources].map(([id, r], i) => {
+            const level = richness.get(id) ?? "none";
+            const pips = ["none", "poor", "normal", "rich"].indexOf(level);
+            return (
+              <Fragment key={id}>
+                <dt className={label}>{i === 0 && "Richness"}</dt>
+                <dd className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="w-18">{r.name}</span>
+                  <span aria-hidden="true" className="flex gap-0.5">
+                    {[1, 2, 3].map((n) => (
+                      <span
+                        key={n}
+                        className={`h-2.5 w-1.5 rounded-[1px] ${n <= pips ? "bg-ok" : "bg-line"}`}
+                      />
+                    ))}
+                  </span>
+                  <span className="text-ink-3 text-xs">
+                    {level === "none" ? "none" : `${level} ×${RICHNESS[level]}`}
+                  </span>
+                </dd>
+              </Fragment>
+            );
+          })}
       </dl>
       <span className="flex-1" />
       {sel.mine && (
@@ -562,8 +637,8 @@ function BuildingsTab(props: {
                 <span className="text-[11px] text-ink-3">
                   {b.trains?.length
                     ? `Trains ${b.trains.map((u) => content.units.get(u)?.name ?? u).join(", ")}`
-                    : amounts(content, outputOf(b))
-                      ? `+${amounts(content, outputOf(b))}`
+                    : outputText(content, b, planet.richness)
+                      ? `${outputText(content, b, planet.richness)}${b.extracts ? " here" : ""}`
                       : b.combat
                         ? "Armed: fights in Battles"
                         : ""}
@@ -608,8 +683,7 @@ function BuildingsTab(props: {
                 <Tile name={b.name} size="size-14" />
                 <div className="font-mono text-[11px] text-ink-3">
                   {[
-                    amounts(content, outputOf(b)) &&
-                      `+${amounts(content, outputOf(b))}`,
+                    outputText(content, b, planet.richness),
                     amounts(content, b.upkeep) &&
                       `upkeep ${amounts(content, b.upkeep)}`,
                   ]

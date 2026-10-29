@@ -36,8 +36,10 @@ type Economy struct {
 	Resources         map[string]int
 	CommandPointsUsed int
 	CommandPointsCap  int
-	PaydayStart       int64 // Match Time of the last Payday, or Start
-	PaydayEnd         int64 // Match Time of the next Payday
+	PaydayStart       int64          // Match Time of the last Payday, or Start
+	PaydayEnd         int64          // Match Time of the next Payday
+	Caps              map[string]int // Stockpile caps, storage included
+	Projected         map[string]int // what the next Payday would change, if it came now; before caps
 }
 
 // PlayerView is the public part of every player.
@@ -63,6 +65,7 @@ type PlanetView struct {
 	Queue     []QueueItem // only on the viewer's own Planets
 	UnitQueue []QueueItem // every unit queue, by slot then order; own only
 	Rally     int         // own only
+	Richness  map[string]string
 }
 
 // ArmyView is an Army in vision. Other players' show only the current hop,
@@ -123,6 +126,7 @@ func (s *State) View(c *cs.Content, seat int) View {
 	v.Economy = Economy{
 		Resources: maps.Clone(s.Players[seat].Resources), CommandPointsUsed: used, CommandPointsCap: cp,
 		PaydayStart: s.NextPayday - s.PaydayEvery, PaydayEnd: s.NextPayday,
+		Caps: s.caps(c, seat), Projected: s.paydayNets(c)[seat],
 	}
 	counts := map[int]int{}
 	for _, p := range s.Planets {
@@ -137,7 +141,7 @@ func (s *State) View(c *cs.Content, seat int) View {
 	}
 	for _, id := range slices.Sorted(maps.Keys(visible)) {
 		p := s.Planets[id]
-		pv := PlanetView{ID: id, Owner: p.Owner, Capital: p.Capital, Locked: p.Locked, Buildings: slices.Clone(p.Buildings)}
+		pv := PlanetView{ID: id, Owner: p.Owner, Capital: p.Capital, Locked: p.Locked, Buildings: slices.Clone(p.Buildings), Richness: p.Richness}
 		for i, st := range p.Stacks {
 			pv.Stacks[i] = slices.Clone(st)
 		}

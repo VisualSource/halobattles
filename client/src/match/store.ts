@@ -52,6 +52,7 @@ export type PlanetView = {
   queue: QueueItem[]; // construction, in order; only on your own Planets
   unitQueue: QueueItem[]; // every unit queue, by slot then order; own only
   rallyStack: number; // where trained units go; own only
+  richness: Map<string, string>; // per Resource; a Resource left out is none
 };
 
 /**
@@ -174,6 +175,8 @@ export type Economy = {
   commandPointsCap: number;
   paydayStart: number; // Match Time of the last Payday, or Start
   paydayEnd: number; // Match Time of the next Payday
+  caps: Map<string, number>; // Stockpile caps, storage included
+  projected: Map<string, number>; // what the next Payday would change if it came now; before caps
 };
 
 export type View = {

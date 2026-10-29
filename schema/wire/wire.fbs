@@ -236,6 +236,12 @@ table PlanetView {
   queue: [QueueItem];      // construction, in order; only on your own Planets
   unit_queue: [QueueItem]; // every unit queue, by slot then order; own only
   rally_stack: ubyte;      // where trained units go; own Planets only
+  richness: [Richness];    // per Resource; a Resource left out is none
+}
+
+table Richness {
+  resource: string (key);
+  level: string;           // none, poor, normal or rich
 }
 
 // An Army in vision: on its current Lane hop, or waiting in orbit at `to`.
@@ -358,6 +364,8 @@ table Economy {
   command_points_cap: uint32;
   payday_start: long;      // Match Time of the last Payday (or Start)
   payday_end: long;        // Match Time of the next Payday
+  caps: [Amount];          // Stockpile caps, storage included
+  projected: [Amount];     // what the next Payday would change if it came now, Upkeep and refining included; before caps
 }
 
 // Sent on entering play and on every rejoin. Content is referred to by id;

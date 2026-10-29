@@ -13,6 +13,7 @@ import {
   BuildPadT,
   ControlPointT,
   EconomyT,
+  Exchange,
   LobbyStateT,
   MatchEndedT,
   MoveUnits,
@@ -26,6 +27,7 @@ import {
   QueueBuilding,
   QueueItemT,
   QueueUnit,
+  RichnessT,
   SeatT,
   StackT,
   UnitSlotT,
@@ -148,10 +150,25 @@ describe("MatchConnection", () => {
             new StackT([]),
             new StackT([]),
           ],
+          [],
+          [],
+          0,
+          [
+            new RichnessT("base:credits", "poor"),
+            new RichnessT("base:materials", "rich"),
+          ],
         ),
         new PlanetViewT("jericho", -1, false, false, ["", "", ""], []),
       ],
-      new EconomyT([new AmountT("base:credits", -20)], 16, 20, 0n, 90000n),
+      new EconomyT(
+        [new AmountT("base:credits", -20)],
+        16,
+        20,
+        0n,
+        90000n,
+        [new AmountT("base:credits", 3000)],
+        [new AmountT("base:credits", 85), new AmountT("base:alloys", -2)],
+      ),
       [
         new ArmyViewT(
           4,
@@ -213,6 +230,10 @@ describe("MatchConnection", () => {
             queue: [],
             unitQueue: [],
             rallyStack: 0,
+            richness: new Map([
+              ["base:credits", "poor"],
+              ["base:materials", "rich"],
+            ]),
           },
         ],
         [
@@ -227,6 +248,7 @@ describe("MatchConnection", () => {
             queue: [],
             unitQueue: [],
             rallyStack: 0,
+            richness: new Map(),
           },
         ],
       ]),
@@ -236,6 +258,11 @@ describe("MatchConnection", () => {
         commandPointsCap: 20,
         paydayStart: 0,
         paydayEnd: 90000,
+        caps: new Map([["base:credits", 3000]]),
+        projected: new Map([
+          ["base:credits", 85],
+          ["base:alloys", -2],
+        ]),
       },
       armies: new Map([
         [
@@ -326,6 +353,8 @@ describe("MatchConnection", () => {
       commandPointsCap: 10,
       paydayStart: 90000,
       paydayEnd: 180000,
+      caps: new Map(),
+      projected: new Map(),
     });
   });
 
@@ -429,6 +458,7 @@ describe("MatchConnection", () => {
     );
     conn.setRallyStack("a", 1);
     conn.surrender();
+    conn.exchange("base:materials", "base:credits", 200);
 
     expect(sent.map(([op]) => op)).toEqual([
       Op.QueueBuilding,
@@ -438,6 +468,7 @@ describe("MatchConnection", () => {
       Op.MoveUnits,
       Op.SetRallyStack,
       Op.Surrender,
+      Op.Exchange,
     ]);
     const bb = (i: number) =>
       new flatbuffers.ByteBuffer(sent[i]?.[1] ?? new Uint8Array());
@@ -464,6 +495,12 @@ describe("MatchConnection", () => {
       2,
       "base:barracks",
     ]);
+    const x = Exchange.getRootAsExchange(bb(7)).unpack();
+    expect([x.give, x.get, x.amount]).toEqual([
+      "base:materials",
+      "base:credits",
+      200,
+    ]);
     expect([...conn.local.getState().pending.values()]).toEqual([
       "build",
       "cancel",
@@ -472,6 +509,7 @@ describe("MatchConnection", () => {
       "move",
       "rally",
       "surrender",
+      "exchange",
     ]);
   });
 

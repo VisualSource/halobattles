@@ -35,6 +35,7 @@ export { QueueBuilding, QueueBuildingT } from './wire/queue-building.js';
 export { QueueItem, QueueItemT } from './wire/queue-item.js';
 export { QueueUnit, QueueUnitT } from './wire/queue-unit.js';
 export { ReorderArmy, ReorderArmyT } from './wire/reorder-army.js';
+export { Richness, RichnessT } from './wire/richness.js';
 export { Seat, SeatT } from './wire/seat.js';
 export { SellBuilding, SellBuildingT } from './wire/sell-building.js';
 export { SetFaction, SetFactionT } from './wire/set-faction.js';

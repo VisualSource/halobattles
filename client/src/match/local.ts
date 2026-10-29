@@ -19,7 +19,8 @@ export type CommandKind =
   | "order"
   | "surrender"
   | "retreat"
-  | "padTurret";
+  | "padTurret"
+  | "exchange";
 
 export type LocalState = {
   pending: Map<number, CommandKind>;

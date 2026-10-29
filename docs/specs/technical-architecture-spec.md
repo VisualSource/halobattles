@@ -158,6 +158,7 @@ Encoding: [ADR 0002](../../docs/adr/0002-flatbuffers-wire-format.md).
 - `ViewFull` is sent on join and rejoin. After that, `ViewDelta` is sent only when something changed.
 - Deltas work at the **entity level**: vectors of whole upserted entities (Planets, Armies, queue items, Battles, the player's own Resources and Command Points), plus removed-id vectors (`removedArmies`, `removedQueueItems`, and so on). An entity that leaves vision shows up as removed.
 - The public per-player part of the View has every player's Planet count, `connected`, `graceEndsAt` (Match Time), and any running win-hold countdown.
+- Your own economy in the View has your Resources, their Stockpile caps, and the **projected** change at the next Payday: the same calculation Payday runs, before caps, so the header never disagrees with what Payday pays. Every Planet in view carries its Richness.
 - `ViewFull` carries the content hash and the Ruleset. If the client's cached content doesn't match the hash, it refetches before rendering.
 
 ### Events
