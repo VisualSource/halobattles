@@ -21,6 +21,7 @@ const baseRules = `{
 	"startingResources": {"credits": 1000},
 	"stockpileCaps": {"credits": 3000},
 	"sprawl": {"freePlanets": 4, "percent": 5},
+	"exchange": [],
 	"gracePeriodSeconds": 180,
 	"armyVisionSeconds": 15,
 	"resultsSeconds": 60,

@@ -291,6 +291,20 @@ type Content struct {
 	WeaponTypes map[string]WeaponType `json:"weaponTypes"`
 }
 
+type ExchangeRate struct {
+	// Get corresponds to the JSON schema field "get".
+	Get ID `json:"get"`
+
+	// GetAmount corresponds to the JSON schema field "getAmount".
+	GetAmount int `json:"getAmount"`
+
+	// Give corresponds to the JSON schema field "give".
+	Give ID `json:"give"`
+
+	// GiveAmount corresponds to the JSON schema field "giveAmount".
+	GiveAmount int `json:"giveAmount"`
+}
+
 // A playable side with its own units and buildings.
 type Faction struct {
 	// Schema corresponds to the JSON schema field "$schema".
@@ -560,6 +574,10 @@ type Ruleset struct {
 
 	// Refund for cancelling a queue item after it started.
 	CancelRefundPercent int `json:"cancelRefundPercent"`
+
+	// The Exchange's rates. A trade gives a whole multiple of giveAmount and gets
+	// getAmount for each; a pair not listed can't be traded.
+	Exchange []ExchangeRate `json:"exchange"`
 
 	// How long a disconnected player keeps their Seat.
 	GracePeriodSeconds int `json:"gracePeriodSeconds"`

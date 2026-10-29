@@ -15,6 +15,12 @@
   // docs/specs/economy-spec.md#stockpile-caps: anything over is lost at Payday.
   "stockpileCaps": { "credits": 3000, "materials": 1500, "alloys": 500 },
   "sprawl": { "freePlanets": 4, "percent": 5 },
+  "exchange": [
+    { "give": "materials", "giveAmount": 2, "get": "credits", "getAmount": 1 },
+    { "give": "alloys", "giveAmount": 1, "get": "credits", "getAmount": 2 },
+    { "give": "credits", "giveAmount": 3, "get": "materials", "getAmount": 1 },
+    { "give": "credits", "giveAmount": 6, "get": "alloys", "getAmount": 1 }
+  ],
   "gracePeriodSeconds": 180,
   "armyVisionSeconds": 15,
   "resultsSeconds": 60,

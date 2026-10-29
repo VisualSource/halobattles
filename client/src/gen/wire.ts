@@ -19,6 +19,7 @@ export { CancelQueueItem, CancelQueueItemT } from './wire/cancel-queue-item.js';
 export { CommandRejected, CommandRejectedT } from './wire/command-rejected.js';
 export { ControlPoint, ControlPointT } from './wire/control-point.js';
 export { Economy, EconomyT } from './wire/economy.js';
+export { Exchange, ExchangeT } from './wire/exchange.js';
 export { LobbyState, LobbyStateT } from './wire/lobby-state.js';
 export { MatchEnded, MatchEndedT } from './wire/match-ended.js';
 export { MoveUnits, MoveUnitsT } from './wire/move-units.js';

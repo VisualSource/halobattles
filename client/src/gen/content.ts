@@ -115,6 +115,10 @@ export interface Ruleset {
   stockpileCaps: ResourceMap1;
   sprawl: Sprawl;
   /**
+   * The Exchange's rates. A trade gives a whole multiple of giveAmount and gets getAmount for each; a pair not listed can't be traded.
+   */
+  exchange: ExchangeRate[];
+  /**
    * How long a disconnected player keeps their Seat.
    */
   gracePeriodSeconds: number;
@@ -147,6 +151,18 @@ export interface ResourceMap1 {
 export interface Sprawl {
   freePlanets: number;
   percent: number;
+}
+export interface ExchangeRate {
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  give: string;
+  giveAmount: number;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  get: string;
+  getAmount: number;
 }
 /**
  * How Battlefields are generated. A map's Planet can override the size and preset.

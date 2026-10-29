@@ -18,6 +18,13 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 	case "rulesets":
 		qualifyKeys(obj, "startingResources", ns)
 		qualifyKeys(obj, "stockpileCaps", ns)
+		list, _ := obj["exchange"].([]any)
+		for _, v := range list {
+			if r, ok := v.(map[string]any); ok {
+				qualifyField(r, "give", ns)
+				qualifyField(r, "get", ns)
+			}
+		}
 		if b, ok := obj["battlefield"].(map[string]any); ok {
 			qualifyField(b, "terrainPreset", ns)
 			qualifyField(b, "pathClass", ns)
@@ -166,6 +173,13 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 				c.fail("%s: stockpileCaps has no cap for Resource %s", where, res)
 			case r.StartingResources[res] > cap:
 				c.fail("%s: startingResources %s is %d, over its Stockpile cap of %d", where, res, r.StartingResources[res], cap)
+			}
+		}
+		for i, x := range r.Exchange {
+			c.ref(fmt.Sprintf("%s: exchange %d give", where, i+1), "resources", string(x.Give))
+			c.ref(fmt.Sprintf("%s: exchange %d get", where, i+1), "resources", string(x.Get))
+			if x.Give == x.Get {
+				c.fail("%s: exchange %d trades %s for itself", where, i+1, x.Give)
 			}
 		}
 		c.ref(where+": battlefield", "terrainPresets", string(r.Battlefield.TerrainPreset))

@@ -24,6 +24,7 @@ enum Op : int {
   BattleRetreat = 15,
   BattleCancelRetreat = 16,
   BattleBuildTurret = 17,
+  Exchange = 18,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -158,6 +159,13 @@ table BattleBuildTurret {
   planet: string;
   pad: ubyte;              // the pad's index in BattleView.pads
   building: string;
+}
+
+table Exchange {          // any time in play, even in debt
+  seq: uint32;
+  give: string;            // a Resource
+  get: string;             // a Resource
+  amount: int;             // how much to give: a whole multiple of its rate's giveAmount
 }
 
 // Server messages.

@@ -15,6 +15,7 @@ const rules = {
   startingResources: { "base:credits": 1000 },
   stockpileCaps: { "base:credits": 3000 },
   sprawl: { freePlanets: 4, percent: 5 },
+  exchange: [],
   gracePeriodSeconds: 180,
   armyVisionSeconds: 15,
   resultsSeconds: 60,

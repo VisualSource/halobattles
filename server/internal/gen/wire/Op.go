@@ -25,6 +25,7 @@ const (
 	OpBattleRetreat        Op = 15
 	OpBattleCancelRetreat  Op = 16
 	OpBattleBuildTurret    Op = 17
+	OpExchange             Op = 18
 	OpLobbyState           Op = 100
 	OpCommandRejected      Op = 101
 	OpViewFull             Op = 102
@@ -57,6 +58,7 @@ var EnumNamesOp = map[Op]string{
 	OpBattleRetreat:        "BattleRetreat",
 	OpBattleCancelRetreat:  "BattleCancelRetreat",
 	OpBattleBuildTurret:    "BattleBuildTurret",
+	OpExchange:             "Exchange",
 	OpLobbyState:           "LobbyState",
 	OpCommandRejected:      "CommandRejected",
 	OpViewFull:             "ViewFull",
@@ -89,6 +91,7 @@ var EnumValuesOp = map[string]Op{
 	"BattleRetreat":        OpBattleRetreat,
 	"BattleCancelRetreat":  OpBattleCancelRetreat,
 	"BattleBuildTurret":    OpBattleBuildTurret,
+	"Exchange":             OpExchange,
 	"LobbyState":           OpLobbyState,
 	"CommandRejected":      OpCommandRejected,
 	"ViewFull":             OpViewFull,

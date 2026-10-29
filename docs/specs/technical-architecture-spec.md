@@ -103,6 +103,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
   - `startingResources`, the defaults the lobby fills in (maps have none of their own), each under its Stockpile cap;
   - `stockpileCaps`, one per Resource;
   - `sprawl {freePlanets, percent}`: each Planet a player owns beyond `freePlanets` adds `percent` to what they're charged to queue, rounded to the nearest whole amount; a queue item keeps what it was charged, and cancelling refunds from that;
+  - `exchange`: the Exchange's rates, a list of `{give, giveAmount, get, getAmount}`; a pair not listed can't be traded;
   - `gracePeriodSeconds`, `resultsSeconds` and `armyVisionSeconds`, in whole seconds and converted to Match Time ms by the server.
 
   Defaults are in the game-design spec's [Ruleset defaults](game-design-spec.md#ruleset-defaults).
@@ -204,6 +205,7 @@ Every command carries a client-assigned `seq`.
 | `BattleRetreat {planet}` | play | a side of that Battle, not neutral |
 | `BattleCancelRetreat {planet}` | play | a side of that Battle, during the countdown |
 | `BattleBuildTurret {planet, pad, building}` | play | a side of that Battle holding the pad; pays the turret's cost |
+| `Exchange {give, get, amount}` | play | any Seat, even in debt; `amount` is how much to give, a whole multiple of its rate's `giveAmount` |
 | `Surrender` | play | any Seat |
 
 - In `QueueUnit`, `count` expands into that many queue items, each reserving its own Command Points.
