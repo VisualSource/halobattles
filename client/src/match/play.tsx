@@ -13,7 +13,7 @@ import { inMatch } from "./phase";
 import { laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import { ConfirmDialog } from "./status";
-import { formatAge, useMatchNow } from "./time";
+import { formatAge, useMatchNow, useWallNow } from "./time";
 import { notify } from "./toasts";
 import {
   ArmyWindow,
@@ -110,7 +110,8 @@ export function PlayScreen(props: {
 function usePopover() {
   const [open, setOpen] = useState(false);
   const ref = useDismiss<HTMLDivElement>(open, () => setOpen(false));
-  return { open, toggle: () => setOpen((o) => !o), ref };
+  // The ref apart: the React Compiler treats any object holding one as a ref.
+  return [{ open, toggle: () => setOpen((o) => !o) }, ref] as const;
 }
 
 /** "0:42" */
@@ -139,11 +140,11 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
     view.players[seat]?.displayName || `Player ${seat + 1}`;
 
   return (
-    <header className="flex h-14 flex-none items-center gap-7 border-line border-b bg-bar px-5">
-      <span className="font-bold font-display text-lg tracking-[0.06em]">
+    <header className="border-line bg-bar flex h-14 flex-none items-center gap-7 border-b px-5">
+      <span className="font-display text-lg font-bold tracking-[0.06em]">
         HALO BATTLES
       </span>
-      <span aria-hidden="true" className="h-7 w-px bg-line" />
+      <span aria-hidden="true" className="bg-line h-7 w-px" />
       {[...economy.resources].map(([id, amount]) => {
         const name = content.resources.get(id)?.name ?? id;
         const cap = economy.caps.get(id);
@@ -165,7 +166,7 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
               {full && <span className={`${chip} bg-accent`}>Full</span>}
               {amount < 0 && <span className={`${chip} bg-danger`}>Debt</span>}
             </span>
-            <span className="whitespace-nowrap font-mono">
+            <span className="font-mono whitespace-nowrap">
               <span
                 className={
                   amount < 0 ? "text-danger" : full ? "text-accent" : ""
@@ -224,7 +225,7 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
       </div>
       <span className="flex-1" />
       {winHold.seat !== null && (
-        <span className="rounded-md bg-danger-wash px-3 py-1.5 text-danger text-sm">
+        <span className="bg-danger-wash text-danger rounded-md px-3 py-1.5 text-sm">
           {winHold.seat === view.you ? "You win" : `${name(winHold.seat)} wins`}{" "}
           in {Math.max(0, Math.ceil((winHold.ends - now) / 1000))} s
         </span>
@@ -247,7 +248,7 @@ function SurrenderButton(props: { conn: MatchConnection; pending: boolean }) {
         type="button"
         disabled={props.pending}
         onClick={() => setAsking(true)}
-        className="min-h-9 rounded-md bg-transparent px-3.5 text-danger"
+        className="text-danger min-h-9 rounded-md bg-transparent px-3.5"
       >
         Surrender
       </button>
@@ -274,7 +275,7 @@ function SurrenderButton(props: { conn: MatchConnection; pending: boolean }) {
 function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
   const view = useStore(props.conn.store, (s) => s.view);
   const now = useMatchNow(props.conn.local);
-  const pop = usePopover();
+  const [pop, popRef] = usePopover();
   const map = view && props.content.maps.get(view.map);
   if (!view || !map) return null;
   const mode = props.content.rulesets.get(view.ruleset)?.name ?? view.ruleset;
@@ -290,12 +291,12 @@ function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
         : view.players[hold.seat]?.displayName || `Player ${hold.seat + 1}`;
 
   return (
-    <div ref={pop.ref} className="relative">
+    <div ref={popRef} className="relative">
       <button
         type="button"
         aria-expanded={pop.open}
         onClick={pop.toggle}
-        className="flex min-h-9 items-center gap-2 rounded-md border-line bg-panel px-3"
+        className="border-line bg-panel flex min-h-9 items-center gap-2 rounded-md px-3"
       >
         <span className={label}>Mode</span>
         {mode}
@@ -304,10 +305,10 @@ function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
         <div
           className={`${popover} top-11 right-0 flex w-75 flex-col gap-2.5 p-3.5 text-sm`}
         >
-          <h2 className="font-display font-semibold text-base">{mode}</h2>
+          <h2 className="font-display text-base font-semibold">{mode}</h2>
           <p className="text-ink-2">Win either way:</p>
           <p className="flex gap-2">
-            <span className="font-mono text-accent">1</span>
+            <span className="text-accent font-mono">1</span>
             <span>
               Hold more than {Math.round(map.win.planetShare * 100)}% of the
               Planets (<b className="font-mono">{needed}</b> of {total}) for{" "}
@@ -315,13 +316,13 @@ function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
             </span>
           </p>
           <p className="flex gap-2">
-            <span className="font-mono text-accent">2</span>
+            <span className="text-accent font-mono">2</span>
             <span>Be the last player not eliminated.</span>
           </p>
-          <p className="rounded-md bg-well px-2.5 py-2 text-ink-2">
+          <p className="bg-well text-ink-2 rounded-md px-2.5 py-2">
             Losing your Capital eliminates you.
           </p>
-          <p className="flex justify-between border-line border-t pt-2 text-ink-3">
+          <p className="border-line text-ink-3 flex justify-between border-t pt-2">
             <span>Hold countdown</span>
             <span>
               {holder === null
@@ -343,7 +344,7 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
   const { conn, content } = props;
   const economy = useStore(conn.store, (s) => s.view?.economy);
   const pending = useStore(conn.local, (s) => isPending(s, "exchange"));
-  const pop = usePopover();
+  const [pop, popRef] = usePopover();
   const rates = content.rules.exchange;
   const money = moneyOf(rates);
   const others = [...new Set(rates.flatMap((r) => [r.give, r.get]))].filter(
@@ -377,7 +378,7 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
         : null;
 
   return (
-    <div ref={pop.ref} className="relative">
+    <div ref={popRef} className="relative">
       <button
         type="button"
         aria-expanded={pop.open}
@@ -391,10 +392,10 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
           className={`${popover} top-11 left-0 flex w-85 flex-col gap-3 p-3.5 text-sm`}
         >
           <div className="flex items-center justify-between">
-            <h2 className="font-display font-semibold text-base">Exchange</h2>
+            <h2 className="font-display text-base font-semibold">Exchange</h2>
             <span className="text-ink-3 text-xs">any time, even in debt</span>
           </div>
-          <div className="flex overflow-hidden rounded-md border border-edge">
+          <div className="border-edge flex overflow-hidden rounded-md border">
             {(["sell", "buy"] as const).map((m) => (
               <button
                 key={m}
@@ -407,7 +408,7 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
               </button>
             ))}
           </div>
-          <div className="flex overflow-hidden rounded-md border border-edge">
+          <div className="border-edge flex overflow-hidden rounded-md border">
             {others.map((r) => (
               <button
                 key={r}
@@ -425,7 +426,7 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
               type="button"
               aria-label={`${step} fewer`}
               onClick={() => setQty(Math.max(step, amount - step))}
-              className="min-h-8 rounded-md border-edge bg-raised p-0"
+              className="border-edge bg-raised min-h-8 rounded-md p-0"
             >
               −
             </button>
@@ -435,13 +436,13 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
               aria-label={`${name(other)} to ${mode}, in steps of ${step}`}
               value={amount}
               onChange={(e) => setQty(Number(e.target.value) || 0)}
-              className="min-h-8 rounded-md border border-edge bg-well text-center font-mono"
+              className="border-edge bg-well min-h-8 rounded-md border text-center font-mono"
             />
             <button
               type="button"
               aria-label={`${step} more`}
               onClick={() => setQty(amount + step)}
-              className="min-h-8 rounded-md border-edge bg-raised p-0"
+              className="border-edge bg-raised min-h-8 rounded-md p-0"
             >
               +
             </button>
@@ -449,13 +450,13 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
               type="button"
               disabled={!q || q.max === 0}
               onClick={() => q && setQty(q.max)}
-              className="min-h-8 rounded-md border-edge bg-raised px-3"
+              className="border-edge bg-raised min-h-8 rounded-md px-3"
             >
               Max
             </button>
           </div>
           {q && (
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-md border border-line bg-well p-2.5">
+            <div className="border-line bg-well grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-md border p-2.5">
               <div className="flex flex-col gap-0.5">
                 <span className={label}>You give</span>
                 <span
@@ -473,7 +474,7 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
               </span>
               <div className="flex flex-col gap-0.5 text-right">
                 <span className={label}>You get</span>
-                <span className="font-mono text-lg text-ok">{q.get}</span>
+                <span className="text-ok font-mono text-lg">{q.get}</span>
                 <span className="text-ink-3 text-xs">
                   {name(q.rate.get)} · {have.get(q.rate.get) ?? 0} →{" "}
                   {after(q.rate.get, q.get)}
@@ -494,7 +495,7 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
             cap !== undefined &&
             cap !== null &&
             after(q.rate.get, q.get) > cap && (
-              <p className="rounded-md border border-accent/40 bg-accent-wash px-2.5 py-2 text-accent text-xs">
+              <p className="border-accent/40 bg-accent-wash text-accent rounded-md border px-2.5 py-2 text-xs">
                 {name(q.rate.get)} go over their cap of {cap}. Whatever is still
                 over it at the next Payday is lost.
               </p>
@@ -504,7 +505,7 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
             type="button"
             disabled={error !== null || pending}
             onClick={() => q && conn.exchange(q.rate.give, q.rate.get, q.give)}
-            className="min-h-9 rounded-md border-accent bg-accent font-semibold text-accent-ink"
+            className="border-accent bg-accent text-accent-ink min-h-9 rounded-md font-semibold"
           >
             {mode === "sell" ? "Sell" : "Buy"} {amount} {name(other)}
           </button>
@@ -518,15 +519,16 @@ function Exchange(props: { conn: MatchConnection; content: ContentLookups }) {
 function Notifications() {
   const { notifications, unreadCount, markAllAsRead, clear } =
     useNotificationCenter();
-  const pop = usePopover();
+  const [pop, popRef] = usePopover();
+  const now = useWallNow();
   return (
-    <div ref={pop.ref} className="relative">
+    <div ref={popRef} className="relative">
       <button
         type="button"
         aria-label={`Notifications, ${unreadCount} unread`}
         aria-expanded={pop.open}
         onClick={pop.toggle}
-        className="relative flex h-9 w-10 items-center justify-center rounded-md border-line bg-panel p-0"
+        className="border-line bg-panel relative flex h-9 w-10 items-center justify-center rounded-md p-0"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
           <path
@@ -538,40 +540,40 @@ function Notifications() {
           />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-accent px-1 font-mono font-semibold text-[11px] text-accent-ink">
+          <span className="bg-accent text-accent-ink absolute -top-1.5 -right-1.5 flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 font-mono text-[11px] font-semibold">
             {unreadCount}
           </span>
         )}
       </button>
       {pop.open && (
         <div className={`${popover} top-11 right-0 flex w-90 flex-col`}>
-          <div className="flex items-center gap-1 border-line border-b px-3.5 py-2.5">
-            <h2 className="flex-1 font-display font-semibold text-base">
+          <div className="border-line flex items-center gap-1 border-b px-3.5 py-2.5">
+            <h2 className="font-display flex-1 text-base font-semibold">
               Notifications
             </h2>
             <button
               type="button"
               onClick={() => markAllAsRead()}
-              className="min-h-7 border-0 bg-transparent text-accent text-xs"
+              className="text-accent min-h-7 border-0 bg-transparent text-xs"
             >
               Mark all read
             </button>
             <button
               type="button"
               onClick={clear}
-              className="min-h-7 border-0 bg-transparent text-ink-3 text-xs"
+              className="text-ink-3 min-h-7 border-0 bg-transparent text-xs"
             >
               Clear
             </button>
           </div>
           {notifications.length === 0 ? (
-            <p className="p-3.5 text-ink-3 text-sm">Nothing yet.</p>
+            <p className="text-ink-3 p-3.5 text-sm">Nothing yet.</p>
           ) : (
             <ol className="max-h-105 overflow-y-auto">
               {notifications.map((n) => (
                 <li
                   key={n.id}
-                  className={`flex gap-2.5 border-divider border-b px-3.5 py-2.5 ${n.read ? "text-ink-2" : "bg-highlight"}`}
+                  className={`border-divider flex gap-2.5 border-b px-3.5 py-2.5 ${n.read ? "text-ink-2" : "bg-highlight"}`}
                 >
                   <span
                     aria-hidden="true"
@@ -580,8 +582,8 @@ function Notifications() {
                   <div className="min-w-0 flex-1">
                     {typeof n.content === "function" ? null : n.content}
                   </div>
-                  <span className="font-mono text-[11px] text-ink-3">
-                    {formatAge(Date.now() - n.createdAt)}
+                  <span className="text-ink-3 font-mono text-[11px]">
+                    {formatAge(now - n.createdAt)}
                   </span>
                 </li>
               ))}
@@ -601,15 +603,15 @@ function Players(props: { conn: MatchConnection }) {
   const { conn } = props;
   const view = useStore(conn.store, (s) => s.view);
   const now = useMatchNow(conn.local);
-  const pop = usePopover();
+  const [pop, popRef] = usePopover();
   if (!view) return null;
   return (
-    <div ref={pop.ref} className="absolute bottom-4 left-4 z-10">
+    <div ref={popRef} className="absolute bottom-4 left-4 z-10">
       <button
         type="button"
         aria-expanded={pop.open}
         onClick={pop.toggle}
-        className="flex min-h-9 items-center gap-2 rounded-md border-line bg-bar/95 px-3"
+        className="border-line bg-bar/95 flex min-h-9 items-center gap-2 rounded-md px-3"
       >
         <span aria-hidden="true" className="flex gap-0.75">
           {view.players.map((p) => (

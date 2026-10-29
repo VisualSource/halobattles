@@ -5,12 +5,21 @@ import type { LocalStore } from "./local";
 /** The current Match Time, re-rendering once a second for countdowns. */
 export function useMatchNow(local: LocalStore) {
   const offset = useStore(local, (s) => s.clockOffset);
-  const [now, setNow] = useState(() => performance.now());
+  return useTicking(performanceNow) + offset;
+}
+
+/** The wall clock (Date.now), re-rendering once a second. */
+export const useWallNow = () => useTicking(Date.now);
+
+const performanceNow = () => performance.now();
+
+function useTicking(read: () => number) {
+  const [now, setNow] = useState(read);
   useEffect(() => {
-    const id = setInterval(() => setNow(performance.now()), 1000);
+    const id = setInterval(() => setNow(read()), 1000);
     return () => clearInterval(id);
-  }, []);
-  return now + offset;
+  }, [read]);
+  return now;
 }
 
 /** "45 s", "3 min": how long ago something was seen. */

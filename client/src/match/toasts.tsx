@@ -22,7 +22,7 @@ export function Note(props: {
   return (
     <div className="flex flex-col gap-1">
       <span
-        className={`font-mono text-[11px] uppercase tracking-[0.08em] ${k.colour}`}
+        className={`font-mono text-[11px] tracking-[0.08em] uppercase ${k.colour}`}
       >
         {k.label}
       </span>
@@ -32,7 +32,7 @@ export function Note(props: {
           <button
             type="button"
             onClick={props.action.onClick}
-            className="min-h-8 rounded-md border-edge bg-raised px-3 text-sm"
+            className="border-edge bg-raised min-h-8 rounded-md px-3 text-sm"
           >
             {props.action.label}
           </button>
