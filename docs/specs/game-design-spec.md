@@ -15,16 +15,19 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 
 ## Economy
 
-- **Resources** are stockpiles: **Credits** and **Materials**.
-- **Payday** comes every 90 s. For each Resource, each player receives their Planets' base income plus their buildings' yields, minus their buildings' Upkeep, paid as one lump sum.
-- Buildings have **Upkeep**. Units have none.
-- **Debt is allowed.** While any Resource is below zero, the player can't queue anything and all of their queues pause. They get out by selling buildings or waiting for income.
+The full rules and numbers are in the [economy spec](economy-spec.md) (Economy v2, issue #22). In short:
+
+- **Resources** are stockpiles: **Credits**, **Materials** and **Alloys**, refined from Materials. Each has a **Stockpile cap**.
+- **Payday** comes every 90 s and pays, as one lump sum, each owned Planet's base income plus its extractor buildings' yields (scaled by the Planet's **Richness**), minus building and unit **Upkeep**.
+- **Sprawl:** each Planet beyond a player's first 4 makes new units and buildings cost more.
+- An **exchange** trades Resources for Credits and back at poor fixed rates.
+- **Debt is allowed.** While any Resource is below zero, the player can't queue anything and all of their queues pause. They get out by selling buildings, trading, or waiting for income.
 - **Command Points** are a cap, not a Resource:
   - A unit occupies its Command Points from the moment it is queued until it dies.
   - Queuing is blocked if it would go over the cap.
   - Planets (by Planet Type) and buildings (`commandPointBonus`) raise the cap. In the base Mod every building's bonus is 0, so Command Points come from Planets only.
 - A unit may have an optional `maxCount`, a per-player limit counted like Command Points, from queue to death. No base-Mod unit sets one.
-- **Starting resources** are a lobby setting: the Host enters one amount per Resource, and every player gets the same. The defaults are 1000 Credits and 300 Materials. See [Lobby](#lobby).
+- **Starting resources** are a lobby setting: the Host enters one amount per Resource, and every player gets the same. See [Lobby](#lobby).
 
 ## Building and production
 
