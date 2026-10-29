@@ -126,7 +126,7 @@ func (s *State) View(c *cs.Content, seat int) View {
 	v.Economy = Economy{
 		Resources: maps.Clone(s.Players[seat].Resources), CommandPointsUsed: used, CommandPointsCap: cp,
 		PaydayStart: s.NextPayday - s.PaydayEvery, PaydayEnd: s.NextPayday,
-		Caps: s.caps(c, seat), Projected: s.paydayNets(c)[seat],
+		Caps: s.caps(c, seat), Projected: s.paydayNet(c, seat),
 	}
 	counts := map[int]int{}
 	for _, p := range s.Planets {

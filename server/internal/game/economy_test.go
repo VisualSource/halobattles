@@ -161,6 +161,20 @@ func TestAShortFoundryRefinesWhatThereIsAtTheSameRate(t *testing.T) {
 	}
 }
 
+func TestARefiningInputOfZeroIsNotNeeded(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	f := c.Buildings["base:foundry"]
+	f.Refines = &cs.Refining{Input: map[string]int{"base:materials": 40, "base:credits": 0}, Output: map[string]int{"base:alloys": 20}}
+	c.Buildings["base:foundry"] = f
+	s.Planets["a"].Buildings[2] = "base:foundry"
+
+	s.Advance(c, 90_000)
+
+	if got := s.Players[0].Resources; got["base:materials"] != 60 || got["base:alloys"] != 20 {
+		t.Errorf("Resources = %v, want 40 Materials refined into 20 Alloys", got)
+	}
+}
+
 func TestResourcesOverTheirStockpileCapAreLostAtPayday(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	c.Rulesets[RulesetID] = withRuleset(c, func(r *cs.Ruleset) {

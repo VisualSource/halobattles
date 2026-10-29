@@ -112,16 +112,10 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 	for _, mp := range m.Planets {
 		pt := c.PlanetTypes[string(mp.Type)]
 		slots, income, cp := pt.BuildingSlots, pt.Income, pt.CommandPointBonus
-		richness := map[string]string{}
-		for r, v := range pt.Richness {
-			richness[r] = string(v)
-		}
+		rich := pt.Richness
 		if o := mp.Overrides; o != nil {
 			if o.Richness != nil {
-				richness = map[string]string{}
-				for r, v := range o.Richness {
-					richness[r] = string(v)
-				}
+				rich = o.Richness
 			}
 			if o.BuildingSlots != nil {
 				slots = *o.BuildingSlots
@@ -132,6 +126,10 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 			if o.CommandPointBonus != nil {
 				cp = *o.CommandPointBonus
 			}
+		}
+		richness := map[string]string{}
+		for r, v := range rich {
+			richness[r] = string(v)
 		}
 		p := &Planet{
 			ID: string(mp.ID), Owner: Neutral, Buildings: make([]string, slots),
