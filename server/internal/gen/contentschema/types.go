@@ -585,6 +585,10 @@ type Ruleset struct {
 	// Refund for selling a building.
 	SellRefundPercent int `json:"sellRefundPercent"`
 
+	// Each Planet a player owns beyond freePlanets adds percent to the cost of
+	// everything they queue, rounded to the nearest whole amount.
+	Sprawl Sprawl `json:"sprawl"`
+
 	// Defaults the lobby fills in. Each must fit under its Stockpile cap.
 	StartingResources map[string]int `json:"startingResources"`
 
@@ -600,6 +604,16 @@ type Ruleset struct {
 }
 
 type Seconds int
+
+// Each Planet a player owns beyond freePlanets adds percent to the cost of
+// everything they queue, rounded to the nearest whole amount.
+type Sprawl struct {
+	// FreePlanets corresponds to the JSON schema field "freePlanets".
+	FreePlanets int `json:"freePlanets"`
+
+	// Percent corresponds to the JSON schema field "percent".
+	Percent int `json:"percent"`
+}
 
 // Units in one Stack, one entry per Unit Slot.
 type Stack []struct {

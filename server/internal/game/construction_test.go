@@ -164,3 +164,50 @@ func TestOtherPlayersQueuesStayHidden(t *testing.T) {
 		}
 	}
 }
+
+func TestSprawlSurchargesQueuingAndCancelRefundsWhatWasPaid(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	for _, id := range []string{"b", "c", "d", "e"} { // 7 Planets is 3 over the 4 free: +15%
+		s.Planets[id].Owner = 0
+	}
+	s.Planets["f"] = &Planet{ID: "f", Owner: 0}
+	s.Planets["g"] = &Planet{ID: "g", Owner: 0}
+	pl := &s.Players[0]
+
+	if err := s.QueueUnit(c, 0, "a", 0, "base:marine", 2); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.QueueBuilding(c, 0, "a", 2, "base:supply-pad"); err != nil {
+		t.Fatal(err)
+	}
+	// Marines 50C → 57.5, rounded to 58 each; the Supply Pad 200C → 230.
+	if got := pl.Resources["base:credits"]; got != 1000-2*58-230 {
+		t.Fatalf("Credits = %d, want %d", got, 1000-2*58-230)
+	}
+
+	for _, id := range []string{"b", "c", "d", "e", "f", "g"} { // Sprawl gone; refunds still repay what was paid
+		s.Planets[id].Owner = Neutral
+	}
+	for _, q := range append(s.Planets["a"].Queue, s.Planets["a"].UnitQueues[0]...) {
+		if err := s.CancelQueueItem(c, 0, q.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := pl.Resources["base:credits"]; got != 1000 {
+		t.Errorf("Credits = %d after cancelling everything unstarted, want 1000 back", got)
+	}
+}
+
+func TestPlanetsUpToTheFreeCountAddNoSprawl(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	for _, id := range []string{"b", "c", "d"} { // 4 Planets: all free
+		s.Planets[id].Owner = 0
+	}
+	if got := s.sprawled(c, 0, map[string]int{"base:credits": 50}); got["base:credits"] != 50 {
+		t.Errorf("4 Planets: 50C costs %d, want 50", got["base:credits"])
+	}
+	s.Planets["e"].Owner = 0 // the 5th: +5%, 52.5 rounds to 53
+	if got := s.sprawled(c, 0, map[string]int{"base:credits": 50, "base:materials": 25}); got["base:credits"] != 53 || got["base:materials"] != 26 {
+		t.Errorf("5 Planets: %v, want 53C 26M", got)
+	}
+}

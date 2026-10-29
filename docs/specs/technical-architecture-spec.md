@@ -102,6 +102,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
   - the tactical Battle fields ([Ruleset additions](tactical-battle-spec.md#ruleset-additions));
   - `startingResources`, the defaults the lobby fills in (maps have none of their own), each under its Stockpile cap;
   - `stockpileCaps`, one per Resource;
+  - `sprawl {freePlanets, percent}`: each Planet a player owns beyond `freePlanets` adds `percent` to what they're charged to queue, rounded to the nearest whole amount; a queue item keeps what it was charged, and cancelling refunds from that;
   - `gracePeriodSeconds`, `resultsSeconds` and `armyVisionSeconds`, in whole seconds and converted to Match Time ms by the server.
 
   Defaults are in the game-design spec's [Ruleset defaults](game-design-spec.md#ruleset-defaults).

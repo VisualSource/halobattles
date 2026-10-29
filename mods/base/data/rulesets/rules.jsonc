@@ -14,6 +14,7 @@
   "startingResources": { "credits": 1000, "materials": 300, "alloys": 50 },
   // docs/specs/economy-spec.md#stockpile-caps: anything over is lost at Payday.
   "stockpileCaps": { "credits": 3000, "materials": 1500, "alloys": 500 },
+  "sprawl": { "freePlanets": 4, "percent": 5 },
   "gracePeriodSeconds": 180,
   "armyVisionSeconds": 15,
   "resultsSeconds": 60,

@@ -14,6 +14,7 @@ const rules = {
   laneTypes: { fast: 1 },
   startingResources: { "base:credits": 1000 },
   stockpileCaps: { "base:credits": 3000 },
+  sprawl: { freePlanets: 4, percent: 5 },
   gracePeriodSeconds: 180,
   armyVisionSeconds: 15,
   resultsSeconds: 60,

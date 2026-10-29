@@ -113,6 +113,7 @@ export interface Ruleset {
   };
   startingResources: ResourceMap;
   stockpileCaps: ResourceMap1;
+  sprawl: Sprawl;
   /**
    * How long a disconnected player keeps their Seat.
    */
@@ -139,6 +140,13 @@ export interface ResourceMap {
  */
 export interface ResourceMap1 {
   [k: string]: number;
+}
+/**
+ * Each Planet a player owns beyond freePlanets adds percent to the cost of everything they queue, rounded to the nearest whole amount.
+ */
+export interface Sprawl {
+  freePlanets: number;
+  percent: number;
 }
 /**
  * How Battlefields are generated. A map's Planet can override the size and preset.

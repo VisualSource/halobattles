@@ -64,6 +64,29 @@ const outputOf = (b: {
   return Object.fromEntries(out);
 };
 
+/**
+ * What queuing costs the viewer now, as the server charges it: each Planet
+ * they own beyond the Ruleset's free ones adds its percent, rounded to the
+ * nearest whole amount.
+ */
+const sprawled = (
+  content: ContentLookups,
+  view: View | null,
+  cost: Record<string, number>,
+) => {
+  const { freePlanets, percent } = content.rules.sprawl;
+  let owned = 0;
+  for (const p of view?.planets.values() ?? [])
+    if (p.owner === view?.you) owned++;
+  const total = 100 + Math.max(0, owned - freePlanets) * percent;
+  return Object.fromEntries(
+    Object.entries(cost).map(([r, n]) => [
+      r,
+      Math.floor((n * total + 50) / 100),
+    ]),
+  );
+};
+
 const playerName = (view: View, seat: number | null) =>
   seat === null
     ? "Neutral"
@@ -496,6 +519,7 @@ function BuildingsTab(props: {
 }) {
   const { conn, content, planet, editable } = props;
   const local = useStore(conn.local);
+  const view = useStore(conn.store, (s) => s.view);
   const now = useMatchNow(conn.local); // ticks the countdowns
   const [picking, setPicking] = useState<number | null>(null);
   // A different Planet starts without the build list open.
@@ -545,7 +569,8 @@ function BuildingsTab(props: {
                         : ""}
                 </span>
                 <span className="font-mono text-[11px]">
-                  {amounts(content, b.cost)} · {b.buildTime} s
+                  {amounts(content, sprawled(content, view, b.cost))} ·{" "}
+                  {b.buildTime} s
                 </span>
               </span>
             </button>
@@ -663,6 +688,7 @@ function UnitsTab(props: {
 }) {
   const { conn, content, planet, faction } = props;
   const local = useStore(conn.local);
+  const view = useStore(conn.store, (s) => s.view);
   const trainers = [...content.buildings.values()].filter(
     (b) => b.faction === faction && b.trains?.length,
   );
@@ -738,8 +764,8 @@ function UnitsTab(props: {
                         {nameOf("weaponTypes", u.combat.weaponType)}
                       </span>
                       <span className="font-mono text-[11px]">
-                        {amounts(content, u.cost)} · {u.commandPoints} CP ·{" "}
-                        {u.buildTime} s
+                        {amounts(content, sprawled(content, view, u.cost))} ·{" "}
+                        {u.commandPoints} CP · {u.buildTime} s
                       </span>
                     </span>
                   </button>

@@ -15,6 +15,7 @@
     "laneTypes",
     "startingResources",
     "stockpileCaps",
+    "sprawl",
     "gracePeriodSeconds",
     "armyVisionSeconds",
     "resultsSeconds",
@@ -54,6 +55,17 @@
     "stockpileCaps": {
       "description": "The most of each Resource a player holds before storage buildings: anything over it is lost at Payday. Every Resource needs one.",
       "$ref": "defs.schema.json#/definitions/resourceMap"
+    },
+    "sprawl": {
+      "title": "Sprawl",
+      "description": "Each Planet a player owns beyond freePlanets adds percent to the cost of everything they queue, rounded to the nearest whole amount.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freePlanets", "percent"],
+      "properties": {
+        "freePlanets": { "type": "integer", "minimum": 0 },
+        "percent": { "type": "integer", "minimum": 0 }
+      }
     },
     "gracePeriodSeconds": { "description": "How long a disconnected player keeps their Seat.", "type": "integer", "minimum": 0 },
     "armyVisionSeconds": { "description": "How long a player keeps seeing a Planet after their Army there leaves or is destroyed.", "type": "integer", "minimum": 0 },
