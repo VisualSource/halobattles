@@ -608,8 +608,8 @@ function BuildingsTab(props: {
                 <Tile name={b.name} size="size-14" />
                 <div className="font-mono text-[11px] text-ink-3">
                   {[
-                    amounts(content, b.yield) &&
-                      `+${amounts(content, b.yield)}`,
+                    amounts(content, outputOf(b)) &&
+                      `+${amounts(content, outputOf(b))}`,
                     amounts(content, b.upkeep) &&
                       `upkeep ${amounts(content, b.upkeep)}`,
                   ]
