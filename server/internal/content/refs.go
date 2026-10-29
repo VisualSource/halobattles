@@ -39,6 +39,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		qualifyKeys(obj, "cost", ns)
 		qualifyKeys(obj, "upkeep", ns)
 		qualifyKeys(obj, "yield", ns)
+		qualifyKeys(obj, "extracts", ns)
 		qualifyKeys(obj, "storage", ns)
 		if r, ok := obj["refines"].(map[string]any); ok {
 			qualifyKeys(r, "input", ns)
@@ -52,6 +53,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		}
 	case "planetTypes":
 		qualifyKeys(obj, "income", ns)
+		qualifyKeys(obj, "richness", ns)
 	case "terrains":
 		qualifyKeys(obj, "movement", ns)
 	case "terrainPresets":
@@ -79,6 +81,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 				}
 				if o, ok := p["overrides"].(map[string]any); ok {
 					qualifyKeys(o, "income", ns)
+					qualifyKeys(o, "richness", ns)
 				}
 			}
 		}
@@ -205,6 +208,7 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		c.resourceKeys(where+": cost", b.Cost)
 		c.resourceKeys(where+": upkeep", b.Upkeep)
 		c.resourceKeys(where+": yield", b.Yield)
+		c.resourceKeys(where+": extracts", b.Extracts)
 		c.resourceKeys(where+": storage", b.Storage)
 		if b.Refines != nil {
 			c.resourceKeys(where+": refines input", b.Refines.Input)
@@ -223,6 +227,9 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 	for _, id := range slices.Sorted(maps.Keys(doc.PlanetTypes)) {
 		p := doc.PlanetTypes[id]
 		c.resourceKeys("planetTypes "+id+": income", p.Income)
+		for _, r := range slices.Sorted(maps.Keys(p.Richness)) {
+			c.ref("planetTypes "+id+": richness", "resources", r)
+		}
 		c.asset("planetTypes "+id, p.Sprite)
 	}
 	for _, id := range slices.Sorted(maps.Keys(doc.Maps)) {
@@ -320,6 +327,9 @@ func (c *checker) galaxyMap(where string, m contentschema.GalaxyMap) {
 		}
 		if p.Overrides != nil {
 			c.resourceKeys(where+": planet "+string(p.ID)+": overrides income", p.Overrides.Income)
+			for _, r := range slices.Sorted(maps.Keys(p.Overrides.Richness)) {
+				c.ref(where+": planet "+string(p.ID)+": overrides richness", "resources", r)
+			}
 			c.asset(where+": planet "+string(p.ID), p.Overrides.Sprite)
 		}
 	}

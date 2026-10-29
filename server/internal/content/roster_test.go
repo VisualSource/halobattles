@@ -191,11 +191,12 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	if w := d.WeaponTypes["base:plasma"]; w.Shield != 1.5 || w.Armor != 0.75 || w.Hp != 1 {
 		t.Errorf("plasma = %+v", w)
 	}
-	if p := d.PlanetTypes["base:fortress"]; p.BuildingSlots != 4 || p.CommandPointBonus != 15 || p.Income["base:credits"] != 100 {
+	if p := d.PlanetTypes["base:fortress"]; p.BuildingSlots != 4 || p.CommandPointBonus != 15 || p.Income["base:credits"] != 40 ||
+		p.Richness["base:materials"] != "rich" {
 		t.Errorf("fortress = %+v", p)
 	}
-	if y := d.Buildings["base:reactor"].Yield["base:materials"]; y != 50 {
-		t.Errorf("reactor yield = %d, want 50 Materials", y)
+	if y := d.Buildings["base:mine"].Extracts["base:materials"]; y != 60 {
+		t.Errorf("mine extracts %d, want 60 Materials", y)
 	}
 
 	m := d.Maps["base:quadrant"]

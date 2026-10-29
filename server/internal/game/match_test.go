@@ -29,8 +29,10 @@ func lineContent() *cs.Content {
 		WeaponTypes: battleContent().WeaponTypes,
 		Resources:   map[string]cs.Resource{"base:credits": {Name: "Credits"}, "base:materials": {Name: "Materials"}},
 		PlanetTypes: map[string]cs.PlanetType{
-			"base:capital":  {BuildingSlots: 4, CommandPointBonus: 20, Income: map[string]int{"base:credits": 300, "base:materials": 100}},
-			"base:standard": {BuildingSlots: 3, CommandPointBonus: 10, Income: map[string]int{"base:credits": 200, "base:materials": 50}},
+			"base:capital": {BuildingSlots: 4, CommandPointBonus: 20, Income: map[string]int{"base:credits": 300, "base:materials": 100},
+				Richness: map[string]cs.RichnessLevel{"base:materials": "normal"}},
+			"base:standard": {BuildingSlots: 3, CommandPointBonus: 10, Income: map[string]int{"base:credits": 200, "base:materials": 50},
+				Richness: map[string]cs.RichnessLevel{"base:materials": "poor"}},
 		},
 		Buildings: map[string]cs.Building{
 			"base:barracks": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
@@ -42,6 +44,8 @@ func lineContent() *cs.Content {
 			"base:hall": {Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150}},
 			"base:foundry": {Faction: "base:unsc", BuildTime: 45, Cost: map[string]int{"base:credits": 250},
 				Refines: &cs.Refining{Input: map[string]int{"base:materials": 40}, Output: map[string]int{"base:alloys": 20}}},
+			"base:mine": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 200},
+				Extracts: map[string]int{"base:materials": 60}},
 			"base:depot": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
 				Storage: map[string]int{"base:credits": 500, "base:alloys": 100}},
 		},

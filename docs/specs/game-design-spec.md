@@ -188,8 +188,8 @@ Eight mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundr
 | Barracks / Hall | 150C | 30s | 10C | none | trains the two infantry units |
 | Vehicle Depot / Summoning Foundry | 300C 100M | 45s | 25C | none | trains the light vehicle and the tank |
 | Air Pad / Summit | 300C 150M | 60s | 30C | none | trains the aircraft |
-| Supply Pad / Warehouse | 200C | 30s | 0 | +100C | economy |
-| Reactor / Generator | 200C | 30s | 0 | +50M | economy |
+| Supply Pad / Warehouse | 200C | 30s | 0 | extracts 100C × Credits Richness | economy |
+| Mine / Excavator | 200C | 30s | 0 | extracts 60M × Materials Richness | economy |
 | Foundry / Forge | 250C 100M | 45s | 10C | refines 40M into 20A | Alloys |
 | Depot / Reliquary | 150C | 30s | 0 | +1500C +750M +250A of Stockpile caps | storage |
 | Turret / Plasma Turret | 200C 50M | 30s | 10C | none | armed Structure |
@@ -201,12 +201,14 @@ Both Turrets have a Damage roll of 2d4, have `advantage` against Infantry, and a
 
 ### Planet Types
 
-| Planet Type | Income per Payday | Building Slots | CP bonus |
-|---|---|---|---|
-| Standard | 200C 50M | 3 | +10 |
-| Rich | 300C 100M | 2 | +5 |
-| Fortress | 100C 25M | 4 | +15 |
-| Capital | 300C 100M | 4 | +20 |
+A Planet pays its base income itself; Richness (none ×0, poor ×0.5, normal ×1, rich ×1.5) multiplies what extractor buildings draw from it. See the [economy spec](economy-spec.md#deposits).
+
+| Planet Type | Base income per Payday | Credits Richness | Materials Richness | Building Slots | CP bonus |
+|---|---|---|---|---|---|
+| Standard | 80C 20M | normal | poor | 3 | +10 |
+| Rich | 150C 40M | rich | rich | 2 | +5 |
+| Fortress | 40C 10M | poor | rich | 4 | +15 |
+| Capital | 150C 40M | normal | normal | 4 | +20 |
 
 ### Starting Kits
 

@@ -46,8 +46,11 @@ type Events struct {
 	MatchEnded *Result
 }
 
+// Richness multiplies what a Planet's extractor buildings draw from it.
+var richness = map[string]float64{"none": 0, "poor": 0.5, "normal": 1, "rich": 1.5}
+
 // payday pays each player, per Resource, their Planets' income plus their
-// buildings' yields, minus their buildings' Upkeep, as one lump sum. Debt is
+// buildings' yields (an extractor's scaled by its Planet's Richness), minus their buildings' Upkeep, as one lump sum. Debt is
 // allowed: a Resource can go below zero. Then refining buildings convert
 // what's left, and anything over a Stockpile cap is lost.
 func (s *State) payday(c *cs.Content) []PaydayPaid {
@@ -67,6 +70,9 @@ func (s *State) payday(c *cs.Content) []PaydayPaid {
 			b := c.Buildings[id] // "" is an empty slot, with no yield or Upkeep
 			for r, a := range b.Yield {
 				net[r] += a
+			}
+			for r, a := range b.Extracts {
+				net[r] += int(float64(a) * richness[p.Richness[r]])
 			}
 			for r, a := range b.Upkeep {
 				net[r] -= a

@@ -178,3 +178,50 @@ func TestResourcesOverTheirStockpileCapAreLostAtPayday(t *testing.T) {
 		t.Errorf("Credits with a Depot = %d, want 1200 + 390 under the raised 1700 cap", got)
 	}
 }
+
+func TestExtractorsYieldByTheirPlanetsRichness(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	a := s.Planets["a"]
+	a.Income = nil
+	a.Buildings = []string{"", "", "base:mine", "base:mine"} // two on one Planet: each yields
+	a.Richness = map[string]string{"base:materials": "rich"}
+	b := s.Planets["b"]
+	b.Owner = 0
+	b.Income = nil
+	b.Buildings = []string{"base:mine", "", ""}
+	b.Richness = map[string]string{"base:materials": "poor"}
+	d := s.Planets["d"]
+	d.Owner = 0
+	d.Income = nil
+	d.Buildings = []string{"base:mine", "base:supply-pad", ""}
+	d.Richness = map[string]string{} // nothing to draw: a flat yield still pays
+
+	paid := s.Advance(c, 90_000).Paydays
+
+	// 2 × 60 × 1.5 on a, 60 × 0.5 on b, nothing on d.
+	if got := paid[0].Net["base:materials"]; got != 180+30 {
+		t.Errorf("Materials net = %d, want 210", got)
+	}
+	if got := paid[0].Net["base:credits"]; got != 100 {
+		t.Errorf("Credits net = %d, want d's flat Supply Pad yield of 100", got)
+	}
+}
+
+func TestStartTakesRichnessFromThePlanetTypeOrTheMapsOverride(t *testing.T) {
+	c := lineContent()
+	m := c.Maps["base:line"]
+	m.Planets[3].Overrides = &cs.PlanetOverrides{Richness: map[string]cs.RichnessLevel{"base:credits": "rich"}} // d
+	c.Maps["base:line"] = m
+
+	s, err := StartMatch(c, "base:line", []SeatSetup{{User: "u1", Faction: "base:unsc"}}, nil, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := s.Planets["b"].Richness; !maps.Equal(got, map[string]string{"base:materials": "poor"}) {
+		t.Errorf("b = %v, want its Standard Planet Type's", got)
+	}
+	if got := s.Planets["d"].Richness; !maps.Equal(got, map[string]string{"base:credits": "rich"}) {
+		t.Errorf("d = %v, want the override in full, replacing its type's", got)
+	}
+}

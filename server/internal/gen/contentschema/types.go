@@ -141,6 +141,10 @@ type Building struct {
 	// Cost corresponds to the JSON schema field "cost".
 	Cost map[string]int `json:"cost"`
 
+	// Paid at each Payday, times its Planet's Richness for each Resource, rounded
+	// down.
+	Extracts map[string]int `json:"extracts,omitempty,omitzero"`
+
 	// Faction corresponds to the JSON schema field "faction".
 	Faction ID `json:"faction"`
 
@@ -456,6 +460,9 @@ type PlanetOverrides struct {
 	// Income corresponds to the JSON schema field "income".
 	Income map[string]int `json:"income,omitempty,omitzero"`
 
+	// Richness corresponds to the JSON schema field "richness".
+	Richness map[string]RichnessLevel `json:"richness,omitempty,omitzero"`
+
 	// Sprite corresponds to the JSON schema field "sprite".
 	Sprite *Asset `json:"sprite,omitempty,omitzero"`
 }
@@ -474,7 +481,7 @@ type PlanetType struct {
 	// ID corresponds to the JSON schema field "id".
 	ID ID `json:"id"`
 
-	// Paid at each Payday.
+	// The Planet's own base income, paid at each Payday.
 	Income map[string]int `json:"income"`
 
 	// Name corresponds to the JSON schema field "name".
@@ -482,6 +489,9 @@ type PlanetType struct {
 
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Richness corresponds to the JSON schema field "richness".
+	Richness map[string]RichnessLevel `json:"richness,omitempty,omitzero"`
 
 	// Sprite corresponds to the JSON schema field "sprite".
 	Sprite *Asset `json:"sprite,omitempty,omitzero"`
@@ -523,6 +533,13 @@ type Resource struct {
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
 }
+
+type RichnessLevel string
+
+const RichnessLevelNone RichnessLevel = "none"
+const RichnessLevelNormal RichnessLevel = "normal"
+const RichnessLevelPoor RichnessLevel = "poor"
+const RichnessLevelRich RichnessLevel = "rich"
 
 // Game-wide tuning values. There is exactly one, `base:rules`, which later Mods
 // Patch.

@@ -451,8 +451,9 @@ export interface Building {
   buildTime: number;
   upkeep: ResourceMap4;
   yield: ResourceMap5;
+  extracts?: ResourceMap6;
   refines?: Refining;
-  storage?: ResourceMap6;
+  storage?: ResourceMap7;
   commandPointBonus: number;
   /**
    * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
@@ -481,6 +482,12 @@ export interface ResourceMap5 {
   [k: string]: number;
 }
 /**
+ * Amounts keyed by Resource id.
+ */
+export interface ResourceMap6 {
+  [k: string]: number;
+}
+/**
  * Converts input into output at each Payday, after Upkeep. Short of input, it converts what there is at the same rate.
  */
 export interface Refining {
@@ -490,7 +497,7 @@ export interface Refining {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap6 {
+export interface ResourceMap7 {
   [k: string]: number;
 }
 /**
@@ -553,7 +560,8 @@ export interface PlanetType {
    * Inline English display name.
    */
   name: string;
-  income: ResourceMap7;
+  income: ResourceMap8;
+  richness?: Richness;
   buildingSlots: number;
   commandPointBonus: number;
   /**
@@ -564,8 +572,14 @@ export interface PlanetType {
 /**
  * Amounts keyed by Resource id.
  */
-export interface ResourceMap7 {
+export interface ResourceMap8 {
   [k: string]: number;
+}
+/**
+ * Per Resource id, how much a Planet's extractor buildings draw from it: none ×0, poor ×0.5, normal ×1, rich ×1.5. A Resource left out is none.
+ */
+export interface Richness {
+  [k: string]: "none" | "poor" | "normal" | "rich";
 }
 /**
  * A galaxy map. Planet ids are local to it.
@@ -647,6 +661,7 @@ export interface PlanetBattlefield {
  */
 export interface PlanetOverrides {
   income?: ResourceMap3;
+  richness?: Richness;
   buildingSlots?: number;
   commandPointBonus?: number;
   /**

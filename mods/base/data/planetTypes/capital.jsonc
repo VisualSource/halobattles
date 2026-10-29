@@ -2,7 +2,8 @@
   "$schema": "../../../../schema/content/planet-type.schema.json",
   "id": "capital",
   "name": "Capital",
-  "income": { "credits": 300, "materials": 100 },
+  "income": { "credits": 150, "materials": 40 },
+  "richness": { "credits": "normal", "materials": "normal" },
   "buildingSlots": 4,
   "commandPointBonus": 20
 }

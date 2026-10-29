@@ -15,6 +15,7 @@
     "buildTime": { "description": "Seconds to build.", "$ref": "defs.schema.json#/definitions/seconds" },
     "upkeep": { "description": "Charged at each Payday.", "$ref": "defs.schema.json#/definitions/resourceMap" },
     "yield": { "description": "Paid at each Payday.", "$ref": "defs.schema.json#/definitions/resourceMap" },
+    "extracts": { "description": "Paid at each Payday, times its Planet's Richness for each Resource, rounded down.", "$ref": "defs.schema.json#/definitions/resourceMap" },
     "refines": {
       "title": "Refining",
       "description": "Converts input into output at each Payday, after Upkeep. Short of input, it converts what there is at the same rate.",

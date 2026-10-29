@@ -6,6 +6,7 @@
   "cost": { "credits": 200 },
   "buildTime": 30,
   "upkeep": {},
-  "yield": { "credits": 100 },
+  "yield": {},
+  "extracts": { "credits": 100 },
   "commandPointBonus": 0
 }

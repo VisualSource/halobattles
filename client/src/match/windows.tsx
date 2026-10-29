@@ -50,6 +50,20 @@ const addInto = (into: Map<string, number>, a: Record<string, number>) => {
   for (const [r, n] of Object.entries(a)) into.set(r, (into.get(r) ?? 0) + n);
 };
 
+/**
+ * What a building makes at Payday: its flat yield plus what it extracts, at
+ * its normal amount. shortcut: ignores the Planet's Richness; #29 shows it.
+ */
+const outputOf = (b: {
+  yield: Record<string, number>;
+  extracts?: Record<string, number>;
+}) => {
+  const out = new Map<string, number>();
+  addInto(out, b.yield);
+  addInto(out, b.extracts ?? {});
+  return Object.fromEntries(out);
+};
+
 const playerName = (view: View, seat: number | null) =>
   seat === null
     ? "Neutral"
@@ -332,10 +346,10 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
   for (const id of planet?.buildings ?? []) {
     const b = content.buildings.get(id);
     if (!b) continue;
-    addInto(produces, b.yield);
+    addInto(produces, outputOf(b));
     addInto(upkeep, b.upkeep);
-    if (amounts(content, b.yield))
-      madeBy.push(`${b.name} ${amounts(content, b.yield)}`);
+    if (amounts(content, outputOf(b)))
+      madeBy.push(`${b.name} ${amounts(content, outputOf(b))}`);
     if (amounts(content, b.upkeep))
       paidBy.push(`${b.name} ${amounts(content, b.upkeep)}`);
   }
@@ -524,8 +538,8 @@ function BuildingsTab(props: {
                 <span className="text-[11px] text-ink-3">
                   {b.trains?.length
                     ? `Trains ${b.trains.map((u) => content.units.get(u)?.name ?? u).join(", ")}`
-                    : amounts(content, b.yield)
-                      ? `+${amounts(content, b.yield)}`
+                    : amounts(content, outputOf(b))
+                      ? `+${amounts(content, outputOf(b))}`
                       : b.combat
                         ? "Armed: fights in Battles"
                         : ""}
