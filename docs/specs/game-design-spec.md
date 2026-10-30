@@ -182,7 +182,7 @@ Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and �
 
 ### Buildings
 
-Eight mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundry / Forge and Depot / Reliquary are from Economy v2; the rest of its changes land with the [economy spec](economy-spec.md)'s other sub-issues.
+Nine mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundry / Forge and Depot / Reliquary are from Economy v2; the Research Lab / Sanctum is from the [tech spec](tech-spec.md#base-mod-buildings), which adds the rest of tech's buildings.
 
 | UNSC / Covenant | Cost | Time | Upkeep | Yield | Role |
 |---|---|---|---|---|---|
@@ -194,6 +194,7 @@ Eight mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundr
 | Foundry / Forge | 250C 100M | 45s | 10C | refines 40M into 20A | Alloys |
 | Depot / Reliquary | 150C | 30s | 0 | +1500C +750M +250A of Stockpile caps | storage |
 | Turret / Plasma Turret | 200C 50M 20A | 30s | 10C | none | armed Structure |
+| Research Lab / Sanctum | 250C 100M | 45s | 15C | none | a Lab: holds 2 Techs |
 
 Both Turrets have a Damage roll of 2d4, have `advantage` against Infantry, and are `normal` against Vehicles and Aircraft.
 
@@ -213,11 +214,10 @@ A Planet pays its base income itself; Richness (none ×0, poor ×0.5, normal ×1
 
 ### Starting Kits
 
-Each kit puts two buildings on the Capital, leaving 2 of its 4 Building Slots free. Its first Stack holds 10 basic infantry and 2 light vehicles, which use 16 of the Capital's 20 Command Points.
+Each kit puts three buildings on the Capital, one of them a [Lab](tech-spec.md#labs), leaving 1 of its 4 Building Slots free. Its first Stack holds 10 basic infantry and 2 light vehicles, which use 16 of the Capital's 20 Command Points.
 
-- **UNSC:** Barracks, Supply Pad, 10 Marines, 2 Warthogs.
-- **Covenant:** Hall, Warehouse, 10 Grunts, 2 Ghosts.
-- With Tech (issue #23), each kit also gains a Lab, using a third Building Slot ([tech spec](tech-spec.md#labs)).
+- **UNSC:** Barracks, Supply Pad, Research Lab, 10 Marines, 2 Warthogs.
+- **Covenant:** Hall, Warehouse, Sanctum, 10 Grunts, 2 Ghosts.
 
 ## The first map
 
