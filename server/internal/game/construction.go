@@ -18,7 +18,8 @@ type QueueItem struct {
 	Unit      string // a unit item
 	Started   bool
 	Remaining int64
-	EndsAt    int64 // Match Time; 0 unless running
+	EndsAt    int64          // Match Time; 0 unless running
+	Paid      map[string]int // what queuing it charged, Sprawl included; refunds come from this
 }
 
 var (
@@ -38,8 +39,8 @@ func (s *State) ownedPlanet(seat int, id string) (*Planet, error) {
 	return p, nil
 }
 
-// QueueBuilding charges the building's full cost and adds it to the
-// Planet's construction queue, reserving its slot.
+// QueueBuilding charges the building's full cost, with Sprawl, and adds it
+// to the Planet's construction queue, reserving its slot.
 func (s *State) QueueBuilding(c *cs.Content, seat int, planet string, slot int, building string) error {
 	p, err := s.ownedPlanet(seat, planet)
 	if err != nil {
@@ -57,28 +58,40 @@ func (s *State) QueueBuilding(c *cs.Content, seat int, planet string, slot int, 
 	case pl.inDebt():
 		return errInDebt
 	}
-	for r, a := range b.Cost {
+	cost := s.sprawled(c, seat, b.Cost)
+	for r, a := range cost {
 		if pl.Resources[r] < a {
 			return fmt.Errorf("not enough %s", c.Resources[r].Name)
 		}
 	}
-	for r, a := range b.Cost {
+	for r, a := range cost {
 		pl.Resources[r] -= a
 	}
 	s.LastID++
-	p.Queue = append(p.Queue, QueueItem{ID: s.LastID, Slot: slot, Building: building, Remaining: int64(b.BuildTime) * 1000})
+	p.Queue = append(p.Queue, QueueItem{ID: s.LastID, Slot: slot, Building: building, Remaining: int64(b.BuildTime) * 1000, Paid: cost})
 	return nil
 }
 
-func (q QueueItem) cost(c *cs.Content) map[string]int {
-	if q.Unit != "" {
-		return c.Units[q.Unit].Cost
+// sprawled is cost with seat's Sprawl: each Planet it owns beyond the
+// Ruleset's free ones adds its percent, rounded to the nearest whole amount.
+func (s *State) sprawled(c *cs.Content, seat int, cost map[string]int) map[string]int {
+	sp := c.Rulesets[RulesetID].Sprawl
+	owned := 0
+	for _, p := range s.Planets {
+		if p.Owner == seat {
+			owned++
+		}
 	}
-	return c.Buildings[q.Building].Cost
+	percent := 100 + max(0, owned-sp.FreePlanets)*sp.Percent
+	out := make(map[string]int, len(cost))
+	for r, a := range cost {
+		out[r] = (a*percent + 50) / 100
+	}
+	return out
 }
 
-// CancelQueueItem refunds an item in full if it hasn't started, or the
-// Ruleset's cancel percentage if it has. A cancelled unit frees its Command
+// CancelQueueItem refunds what an item was charged in full if it hasn't
+// started, or the Ruleset's cancel percentage if it has. A cancelled unit frees its Command
 // Points, since only queued and living units hold them.
 func (s *State) CancelQueueItem(c *cs.Content, seat int, id uint32) error {
 	for _, p := range s.Planets {
@@ -94,7 +107,7 @@ func (s *State) CancelQueueItem(c *cs.Content, seat int, id uint32) error {
 		if item.Started {
 			percent = c.Rulesets[RulesetID].CancelRefundPercent
 		}
-		s.Players[seat].refund(item.cost(c), percent)
+		s.Players[seat].refund(item.Paid, percent)
 		q = slices.Delete(q, i, i+1)
 		if item.Unit != "" {
 			p.setUnitQueue(item.Slot, q)

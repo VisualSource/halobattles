@@ -9,6 +9,29 @@
       "!dist"
     ]
   },
-  "formatter": { "indentStyle": "space" },
-  "css": { "parser": { "tailwindDirectives": true } }
+  "linter": {
+    "domains": {
+      "tailwind": "recommended",
+      "react": "recommended",
+      "tanstackQuery": "recommended"
+    },
+    "rules": {
+      "nursery": {
+        "useTailwindShorthandClasses": "error",
+        "useTailwindSortedClasses": "error",
+        "noTailwindRawColors": "error",
+        "useReactCompiler": {
+          "level": "error"
+        }
+      }
+    }
+  },
+  "formatter": {
+    "indentStyle": "space"
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  }
 }

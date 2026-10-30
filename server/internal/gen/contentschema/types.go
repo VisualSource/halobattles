@@ -141,6 +141,10 @@ type Building struct {
 	// Cost corresponds to the JSON schema field "cost".
 	Cost map[string]int `json:"cost"`
 
+	// Paid at each Payday, times its Planet's Richness for each Resource, rounded
+	// down.
+	Extracts map[string]int `json:"extracts,omitempty,omitzero"`
+
 	// Faction corresponds to the JSON schema field "faction".
 	Faction ID `json:"faction"`
 
@@ -157,8 +161,15 @@ type Building struct {
 	// block.
 	PadTurret *bool `json:"padTurret,omitempty,omitzero"`
 
+	// Converts input into output at each Payday, after Upkeep. Short of input, it
+	// converts what there is at the same rate.
+	Refines *Refining `json:"refines,omitempty,omitzero"`
+
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Raises its owner's Stockpile caps.
+	Storage map[string]int `json:"storage,omitempty,omitzero"`
 
 	// Trains corresponds to the JSON schema field "trains".
 	Trains []ID `json:"trains,omitempty,omitzero"`
@@ -278,6 +289,20 @@ type Content struct {
 
 	// WeaponTypes corresponds to the JSON schema field "weaponTypes".
 	WeaponTypes map[string]WeaponType `json:"weaponTypes"`
+}
+
+type ExchangeRate struct {
+	// Get corresponds to the JSON schema field "get".
+	Get ID `json:"get"`
+
+	// GetAmount corresponds to the JSON schema field "getAmount".
+	GetAmount int `json:"getAmount"`
+
+	// Give corresponds to the JSON schema field "give".
+	Give ID `json:"give"`
+
+	// GiveAmount corresponds to the JSON schema field "giveAmount".
+	GiveAmount int `json:"giveAmount"`
 }
 
 // A playable side with its own units and buildings.
@@ -449,6 +474,9 @@ type PlanetOverrides struct {
 	// Income corresponds to the JSON schema field "income".
 	Income map[string]int `json:"income,omitempty,omitzero"`
 
+	// Richness corresponds to the JSON schema field "richness".
+	Richness map[string]RichnessLevel `json:"richness,omitempty,omitzero"`
+
 	// Sprite corresponds to the JSON schema field "sprite".
 	Sprite *Asset `json:"sprite,omitempty,omitzero"`
 }
@@ -467,7 +495,7 @@ type PlanetType struct {
 	// ID corresponds to the JSON schema field "id".
 	ID ID `json:"id"`
 
-	// Paid at each Payday.
+	// The Planet's own base income, paid at each Payday.
 	Income map[string]int `json:"income"`
 
 	// Name corresponds to the JSON schema field "name".
@@ -475,6 +503,9 @@ type PlanetType struct {
 
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Richness corresponds to the JSON schema field "richness".
+	Richness map[string]RichnessLevel `json:"richness,omitempty,omitzero"`
 
 	// Sprite corresponds to the JSON schema field "sprite".
 	Sprite *Asset `json:"sprite,omitempty,omitzero"`
@@ -486,6 +517,16 @@ type Position struct {
 
 	// Y corresponds to the JSON schema field "y".
 	Y float64 `json:"y"`
+}
+
+// Converts input into output at each Payday, after Upkeep. Short of input, it
+// converts what there is at the same rate.
+type Refining struct {
+	// Input corresponds to the JSON schema field "input".
+	Input map[string]int `json:"input"`
+
+	// Output corresponds to the JSON schema field "output".
+	Output map[string]int `json:"output"`
 }
 
 // A stockpiled currency players earn at Payday and spend. Command Points is not a
@@ -507,6 +548,13 @@ type Resource struct {
 	Replace *bool `json:"replace,omitempty,omitzero"`
 }
 
+type RichnessLevel string
+
+const RichnessLevelNone RichnessLevel = "none"
+const RichnessLevelNormal RichnessLevel = "normal"
+const RichnessLevelPoor RichnessLevel = "poor"
+const RichnessLevelRich RichnessLevel = "rich"
+
 // Game-wide tuning values. There is exactly one, `base:rules`, which later Mods
 // Patch.
 type Ruleset struct {
@@ -526,6 +574,10 @@ type Ruleset struct {
 
 	// Refund for cancelling a queue item after it started.
 	CancelRefundPercent int `json:"cancelRefundPercent"`
+
+	// The Exchange's rates. A trade gives a whole multiple of giveAmount and gets
+	// getAmount for each; a pair not listed can't be traded.
+	Exchange []ExchangeRate `json:"exchange"`
 
 	// How long a disconnected player keeps their Seat.
 	GracePeriodSeconds int `json:"gracePeriodSeconds"`
@@ -551,8 +603,16 @@ type Ruleset struct {
 	// Refund for selling a building.
 	SellRefundPercent int `json:"sellRefundPercent"`
 
-	// Defaults the lobby fills in.
+	// Each Planet a player owns beyond freePlanets adds percent to the cost of
+	// everything they queue, rounded to the nearest whole amount.
+	Sprawl Sprawl `json:"sprawl"`
+
+	// Defaults the lobby fills in. Each must fit under its Stockpile cap.
 	StartingResources map[string]int `json:"startingResources"`
+
+	// The most of each Resource a player holds before storage buildings: anything
+	// over it is lost at Payday. Every Resource needs one.
+	StockpileCaps map[string]int `json:"stockpileCaps"`
 
 	// An attack's d20 roll below this misses.
 	ToHit int `json:"toHit"`
@@ -562,6 +622,16 @@ type Ruleset struct {
 }
 
 type Seconds int
+
+// Each Planet a player owns beyond freePlanets adds percent to the cost of
+// everything they queue, rounded to the nearest whole amount.
+type Sprawl struct {
+	// FreePlanets corresponds to the JSON schema field "freePlanets".
+	FreePlanets int `json:"freePlanets"`
+
+	// Percent corresponds to the JSON schema field "percent".
+	Percent int `json:"percent"`
+}
 
 // Units in one Stack, one entry per Unit Slot.
 type Stack []struct {
@@ -696,6 +766,10 @@ type Unit struct {
 	// The most of this unit one Unit Slot holds; more take another slot. Unset is no
 	// limit.
 	SlotLimit *int `json:"slotLimit,omitempty,omitzero"`
+
+	// Charged at each Payday for each living unit, from training until death. Left
+	// out is none.
+	Upkeep map[string]int `json:"upkeep,omitempty,omitzero"`
 }
 
 // A combat category that attackers are more or less effective against.

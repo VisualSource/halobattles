@@ -134,6 +134,18 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 			"buildings base:barracks: a padTurret needs a combat block"},
 		"class without Battle stats": {"base/data/unitClasses/vehicle.jsonc", `{"id": "vehicle", "name": "Vehicle"}`,
 			"rulesets base:rules: battle classDefaults has no entry for Unit Class base:vehicle"},
+		"starting resources over a cap": {"base/data/rulesets/rules.jsonc",
+			strings.Replace(baseRules, `"stockpileCaps": {"credits": 3000}`, `"stockpileCaps": {"credits": 500}`, 1),
+			"rulesets base:rules: startingResources base:credits is 1000, over its Stockpile cap of 500"},
+		"a Resource with no cap": {"base/data/rulesets/rules.jsonc",
+			strings.Replace(baseRules, `"stockpileCaps": {"credits": 3000}`, `"stockpileCaps": {}`, 1),
+			"rulesets base:rules: stockpileCaps has no cap for Resource base:credits"},
+		"an exchange rate for itself": {"base/data/rulesets/rules.jsonc",
+			strings.Replace(baseRules, `"exchange": []`, `"exchange": [{"give": "credits", "giveAmount": 2, "get": "credits", "getAmount": 1}]`, 1),
+			"rulesets base:rules: exchange 1 trades base:credits for itself"},
+		"an exchange rate for an unknown Resource": {"base/data/rulesets/rules.jsonc",
+			strings.Replace(baseRules, `"exchange": []`, `"exchange": [{"give": "gold", "giveAmount": 1, "get": "credits", "getAmount": 1}]`, 1),
+			"rulesets base:rules: exchange 1 give: unknown Resource base:gold"},
 		"dangling reference": {"base/data/buildings/barracks.jsonc",
 			strings.Replace(rosterFiles()["base/data/buildings/barracks.jsonc"], `["marine"]`, `["spartan"]`, 1),
 			"buildings base:barracks: trains: unknown Unit base:spartan"},
@@ -151,9 +163,9 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	d := c.Doc
 
 	counts := map[string][2]int{
-		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 12},
+		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 16},
 		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
-		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 2},
+		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 3},
 		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
 	}
 	for kind, n := range counts {
@@ -182,14 +194,21 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	if b := d.Units["base:banshee"]; b.Combat.Shield != 13 || b.Combat.Hp != 20 || b.BuildTime != 50 {
 		t.Errorf("banshee = %+v", b)
 	}
+	if g := d.Units["base:ghost"]; g.Cost["base:alloys"] != 15 || g.Upkeep["base:credits"] != 15 || g.Upkeep["base:alloys"] != 1 {
+		t.Errorf("ghost cost %v, upkeep %v", g.Cost, g.Upkeep)
+	}
+	if b := d.Buildings["base:plasma-turret"]; b.Cost["base:alloys"] != 20 {
+		t.Errorf("plasma-turret cost %v", b.Cost)
+	}
 	if w := d.WeaponTypes["base:plasma"]; w.Shield != 1.5 || w.Armor != 0.75 || w.Hp != 1 {
 		t.Errorf("plasma = %+v", w)
 	}
-	if p := d.PlanetTypes["base:fortress"]; p.BuildingSlots != 4 || p.CommandPointBonus != 15 || p.Income["base:credits"] != 100 {
+	if p := d.PlanetTypes["base:fortress"]; p.BuildingSlots != 4 || p.CommandPointBonus != 15 || p.Income["base:credits"] != 40 ||
+		p.Richness["base:materials"] != "rich" {
 		t.Errorf("fortress = %+v", p)
 	}
-	if y := d.Buildings["base:reactor"].Yield["base:materials"]; y != 50 {
-		t.Errorf("reactor yield = %d, want 50 Materials", y)
+	if y := d.Buildings["base:mine"].Extracts["base:materials"]; y != 60 {
+		t.Errorf("mine extracts %d, want 60 Materials", y)
 	}
 
 	m := d.Maps["base:quadrant"]

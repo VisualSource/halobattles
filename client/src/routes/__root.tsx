@@ -16,7 +16,7 @@ export const Route = createRootRoute({
             <header
               className={`border-b px-8 py-4 ${ring ? "border-line/70 bg-bar/55 backdrop-blur-md" : "border-line bg-bar"}`}
             >
-              <h1 className="font-bold font-display text-xl tracking-[0.12em]">
+              <h1 className="font-display text-xl font-bold tracking-[0.12em]">
                 HALO BATTLES
               </h1>
             </header>
@@ -39,7 +39,7 @@ export const Route = createRootRoute({
 function TooSmall() {
   return (
     <div className="flex min-h-screen flex-col justify-center gap-3 p-6 lg:hidden">
-      <h1 className="font-bold font-display text-3xl">
+      <h1 className="font-display text-3xl font-bold">
         This screen is too small
       </h1>
       <p className="text-ink-2 leading-relaxed">

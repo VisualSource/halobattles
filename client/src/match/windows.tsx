@@ -1,6 +1,7 @@
 import { Feedback } from "@dnd-kit/dom";
 import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react";
 import {
+  Fragment,
   type ReactNode,
   useEffect,
   useLayoutEffect,
@@ -48,6 +49,75 @@ export function amounts(content: ContentLookups, a: Amounts, scale = 1) {
 
 const addInto = (into: Map<string, number>, a: Record<string, number>) => {
   for (const [r, n] of Object.entries(a)) into.set(r, (into.get(r) ?? 0) + n);
+};
+
+/** Richness multiplies what a Planet's extractor buildings draw from it. */
+const RICHNESS: Record<string, number> = {
+  none: 0,
+  poor: 0.5,
+  normal: 1,
+  rich: 1.5,
+};
+
+type Producer = {
+  yield: Record<string, number>;
+  extracts?: Record<string, number>;
+};
+
+/**
+ * What a building makes at Payday on a Planet: its flat yield plus what it
+ * extracts times the Planet's Richness, rounded down as the server does.
+ */
+const outputOf = (b: Producer, richness: Map<string, string>) => {
+  const out = new Map<string, number>();
+  addInto(out, b.yield);
+  for (const [r, n] of Object.entries(b.extracts ?? {}))
+    out.set(
+      r,
+      (out.get(r) ?? 0) +
+        Math.floor(n * (RICHNESS[richness.get(r) ?? ""] ?? 0)),
+    );
+  return Object.fromEntries(out);
+};
+
+/**
+ * A building's output on a Planet, with the Richness that scaled an
+ * extractor's: "+90 Materials · rich ×1.5". "" when it makes nothing.
+ */
+const outputText = (
+  content: ContentLookups,
+  b: Producer,
+  richness: Map<string, string>,
+) => {
+  const out = amounts(content, outputOf(b, richness));
+  const levels = Object.keys(b.extracts ?? {}).map(
+    (r) => richness.get(r) ?? "none",
+  );
+  if (!levels.length) return out && `+${out}`;
+  return `+${out || "0"} · ${levels.map((l) => `${l} ×${RICHNESS[l] ?? 0}`).join(", ")}`;
+};
+
+/**
+ * What queuing costs the viewer now, as the server charges it: each Planet
+ * they own beyond the Ruleset's free ones adds its percent, rounded to the
+ * nearest whole amount.
+ */
+const sprawled = (
+  content: ContentLookups,
+  view: View | null,
+  cost: Record<string, number>,
+) => {
+  const { freePlanets, percent } = content.rules.sprawl;
+  let owned = 0;
+  for (const p of view?.planets.values() ?? [])
+    if (p.owner === view?.you) owned++;
+  const total = 100 + Math.max(0, owned - freePlanets) * percent;
+  return Object.fromEntries(
+    Object.entries(cost).map(([r, n]) => [
+      r,
+      Math.floor((n * total + 50) / 100),
+    ]),
+  );
 };
 
 const playerName = (view: View, seat: number | null) =>
@@ -112,7 +182,7 @@ export function Floating(props: {
       id={props.id}
       aria-label={props.label}
       style={pos ? { left: pos.x, top: pos.y } : { visibility: "hidden" }}
-      className={`absolute z-10 flex max-h-[calc(100%-32px)] flex-col rounded-lg border border-edge bg-panel/95 shadow-[0_12px_32px_#000a] ${props.className ?? ""}`}
+      className={`border-edge bg-panel/95 absolute z-10 flex max-h-[calc(100%-32px)] flex-col rounded-lg border shadow-[0_12px_32px_#000a] ${props.className ?? ""}`}
     >
       <div
         onPointerDown={(e) => {
@@ -127,7 +197,7 @@ export function Floating(props: {
         onPointerUp={() => {
           drag.current = null;
         }}
-        className="flex h-10 flex-none cursor-move touch-none select-none items-center gap-2.5 rounded-t-lg border-line border-b bg-bar pr-2 pl-3"
+        className="border-line bg-bar flex h-10 flex-none cursor-move touch-none items-center gap-2.5 rounded-t-lg border-b pr-2 pl-3 select-none"
       >
         <svg width="10" height="16" viewBox="0 0 10 16" aria-hidden="true">
           <g fill="var(--color-ink-4)">
@@ -146,7 +216,7 @@ export function Floating(props: {
           type="button"
           aria-label={`Close ${props.label}`}
           onClick={props.onClose}
-          className="size-7 border-0 bg-transparent p-0 text-ink-3"
+          className="text-ink-3 size-7 border-0 bg-transparent p-0"
         >
           ✕
         </button>
@@ -236,7 +306,7 @@ export function PlanetWindow(props: {
             type="button"
             aria-pressed={props.stacksOpen}
             onClick={props.onOpenStacks}
-            className="flex min-h-7 items-center gap-1.5 rounded border-edge bg-raised px-2.5 text-xs"
+            className="border-edge bg-raised flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
               <g fill="none" stroke="var(--color-ink-2)" strokeWidth="1.5">
@@ -252,7 +322,7 @@ export function PlanetWindow(props: {
     >
       <Banner sel={sel} content={content} />
       {!planet ? (
-        <p className="p-4 text-ink-3">Outside your vision.</p>
+        <p className="text-ink-3 p-4">Outside your vision.</p>
       ) : (
         <>
           <Alerts conn={conn} content={content} sel={sel} />
@@ -286,7 +356,7 @@ export function PlanetWindow(props: {
             <div
               role="tablist"
               aria-label="Planet views"
-              className="flex rounded-b-lg border-line border-t bg-bar"
+              className="border-line bg-bar flex rounded-b-lg border-t"
             >
               {(["buildings", "units"] as const).map((t) => (
                 <button
@@ -295,7 +365,7 @@ export function PlanetWindow(props: {
                   role="tab"
                   aria-selected={tab === t}
                   onClick={() => setTab(t)}
-                  className={`h-10 flex-1 rounded-none border-0 border-t-2 capitalize ${tab === t ? "border-accent bg-panel text-ink" : "border-transparent bg-transparent text-ink-3"}`}
+                  className={`h-10 flex-1 rounded-none border-0 border-t-2 capitalize ${tab === t ? "border-accent bg-panel text-ink" : "text-ink-3 border-transparent bg-transparent"}`}
                 >
                   {t}
                 </button>
@@ -321,6 +391,7 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
       ? "#9ca3af"
       : seatColour(owner);
 
+  const richness = planet?.richness ?? new Map<string, string>();
   const produces = new Map<string, number>();
   const upkeep = new Map<string, number>();
   const madeBy: string[] = [];
@@ -332,17 +403,34 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
   for (const id of planet?.buildings ?? []) {
     const b = content.buildings.get(id);
     if (!b) continue;
-    addInto(produces, b.yield);
+    addInto(produces, outputOf(b, richness));
     addInto(upkeep, b.upkeep);
-    if (amounts(content, b.yield))
-      madeBy.push(`${b.name} ${amounts(content, b.yield)}`);
+    if (outputText(content, b, richness))
+      madeBy.push(`${b.name} ${outputText(content, b, richness)}`);
+    if (b.refines)
+      madeBy.push(
+        `${b.name} refines ${amounts(content, b.refines.input)} → ${amounts(content, b.refines.output)}`,
+      );
     if (amounts(content, b.upkeep))
       paidBy.push(`${b.name} ${amounts(content, b.upkeep)}`);
+  }
+  const garrison = new Map<string, number>();
+  for (const st of planet?.stacks ?? [])
+    for (const s of st)
+      garrison.set(s.unit, (garrison.get(s.unit) ?? 0) + s.count);
+  for (const [id, n] of garrison) {
+    const u = content.units.get(id);
+    if (!u?.upkeep || !amounts(content, u.upkeep)) continue;
+    addInto(
+      upkeep,
+      Object.fromEntries(Object.entries(u.upkeep).map(([r, a]) => [r, a * n])),
+    );
+    paidBy.push(`${n} ${u.name} ${amounts(content, u.upkeep, n)}`);
   }
   const used = planet?.buildings.filter(Boolean).length ?? 0;
 
   return (
-    <div className="flex items-center gap-4 border-line border-b bg-well px-3.5 py-3">
+    <div className="border-line bg-well flex items-center gap-4 border-b px-3.5 py-3">
       <svg width="72" height="72" viewBox="0 0 84 84" aria-hidden="true">
         <circle
           cx="42"
@@ -383,29 +471,53 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
         </dd>
         <dt className={label}>Command</dt>
         <dd className="font-mono">+{type?.commandPointBonus ?? 0} CP</dd>
+        {planet &&
+          [...content.resources].map(([id, r], i) => {
+            const level = richness.get(id) ?? "none";
+            const pips = ["none", "poor", "normal", "rich"].indexOf(level);
+            return (
+              <Fragment key={id}>
+                <dt className={label}>{i === 0 && "Richness"}</dt>
+                <dd className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="w-18">{r.name}</span>
+                  <span aria-hidden="true" className="flex gap-0.5">
+                    {[1, 2, 3].map((n) => (
+                      <span
+                        key={n}
+                        className={`h-2.5 w-1.5 rounded-[1px] ${n <= pips ? "bg-ok" : "bg-line"}`}
+                      />
+                    ))}
+                  </span>
+                  <span className="text-ink-3 text-xs">
+                    {level === "none" ? "none" : `${level} ×${RICHNESS[level]}`}
+                  </span>
+                </dd>
+              </Fragment>
+            );
+          })}
       </dl>
       <span className="flex-1" />
       {sel.mine && (
         <div className="grid w-90 grid-cols-2 gap-2">
           {/* With no upkeep it slides over into the Upkeep box's place: one column plus the gap. */}
           <div
-            className={`rounded-md border border-ok-edge bg-ok-wash px-2.5 py-2 transition-transform duration-300 ${amounts(content, upkeep) ? "" : "translate-x-[calc(100%+0.5rem)]"}`}
+            className={`border-ok-edge bg-ok-wash rounded-md border px-2.5 py-2 transition-transform duration-300 ${amounts(content, upkeep) ? "" : "translate-x-[calc(100%+0.5rem)]"}`}
           >
             <div className={`${label} text-ok`}>Produces / Payday</div>
             <div className="mt-1 font-mono text-sm">
               {amounts(content, produces) || "Nothing"}
             </div>
-            <div className="mt-0.5 text-[11px] text-ink-2">
+            <div className="text-ink-2 mt-0.5 text-[11px]">
               {madeBy.join(" · ")}
             </div>
           </div>
           {amounts(content, upkeep) && (
-            <div className="rounded-md border border-danger/40 bg-danger-wash px-2.5 py-2">
+            <div className="border-danger/40 bg-danger-wash rounded-md border px-2.5 py-2">
               <div className={`${label} text-danger`}>Upkeep / Payday</div>
               <div className="mt-1 font-mono text-sm">
                 {amounts(content, upkeep)}
               </div>
-              <div className="mt-0.5 text-[11px] text-ink-2">
+              <div className="text-ink-2 mt-0.5 text-[11px]">
                 {paidBy.join(" · ")}
               </div>
             </div>
@@ -413,7 +525,7 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
         </div>
       )}
       {sel.last && (
-        <p className="w-48 text-ink-3 text-xs">
+        <p className="text-ink-3 w-48 text-xs">
           Out of your vision: this is what you saw last.
         </p>
       )}
@@ -438,7 +550,7 @@ function Alerts(props: {
   return (
     <>
       {sel.live?.locked && (
-        <div className="flex items-center gap-3 border-line border-b bg-accent-wash px-3.5 py-2.5 text-sm">
+        <div className="border-line bg-accent-wash flex items-center gap-3 border-b px-3.5 py-2.5 text-sm">
           <span className="flex-1">
             <strong className="text-accent">Locked by a Battle.</strong> Its
             queues are paused and its Stacks are frozen until it ends.
@@ -448,7 +560,7 @@ function Alerts(props: {
               key={b.id}
               type="button"
               onClick={() => conn.local.setState({ watching: b.id })}
-              className="min-h-8 rounded-md border-edge bg-raised px-3"
+              className="border-edge bg-raised min-h-8 rounded-md px-3"
             >
               Watch Battle
             </button>
@@ -456,7 +568,7 @@ function Alerts(props: {
         </div>
       )}
       {debts.length > 0 && (
-        <div className="border-danger/40 border-b bg-danger-wash px-3.5 py-2.5 text-danger text-sm">
+        <div className="border-danger/40 bg-danger-wash text-danger border-b px-3.5 py-2.5 text-sm">
           <strong>
             In debt:{" "}
             {debts
@@ -482,11 +594,15 @@ function BuildingsTab(props: {
 }) {
   const { conn, content, planet, editable } = props;
   const local = useStore(conn.local);
+  const view = useStore(conn.store, (s) => s.view);
   const now = useMatchNow(conn.local); // ticks the countdowns
-  const [picking, setPicking] = useState<number | null>(null);
-  // A different Planet starts without the build list open.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on the Planet changing only
-  useEffect(() => setPicking(null), [planet.id]);
+  // Tagged with its Planet so a different Planet starts without the build list open.
+  const [pick, setPick] = useState<{ planet: string; slot: number } | null>(
+    null,
+  );
+  const picking = pick?.planet === planet.id ? pick.slot : null;
+  const setPicking = (slot: number | null) =>
+    setPick(slot === null ? null : { planet: planet.id, slot });
   const refund = content.rules.sellRefundPercent / 100;
   const card = "flex flex-col gap-2 rounded-md border p-2";
 
@@ -516,22 +632,23 @@ function BuildingsTab(props: {
                 conn.queueBuilding(planet.id, picking, b.id);
                 setPicking(null);
               }}
-              className="flex items-center gap-2.5 rounded-md border-edge bg-item p-2 text-left"
+              className="border-edge bg-item flex items-center gap-2.5 rounded-md p-2 text-left"
             >
               <Tile name={b.name} size="size-12" />
               <span className="flex flex-col gap-0.5">
                 <span className="font-semibold">{b.name}</span>
-                <span className="text-[11px] text-ink-3">
+                <span className="text-ink-3 text-[11px]">
                   {b.trains?.length
                     ? `Trains ${b.trains.map((u) => content.units.get(u)?.name ?? u).join(", ")}`
-                    : amounts(content, b.yield)
-                      ? `+${amounts(content, b.yield)}`
+                    : outputText(content, b, planet.richness)
+                      ? `${outputText(content, b, planet.richness)}${b.extracts ? " here" : ""}`
                       : b.combat
                         ? "Armed: fights in Battles"
                         : ""}
                 </span>
                 <span className="font-mono text-[11px]">
-                  {amounts(content, b.cost)} · {b.buildTime} s
+                  {amounts(content, sprawled(content, view, b.cost))} ·{" "}
+                  {b.buildTime} s
                 </span>
               </span>
             </button>
@@ -567,10 +684,9 @@ function BuildingsTab(props: {
                   )}
                 </div>
                 <Tile name={b.name} size="size-14" />
-                <div className="font-mono text-[11px] text-ink-3">
+                <div className="text-ink-3 font-mono text-[11px]">
                   {[
-                    amounts(content, b.yield) &&
-                      `+${amounts(content, b.yield)}`,
+                    outputText(content, b, planet.richness),
                     amounts(content, b.upkeep) &&
                       `upkeep ${amounts(content, b.upkeep)}`,
                   ]
@@ -587,7 +703,7 @@ function BuildingsTab(props: {
                 <div className="flex items-center gap-1.5">
                   <span className="flex-1 font-semibold">
                     {def?.name ?? building.building}{" "}
-                    <span className="font-normal text-ink-3">· building</span>
+                    <span className="text-ink-3 font-normal">· building</span>
                   </span>
                   {editable && (
                     <button
@@ -621,15 +737,15 @@ function BuildingsTab(props: {
               key={key}
               type="button"
               onClick={() => setPicking(i)}
-              className="flex min-h-30 flex-col items-center justify-center gap-1 rounded-md border-edge border-dashed bg-transparent text-ink-2"
+              className="border-edge text-ink-2 flex min-h-30 flex-col items-center justify-center gap-1 rounded-md border-dashed bg-transparent"
             >
-              <span className="text-2xl text-accent">+</span>
+              <span className="text-accent text-2xl">+</span>
               Build
             </button>
           ) : (
             <div
               key={key}
-              className={`${card} border-edge border-dashed text-ink-3`}
+              className={`${card} border-edge text-ink-3 border-dashed`}
             >
               Empty
             </div>
@@ -649,6 +765,7 @@ function UnitsTab(props: {
 }) {
   const { conn, content, planet, faction } = props;
   const local = useStore(conn.local);
+  const view = useStore(conn.store, (s) => s.view);
   const trainers = [...content.buildings.values()].filter(
     (b) => b.faction === faction && b.trains?.length,
   );
@@ -665,7 +782,7 @@ function UnitsTab(props: {
     return (
       <>
         <span className={label}>Units</span>
-        <div className="flex flex-col items-center gap-1.5 rounded-md border border-edge border-dashed px-4 py-8 text-center">
+        <div className="border-edge flex flex-col items-center gap-1.5 rounded-md border border-dashed px-4 py-8 text-center">
           <span className="font-semibold">No unit production here</span>
           <span className="text-ink-3 text-sm">
             Build a {list} on this Planet to train units.
@@ -719,13 +836,13 @@ function UnitsTab(props: {
                     <Tile name={u.name} size="size-12" />
                     <span className="flex flex-col gap-0.5">
                       <span className="font-semibold">{u.name}</span>
-                      <span className="text-[11px] text-ink-3">
+                      <span className="text-ink-3 text-[11px]">
                         {nameOf("unitClasses", u.combat.unitClass)} ·{" "}
                         {nameOf("weaponTypes", u.combat.weaponType)}
                       </span>
                       <span className="font-mono text-[11px]">
-                        {amounts(content, u.cost)} · {u.commandPoints} CP ·{" "}
-                        {u.buildTime} s
+                        {amounts(content, sprawled(content, view, u.cost))} ·{" "}
+                        {u.commandPoints} CP · {u.buildTime} s
                       </span>
                     </span>
                   </button>
@@ -761,7 +878,7 @@ function BuildQueue(props: {
     }),
   ];
   return (
-    <section className="flex w-62 flex-none flex-col gap-2.5 overflow-y-auto border-line border-l p-3.5">
+    <section className="border-line flex w-62 flex-none flex-col gap-2.5 overflow-y-auto border-l p-3.5">
       <span className={label}>Build Queue</span>
       {groups.every((g) => g.items.length === 0) && (
         <p className="text-ink-3 text-sm">Nothing queued.</p>
@@ -807,7 +924,7 @@ function QueueRow(props: {
   const status = queueStatus(q, now);
   return (
     <li
-      className={`flex items-center gap-2 rounded-md border border-line p-1.5 ${q.endsAt || q.paused ? "bg-item" : "text-ink-3"}`}
+      className={`border-line flex items-center gap-2 rounded-md border p-1.5 ${q.endsAt || q.paused ? "bg-item" : "text-ink-3"}`}
     >
       <Tile name={name} size="size-9" />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -832,7 +949,7 @@ function QueueRow(props: {
         aria-label={`Cancel ${name}`}
         disabled={isPending(local, "cancel")}
         onClick={() => conn.cancelQueueItem(q.id)}
-        className="size-6 border-0 bg-transparent p-0 text-ink-3"
+        className="text-ink-3 size-6 border-0 bg-transparent p-0"
       >
         ✕
       </button>
@@ -894,11 +1011,15 @@ export function StacksWindow(props: {
   const local = useStore(conn.local);
   const stacks = sel?.planet?.stacks;
   // After a drop, and until the server answers it, the grid shows the move.
-  const [moved, setMoved] = useState<UnitSlot[][] | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the server's Stacks replace the local move
-  useEffect(() => setMoved(null), [stacks]);
+  // Tagged with the Stacks it moved, so the server's next Stacks replace it.
+  const [move, setMove] = useState<{
+    from: typeof stacks;
+    to: UnitSlot[][];
+  } | null>(null);
+  const moved = move && move.from === stacks ? move.to : null;
+  const setMoved = (to: UnitSlot[][]) => setMove({ from: stacks, to });
   useEffect(() => {
-    const reset = () => setMoved(null);
+    const reset = () => setMove(null);
     conn.events.addEventListener("rejected", reset);
     return () => conn.events.removeEventListener("rejected", reset);
   }, [conn]);
@@ -931,7 +1052,7 @@ export function StacksWindow(props: {
       }
     >
       {editable && (
-        <p className="mx-3 mt-2 text-ink-4 text-xs">
+        <p className="text-ink-4 mx-3 mt-2 text-xs">
           Drag a slot to any cell, in this Stack or another. Right-click one to
           split it in half or move it. Drag a Stack's pile on the map onto a
           Planet to send it.
@@ -968,10 +1089,10 @@ export function StacksWindow(props: {
                 // biome-ignore lint/suspicious/noArrayIndexKey: the three Stacks are positional
                 key={i}
                 aria-label={`Stack ${i + 1}`}
-                className={`flex flex-col gap-1.5 rounded-lg border bg-panel p-2 ${rally ? "border-accent" : "border-edge"}`}
+                className={`bg-panel flex flex-col gap-1.5 rounded-lg border p-2 ${rally ? "border-accent" : "border-edge"}`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="whitespace-nowrap font-semibold text-sm">
+                  <span className="text-sm font-semibold whitespace-nowrap">
                     Stack {i + 1}
                   </span>
                   {rally && (
@@ -1083,7 +1204,7 @@ function GridCell(props: {
   return (
     <li
       ref={ref}
-      className={`h-12 rounded ${props.children ? "" : "border border-line border-dashed"} ${isDropTarget ? "outline-2 outline-accent" : ""}`}
+      className={`h-12 rounded ${props.children ? "" : "border-line border border-dashed"} ${isDropTarget ? "outline-accent outline-2" : ""}`}
     >
       {props.children}
     </li>
@@ -1165,7 +1286,7 @@ function SlotMenu(props: {
         const step = e.key === "ArrowDown" ? 1 : -1;
         items[(at + step + items.length) % items.length]?.focus();
       }}
-      className="fixed z-30 flex w-48 flex-col rounded-md border border-edge bg-panel p-1 shadow-[0_12px_32px_#000a]"
+      className="border-edge bg-panel fixed z-30 flex w-48 flex-col rounded-md border p-1 shadow-[0_12px_32px_#000a]"
     >
       <button
         type="button"
@@ -1181,7 +1302,7 @@ function SlotMenu(props: {
       >
         Split
       </button>
-      <hr className="my-1 border-line" />
+      <hr className="border-line my-1" />
       {[0, 1, 2]
         .filter((k) => k !== props.stack)
         .map((k) => (
@@ -1200,7 +1321,10 @@ function SlotMenu(props: {
 }
 
 /** A full Unit Slot: the unit and its count. */
-function UnitSlotTile(props: {
+function UnitSlotTile({
+  ref,
+  ...props
+}: {
   ref?: (el: Element | null) => void;
   slot: UnitSlot;
   name: string;
@@ -1212,12 +1336,12 @@ function UnitSlotTile(props: {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: @dnd-kit makes a draggable slot a focusable button, so Shift+F10 opens its menu
     <div
-      ref={props.ref}
+      ref={ref}
       title={`${props.name} × ${slot.count}`}
       onContextMenu={props.onContextMenu}
-      className={`flex h-12 flex-col justify-between rounded border border-edge bg-tile px-1.5 py-1 leading-tight ${props.draggable ? "cursor-grab" : ""} ${props.dragging ? "opacity-60 ring-2 ring-accent" : ""}`}
+      className={`border-edge bg-tile flex h-12 flex-col justify-between rounded border px-1.5 py-1 leading-tight ${props.draggable ? "cursor-grab" : ""} ${props.dragging ? "ring-accent opacity-60 ring-2" : ""}`}
     >
-      <span className="font-mono text-[11px] text-ink-3">
+      <span className="text-ink-3 font-mono text-[11px]">
         {abbr(props.name)}
       </span>
       <span className="self-end font-mono text-[13px]">×{slot.count}</span>
@@ -1415,7 +1539,7 @@ function RouteStop(props: {
           style={{ background: props.colour }}
         />
         {!props.last && (
-          <span aria-hidden="true" className="relative w-0.5 flex-1 bg-line">
+          <span aria-hidden="true" className="bg-line relative w-0.5 flex-1">
             {props.progress !== undefined && (
               <span
                 className="absolute inset-x-0 top-0 bg-[#facc15]"
@@ -1437,7 +1561,7 @@ function RouteStop(props: {
           )}
         </span>
         {props.eta && (
-          <span className="font-mono text-ink-3 text-xs">{props.eta}</span>
+          <span className="text-ink-3 font-mono text-xs">{props.eta}</span>
         )}
       </div>
     </li>
@@ -1448,7 +1572,7 @@ export function Tile(props: { name: string; size: string; dashed?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`flex flex-none items-center justify-center rounded border font-mono text-[11px] text-ink-3 ${props.size} ${props.dashed ? "border-edge border-dashed" : "border-edge bg-tile"}`}
+      className={`text-ink-3 flex flex-none items-center justify-center rounded border font-mono text-[11px] ${props.size} ${props.dashed ? "border-edge border-dashed" : "border-edge bg-tile"}`}
     >
       {abbr(props.name)}
     </span>
@@ -1486,7 +1610,7 @@ function Progress(props: { item: QueueItem; total: number; offset: number }) {
   }, [item.endsAt, item.remaining, total, offset]);
 
   return (
-    <div className="h-1 rounded-sm bg-well">
+    <div className="bg-well h-1 rounded-sm">
       <div
         ref={bar}
         className={`h-full rounded-sm ${item.paused ? "bg-ink-4" : "bg-ok"}`}

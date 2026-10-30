@@ -51,15 +51,15 @@ export function LobbyScreen(props: {
       {/* Sits above the ring (later in the DOM, same z) so the lobby stays readable. */}
       <div
         aria-hidden="true"
-        className="fixed inset-0 -z-10 bg-ground/70 backdrop-blur-md"
+        className="bg-ground/70 fixed inset-0 -z-10 backdrop-blur-md"
       />
       <div className="mx-auto flex w-full max-w-300 flex-1 flex-col gap-6 p-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <p className="font-semibold text-ink-3 text-xs tracking-[0.14em]">
+            <p className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
               PRE-MATCH LOBBY
             </p>
-            <h2 className="font-display font-semibold text-4xl">
+            <h2 className="font-display text-4xl font-semibold">
               {lobby.seats.length} of {map?.starts.length ?? "?"} Seats filled
             </h2>
           </div>
@@ -67,7 +67,7 @@ export function LobbyScreen(props: {
             <Invite matchId={props.matchId} />
             <Link
               to="/"
-              className="inline-flex min-h-11 items-center rounded-md border border-edge px-4 font-medium text-ink-2 hover:no-underline"
+              className="border-edge text-ink-2 inline-flex min-h-11 items-center rounded-md border px-4 font-medium hover:no-underline"
             >
               Leave lobby
             </Link>
@@ -78,7 +78,7 @@ export function LobbyScreen(props: {
           <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
             <Seats lobby={lobby} content={content} map={map} userId={userId} />
             {me && (
-              <section className="flex flex-col gap-4 rounded-[10px] border border-line bg-panel p-5">
+              <section className="border-line bg-panel flex flex-col gap-4 rounded-[10px] border p-5">
                 <h2 className={sectionTitle}>YOUR FACTION</h2>
                 <FactionButton
                   faction={content.factions.get(me.faction)}
@@ -94,13 +94,13 @@ export function LobbyScreen(props: {
             )}
           </div>
 
-          <section className="flex min-w-0 flex-[1_1_320px] flex-col gap-5 rounded-[10px] border border-line bg-panel p-5">
+          <section className="border-line bg-panel flex min-w-0 flex-[1_1_320px] flex-col gap-5 rounded-[10px] border p-5">
             <div className="flex items-center justify-between gap-2">
               <h2 className={sectionTitle}>MATCH SETTINGS</h2>
               {!isHost && <span className="text-ink-3 text-xs">Host only</span>}
             </div>
             <div className="flex flex-col gap-2">
-              <span className="font-semibold text-ink-2 text-sm">Map</span>
+              <span className="text-ink-2 text-sm font-semibold">Map</span>
               {map && (
                 <MapRow
                   map={map}
@@ -123,7 +123,7 @@ export function LobbyScreen(props: {
         </div>
       </div>
 
-      <footer className="sticky bottom-0 border-line border-t bg-bar">
+      <footer className="border-line bg-bar sticky bottom-0 border-t">
         <div className="mx-auto flex max-w-300 flex-wrap items-center justify-between gap-4 px-8 py-4">
           <p className="text-ink-2">{status(lobby, map, userId)}</p>
           {isHost ? (
@@ -131,21 +131,21 @@ export function LobbyScreen(props: {
               type="button"
               disabled={!canStart || isPending(local, "start")}
               onClick={() => conn.startMatch()}
-              className="min-h-13 min-w-50 rounded-lg border-0 bg-accent px-7 font-bold font-display text-accent-ink text-lg tracking-[0.12em] disabled:bg-line disabled:text-ink-4 disabled:opacity-100"
+              className="bg-accent font-display text-accent-ink disabled:bg-line disabled:text-ink-4 min-h-13 min-w-50 rounded-lg border-0 px-7 text-lg font-bold tracking-[0.12em] disabled:opacity-100"
             >
               START MATCH
             </button>
           ) : (
             me && (
               <label
-                className={`inline-flex min-h-13 cursor-pointer items-center gap-3 rounded-lg border px-6 font-bold font-display text-lg tracking-[0.12em] ${me.ready ? "border-ok-edge bg-ok-wash text-ok" : "border-edge bg-raised"}`}
+                className={`font-display inline-flex min-h-13 cursor-pointer items-center gap-3 rounded-lg border px-6 text-lg font-bold tracking-[0.12em] ${me.ready ? "border-ok-edge bg-ok-wash text-ok" : "border-edge bg-raised"}`}
               >
                 <input
                   type="checkbox"
                   checked={me.ready}
                   disabled={isPending(local, "ready")}
                   onChange={(e) => conn.setReady(e.target.checked)}
-                  className="size-5.5 accent-accent"
+                  className="accent-accent size-5.5"
                 />
                 READY
               </label>
@@ -158,7 +158,7 @@ export function LobbyScreen(props: {
         open={dialog === "map"}
         onClose={() => setDialog(null)}
         label="maps-title"
-        className="m-auto max-h-[80vh] w-full max-w-lg rounded-xl border border-edge bg-panel text-ink"
+        className="border-edge bg-panel text-ink m-auto max-h-[80vh] w-full max-w-lg rounded-xl border"
       >
         <MapPicker
           content={content}
@@ -176,7 +176,7 @@ export function LobbyScreen(props: {
           open={dialog === "faction"}
           onClose={() => setDialog(null)}
           label="factions-title"
-          className="m-0 h-screen max-h-none w-screen max-w-none bg-void text-ink"
+          className="bg-void text-ink m-0 h-screen max-h-none w-screen max-w-none"
         >
           <FactionPicker
             content={content}
@@ -221,7 +221,7 @@ function Invite(props: { matchId: string }) {
       .then(() => setCopied(true))
       .catch(() => {});
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-lg border border-line bg-panel py-1.5 pr-1.5 pl-4">
+    <div className="border-line bg-panel flex min-w-0 items-center gap-2 rounded-lg border py-1.5 pr-1.5 pl-4">
       <span className="text-ink-3 text-sm">Invite</span>
       <code title={url} className="max-w-80 truncate font-mono text-sm">
         {url}
@@ -229,7 +229,7 @@ function Invite(props: { matchId: string }) {
       <button
         type="button"
         onClick={copy}
-        className="min-h-11 rounded-md border-0 bg-raised px-3 font-medium text-sm"
+        className="bg-raised min-h-11 rounded-md border-0 px-3 text-sm font-medium"
       >
         {copied ? "Copied" : "Copy link"}
       </button>
@@ -249,7 +249,7 @@ function Seats(props: {
     (props.map?.starts.length ?? 0) - lobby.seats.length,
   );
   return (
-    <section className="overflow-hidden rounded-[10px] border border-line bg-panel">
+    <section className="border-line bg-panel overflow-hidden rounded-[10px] border">
       <h2 className={`${sectionTitle} border-line border-b px-5 py-4`}>
         SEATS
       </h2>
@@ -260,7 +260,7 @@ function Seats(props: {
           return (
             <li
               key={s.user}
-              className={`flex min-h-18 items-center gap-4 border-divider border-b px-5 ${me ? "bg-highlight" : ""}`}
+              className={`border-divider flex min-h-18 items-center gap-4 border-b px-5 ${me ? "bg-highlight" : ""}`}
             >
               <span
                 aria-hidden="true"
@@ -274,7 +274,7 @@ function Seats(props: {
                   </span>
                   {me && <span className="text-ink-3 text-xs">(you)</span>}
                   {host && (
-                    <span className="rounded bg-host-wash px-2 py-0.5 font-semibold text-host text-[11px] tracking-widest">
+                    <span className="bg-host-wash text-host rounded px-2 py-0.5 text-[11px] font-semibold tracking-widest">
                       HOST
                     </span>
                   )}
@@ -285,7 +285,7 @@ function Seats(props: {
               </div>
               {!host && (
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-semibold text-sm ${s.ready ? "bg-ok-wash text-ok" : "bg-idle-wash text-idle"}`}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${s.ready ? "bg-ok-wash text-ok" : "bg-idle-wash text-idle"}`}
                 >
                   <span
                     aria-hidden="true"
@@ -300,11 +300,11 @@ function Seats(props: {
         {Array.from({ length: open }, (_, i) => `open-${i}`).map((key) => (
           <li
             key={key}
-            className="flex min-h-18 items-center gap-4 border-divider border-b px-5"
+            className="border-divider flex min-h-18 items-center gap-4 border-b px-5"
           >
             <span
               aria-hidden="true"
-              className="h-10 w-1.5 rounded-sm bg-open-seat"
+              className="bg-open-seat h-10 w-1.5 rounded-sm"
             />
             <span className="text-ink-4 italic">
               Open Seat · waiting for a player
@@ -335,7 +335,7 @@ function Dialog(props: {
       ref={ref}
       onClose={props.onClose}
       aria-labelledby={props.label}
-      className={`p-0 backdrop:bg-scrim/70 ${props.className}`}
+      className={`backdrop:bg-scrim/70 p-0 ${props.className}`}
     >
       {props.open && props.children}
     </dialog>
@@ -347,7 +347,7 @@ function CloseButton(props: { onClick: () => void; children?: ReactNode }) {
     <button
       type="button"
       onClick={props.onClick}
-      className="inline-flex min-h-11 items-center gap-2 rounded-md border-edge bg-transparent px-4 font-medium text-ink-2"
+      className="border-edge text-ink-2 inline-flex min-h-11 items-center gap-2 rounded-md bg-transparent px-4 font-medium"
     >
       {props.children ?? "Close"}
     </button>
@@ -422,13 +422,13 @@ function MapRow(props: {
       disabled={props.disabled}
       aria-pressed={props.selected}
       onClick={props.onClick}
-      className={`flex w-full items-center gap-3.5 rounded-lg border px-3 py-2.5 text-left disabled:cursor-default ${props.selected ? "border-2 border-accent bg-accent-wash" : "border-edge bg-well"}`}
+      className={`flex w-full items-center gap-3.5 rounded-lg border px-3 py-2.5 text-left disabled:cursor-default ${props.selected ? "border-accent bg-accent-wash border-2" : "border-edge bg-well"}`}
     >
-      <span className="flex size-14 flex-none items-center justify-center rounded-md bg-tile">
+      <span className="bg-tile flex size-14 flex-none items-center justify-center rounded-md">
         <MapGlyph map={map} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="font-display font-semibold text-[17px]">
+        <span className="font-display text-[17px] font-semibold">
           {map.name}
         </span>
         <span className="text-ink-3 text-sm">
@@ -454,7 +454,7 @@ function MapPicker(props: {
 }) {
   return (
     <div className="flex max-h-[80vh] flex-col">
-      <div className="flex items-center justify-between gap-2 border-line border-b py-3 pr-3 pl-5">
+      <div className="border-line flex items-center justify-between gap-2 border-b py-3 pr-3 pl-5">
         <h2 id="maps-title" className={sectionTitle}>
           CHOOSE A MAP
         </h2>
@@ -488,7 +488,7 @@ function Emblem(props: { faction: Faction | undefined; className: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`flex flex-none items-center justify-center rounded-md bg-raised font-bold font-display ${props.className}`}
+      className={`bg-raised font-display flex flex-none items-center justify-center rounded-md font-bold ${props.className}`}
     >
       {props.faction?.name.slice(0, 1) ?? "?"}
     </span>
@@ -506,13 +506,13 @@ function FactionButton(props: {
       aria-haspopup="dialog"
       disabled={props.pending}
       onClick={props.onClick}
-      className="flex min-h-22 w-full items-center gap-4 rounded-lg border-edge bg-well px-4 py-3 text-left"
+      className="border-edge bg-well flex min-h-22 w-full items-center gap-4 rounded-lg px-4 py-3 text-left"
     >
       <Emblem faction={props.faction} className="size-16 text-3xl" />
-      <span className="flex-1 font-display font-semibold text-xl">
+      <span className="font-display flex-1 text-xl font-semibold">
         {props.faction?.name ?? "?"}
       </span>
-      <span className="font-semibold text-accent text-sm">Change</span>
+      <span className="text-accent text-sm font-semibold">Change</span>
     </button>
   );
 }
@@ -536,10 +536,10 @@ function FactionPicker(props: {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-4 border-line border-b bg-ground px-8 py-3">
+      <div className="border-line bg-ground flex items-center justify-between gap-4 border-b px-8 py-3">
         <h2
           id="factions-title"
-          className="font-bold font-display text-xl tracking-[0.14em]"
+          className="font-display text-xl font-bold tracking-[0.14em]"
         >
           CHOOSE YOUR FACTION
         </h2>
@@ -547,20 +547,20 @@ function FactionPicker(props: {
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <div className="relative flex min-w-0 flex-1 items-end overflow-hidden bg-hero p-10">
+        <div className="bg-hero relative flex min-w-0 flex-1 items-end overflow-hidden p-10">
           <span
             aria-hidden="true"
-            className="absolute top-1/2 right-[8%] -translate-y-1/2 font-bold font-display text-[420px] text-white/5 leading-none"
+            className="font-display absolute top-1/2 right-[8%] -translate-y-1/2 text-[420px] leading-none font-bold text-white/5"
           >
             {faction?.name.slice(0, 1)}
           </span>
-          <p className="relative font-bold font-display text-7xl text-ink-bright leading-none">
+          <p className="font-display text-ink-bright relative text-7xl leading-none font-bold">
             {faction?.name ?? preview}
           </p>
         </div>
-        <aside className="flex w-90 flex-none flex-col gap-7 overflow-y-auto border-line border-l bg-bar p-8">
+        <aside className="border-line bg-bar flex w-90 flex-none flex-col gap-7 overflow-y-auto border-l p-8">
           <div className="flex flex-col gap-3">
-            <h3 className="font-semibold text-ink-3 text-xs tracking-[0.14em]">
+            <h3 className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
               STARTING ARMY
             </h3>
             <ul className="flex flex-col gap-2">
@@ -570,13 +570,13 @@ function FactionPicker(props: {
                   className={`flex justify-between gap-3 ${listItem}`}
                 >
                   <span>{content.units.get(id)?.name ?? id}</span>
-                  <span className="font-mono text-ink-2">×{count}</span>
+                  <span className="text-ink-2 font-mono">×{count}</span>
                 </li>
               ))}
             </ul>
           </div>
           <div className="flex flex-col gap-3">
-            <h3 className="font-semibold text-ink-3 text-xs tracking-[0.14em]">
+            <h3 className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
               STARTING BUILDINGS
             </h3>
             <ul className="flex flex-col gap-2">
@@ -591,7 +591,7 @@ function FactionPicker(props: {
         </aside>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-5 border-line border-t bg-ground px-8 py-5">
+      <div className="border-line bg-ground flex flex-wrap items-center justify-between gap-5 border-t px-8 py-5">
         <div className="flex flex-wrap gap-3">
           {byId(content.factions).map(([id, f]) => (
             <button
@@ -606,7 +606,7 @@ function FactionPicker(props: {
                 {f.name}
               </span>
               {id === props.current && (
-                <span className="absolute top-2 right-2 rounded-sm bg-line px-1.5 py-0.5 font-semibold text-[10px] text-ink-2 tracking-widest">
+                <span className="bg-line text-ink-2 absolute top-2 right-2 rounded-sm px-1.5 py-0.5 text-[10px] font-semibold tracking-widest">
                   CURRENT
                 </span>
               )}
@@ -617,7 +617,7 @@ function FactionPicker(props: {
           <button
             type="button"
             onClick={() => props.onPick(preview)}
-            className="min-h-14 min-w-60 rounded-lg border-0 bg-accent px-8 font-bold font-display text-accent-ink text-lg tracking-[0.12em]"
+            className="bg-accent font-display text-accent-ink min-h-14 min-w-60 rounded-lg border-0 px-8 text-lg font-bold tracking-[0.12em]"
           >
             PLAY AS {(faction?.name ?? preview).toUpperCase()}
           </button>
@@ -639,11 +639,15 @@ function StartingResources(props: {
   disabled: boolean;
   pending: boolean;
 }) {
-  const [draft, setDraft] = useState(() => new Map(props.current));
-  // Show the server's values again whenever they change.
+  // Tagged with the server's values, so it shows them again whenever they change.
   const currentKey = JSON.stringify([...props.current]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the values, not the Map's identity
-  useEffect(() => setDraft(new Map(props.current)), [currentKey]);
+  const [edit, setEdit] = useState(() => ({
+    key: currentKey,
+    draft: new Map(props.current),
+  }));
+  const draft = edit.key === currentKey ? edit.draft : props.current;
+  const setDraft = (d: Map<string, number>) =>
+    setEdit({ key: currentKey, draft: d });
 
   function apply(e: FormEvent) {
     e.preventDefault();
@@ -656,7 +660,7 @@ function StartingResources(props: {
         disabled={props.disabled}
         className="flex min-w-0 flex-col gap-2"
       >
-        <legend className="mb-2 font-semibold text-ink-2 text-sm">
+        <legend className="text-ink-2 mb-2 text-sm font-semibold">
           Starting resources
         </legend>
         <div className="grid grid-cols-2 gap-3">
@@ -666,7 +670,7 @@ function StartingResources(props: {
               <input
                 type="number"
                 min={0}
-                max={1_000_000}
+                max={props.content.rules.stockpileCaps[r.id]}
                 step={1}
                 required
                 value={draft.get(r.id) ?? 0}
@@ -683,7 +687,7 @@ function StartingResources(props: {
         <button
           type="submit"
           disabled={props.pending}
-          className="min-h-11 self-start rounded-md bg-raised px-4.5 font-medium"
+          className="bg-raised min-h-11 self-start rounded-md px-4.5 font-medium"
         >
           Apply
         </button>

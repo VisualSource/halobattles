@@ -4,6 +4,7 @@
   "name": "Elite",
   "faction": "covenant",
   "cost": { "credits": 100, "materials": 25 },
+  "upkeep": { "credits": 10 },
   "buildTime": 25,
   "commandPoints": 2,
   "combat": {

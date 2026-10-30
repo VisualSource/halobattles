@@ -162,35 +162,37 @@ The base Mod ships **no icons or sprites**; the client draws placeholders.
 
 ### Units
 
-The rosters mirror each other's roles and costs. Covenant units put part of their durability into Shields; UNSC units carry more Armor and HP. Movement, range, fire-rate and Sight come from the [Unit Class defaults](tactical-battle-spec.md#stats) until playtests give units their own.
+The rosters mirror each other's roles and costs. Covenant units put part of their durability into Shields; UNSC units carry more Armor and HP. Each living unit pays its Upkeep at every Payday, from training until death; queued units and neutral garrisons pay none ([economy spec](economy-spec.md#unit-upkeep)). Movement, range, fire-rate and Sight come from the [Unit Class defaults](tactical-battle-spec.md#stats) until playtests give units their own.
 
 Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 45–55% of the time) and fight for 1–3 minutes; a Go test keeps both (see [Pacing](tactical-battle-spec.md#pacing)).
 
-| Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Tiers Inf/Veh/Air/Str | Cost | Time | CP | Trained at |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Marine | UNSC | Inf | Kinetic | 0/0/12 | 1d4 | A/D/D/D | 50C | 15s | 1 | Barracks |
-| ODST | UNSC | Inf | Explosive | 0/2/19 | 2d6 | D/A/N/A | 100C 25M | 25s | 2 | Barracks |
-| Warthog | UNSC | Veh | Kinetic | 0/12/25 | 2d4 | A/D/N/D | 150C 50M | 30s | 3 | Vehicle Depot |
-| Scorpion | UNSC | Veh | Explosive | 0/38/38 | 4d6+1 | N/A/–/A | 250C 100M | 45s | 4 | Vehicle Depot |
-| Hornet | UNSC | Air | Kinetic | 0/12/25 | 1d12 | N/A/A/N | 300C 150M | 50s | 5 | Air Pad |
-| Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | A/D/D/D | 50C | 15s | 1 | Hall |
-| Elite | Covenant | Inf | Explosive | 10/0/10 | 2d6 | D/A/N/A | 100C 25M | 25s | 2 | Hall |
-| Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | A/D/N/D | 150C 50M | 30s | 3 | Summoning Foundry |
-| Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | N/A/–/A | 250C 100M | 45s | 4 | Summoning Foundry |
-| Banshee | Covenant | Air | Plasma | 13/5/20 | 1d12 | N/A/A/N | 300C 150M | 50s | 5 | Summit |
+| Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Tiers Inf/Veh/Air/Str | Cost | Upkeep | Time | CP | Trained at |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Marine | UNSC | Inf | Kinetic | 0/0/12 | 1d4 | A/D/D/D | 50C | 5C | 15s | 1 | Barracks |
+| ODST | UNSC | Inf | Explosive | 0/2/19 | 2d6 | D/A/N/A | 100C 25M | 10C | 25s | 2 | Barracks |
+| Warthog | UNSC | Veh | Kinetic | 0/12/25 | 2d4 | A/D/N/D | 150C 50M 15A | 15C 1A | 30s | 3 | Vehicle Depot |
+| Scorpion | UNSC | Veh | Explosive | 0/38/38 | 4d6+1 | N/A/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Vehicle Depot |
+| Hornet | UNSC | Air | Kinetic | 0/12/25 | 1d12 | N/A/A/N | 300C 150M 40A | 30C 2A | 50s | 5 | Air Pad |
+| Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | A/D/D/D | 50C | 5C | 15s | 1 | Hall |
+| Elite | Covenant | Inf | Explosive | 10/0/10 | 2d6 | D/A/N/A | 100C 25M | 10C | 25s | 2 | Hall |
+| Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | A/D/N/D | 150C 50M 15A | 15C 1A | 30s | 3 | Summoning Foundry |
+| Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | N/A/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Summoning Foundry |
+| Banshee | Covenant | Air | Plasma | 13/5/20 | 1d12 | N/A/A/N | 300C 150M 40A | 30C 2A | 50s | 5 | Summit |
 
 ### Buildings
 
-Six mirrored buildings per Faction. Every `commandPointBonus` is 0.
+Eight mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundry / Forge and Depot / Reliquary are from Economy v2; the rest of its changes land with the [economy spec](economy-spec.md)'s other sub-issues.
 
 | UNSC / Covenant | Cost | Time | Upkeep | Yield | Role |
 |---|---|---|---|---|---|
 | Barracks / Hall | 150C | 30s | 10C | none | trains the two infantry units |
 | Vehicle Depot / Summoning Foundry | 300C 100M | 45s | 25C | none | trains the light vehicle and the tank |
 | Air Pad / Summit | 300C 150M | 60s | 30C | none | trains the aircraft |
-| Supply Pad / Warehouse | 200C | 30s | 0 | +100C | economy |
-| Reactor / Generator | 200C | 30s | 0 | +50M | economy |
-| Turret / Plasma Turret | 200C 50M | 30s | 10C | none | armed Structure |
+| Supply Pad / Warehouse | 200C | 30s | 0 | extracts 100C × Credits Richness | economy |
+| Mine / Excavator | 200C | 30s | 0 | extracts 60M × Materials Richness | economy |
+| Foundry / Forge | 250C 100M | 45s | 10C | refines 40M into 20A | Alloys |
+| Depot / Reliquary | 150C | 30s | 0 | +1500C +750M +250A of Stockpile caps | storage |
+| Turret / Plasma Turret | 200C 50M 20A | 30s | 10C | none | armed Structure |
 
 Both Turrets have a Damage roll of 2d4, have `advantage` against Infantry, and are `normal` against Vehicles and Aircraft.
 
@@ -199,12 +201,14 @@ Both Turrets have a Damage roll of 2d4, have `advantage` against Infantry, and a
 
 ### Planet Types
 
-| Planet Type | Income per Payday | Building Slots | CP bonus |
-|---|---|---|---|
-| Standard | 200C 50M | 3 | +10 |
-| Rich | 300C 100M | 2 | +5 |
-| Fortress | 100C 25M | 4 | +15 |
-| Capital | 300C 100M | 4 | +20 |
+A Planet pays its base income itself; Richness (none ×0, poor ×0.5, normal ×1, rich ×1.5) multiplies what extractor buildings draw from it. See the [economy spec](economy-spec.md#deposits).
+
+| Planet Type | Base income per Payday | Credits Richness | Materials Richness | Building Slots | CP bonus |
+|---|---|---|---|---|---|
+| Standard | 80C 20M | normal | poor | 3 | +10 |
+| Rich | 150C 40M | rich | rich | 2 | +5 |
+| Fortress | 40C 10M | poor | rich | 4 | +15 |
+| Capital | 150C 40M | normal | normal | 4 | +20 |
 
 ### Starting Kits
 
@@ -297,7 +301,10 @@ The single `base:rules` definition.
 | `toHit` | 3 (a d20 roll of 1–2 misses: 90% of attacks hit before Advantage or Disadvantage) |
 | Lane types | `fast` 0.6, `slow` 2.0 |
 | Tactical Battle fields | see [Ruleset additions](tactical-battle-spec.md#ruleset-additions) |
-| `startingResources` | 1000 Credits, 300 Materials |
+| `startingResources` | 1000 Credits, 300 Materials, 50 Alloys |
+| `stockpileCaps` | 3000 Credits, 1500 Materials, 500 Alloys |
+| `sprawl` | 4 free Planets, +5% per Planet beyond them |
+| `exchange` | sell 2 Materials → 1 Credit, 1 Alloy → 2 Credits; buy 3 Credits → 1 Material, 6 Credits → 1 Alloy |
 | `gracePeriodSeconds` | 180 (3 min) |
 | `armyVisionSeconds` | 15 |
 | `resultsSeconds` | 60 |

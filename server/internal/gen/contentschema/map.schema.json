@@ -51,6 +51,7 @@
             "additionalProperties": false,
             "properties": {
               "income": { "$ref": "defs.schema.json#/definitions/resourceMap" },
+              "richness": { "$ref": "defs.schema.json#/definitions/richness" },
               "buildingSlots": { "type": "integer", "minimum": 0 },
               "commandPointBonus": { "type": "integer", "minimum": 0 },
               "sprite": { "$ref": "defs.schema.json#/definitions/asset" }

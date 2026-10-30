@@ -14,6 +14,9 @@
     "toHit",
     "laneTypes",
     "startingResources",
+    "stockpileCaps",
+    "sprawl",
+    "exchange",
     "gracePeriodSeconds",
     "armyVisionSeconds",
     "resultsSeconds",
@@ -47,8 +50,39 @@
       "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }
     },
     "startingResources": {
-      "description": "Defaults the lobby fills in.",
+      "description": "Defaults the lobby fills in. Each must fit under its Stockpile cap.",
       "$ref": "defs.schema.json#/definitions/resourceMap"
+    },
+    "stockpileCaps": {
+      "description": "The most of each Resource a player holds before storage buildings: anything over it is lost at Payday. Every Resource needs one.",
+      "$ref": "defs.schema.json#/definitions/resourceMap"
+    },
+    "sprawl": {
+      "title": "Sprawl",
+      "description": "Each Planet a player owns beyond freePlanets adds percent to the cost of everything they queue, rounded to the nearest whole amount.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freePlanets", "percent"],
+      "properties": {
+        "freePlanets": { "type": "integer", "minimum": 0 },
+        "percent": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "exchange": {
+      "description": "The Exchange's rates. A trade gives a whole multiple of giveAmount and gets getAmount for each; a pair not listed can't be traded.",
+      "type": "array",
+      "items": {
+        "title": "Exchange Rate",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["give", "giveAmount", "get", "getAmount"],
+        "properties": {
+          "give": { "$ref": "defs.schema.json#/definitions/id" },
+          "giveAmount": { "type": "integer", "minimum": 1 },
+          "get": { "$ref": "defs.schema.json#/definitions/id" },
+          "getAmount": { "type": "integer", "minimum": 1 }
+        }
+      }
     },
     "gracePeriodSeconds": { "description": "How long a disconnected player keeps their Seat.", "type": "integer", "minimum": 0 },
     "armyVisionSeconds": { "description": "How long a player keeps seeing a Planet after their Army there leaves or is destroyed.", "type": "integer", "minimum": 0 },

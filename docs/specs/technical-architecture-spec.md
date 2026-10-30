@@ -85,14 +85,14 @@ Every definition has an `id` and an inline English `name`. Every asset reference
 
 - **Resource:** a stockpile only, with an optional `icon`. Command Points is **not** a Resource; it is carried by `commandPoints` and `commandPointBonus` fields.
 - **Faction:** an optional `icon`, an optional `ai` weight block for the Battle AI ([AI](tactical-battle-spec.md#ai)), and a **Starting Kit**: the buildings and Stacks (`[{unit, count}]` per Stack) placed on its Capital. Starting resources are not part of the kit.
-- **Unit:** `faction`, `cost` (resource map), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), optional `slotLimit` (the most one Unit Slot holds), optional `roles` (Battle AI hints: `scout`, `skirmisher`), `combat` (required), optional `icon`.
-- **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `padTurret` (it can be built on a build pad in Battle; needs `combat`), optional `icon`. There are no build limits or prerequisites.
+- **Unit:** `faction`, `cost` (resource map), optional `upkeep` (resource map, charged at each Payday for each living unit), `buildTime`, `commandPoints`, optional `maxCount` (per player, counted from queue to death), optional `slotLimit` (the most one Unit Slot holds), optional `roles` (Battle AI hints: `scout`, `skirmisher`), `combat` (required), optional `icon`.
+- **Building:** `faction`, `cost`, `buildTime`, `upkeep` and `yield` (resource maps), `commandPointBonus`, optional `trains: [unitIds]` (makes it a production building with its own unit queue), optional `combat` (makes it armed), optional `padTurret` (it can be built on a build pad in Battle; needs `combat`), optional `extracts` (a resource map paid at each Payday times its Planet's Richness, rounded down), optional `refines: {input, output}` (resource maps it converts at each Payday), optional `storage` (a resource map that raises its owner's Stockpile caps), optional `icon`. There are no build limits or prerequisites.
 - **`combat` block:** `unitClass`, `weaponType`, `shield`, `armor`, `hp`, `damage`, `tiers: {unitClassId: tier}`, and optional `speed`, `range`, `minRange`, `fireInterval` and `sight`, which default from the Ruleset's `classDefaults` ([Stats](tactical-battle-spec.md#stats)). `damage` is dice notation, `NdM` or `NdM+K`, checked by a schema pattern; a tier is `advantage`, `normal`, `disadvantage` or `none`, and a Unit Class missing from `tiers` counts as `normal` ([ADR 0003](../adr/0003-dice-damage.md)).
 - **Unit Class:** an id, a name, and an optional `air` flag: it flies, ignores cover and high ground, and shares a cell with one ground unit.
 - **Weapon Type:** a multiplier for each layer (`shield`, `armor`, `hp`).
 - **Terrain:** `cover`, `colour`, and `movement`, a cost per Unit Class; a Unit Class missing from it can't enter.
 - **Terrain Preset:** `noise`, elevation `bands` each with moisture-split `terrains`, and the `clear` Terrain ([Generation](tactical-battle-spec.md#generation)).
-- **Planet Type:** `income` (resource map), `buildingSlots`, `commandPointBonus`, optional `sprite`.
+- **Planet Type:** `income` (resource map, the Planet's own base income), optional `richness` (per Resource: `none`, `poor`, `normal` or `rich`; a Resource left out is `none`), `buildingSlots`, `commandPointBonus`, optional `sprite`.
 - **Ruleset:** exactly one definition, `base:rules`, which later Mods Patch. Its fields are:
   - the Payday interval;
   - the cancel-after-start and sell refund percentages;
@@ -100,12 +100,15 @@ Every definition has an `id` and an inline English `name`. Every asset reference
   - `toHit`, the d20 roll an attack needs to hit;
   - Lane types and their multipliers;
   - the tactical Battle fields ([Ruleset additions](tactical-battle-spec.md#ruleset-additions));
-  - `startingResources`, the defaults the lobby fills in (maps have none of their own);
+  - `startingResources`, the defaults the lobby fills in (maps have none of their own), each under its Stockpile cap;
+  - `stockpileCaps`, one per Resource;
+  - `sprawl {freePlanets, percent}`: each Planet a player owns beyond `freePlanets` adds `percent` to what they're charged to queue, rounded to the nearest whole amount; a queue item keeps what it was charged, and cancelling refunds from that;
+  - `exchange`: the Exchange's rates, a list of `{give, giveAmount, get, getAmount}`; a pair not listed can't be traded;
   - `gracePeriodSeconds`, `resultsSeconds` and `armyVisionSeconds`, in whole seconds and converted to Match Time ms by the server.
 
   Defaults are in the game-design spec's [Ruleset defaults](game-design-spec.md#ruleset-defaults).
 - **Map:**
-  - `planets`: a local id, `name`, `type` (a Planet Type), 2D `position {x, y}`, an optional `overrides` (a Patch on its type's values), an optional `model`: `planet` (the default) or `ring`, which the client draws as a Halo ring, and an optional `battlefield {terrainPreset, width, height}`.
+  - `planets`: a local id, `name`, `type` (a Planet Type), 2D `position {x, y}`, an optional `overrides` (values that replace its type's: `income`, `richness`, `buildingSlots`, `commandPointBonus`, `sprite`), an optional `model`: `planet` (the default) or `ring`, which the client draws as a Halo ring, and an optional `battlefield {terrainPreset, width, height}`.
   - `lanes`: `{from, to, type}`. Optional `length` defaults to the straight-line distance; optional `time` overrides length × multiplier.
   - `garrisons`: neutral starting forces per Planet, as up to 3 Stacks of `[{unit, count}]`, from any Faction. A garrison on a `starts` Planet applies only when that start is unused.
   - `starts`: a list of Planet ids. Its length is the maximum player count; a used start is its player's Capital. There is also `minPlayers`.
@@ -155,6 +158,7 @@ Encoding: [ADR 0002](../../docs/adr/0002-flatbuffers-wire-format.md).
 - `ViewFull` is sent on join and rejoin. After that, `ViewDelta` is sent only when something changed.
 - Deltas work at the **entity level**: vectors of whole upserted entities (Planets, Armies, queue items, Battles, the player's own Resources and Command Points), plus removed-id vectors (`removedArmies`, `removedQueueItems`, and so on). An entity that leaves vision shows up as removed.
 - The public per-player part of the View has every player's Planet count, `connected`, `graceEndsAt` (Match Time), and any running win-hold countdown.
+- Your own economy in the View has your Resources, their Stockpile caps, and the **projected** change at the next Payday: the same calculation Payday runs, before caps, so the header never disagrees with what Payday pays. Every Planet in view carries its Richness.
 - `ViewFull` carries the content hash and the Ruleset. If the client's cached content doesn't match the hash, it refetches before rendering.
 
 ### Events
@@ -202,6 +206,7 @@ Every command carries a client-assigned `seq`.
 | `BattleRetreat {planet}` | play | a side of that Battle, not neutral |
 | `BattleCancelRetreat {planet}` | play | a side of that Battle, during the countdown |
 | `BattleBuildTurret {planet, pad, building}` | play | a side of that Battle holding the pad; pays the turret's cost |
+| `Exchange {give, get, amount}` | play | any Seat, even in debt; `amount` is how much to give, a whole multiple of its rate's `giveAmount` |
 | `Surrender` | play | any Seat |
 
 - In `QueueUnit`, `count` expands into that many queue items, each reserving its own Command Points.
@@ -210,7 +215,7 @@ Every command carries a client-assigned `seq`.
 ### Trust boundary
 
 - There is **no client prediction**. A command shows as pending until the View changes or a `CommandRejected` arrives.
-- The server validates each command on the tick that processes it, against authoritative state: schema, size (< 4096 B), phase, ownership or Host role, Lock, debt, cost, Command Point cap, free slot, and route existence. Lobby validation adds the Seat cap on `SetMap` and the 0–1,000,000 whole-number range for every Resource on `SetStartingResources`.
+- The server validates each command on the tick that processes it, against authoritative state: schema, size (< 4096 B), phase, ownership or Host role, Lock, debt, cost, Command Point cap, free slot, and route existence. Lobby validation adds the Seat cap on `SetMap` and, on `SetStartingResources`, a whole number from 0 to that Resource's Stockpile cap for every Resource.
 - Each player is capped at **20 commands per tick**, and anything past that is rejected, so nobody can flood the 128-message input queue.
 
 ### Vision

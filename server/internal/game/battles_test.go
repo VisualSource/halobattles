@@ -352,11 +352,11 @@ func TestBuildingAPadTurretChecksTheSideFactionAndPurse(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	c.Buildings["base:turret"] = baseMod().Buildings["base:turret"]
 	c.Buildings["base:plasma-turret"] = baseMod().Buildings["base:plasma-turret"]
-	s.Players[0].Resources = map[string]int{"base:credits": 1000, "base:materials": 60}
+	s.Players[0].Resources = map[string]int{"base:credits": 1000, "base:materials": 60, "base:alloys": 20}
 	_ = s.OrderArmy(0, "a", marines(10), "b", 1)
 	s.Advance(c, 30_000)
 	b := onlyBattle(t, s)
-	if got := b.Sim.Funds[battle.Defender]; got["base:credits"] != 400 || got["base:materials"] != 100 {
+	if got := b.Sim.Funds[battle.Defender]; got["base:credits"] != 400 || got["base:materials"] != 100 || got["base:alloys"] != 40 {
 		t.Errorf("the neutral garrison's funds %v; want the Ruleset's", got)
 	}
 	if len(b.Sim.Pads) == 0 {
@@ -373,8 +373,8 @@ func TestBuildingAPadTurretChecksTheSideFactionAndPurse(t *testing.T) {
 	if err := s.BuildTurret(c, 0, "b", 0, "base:turret"); err != nil {
 		t.Fatal(err)
 	}
-	if r := s.Players[0].Resources; r["base:credits"] != 800 || r["base:materials"] != 10 {
-		t.Errorf("Resources %v; want the Turret's 200 Credits and 50 Materials paid", r)
+	if r := s.Players[0].Resources; r["base:credits"] != 800 || r["base:materials"] != 10 || r["base:alloys"] != 0 {
+		t.Errorf("Resources %v; want the Turret's 200 Credits, 50 Materials and 20 Alloys paid", r)
 	}
 	if b.Sim.Pads[0].Building != "base:turret" {
 		t.Errorf("pad %+v; want the Turret going up", b.Sim.Pads[0])
@@ -388,7 +388,7 @@ func TestBuildingAPadTurretChecksTheSideFactionAndPurse(t *testing.T) {
 func TestPadTurretsAreGoneAfterTheBattle(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	c.Buildings["base:turret"] = baseMod().Buildings["base:turret"]
-	s.Players[0].Resources = map[string]int{"base:credits": 1000, "base:materials": 100}
+	s.Players[0].Resources = map[string]int{"base:credits": 1000, "base:materials": 100, "base:alloys": 20}
 	_ = s.OrderArmy(0, "a", marines(10), "b", 1)
 	s.Advance(c, 30_000)
 	b := onlyBattle(t, s)

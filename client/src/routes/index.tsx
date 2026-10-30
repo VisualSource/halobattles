@@ -5,11 +5,10 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { client } from "../config";
-import { DisplayNamePrompt, listOpenMatches, Menu } from "../menu";
+import { DisplayNamePrompt, Menu } from "../menu";
 import { forgetAuth } from "../session";
 
 export const Route = createFileRoute("/")({
-  loader: ({ context }) => listOpenMatches(client, context.session),
   component: function Index() {
     const { session, needsDisplayName, content } = useRouteContext({
       from: "__root__",
@@ -30,13 +29,6 @@ export const Route = createFileRoute("/")({
         />
       );
     }
-    return (
-      <Menu
-        client={client}
-        session={session}
-        content={content}
-        openMatches={match.loaderData ?? []}
-      />
-    );
+    return <Menu client={client} session={session} content={content} />;
   },
 });

@@ -1,11 +1,12 @@
 {
   "$schema": "../../../../schema/content/building.schema.json",
-  "id": "generator",
-  "name": "Generator",
+  "id": "excavator",
+  "name": "Excavator",
   "faction": "covenant",
   "cost": { "credits": 200 },
   "buildTime": 30,
   "upkeep": {},
-  "yield": { "materials": 50 },
+  "yield": {},
+  "extracts": { "materials": 60 },
   "commandPointBonus": 0
 }

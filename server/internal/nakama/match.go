@@ -54,6 +54,7 @@ func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		Factions:          slices.Collect(maps.Keys(doc.Factions)),
 		Resources:         slices.Collect(maps.Keys(doc.Resources)),
 		StartingResources: doc.Rulesets[game.RulesetID].StartingResources,
+		Caps:              doc.Rulesets[game.RulesetID].StockpileCaps,
 	}
 	for id, gm := range doc.Maps {
 		lc.Maps[id] = game.LobbyMap{Starts: len(gm.Starts), MinPlayers: gm.MinPlayers}
@@ -470,6 +471,9 @@ func planets(ps []game.PlanetView) []*wire.PlanetViewT {
 			pv.Stacks = append(pv.Stacks, &wire.StackT{Slots: unitSlots(st)})
 		}
 		pv.Queue, pv.UnitQueue, pv.RallyStack = queueItems(p.Queue), queueItems(p.UnitQueue), uint8(p.Rally)
+		for _, r := range slices.Sorted(maps.Keys(p.Richness)) { // sorted, as the (key) needs
+			pv.Richness = append(pv.Richness, &wire.RichnessT{Resource: r, Level: p.Richness[r]})
+		}
 		out = append(out, pv)
 	}
 	return out
@@ -495,7 +499,7 @@ func economy(e *game.Economy) *wire.EconomyT {
 	}
 	return &wire.EconomyT{
 		Resources: amounts(e.Resources), CommandPointsUsed: uint32(e.CommandPointsUsed), CommandPointsCap: uint32(e.CommandPointsCap),
-		PaydayStart: e.PaydayStart, PaydayEnd: e.PaydayEnd,
+		PaydayStart: e.PaydayStart, PaydayEnd: e.PaydayEnd, Caps: amounts(e.Caps), Projected: amounts(e.Projected),
 	}
 }
 

@@ -3,7 +3,7 @@
   "id": "plasma-turret",
   "name": "Plasma Turret",
   "faction": "covenant",
-  "cost": { "credits": 200, "materials": 50 },
+  "cost": { "credits": 200, "materials": 50, "alloys": 20 },
   "buildTime": 30,
   "upkeep": { "credits": 10 },
   "yield": {},

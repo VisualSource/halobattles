@@ -67,14 +67,22 @@ export function BattlePanel(props: {
   const buildSent = useStore(conn.local, (s) =>
     [...s.pending.values()].includes("padTurret"),
   );
-  const [fire, setFire] = useState<Volley[]>([]);
+  // Tagged with its Battle, so watching another starts with no fire.
+  const [shots, setShots] = useState<{ id: typeof id; fire: Volley[] }>({
+    id,
+    fire: [],
+  });
+  const fire = shots.id === id ? shots.fire : [];
   const [full, setFull] = useState(false);
 
   useEffect(() => {
-    setFire([]);
     const onTick = (e: Event) => {
       const t = (e as CustomEvent<TickEvent>).detail;
-      if (t.battle === id) setFire((f) => [...f, ...t.volleys].slice(-3));
+      if (t.battle === id)
+        setShots((s) => ({
+          id,
+          fire: [...(s.id === id ? s.fire : []), ...t.volleys].slice(-3),
+        }));
     };
     conn.events.addEventListener("battleTick", onTick);
     return () => conn.events.removeEventListener("battleTick", onTick);
@@ -166,16 +174,16 @@ export function BattlePanel(props: {
         aria-label={full ? "Leave full screen" : "Full screen"}
         title={full ? "Leave full screen (Esc)" : "Full screen"}
         onClick={() => setFull(!full)}
-        className="size-7 border-0 bg-transparent p-0 text-ink-3"
+        className="text-ink-3 size-7 border-0 bg-transparent p-0"
       >
         {full ? "⤡" : "⤢"}
       </button>
     </>
   );
   const timeBar = (
-    <div className="h-0.75 flex-none bg-well">
+    <div className="bg-well h-0.75 flex-none">
       <div
-        className="h-full bg-accent transition-[width] duration-200"
+        className="bg-accent h-full transition-[width] duration-200"
         style={{ width: `${Math.min(1, seconds / rules.timeCap) * 100}%` }}
       />
     </div>
@@ -217,7 +225,7 @@ export function BattlePanel(props: {
         return (
           <span
             key={`${p.x},${p.y}`}
-            className="flex items-center gap-1.5 rounded-md border border-line py-0.5 pr-0.5 pl-2"
+            className="border-line flex items-center gap-1.5 rounded-md border py-0.5 pr-0.5 pl-2"
           >
             <span
               aria-hidden="true"
@@ -229,7 +237,7 @@ export function BattlePanel(props: {
               }}
             />
             <span className="font-mono">{i + 1}</span>
-            <span className="w-20 text-ink-3 text-xs">{state}</span>
+            <span className="text-ink-3 w-20 text-xs">{state}</span>
             <button
               type="button"
               disabled={
@@ -248,7 +256,7 @@ export function BattlePanel(props: {
               onClick={() =>
                 turret && conn.buildTurret(battle.planet, i, turret[0])
               }
-              className="min-h-7 w-14 rounded border-edge bg-raised px-2 text-xs disabled:opacity-40"
+              className="border-edge bg-raised min-h-7 w-14 rounded px-2 text-xs disabled:opacity-40"
             >
               Build
             </button>
@@ -281,7 +289,7 @@ export function BattlePanel(props: {
               {battle.retreating[side] && (
                 <Tag className="bg-danger-wash text-danger">Retreating</Tag>
               )}
-              <span className="truncate text-ink-3 text-sm">
+              <span className="text-ink-3 truncate text-sm">
                 {sideName(view, seat)}
                 {faction &&
                   ` · ${content.factions.get(faction)?.name ?? faction}`}
@@ -299,7 +307,7 @@ export function BattlePanel(props: {
     </div>
   );
   const latest = (
-    <div className="mx-4 flex h-32 flex-none flex-col gap-1.5 overflow-hidden rounded-md bg-well px-3.5 py-3 text-sm">
+    <div className="bg-well mx-4 flex h-32 flex-none flex-col gap-1.5 overflow-hidden rounded-md px-3.5 py-3 text-sm">
       <span className={label}>Latest fire</span>
       {fire.length === 0 ? (
         <span className="text-ink-3">Nobody in range yet…</span>
@@ -338,12 +346,12 @@ export function BattlePanel(props: {
       (p) => p.owner === view?.you && p.id !== battle.planet,
     );
   const retreat = (
-    <div className="flex flex-none items-center gap-3 border-line border-t px-4 py-3">
+    <div className="border-line flex flex-none items-center gap-3 border-t px-4 py-3">
       <button
         type="button"
         disabled={retreatSent || running || (nowhere && !counting)}
         onClick={() => conn.retreat(battle.planet, counting)}
-        className="min-h-11 w-52 flex-none rounded-md border-edge bg-raised px-4 text-sm disabled:opacity-50"
+        className="border-edge bg-raised min-h-11 w-52 flex-none rounded-md px-4 text-sm disabled:opacity-50"
       >
         {running
           ? "Retreating…"
@@ -376,9 +384,9 @@ export function BattlePanel(props: {
     return (
       <section
         aria-label="Battle"
-        className="fixed inset-0 z-50 flex flex-col bg-void"
+        className="bg-void fixed inset-0 z-50 flex flex-col"
       >
-        <div className="flex h-10 flex-none items-center gap-2.5 border-line border-b bg-bar pr-2 pl-3">
+        <div className="border-line bg-bar flex h-10 flex-none items-center gap-2.5 border-b pr-2 pl-3">
           {title}
           <span className="flex-1" />
           {tools}
@@ -386,7 +394,7 @@ export function BattlePanel(props: {
             type="button"
             aria-label="Close Battle"
             onClick={close}
-            className="size-7 border-0 bg-transparent p-0 text-ink-3"
+            className="text-ink-3 size-7 border-0 bg-transparent p-0"
           >
             ✕
           </button>
@@ -394,7 +402,7 @@ export function BattlePanel(props: {
         {timeBar}
         <div className="flex min-h-0 flex-1">
           {map}
-          <aside className="flex w-105 flex-none flex-col overflow-y-auto border-line border-l bg-panel">
+          <aside className="border-line bg-panel flex w-105 flex-none flex-col overflow-y-auto border-l">
             {points}
             {pads}
             {sides}
@@ -492,10 +500,10 @@ function BattlefieldView(props: {
   return (
     <div
       ref={ref}
-      className={`relative overflow-hidden bg-void ${props.className}`}
+      className={`bg-void relative overflow-hidden ${props.className}`}
     >
       {!ready && (
-        <p className="flex h-full items-center justify-center text-ink-3 text-sm">
+        <p className="text-ink-3 flex h-full items-center justify-center text-sm">
           Loading the Battlefield…
         </p>
       )}
@@ -522,7 +530,7 @@ function Points(props: {
       {battle.points.map((p, i) => (
         <span
           key={`${p.x},${p.y}`}
-          className="flex items-center gap-1.5 rounded-md border border-line px-2 py-1"
+          className="border-line flex items-center gap-1.5 rounded-md border px-2 py-1"
           title={`Held by the ${p.owner}`}
         >
           <span
@@ -531,7 +539,7 @@ function Points(props: {
             style={{ background: colourOf(seatOf(battle, p.owner)) }}
           />
           <span className="font-mono">{POINT_NAMES[i]}</span>
-          <span className="w-8 font-mono text-ink-3 text-xs">
+          <span className="text-ink-3 w-8 font-mono text-xs">
             {p.progress > 0
               ? `${Math.round((p.progress / BATTLE_TICKS / Math.max(props.captureSeconds, 0.2)) * 100)}%`
               : ""}
@@ -540,7 +548,7 @@ function Points(props: {
       ))}
       <span className="flex-1" />
       <span
-        className={`whitespace-nowrap font-mono ${battle.holdPaused ? "text-accent" : "text-ink-3"}`}
+        className={`font-mono whitespace-nowrap ${battle.holdPaused ? "text-accent" : "text-ink-3"}`}
         title={
           battle.holdPaused
             ? "A defender stands on a held point: the hold waits"
@@ -657,7 +665,7 @@ function Report(props: {
                 {[...units].map(([unit, u]) => (
                   <li
                     key={unit}
-                    className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-line bg-item p-2.5"
+                    className="border-line bg-item grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 rounded-md border p-2.5"
                   >
                     <Tile
                       name={name(unit)}
@@ -666,7 +674,7 @@ function Report(props: {
                     />
                     <div className="min-w-0">
                       <div className="truncate">{name(unit)}</div>
-                      <div className="font-mono text-ink-3 text-xs">
+                      <div className="text-ink-3 font-mono text-xs">
                         {u.started} → {u.left} left
                       </div>
                     </div>
@@ -678,7 +686,7 @@ function Report(props: {
                   </li>
                 ))}
               </ul>
-              <dl className="mt-1 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 rounded-md bg-well px-3 py-2.5 text-sm">
+              <dl className="bg-well mt-1 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 rounded-md px-3 py-2.5 text-sm">
                 <dt className="text-ink-3">Lost</dt>
                 <dd className="font-mono">
                   {started - left(side)} of {started}
@@ -692,11 +700,11 @@ function Report(props: {
           );
         })}
       </div>
-      <div className="flex items-center gap-2 border-line border-t px-4 py-3">
+      <div className="border-line flex items-center gap-2 border-t px-4 py-3">
         <button
           type="button"
           onClick={() => conn.local.setState({ selected: r.planet })}
-          className="min-h-11 rounded-md border-edge bg-raised px-4 text-sm"
+          className="border-edge bg-raised min-h-11 rounded-md px-4 text-sm"
         >
           Show {planetName}
         </button>
@@ -704,7 +712,7 @@ function Report(props: {
         <button
           type="button"
           onClick={props.onClose}
-          className="min-h-11 rounded-md border-edge bg-transparent px-4 text-ink-2 text-sm"
+          className="border-edge text-ink-2 min-h-11 rounded-md bg-transparent px-4 text-sm"
         >
           Close
         </button>
@@ -742,7 +750,7 @@ function UnitGrid(props: {
     units.set(q.unit, [...(units.get(q.unit) ?? []), q]);
   if (units.size === 0) {
     return (
-      <p className="flex h-40 items-center justify-center rounded-md border border-line border-dashed text-ink-3 text-sm">
+      <p className="border-line text-ink-3 flex h-40 items-center justify-center rounded-md border border-dashed text-sm">
         None in sight
       </p>
     );
@@ -769,11 +777,11 @@ function UnitGrid(props: {
                 )}
                 {hit && <span className={`${label} text-danger`}>hit</span>}
               </div>
-              <div className="font-mono text-ink-3 text-xs">
+              <div className="text-ink-3 font-mono text-xs">
                 {left} of {started} left
               </div>
             </div>
-            <Bar label="Left" colour="bg-ok" value={left} max={started} />
+            <Bar label="Left" color="bg-ok" value={left} max={started} />
           </li>
         );
       })}
@@ -783,7 +791,7 @@ function UnitGrid(props: {
 
 function Bar(props: {
   label: string;
-  colour: string;
+  color: string;
   value: number;
   max: number;
 }) {
@@ -797,10 +805,10 @@ function Bar(props: {
       aria-valuemax={props.max}
       aria-valuenow={props.value}
       title={`${props.label} ${Math.round(props.value)} / ${Math.round(props.max)}`}
-      className="h-1.5 overflow-hidden rounded-sm bg-well"
+      className="bg-well h-1.5 overflow-hidden rounded-sm"
     >
       <div
-        className={`h-full ${props.colour}`}
+        className={`h-full ${props.color}`}
         style={{ width: `${(props.value / props.max) * 100}%` }}
       />
     </div>

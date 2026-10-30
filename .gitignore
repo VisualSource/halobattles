@@ -5,3 +5,5 @@ deploy/*.prod.yml
 *.pem
 node_modules/
 dist/
+
+client/tsconfig.tsbuildinfo

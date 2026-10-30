@@ -3,7 +3,8 @@
   "id": "scorpion",
   "name": "Scorpion",
   "faction": "unsc",
-  "cost": { "credits": 250, "materials": 100 },
+  "cost": { "credits": 250, "materials": 100, "alloys": 30 },
+  "upkeep": { "credits": 25, "alloys": 2 },
   "buildTime": 45,
   "commandPoints": 4,
   "combat": {

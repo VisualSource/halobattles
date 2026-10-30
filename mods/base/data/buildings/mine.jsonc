@@ -1,11 +1,12 @@
 {
   "$schema": "../../../../schema/content/building.schema.json",
-  "id": "reactor",
-  "name": "Reactor",
+  "id": "mine",
+  "name": "Mine",
   "faction": "unsc",
   "cost": { "credits": 200 },
   "buildTime": 30,
   "upkeep": {},
-  "yield": { "materials": 50 },
+  "yield": {},
+  "extracts": { "materials": 60 },
   "commandPointBonus": 0
 }

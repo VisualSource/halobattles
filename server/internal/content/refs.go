@@ -17,6 +17,14 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 	switch kind {
 	case "rulesets":
 		qualifyKeys(obj, "startingResources", ns)
+		qualifyKeys(obj, "stockpileCaps", ns)
+		list, _ := obj["exchange"].([]any)
+		for _, v := range list {
+			if r, ok := v.(map[string]any); ok {
+				qualifyField(r, "give", ns)
+				qualifyField(r, "get", ns)
+			}
+		}
 		if b, ok := obj["battlefield"].(map[string]any); ok {
 			qualifyField(b, "terrainPreset", ns)
 			qualifyField(b, "pathClass", ns)
@@ -38,6 +46,12 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		qualifyKeys(obj, "cost", ns)
 		qualifyKeys(obj, "upkeep", ns)
 		qualifyKeys(obj, "yield", ns)
+		qualifyKeys(obj, "extracts", ns)
+		qualifyKeys(obj, "storage", ns)
+		if r, ok := obj["refines"].(map[string]any); ok {
+			qualifyKeys(r, "input", ns)
+			qualifyKeys(r, "output", ns)
+		}
 		qualifyList(obj, "trains", ns)
 		if c, ok := obj["combat"].(map[string]any); ok {
 			qualifyField(c, "unitClass", ns)
@@ -46,6 +60,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		}
 	case "planetTypes":
 		qualifyKeys(obj, "income", ns)
+		qualifyKeys(obj, "richness", ns)
 	case "terrains":
 		qualifyKeys(obj, "movement", ns)
 	case "terrainPresets":
@@ -73,6 +88,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 				}
 				if o, ok := p["overrides"].(map[string]any); ok {
 					qualifyKeys(o, "income", ns)
+					qualifyKeys(o, "richness", ns)
 				}
 			}
 		}
@@ -149,6 +165,23 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		r := doc.Rulesets[id]
 		where := "rulesets " + id
 		c.resourceKeys(where+": startingResources", r.StartingResources)
+		c.resourceKeys(where+": stockpileCaps", r.StockpileCaps)
+		for _, res := range slices.Sorted(maps.Keys(doc.Resources)) {
+			cap, ok := r.StockpileCaps[res]
+			switch {
+			case !ok:
+				c.fail("%s: stockpileCaps has no cap for Resource %s", where, res)
+			case r.StartingResources[res] > cap:
+				c.fail("%s: startingResources %s is %d, over its Stockpile cap of %d", where, res, r.StartingResources[res], cap)
+			}
+		}
+		for i, x := range r.Exchange {
+			c.ref(fmt.Sprintf("%s: exchange %d give", where, i+1), "resources", string(x.Give))
+			c.ref(fmt.Sprintf("%s: exchange %d get", where, i+1), "resources", string(x.Get))
+			if x.Give == x.Get {
+				c.fail("%s: exchange %d trades %s for itself", where, i+1, x.Give)
+			}
+		}
 		c.ref(where+": battlefield", "terrainPresets", string(r.Battlefield.TerrainPreset))
 		c.ref(where+": battlefield pathClass", "unitClasses", string(r.Battlefield.PathClass))
 		c.ref(where+": battle structure", "unitClasses", string(r.Battle.Structure.UnitClass))
@@ -179,6 +212,7 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		where := "units " + id
 		c.ref(where, "factions", string(u.Faction))
 		c.resourceKeys(where+": cost", u.Cost)
+		c.resourceKeys(where+": upkeep", u.Upkeep)
 		c.combat(where, &u.Combat)
 		c.asset(where, u.Icon)
 	}
@@ -189,6 +223,12 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		c.resourceKeys(where+": cost", b.Cost)
 		c.resourceKeys(where+": upkeep", b.Upkeep)
 		c.resourceKeys(where+": yield", b.Yield)
+		c.resourceKeys(where+": extracts", b.Extracts)
+		c.resourceKeys(where+": storage", b.Storage)
+		if b.Refines != nil {
+			c.resourceKeys(where+": refines input", b.Refines.Input)
+			c.resourceKeys(where+": refines output", b.Refines.Output)
+		}
 		for _, u := range b.Trains {
 			c.ref(where+": trains", "units", string(u))
 		}
@@ -202,6 +242,9 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 	for _, id := range slices.Sorted(maps.Keys(doc.PlanetTypes)) {
 		p := doc.PlanetTypes[id]
 		c.resourceKeys("planetTypes "+id+": income", p.Income)
+		for _, r := range slices.Sorted(maps.Keys(p.Richness)) {
+			c.ref("planetTypes "+id+": richness", "resources", r)
+		}
 		c.asset("planetTypes "+id, p.Sprite)
 	}
 	for _, id := range slices.Sorted(maps.Keys(doc.Maps)) {
@@ -299,6 +342,9 @@ func (c *checker) galaxyMap(where string, m contentschema.GalaxyMap) {
 		}
 		if p.Overrides != nil {
 			c.resourceKeys(where+": planet "+string(p.ID)+": overrides income", p.Overrides.Income)
+			for _, r := range slices.Sorted(maps.Keys(p.Overrides.Richness)) {
+				c.ref(where+": planet "+string(p.ID)+": overrides richness", "resources", r)
+			}
 			c.asset(where+": planet "+string(p.ID), p.Overrides.Sprite)
 		}
 	}

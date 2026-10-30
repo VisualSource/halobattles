@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "forge",
+  "name": "Forge",
+  "faction": "covenant",
+  "cost": { "credits": 250, "materials": 100 },
+  "buildTime": 45,
+  "upkeep": { "credits": 10 },
+  "yield": {},
+  // docs/specs/economy-spec.md#alloys
+  "refines": { "input": { "materials": 40 }, "output": { "alloys": 20 } },
+  "commandPointBonus": 0
+}

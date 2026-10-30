@@ -11,7 +11,16 @@
   // An attack hits on a d20 roll of this or more: 90%.
   "toHit": 3,
   "laneTypes": { "fast": 0.6, "slow": 2.0 },
-  "startingResources": { "credits": 1000, "materials": 300 },
+  "startingResources": { "credits": 1000, "materials": 300, "alloys": 50 },
+  // docs/specs/economy-spec.md#stockpile-caps: anything over is lost at Payday.
+  "stockpileCaps": { "credits": 3000, "materials": 1500, "alloys": 500 },
+  "sprawl": { "freePlanets": 4, "percent": 5 },
+  "exchange": [
+    { "give": "materials", "giveAmount": 2, "get": "credits", "getAmount": 1 },
+    { "give": "alloys", "giveAmount": 1, "get": "credits", "getAmount": 2 },
+    { "give": "credits", "giveAmount": 3, "get": "materials", "getAmount": 1 },
+    { "give": "credits", "giveAmount": 6, "get": "alloys", "getAmount": 1 }
+  ],
   "gracePeriodSeconds": 180,
   "armyVisionSeconds": 15,
   "resultsSeconds": 60,
@@ -33,7 +42,7 @@
     "padBuildSeconds": 10,
     // A neutral garrison's budget for pad turrets, having no economy: two
     // turrets' worth (each costs 200 Credits and 50 Materials).
-    "neutralFunds": { "credits": 400, "materials": 100 },
+    "neutralFunds": { "credits": 400, "materials": 100, "alloys": 40 },
     "captureRadius": 2,
     "captureSeconds": 5,
     "holdPoints": 2,

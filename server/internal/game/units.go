@@ -10,8 +10,8 @@ import (
 )
 
 // QueueUnit adds count units to the unit queue of the production building
-// in slot, one queue item each. Each charges its cost and reserves its
-// Command Points now. It's all or nothing.
+// in slot, one queue item each. Each charges its cost, with Sprawl, and
+// reserves its Command Points now. It's all or nothing.
 func (s *State) QueueUnit(c *cs.Content, seat int, planet string, slot int, unit string, count int) error {
 	p, err := s.ownedPlanet(seat, planet)
 	if err != nil {
@@ -29,7 +29,8 @@ func (s *State) QueueUnit(c *cs.Content, seat int, planet string, slot int, unit
 	case pl.inDebt():
 		return errInDebt
 	}
-	for r, a := range u.Cost {
+	cost := s.sprawled(c, seat, u.Cost)
+	for r, a := range cost {
 		if pl.Resources[r] < a*count {
 			return fmt.Errorf("not enough %s", c.Resources[r].Name)
 		}
@@ -41,13 +42,13 @@ func (s *State) QueueUnit(c *cs.Content, seat int, planet string, slot int, unit
 	if u.MaxCount != nil && s.units(seat)[unit]+count > *u.MaxCount {
 		return fmt.Errorf("you can have at most %d %s", *u.MaxCount, u.Name)
 	}
-	for r, a := range u.Cost {
+	for r, a := range cost {
 		pl.Resources[r] -= a * count
 	}
 	for range count {
 		s.LastID++
 		p.setUnitQueue(slot, append(p.UnitQueues[slot], QueueItem{
-			ID: s.LastID, Slot: slot, Unit: unit, Remaining: int64(u.BuildTime) * 1000,
+			ID: s.LastID, Slot: slot, Unit: unit, Remaining: int64(u.BuildTime) * 1000, Paid: cost,
 		}))
 	}
 	return nil

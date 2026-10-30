@@ -1,5 +1,6 @@
 import type { Client, Session } from "@heroiclabs/nakama-js";
-import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { setDisplayName } from "./auth";
 import { useRingBackdrop } from "./backdrop";
@@ -42,24 +43,24 @@ export function Menu(props: {
   client: Client;
   session: Session;
   content: ContentLookups;
-  openMatches: OpenMatch[];
 }) {
   useRingBackdrop({ header: false });
   const navigate = useNavigate();
-  const router = useRouter();
   const [invite, setInvite] = useState("");
-  const [creating, setCreating] = useState(false);
-
-  async function create() {
-    setCreating(true);
-    try {
-      const res = await props.client.rpc(props.session, "create_match", {});
+  const open = useQuery({
+    queryKey: ["openMatches"],
+    queryFn: () => listOpenMatches(props.client, props.session),
+    refetchInterval: 5000, // paused while the tab is hidden
+  });
+  const create = useMutation({
+    mutationFn: () => props.client.rpc(props.session, "create_match", {}),
+    // Returned, so the button stays disabled until the lobby has loaded.
+    onSuccess: (res) => {
       const { matchId } = res.payload as { matchId: string };
-      await navigate({ to: "/match/$matchId/lobby", params: { matchId } });
-    } finally {
-      setCreating(false);
-    }
-  }
+      return navigate({ to: "/match/$matchId/lobby", params: { matchId } });
+    },
+  });
+  const matches = open.data ?? [];
 
   function join(e: FormEvent) {
     e.preventDefault();
@@ -70,8 +71,8 @@ export function Menu(props: {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-9 bg-linear-to-b from-scrim/35 via-45% via-scrim/25 to-scrim/90 px-8 pt-16 pb-9">
-      <h1 className="font-bold font-display text-7xl tracking-[0.16em] [text-shadow:0_2px_24px_rgb(0_0_0/0.6)]">
+    <div className="from-scrim/35 via-scrim/25 to-scrim/90 flex flex-1 flex-col items-center gap-9 bg-linear-to-b via-45% px-8 pt-16 pb-9">
+      <h1 className="font-display text-7xl font-bold tracking-[0.16em] [text-shadow:0_2px_24px_rgb(0_0_0/0.6)]">
         HALO BATTLES
       </h1>
 
@@ -80,19 +81,26 @@ export function Menu(props: {
       >
         <button
           type="button"
-          onClick={create}
-          disabled={creating}
+          onClick={() => create.mutate()}
+          disabled={create.isPending}
           className={`min-h-15 text-xl ${primary}`}
         >
           CREATE MATCH
         </button>
-        <p className="text-ink-3 text-sm">
-          You'll be the Host: pick the map and starting resources, then share
-          the invite.
-        </p>
-        <div className="my-1.5 h-px bg-line" />
+        {/* The error takes the hint's place, so the card keeps its size. */}
+        {create.isError ? (
+          <p role="alert" className="text-danger text-sm">
+            Couldn't create a Match: the server didn't answer. Try again.
+          </p>
+        ) : (
+          <p className="text-ink-3 text-sm">
+            You'll be the Host: pick the map and starting resources, then share
+            the invite.
+          </p>
+        )}
+        <div className="bg-line my-1.5 h-px" />
         <form onSubmit={join} className="flex flex-col gap-2">
-          <label htmlFor="invite" className="font-semibold text-ink-2 text-sm">
+          <label htmlFor="invite" className="text-ink-2 text-sm font-semibold">
             Join with an invite
           </label>
           <div className="flex gap-2">
@@ -106,7 +114,7 @@ export function Menu(props: {
             />
             <button
               type="submit"
-              className="min-h-11 rounded-md bg-raised px-4.5 font-medium"
+              className="bg-raised min-h-11 rounded-md px-4.5 font-medium"
             >
               Join
             </button>
@@ -121,18 +129,20 @@ export function Menu(props: {
         <div className="flex items-center justify-between gap-2">
           <h2
             id="open-matches"
-            className="font-display font-semibold text-base text-ink-2 tracking-[0.08em]"
+            className="font-display text-ink-2 text-base font-semibold tracking-[0.08em]"
           >
             OPEN MATCHES
           </h2>
           <button
             type="button"
             aria-label="Refresh open Matches"
-            onClick={() => void router.invalidate()}
-            className="inline-flex size-11 items-center justify-center rounded-md border-0 bg-transparent text-ink-2"
+            onClick={() => void open.refetch()}
+            disabled={open.isFetching}
+            className="text-ink-2 inline-flex size-11 items-center justify-center rounded-md border-0 bg-transparent"
           >
             <svg
               aria-hidden="true"
+              className={open.isFetching ? "motion-safe:animate-spin" : ""}
               width="18"
               height="18"
               viewBox="0 0 24 24"
@@ -148,28 +158,41 @@ export function Menu(props: {
           </button>
         </div>
         {/* One card, the same size either way: the message, or the Matches in it. */}
-        <div className="flex h-24 items-center rounded-[10px] border border-edge border-dashed bg-panel/60 px-3">
-          {props.openMatches.length === 0 ? (
+        <div className="border-edge bg-panel/60 flex h-24 items-center rounded-[10px] border border-dashed px-3">
+          {matches.length === 0 ? (
             <div className="w-full text-center">
-              <p className="font-semibold">No open Matches right now</p>
-              <p className="mt-1 text-ink-3 text-sm">
-                Create one and send the invite to your friends.
-              </p>
+              {open.isPending ? (
+                <p className="text-ink-3">Looking for open Matches…</p>
+              ) : open.isError ? (
+                <>
+                  <p className="font-semibold">Couldn't list open Matches</p>
+                  <p className="text-ink-3 mt-1 text-sm">
+                    It tries again every few seconds, or use Refresh.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold">No open Matches right now</p>
+                  <p className="text-ink-3 mt-1 text-sm">
+                    Create one and send the invite to your friends.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <ul className="flex w-full gap-3 overflow-x-auto py-1">
-              {props.openMatches.map((m) => {
+              {matches.map((m) => {
                 const map = props.content.maps.get(m.map);
                 return (
                   <li
                     key={m.id}
-                    className="flex flex-[0_0_260px] items-center gap-3 rounded-[10px] border border-edge/80 bg-panel/85 p-2"
+                    className="border-edge/80 bg-panel/85 flex flex-[0_0_260px] items-center gap-3 rounded-[10px] border p-2"
                   >
-                    <span className="flex size-11 flex-none items-center justify-center rounded-md bg-tile">
+                    <span className="bg-tile flex size-11 flex-none items-center justify-center rounded-md">
                       {map && <MapGlyph map={map} />}
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate font-display font-semibold">
+                      <span className="font-display truncate font-semibold">
                         {map?.name ?? m.map}
                       </span>
                       <span className="text-ink-3 text-sm">
@@ -179,7 +202,7 @@ export function Menu(props: {
                     <Link
                       to="/match/$matchId/lobby"
                       params={{ matchId: m.id }}
-                      className="inline-flex min-h-10 items-center rounded-md bg-accent px-4 font-semibold text-accent-ink hover:no-underline"
+                      className="bg-accent text-accent-ink inline-flex min-h-10 items-center rounded-md px-4 font-semibold hover:no-underline"
                     >
                       Join
                     </Link>
@@ -201,24 +224,27 @@ export function DisplayNamePrompt(props: {
 }) {
   useRingBackdrop({ header: false });
   const [name, setName] = useState("");
+  const save = useMutation({
+    mutationFn: (n: string) => setDisplayName(props.client, props.session, n),
+    onSuccess: props.onDone,
+  });
 
-  async function submit(e: FormEvent) {
+  function submit(e: FormEvent) {
     e.preventDefault();
-    await setDisplayName(props.client, props.session, name.trim());
-    props.onDone();
+    save.mutate(name.trim());
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-scrim/55 p-8">
+    <div className="bg-scrim/55 flex flex-1 items-center justify-center p-8">
       <form
         onSubmit={submit}
         className={`flex w-full max-w-110 flex-col gap-5 p-8 ${glass}`}
       >
         <div className="flex flex-col gap-1.5">
-          <p className="font-semibold text-ink-3 text-xs tracking-[0.14em]">
+          <p className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
             WELCOME
           </p>
-          <h1 className="font-display font-semibold text-3xl">
+          <h1 className="font-display text-3xl font-semibold">
             Choose a display name
           </h1>
           <p className="text-ink-2 leading-normal">
@@ -226,7 +252,7 @@ export function DisplayNamePrompt(props: {
           </p>
         </div>
         <label className="flex flex-col gap-2">
-          <span className="font-semibold text-ink-2 text-sm">Display name</span>
+          <span className="text-ink-2 text-sm font-semibold">Display name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -236,9 +262,13 @@ export function DisplayNamePrompt(props: {
             className={`${field} min-h-12 text-base`}
           />
         </label>
+        {/* A line kept for the error, so the form doesn't grow. */}
+        <p role="alert" className="text-danger -mt-3 min-h-5 text-sm">
+          {save.isError && "Couldn't save your name. Try again."}
+        </p>
         <button
           type="submit"
-          disabled={!name.trim()}
+          disabled={!name.trim() || save.isPending}
           className={`min-h-13 text-lg ${primary}`}
         >
           CONTINUE

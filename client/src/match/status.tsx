@@ -40,16 +40,16 @@ export function ConfirmDialog(props: {
         e.preventDefault(); // Escape: closed by the open prop, not the browser
         props.onCancel();
       }}
-      className="m-auto w-full max-w-140 rounded-xl border border-edge/80 bg-panel p-8 text-ink backdrop:bg-scrim/70"
+      className="border-edge/80 bg-panel text-ink backdrop:bg-scrim/70 m-auto w-full max-w-140 rounded-xl border p-8"
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <p className="font-semibold text-ink-3 text-xs tracking-[0.14em]">
+          <p className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
             {props.eyebrow}
           </p>
           <h2
             id="confirm-title"
-            className="font-display font-semibold text-[28px]"
+            className="font-display text-[28px] font-semibold"
           >
             {props.title}
           </h2>
@@ -79,24 +79,24 @@ export function Joining(props: { matchId?: string }) {
         className="flex flex-col items-center gap-7 text-center"
       >
         <div aria-hidden="true" className="relative size-22">
-          <div className="absolute inset-0 rounded-full border-3 border-line" />
-          <div className="absolute inset-0 animate-spin rounded-full border-3 border-transparent border-t-accent" />
-          <div className="absolute inset-7.5 animate-pulse rounded-full bg-accent" />
+          <div className="border-line absolute inset-0 rounded-full border-3" />
+          <div className="border-t-accent absolute inset-0 animate-spin rounded-full border-3 border-transparent" />
+          <div className="bg-accent absolute inset-7.5 animate-pulse rounded-full" />
         </div>
         <div className="flex flex-col gap-2.5">
-          <p className="font-semibold text-ink-3 text-xs tracking-[0.14em]">
+          <p className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
             ESTABLISHING LINK
           </p>
-          <h2 className="font-display font-semibold text-4xl">Joining Match</h2>
+          <h2 className="font-display text-4xl font-semibold">Joining Match</h2>
           {props.matchId && (
-            <code className="font-mono text-ink-3 text-sm">
+            <code className="text-ink-3 font-mono text-sm">
               {props.matchId}
             </code>
           )}
         </div>
         <Link
           to="/"
-          className="inline-flex min-h-11 items-center rounded-md border border-edge px-4.5 font-medium text-ink-2 hover:no-underline"
+          className="border-edge text-ink-2 inline-flex min-h-11 items-center rounded-md border px-4.5 font-medium hover:no-underline"
         >
           Cancel
         </Link>
@@ -117,7 +117,7 @@ export function AlertCard(props: {
     <div className="flex flex-1 items-center justify-center p-8">
       <div
         role={props.role ?? "alert"}
-        className="flex w-full max-w-140 flex-col gap-6 rounded-xl border border-edge/80 bg-panel/85 p-8 backdrop-blur-sm"
+        className="border-edge/80 bg-panel/85 flex w-full max-w-140 flex-col gap-6 rounded-xl border p-8 backdrop-blur-sm"
       >
         <div className="flex items-center gap-4">
           <span
@@ -127,10 +127,10 @@ export function AlertCard(props: {
             {props.icon}
           </span>
           <div className="flex flex-col gap-1">
-            <p className="font-semibold text-ink-3 text-xs tracking-[0.14em]">
+            <p className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
               {props.eyebrow}
             </p>
-            <h2 className="font-display font-semibold text-[28px]">
+            <h2 className="font-display text-[28px] font-semibold">
               {props.title}
             </h2>
           </div>
@@ -197,9 +197,9 @@ export function CantJoin(props: { error: unknown }) {
       <p className="text-ink-2 leading-relaxed">
         {known?.body ?? "The server couldn't put you in this Match."}
       </p>
-      <div className="flex flex-col gap-1.5 rounded-md bg-well px-3.5 py-3">
+      <div className="bg-well flex flex-col gap-1.5 rounded-md px-3.5 py-3">
         <span className="text-ink-3 text-xs">Server said</span>
-        <code className="font-mono text-ink-2 text-sm">{reason}</code>
+        <code className="text-ink-2 font-mono text-sm">{reason}</code>
       </div>
       <div className="flex flex-wrap gap-3">
         <Link to="/" className={primary}>
@@ -273,9 +273,9 @@ export function LostConnection(props: {
               Your Seat is held while you're gone, and your queues and Armies
               carry on. Rejoin before the Grace Period ends, or you Forfeit.
             </p>
-            <div className="flex items-center justify-between gap-3 rounded-lg bg-well px-4 py-3.5">
+            <div className="bg-well flex items-center justify-between gap-3 rounded-lg px-4 py-3.5">
               <span className="text-ink-2">Seat held for</span>
-              <span className="font-mono text-host text-xl" role="timer">
+              <span className="text-host font-mono text-xl" role="timer">
                 {minSec(left)}
               </span>
             </div>

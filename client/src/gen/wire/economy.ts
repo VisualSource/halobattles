@@ -55,8 +55,28 @@ paydayEnd():bigint {
   return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
 }
 
+caps(index: number, obj?:Amount):Amount|null {
+  const offset = this.bb!.__offset(this.bb_pos, 14);
+  return offset ? (obj || new Amount()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+capsLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 14);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
+projected(index: number, obj?:Amount):Amount|null {
+  const offset = this.bb!.__offset(this.bb_pos, 16);
+  return offset ? (obj || new Amount()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+projectedLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 16);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
 static startEconomy(builder:flatbuffers.Builder) {
-  builder.startObject(5);
+  builder.startObject(7);
 }
 
 static addResources(builder:flatbuffers.Builder, resourcesOffset:flatbuffers.Offset) {
@@ -91,18 +111,52 @@ static addPaydayEnd(builder:flatbuffers.Builder, paydayEnd:bigint) {
   builder.addFieldInt64(4, paydayEnd, BigInt('0'));
 }
 
+static addCaps(builder:flatbuffers.Builder, capsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(5, capsOffset, 0);
+}
+
+static createCapsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startCapsVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
+static addProjected(builder:flatbuffers.Builder, projectedOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(6, projectedOffset, 0);
+}
+
+static createProjectedVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startProjectedVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
 static endEconomy(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createEconomy(builder:flatbuffers.Builder, resourcesOffset:flatbuffers.Offset, commandPointsUsed:number, commandPointsCap:number, paydayStart:bigint, paydayEnd:bigint):flatbuffers.Offset {
+static createEconomy(builder:flatbuffers.Builder, resourcesOffset:flatbuffers.Offset, commandPointsUsed:number, commandPointsCap:number, paydayStart:bigint, paydayEnd:bigint, capsOffset:flatbuffers.Offset, projectedOffset:flatbuffers.Offset):flatbuffers.Offset {
   Economy.startEconomy(builder);
   Economy.addResources(builder, resourcesOffset);
   Economy.addCommandPointsUsed(builder, commandPointsUsed);
   Economy.addCommandPointsCap(builder, commandPointsCap);
   Economy.addPaydayStart(builder, paydayStart);
   Economy.addPaydayEnd(builder, paydayEnd);
+  Economy.addCaps(builder, capsOffset);
+  Economy.addProjected(builder, projectedOffset);
   return Economy.endEconomy(builder);
 }
 
@@ -112,7 +166,9 @@ unpack(): EconomyT {
     this.commandPointsUsed(),
     this.commandPointsCap(),
     this.paydayStart(),
-    this.paydayEnd()
+    this.paydayEnd(),
+    this.bb!.createObjList<Amount, AmountT>(this.caps.bind(this), this.capsLength()),
+    this.bb!.createObjList<Amount, AmountT>(this.projected.bind(this), this.projectedLength())
   );
 }
 
@@ -123,6 +179,8 @@ unpackTo(_o: EconomyT): void {
   _o.commandPointsCap = this.commandPointsCap();
   _o.paydayStart = this.paydayStart();
   _o.paydayEnd = this.paydayEnd();
+  _o.caps = this.bb!.createObjList<Amount, AmountT>(this.caps.bind(this), this.capsLength());
+  _o.projected = this.bb!.createObjList<Amount, AmountT>(this.projected.bind(this), this.projectedLength());
 }
 }
 
@@ -132,19 +190,25 @@ constructor(
   public commandPointsUsed: number = 0,
   public commandPointsCap: number = 0,
   public paydayStart: bigint = BigInt('0'),
-  public paydayEnd: bigint = BigInt('0')
+  public paydayEnd: bigint = BigInt('0'),
+  public caps: (AmountT)[] = [],
+  public projected: (AmountT)[] = []
 ){}
 
 
 pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const resources = Economy.createResourcesVector(builder, builder.createObjectOffsetList(this.resources));
+  const caps = Economy.createCapsVector(builder, builder.createObjectOffsetList(this.caps));
+  const projected = Economy.createProjectedVector(builder, builder.createObjectOffsetList(this.projected));
 
   return Economy.createEconomy(builder,
     resources,
     this.commandPointsUsed,
     this.commandPointsCap,
     this.paydayStart,
-    this.paydayEnd
+    this.paydayEnd,
+    caps,
+    projected
   );
 }
 }

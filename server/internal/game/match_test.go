@@ -24,13 +24,15 @@ func lineContent() *cs.Content {
 	return withBattles(&cs.Content{
 		Rulesets: map[string]cs.Ruleset{RulesetID: {
 			PaydaySeconds: 90, CancelRefundPercent: 50, SellRefundPercent: 50, UnitSlotsPerStack: 10,
-			ToHit: 3,
+			ToHit: 3, Sprawl: cs.Sprawl{FreePlanets: 4, Percent: 5},
 		}},
 		WeaponTypes: battleContent().WeaponTypes,
 		Resources:   map[string]cs.Resource{"base:credits": {Name: "Credits"}, "base:materials": {Name: "Materials"}},
 		PlanetTypes: map[string]cs.PlanetType{
-			"base:capital":  {BuildingSlots: 4, CommandPointBonus: 20, Income: map[string]int{"base:credits": 300, "base:materials": 100}},
-			"base:standard": {BuildingSlots: 3, CommandPointBonus: 10, Income: map[string]int{"base:credits": 200, "base:materials": 50}},
+			"base:capital": {BuildingSlots: 4, CommandPointBonus: 20, Income: map[string]int{"base:credits": 300, "base:materials": 100},
+				Richness: map[string]cs.RichnessLevel{"base:materials": "normal"}},
+			"base:standard": {BuildingSlots: 3, CommandPointBonus: 10, Income: map[string]int{"base:credits": 200, "base:materials": 50},
+				Richness: map[string]cs.RichnessLevel{"base:materials": "poor"}},
 		},
 		Buildings: map[string]cs.Building{
 			"base:barracks": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
@@ -40,6 +42,12 @@ func lineContent() *cs.Content {
 			"base:air-pad": {Faction: "base:unsc", BuildTime: 60, Cost: map[string]int{"base:credits": 300, "base:materials": 150},
 				Upkeep: map[string]int{"base:credits": 30}},
 			"base:hall": {Faction: "base:covenant", BuildTime: 30, Cost: map[string]int{"base:credits": 150}},
+			"base:foundry": {Faction: "base:unsc", BuildTime: 45, Cost: map[string]int{"base:credits": 250},
+				Refines: &cs.Refining{Input: map[string]int{"base:materials": 40}, Output: map[string]int{"base:alloys": 20}}},
+			"base:mine": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 200},
+				Extracts: map[string]int{"base:materials": 60}},
+			"base:depot": {Faction: "base:unsc", BuildTime: 30, Cost: map[string]int{"base:credits": 150},
+				Storage: map[string]int{"base:credits": 500, "base:alloys": 100}},
 		},
 		Units: map[string]cs.Unit{
 			"base:marine": {CommandPoints: 1, BuildTime: 15, Cost: map[string]int{"base:credits": 50},

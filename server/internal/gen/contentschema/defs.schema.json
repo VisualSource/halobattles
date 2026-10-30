@@ -42,6 +42,13 @@
       "propertyNames": { "$ref": "#/definitions/id" },
       "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 1000000 }
     },
+    "richness": {
+      "description": "Per Resource id, how much a Planet's extractor buildings draw from it: none ×0, poor ×0.5, normal ×1, rich ×1.5. A Resource left out is none.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/definitions/id" },
+      "additionalProperties": { "$ref": "#/definitions/richnessLevel" }
+    },
+    "richnessLevel": { "enum": ["none", "poor", "normal", "rich"] },
     "stack": {
       "title": "Stack",
       "description": "Units in one Stack, one entry per Unit Slot.",

@@ -42,6 +42,7 @@ type Planet struct {
 	Rally      int // the Stack trained units join
 	// From its Planet Type and the map's overrides, fixed at Start.
 	Income            map[string]int
+	Richness          map[string]string // per Resource; missing is none
 	CommandPointBonus int
 }
 
@@ -111,7 +112,11 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 	for _, mp := range m.Planets {
 		pt := c.PlanetTypes[string(mp.Type)]
 		slots, income, cp := pt.BuildingSlots, pt.Income, pt.CommandPointBonus
+		rich := pt.Richness
 		if o := mp.Overrides; o != nil {
+			if o.Richness != nil {
+				rich = o.Richness
+			}
 			if o.BuildingSlots != nil {
 				slots = *o.BuildingSlots
 			}
@@ -122,9 +127,13 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 				cp = *o.CommandPointBonus
 			}
 		}
+		richness := map[string]string{}
+		for r, v := range rich {
+			richness[r] = string(v)
+		}
 		p := &Planet{
 			ID: string(mp.ID), Owner: Neutral, Buildings: make([]string, slots),
-			Income: maps.Clone(income), CommandPointBonus: cp,
+			Income: maps.Clone(income), Richness: richness, CommandPointBonus: cp,
 		}
 		p.Stacks = toStacks(c, m.Garrisons[string(mp.ID)])
 		s.Planets[p.ID] = p

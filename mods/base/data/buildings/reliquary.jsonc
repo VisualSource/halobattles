@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "reliquary",
+  "name": "Reliquary",
+  "faction": "covenant",
+  "cost": { "credits": 150 },
+  "buildTime": 30,
+  "upkeep": {},
+  "yield": {},
+  // docs/specs/economy-spec.md#stockpile-caps
+  "storage": { "credits": 1500, "materials": 750, "alloys": 250 },
+  "commandPointBonus": 0
+}
