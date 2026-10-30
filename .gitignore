@@ -7,3 +7,4 @@ node_modules/
 dist/
 
 client/tsconfig.tsbuildinfo
+.claude
