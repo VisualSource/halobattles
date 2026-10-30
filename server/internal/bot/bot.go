@@ -8,6 +8,7 @@ import (
 	"github.com/VisualSource/halobattles/server/internal/game"
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
+	flatbuffers "github.com/google/flatbuffers/go"
 )
 
 // Command is one command a Bot sends: its op and its FlatBuffer, as a
@@ -27,16 +28,20 @@ type Bot struct {
 	Seat       int
 	Difficulty cs.BotDifficulty
 	Weights    Weights
+	c          *cs.Content
+	faction    string
 	rng        *rand.Rand
-	next       int64  // Match Time it next thinks at
-	seq        uint32 // the last command seq it used
+	next       int64               // Match Time it next thinks at
+	seq        uint32              // the last command seq it used
+	seen       map[string]sighting // every Planet its Views have shown, as last seen
+	current    map[string]bool     // the goals it funded last think, by key
 }
 
 // New makes the Bot for seat, playing faction at difficulty. Its random
 // choices draw from its own stream of the Match seed; its first think is
 // offset ms in, so Bots don't all think on one tick.
 func New(c *cs.Content, seat int, faction, difficulty string, seed uint64, offset int64) *Bot {
-	b := &Bot{Seat: seat, rng: rand.New(rand.NewPCG(seed, uint64(seat)+1000)), next: offset}
+	b := &Bot{Seat: seat, c: c, faction: faction, rng: rand.New(rand.NewPCG(seed, uint64(seat)+1000)), next: offset}
 	for _, d := range c.Rulesets[game.RulesetID].BotDifficulties {
 		if string(d.ID) == difficulty {
 			b.Difficulty = d
@@ -72,12 +77,47 @@ func mul(ws ...*cs.BotWeight) float64 {
 // difficulty's think interval.
 func (b *Bot) Due(t int64) bool { return t >= b.next }
 
+// maxPerThink caps one think's commands, well under the server's per-tick cap.
+const maxPerThink = 8
+
 // Think decides from v and returns the commands to send, and schedules the
-// next think.
+// next think. The Commander's goals are funded best first: each gets a plan,
+// and its first action is sent, until the budget or maxPerThink runs out.
 func (b *Bot) Think(v game.View) []Command {
 	b.next = v.Time + int64(b.Difficulty.ThinkSeconds*1000)
-	// shortcut: decides nothing yet; issues #43 to #45 add the Commander and planner.
-	return nil
+	b.remember(v)
+	t := b.newTurn(v)
+	goals := b.goals(v) // scored with last think's goals still current
+	b.current = map[string]bool{}
+	var out []Command
+	for _, g := range goals {
+		if len(out) >= maxPerThink {
+			break
+		}
+		a := plan(b.facts(t, g), goalFact[g.kind], b.Difficulty.PlanDepth)
+		if a == nil {
+			continue
+		}
+		if c := a.issue(b, t, g); c != nil {
+			out = append(out, *c)
+			b.current[g.key()] = true
+		}
+	}
+	return out
+}
+
+func (b *Bot) nextSeq() uint32 {
+	b.seq++
+	return b.seq
+}
+
+// command packs a command's FlatBuffer, as a client would.
+func (b *Bot) command(op wire.Op, t interface {
+	Pack(*flatbuffers.Builder) flatbuffers.UOffsetT
+}) *Command {
+	fb := flatbuffers.NewBuilder(64)
+	fb.Finish(t.Pack(fb))
+	return &Command{Op: op, Data: fb.FinishedBytes()}
 }
 
 // Rejected tells the Bot the server refused its command seq.
