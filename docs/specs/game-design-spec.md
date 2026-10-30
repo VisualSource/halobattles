@@ -305,6 +305,7 @@ The single `base:rules` definition.
 | `stockpileCaps` | 3000 Credits, 1500 Materials, 500 Alloys |
 | `sprawl` | 4 free Planets, +5% per Planet beyond them |
 | `exchange` | sell 2 Materials → 1 Credit, 1 Alloy → 2 Credits; buy 3 Credits → 1 Material, 6 Credits → 1 Alloy |
+| `threatBands` | Medium from 300, High from 1000, Very high from 2500 |
 | `gracePeriodSeconds` | 180 (3 min) |
 | `armyVisionSeconds` | 15 |
 | `resultsSeconds` | 60 |

@@ -119,6 +119,13 @@ export interface Ruleset {
    */
   exchange: ExchangeRate[];
   /**
+   * The defence scores where a Planet's threat becomes Medium, High and Very high, in increasing order. A unit or armed building scores (Shield + Armor + HP) times its Damage roll's average, times its count.
+   *
+   * @minItems 3
+   * @maxItems 3
+   */
+  threatBands: [number, number, number];
+  /**
    * How long a disconnected player keeps their Seat.
    */
   gracePeriodSeconds: number;

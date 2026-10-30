@@ -16,6 +16,7 @@ import { isPending } from "./local";
 import { laneTimes } from "./route";
 import { freeCell, moveSlot } from "./stacks";
 import type { PlanetView, QueueItem, UnitSlot, View } from "./store";
+import { THREAT_LEVELS, threat } from "./threat";
 import { formatAge, useMatchNow } from "./time";
 
 // The play screen's floating windows: the selected Planet, its Stacks, and
@@ -281,7 +282,7 @@ export function PlanetWindow(props: {
       remember="planet"
       id={PLANET_WINDOW}
       onClose={() => conn.local.setState({ selected: null })}
-      className={mine ? "w-195" : "w-140"}
+      className={mine ? "w-195" : "w-150"}
       title={
         <>
           <h2 className={windowTitle}>{sel.name}</h2>
@@ -524,10 +525,8 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
           )}
         </div>
       )}
-      {sel.last && (
-        <p className="text-ink-3 w-48 text-xs">
-          Out of your vision: this is what you saw last.
-        </p>
+      {!sel.mine && planet && (
+        <Threat content={content} planet={planet} last={!!sel.last} />
       )}
     </div>
   );
@@ -581,6 +580,50 @@ function Alerts(props: {
         </div>
       )}
     </>
+  );
+}
+
+const THREAT_LOOK = [
+  "border-ok-edge bg-ok-wash text-ok",
+  "border-host/40 bg-host-wash text-host",
+  "border-accent/40 bg-accent-wash text-accent",
+  "border-danger/40 bg-danger-wash text-danger",
+];
+
+/** How well a Planet that isn't yours is defended, as you see it now or last saw it. */
+function Threat(props: {
+  content: ContentLookups;
+  planet: PlanetView;
+  last: boolean;
+}) {
+  const { score, level, top } = threat(props.content, props.planet);
+  const bands = props.content.rules.threatBands;
+  const look = THREAT_LOOK[level] ?? THREAT_LOOK[0];
+  return (
+    <div
+      title={`Defence score ${Math.round(score)}${level ? `: ${THREAT_LEVELS[level]} starts at ${bands[level - 1]}` : ""}`}
+      className={`flex w-48 flex-col gap-1 rounded-md border px-2.5 py-2 ${look}`}
+    >
+      <span className="font-mono text-[11px] tracking-[0.08em] uppercase">
+        Threat{props.last && " · as last seen"}
+      </span>
+      <span className="font-display text-lg leading-none font-bold tracking-[0.04em]">
+        {THREAT_LEVELS[level]}
+      </span>
+      <span aria-hidden="true" className="grid grid-cols-4 gap-0.75">
+        {THREAT_LEVELS.map((l, i) => (
+          <span
+            key={l}
+            className={`h-1.25 rounded-xs ${i <= level ? "bg-current" : "bg-line"}`}
+          />
+        ))}
+      </span>
+      <span className="text-ink-2 text-[11px]">
+        {top
+          ? `Mostly its ${top.count} ${top.name}${top.count > 1 ? "s" : ""}`
+          : "No defenders"}
+      </span>
+    </div>
   );
 }
 

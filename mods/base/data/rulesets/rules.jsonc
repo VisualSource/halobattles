@@ -21,6 +21,7 @@
     { "give": "credits", "giveAmount": 3, "get": "materials", "getAmount": 1 },
     { "give": "credits", "giveAmount": 6, "get": "alloys", "getAmount": 1 }
   ],
+  "threatBands": [300, 1000, 2500],
   "gracePeriodSeconds": 180,
   "armyVisionSeconds": 15,
   "resultsSeconds": 60,

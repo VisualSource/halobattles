@@ -16,6 +16,7 @@ const rules = {
   stockpileCaps: { "base:credits": 3000 },
   sprawl: { freePlanets: 4, percent: 5 },
   exchange: [],
+  threatBands: [300, 1000, 2500] as [number, number, number],
   gracePeriodSeconds: 180,
   armyVisionSeconds: 15,
   resultsSeconds: 60,

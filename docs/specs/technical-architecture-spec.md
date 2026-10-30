@@ -104,6 +104,7 @@ Every definition has an `id` and an inline English `name`. Every asset reference
   - `stockpileCaps`, one per Resource;
   - `sprawl {freePlanets, percent}`: each Planet a player owns beyond `freePlanets` adds `percent` to what they're charged to queue, rounded to the nearest whole amount; a queue item keeps what it was charged, and cancelling refunds from that;
   - `exchange`: the Exchange's rates, a list of `{give, giveAmount, get, getAmount}`; a pair not listed can't be traded;
+  - `threatBands`: three increasing defence scores where a Planet's **threat** becomes Medium, High and Very high. The client scores the Planet window of a Planet that isn't yours: each unit and armed building counts (Shield + Armor + HP) × its Damage roll's average, times its count;
   - `gracePeriodSeconds`, `resultsSeconds` and `armyVisionSeconds`, in whole seconds and converted to Match Time ms by the server.
 
   Defaults are in the game-design spec's [Ruleset defaults](game-design-spec.md#ruleset-defaults).

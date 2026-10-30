@@ -614,6 +614,11 @@ type Ruleset struct {
 	// over it is lost at Payday. Every Resource needs one.
 	StockpileCaps map[string]int `json:"stockpileCaps"`
 
+	// The defence scores where a Planet's threat becomes Medium, High and Very high,
+	// in increasing order. A unit or armed building scores (Shield + Armor + HP)
+	// times its Damage roll's average, times its count.
+	ThreatBands []int `json:"threatBands"`
+
 	// An attack's d20 roll below this misses.
 	ToHit int `json:"toHit"`
 

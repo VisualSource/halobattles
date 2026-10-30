@@ -17,6 +17,7 @@
     "stockpileCaps",
     "sprawl",
     "exchange",
+    "threatBands",
     "gracePeriodSeconds",
     "armyVisionSeconds",
     "resultsSeconds",
@@ -83,6 +84,13 @@
           "getAmount": { "type": "integer", "minimum": 1 }
         }
       }
+    },
+    "threatBands": {
+      "description": "The defence scores where a Planet's threat becomes Medium, High and Very high, in increasing order. A unit or armed building scores (Shield + Armor + HP) times its Damage roll's average, times its count.",
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0 },
+      "minItems": 3,
+      "maxItems": 3
     },
     "gracePeriodSeconds": { "description": "How long a disconnected player keeps their Seat.", "type": "integer", "minimum": 0 },
     "armyVisionSeconds": { "description": "How long a player keeps seeing a Planet after their Army there leaves or is destroyed.", "type": "integer", "minimum": 0 },

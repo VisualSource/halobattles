@@ -175,6 +175,9 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 				c.fail("%s: startingResources %s is %d, over its Stockpile cap of %d", where, res, r.StartingResources[res], cap)
 			}
 		}
+		if !slices.IsSorted(r.ThreatBands) {
+			c.fail("%s: threatBands %v must go up in order", where, r.ThreatBands)
+		}
 		for i, x := range r.Exchange {
 			c.ref(fmt.Sprintf("%s: exchange %d give", where, i+1), "resources", string(x.Give))
 			c.ref(fmt.Sprintf("%s: exchange %d get", where, i+1), "resources", string(x.Get))
