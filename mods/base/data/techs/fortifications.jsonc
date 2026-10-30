@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "fortifications",
+  "name": "Fortifications",
+  "rarity": "uncommon",
+  "cost": 600,
+  "unlocks": { "buildings": ["turret", "plasma-turret"] }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "relic-shrine",
+  "name": "Relic Shrine",
+  "faction": "covenant",
+  "cost": { "credits": 400, "materials": 200, "alloys": 50 },
+  "buildTime": 60,
+  "upkeep": { "credits": 20 },
+  "yield": {},
+  // docs/specs/tech-spec.md#base-mod-techs: its Faction's Legendary Tech needs one.
+  "commandPointBonus": 0
+}

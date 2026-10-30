@@ -12,6 +12,7 @@ import {
   BattleStarted,
   BattleTick,
   type BattleViewT,
+  CancelProjectT,
   CancelQueueItemT,
   CommandRejected,
   type EconomyT,
@@ -32,6 +33,7 @@ import {
   type QueueItemT,
   QueueUnitT,
   ReorderArmyT,
+  type ResearchT,
   SellBuildingT,
   SetFactionT,
   SetMapT,
@@ -39,6 +41,7 @@ import {
   SetReadyT,
   SetStartingResourcesT,
   StartMatchT,
+  StartProjectT,
   SurrenderT,
   ViewDelta,
   type ViewDeltaT,
@@ -60,6 +63,7 @@ import {
   type PlanetView,
   type PlayerView,
   type QueueItem,
+  type Research,
   reportView,
   reportVolleys,
   type Side,
@@ -139,6 +143,7 @@ const toPlanet = (p: PlanetViewT): PlanetView => ({
   unitQueue: p.unitQueue.map(toQueueItem),
   rallyStack: p.rallyStack,
   richness: new Map(p.richness.map((r) => [str(r.resource), str(r.level)])),
+  labs: new Map(p.labs.map((l) => [l.slot, l.techs.map(str)])),
 });
 
 const toArmy = (a: ArmyViewT): Army => ({
@@ -252,6 +257,35 @@ const NO_ECONOMY: Economy = {
   projected: new Map(),
 };
 
+const toResearch = (r: ResearchT): Research => ({
+  rate: r.rate,
+  projectLimit: r.projectLimit,
+  projects: r.projects.map((p) => ({
+    tech: str(p.tech),
+    planet: str(p.planet),
+    slot: p.slot,
+    cost: p.cost,
+    done: p.done,
+    since: Number(p.since),
+    rate: p.rate,
+  })),
+  hand: r.hand.map(str),
+  saved: r.saved.map((v) => ({
+    tech: str(v.tech),
+    cost: v.cost,
+    done: v.done,
+    lost: v.lost,
+  })),
+});
+
+const NO_RESEARCH: Research = {
+  rate: 0,
+  projectLimit: 0,
+  projects: [],
+  hand: [],
+  saved: [],
+};
+
 function toView(t: ViewFullT): View {
   return {
     matchTime: Number(t.matchTime),
@@ -264,6 +298,7 @@ function toView(t: ViewFullT): View {
     armies: new Map(t.armies.map((a) => [a.id, toArmy(a)])),
     battles: new Map(t.battles.map((b) => [b.id, toBattle(b)])),
     economy: t.economy ? toEconomy(t.economy) : NO_ECONOMY,
+    research: t.research ? toResearch(t.research) : NO_RESEARCH,
     winHold: t.winHold ? toWinHold(t.winHold) : { seat: null, ends: 0 },
   };
 }
@@ -278,6 +313,7 @@ const toDelta = (t: ViewDeltaT, fields: Map<number, Battlefield>): Delta => ({
   battles: t.battles.map((b) => toBattle(b, fields.get(b.id) ?? null)),
   removedBattles: [...t.removedBattles],
   economy: t.economy ? toEconomy(t.economy) : null,
+  research: t.research ? toResearch(t.research) : null,
   winHold: t.winHold ? toWinHold(t.winHold) : null,
 });
 
@@ -467,6 +503,24 @@ export class MatchConnection {
       Op.SetRallyStack,
       "rally",
       (seq) => new SetRallyStackT(seq, planet, stack),
+    );
+  }
+
+  /** Researches tech, from the hand or saved, in the Lab in slot of planet. */
+  startProject(tech: string, planet: string, slot: number) {
+    this.send(
+      Op.StartProject,
+      "research",
+      (seq) => new StartProjectT(seq, tech, planet, slot),
+    );
+  }
+
+  /** Stops tech's Project, keeping its progress. */
+  cancelProject(tech: string) {
+    this.send(
+      Op.CancelProject,
+      "research",
+      (seq) => new CancelProjectT(seq, tech),
     );
   }
 

@@ -29,6 +29,9 @@ func (s *State) QueueUnit(c *cs.Content, seat int, planet string, slot int, unit
 	case pl.inDebt():
 		return errInDebt
 	}
+	if err := s.mustUnlock(c, seat, unit, true); err != nil {
+		return err
+	}
 	cost := s.sprawled(c, seat, u.Cost)
 	for r, a := range cost {
 		if pl.Resources[r] < a*count {
@@ -45,10 +48,11 @@ func (s *State) QueueUnit(c *cs.Content, seat int, planet string, slot int, unit
 	for r, a := range cost {
 		pl.Resources[r] -= a * count
 	}
+	ms := buildMs(u.BuildTime, s.effects(c, seat).unit("buildTime", unit, string(u.Combat.UnitClass)))
 	for range count {
 		s.LastID++
 		p.setUnitQueue(slot, append(p.UnitQueues[slot], QueueItem{
-			ID: s.LastID, Slot: slot, Unit: unit, Remaining: int64(u.BuildTime) * 1000, Paid: cost,
+			ID: s.LastID, Slot: slot, Unit: unit, Remaining: ms, Paid: cost,
 		}))
 	}
 	return nil

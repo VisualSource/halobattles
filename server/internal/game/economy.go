@@ -31,6 +31,7 @@ func (s *State) Advance(c *cs.Content, now int64) Events {
 		s.NextPayday += s.PaydayEvery
 	}
 	s.build(c, now) // after Payday, so income that clears a debt resumes queues now
+	s.research(c, now)
 	return ev
 }
 
@@ -82,6 +83,7 @@ func (s *State) paydayNet(c *cs.Content, seat int) map[string]int {
 		nets[i] = map[string]int{}
 	}
 	net := nets[seat]
+	e := s.effects(c, seat)
 	for _, p := range s.Planets {
 		if p.Owner != seat {
 			continue
@@ -95,10 +97,10 @@ func (s *State) paydayNet(c *cs.Content, seat int) map[string]int {
 				net[r] += a
 			}
 			for r, a := range b.Extracts {
-				net[r] += int(float64(a) * richness[p.Richness[r]])
+				net[r] += e.resource("extractorYield", r).of(int(float64(a) * richness[p.Richness[r]]))
 			}
 			for r, a := range b.Upkeep {
-				net[r] -= a
+				net[r] -= e.resource("upkeep", r).of(a)
 			}
 		}
 	}
@@ -129,7 +131,7 @@ func (s *State) commandPoints(c *cs.Content, seat int) (used, cap int) {
 			cap += c.Buildings[id].CommandPointBonus
 		}
 	}
-	return used, cap
+	return used, s.effects(c, seat).all("commandPoints").of(cap)
 }
 
 // units counts a player's units by type, from queue to death: in their
@@ -173,12 +175,18 @@ func (s *State) units(seat int) map[string]int {
 // unitUpkeep takes each living unit's Upkeep off its owner's net: units in
 // Stacks, Armies and Battles. Queued units and neutral garrisons pay none.
 func (s *State) unitUpkeep(c *cs.Content, nets []map[string]int) {
+	seats := map[int]effects{}
 	charge := func(seat int, unit string, n int) {
 		if seat == Neutral {
 			return
 		}
+		e, ok := seats[seat]
+		if !ok {
+			e = s.effects(c, seat)
+			seats[seat] = e
+		}
 		for r, a := range c.Units[unit].Upkeep {
-			nets[seat][r] -= a * n
+			nets[seat][r] -= e.resource("upkeep", r).of(a * n)
 		}
 	}
 	for _, p := range s.Planets {
@@ -277,6 +285,10 @@ func (s *State) caps(c *cs.Content, seat int) map[string]int {
 				}
 			}
 		}
+	}
+	e := s.effects(c, seat)
+	for r, a := range caps {
+		caps[r] = e.resource("stockpileCap", r).of(a)
 	}
 	return caps
 }

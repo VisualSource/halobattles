@@ -14,6 +14,7 @@ import {
   ControlPointT,
   EconomyT,
   Exchange,
+  LabT,
   LobbyStateT,
   MatchEndedT,
   MoveUnits,
@@ -24,10 +25,13 @@ import {
   PlanetCapturedT,
   PlanetViewT,
   PlayerViewT,
+  ProjectT,
   QueueBuilding,
   QueueItemT,
   QueueUnit,
+  ResearchT,
   RichnessT,
+  SavedProjectT,
   SeatT,
   StackT,
   UnitSlotT,
@@ -37,6 +41,7 @@ import {
   WinHoldT,
 } from "../gen/wire";
 import { MatchConnection, type SocketLike } from "./connection";
+import { projectDone } from "./store";
 
 function fakeSocket() {
   const calls: string[] = [];
@@ -234,6 +239,7 @@ describe("MatchConnection", () => {
               ["base:credits", "poor"],
               ["base:materials", "rich"],
             ]),
+            labs: new Map(),
           },
         ],
         [
@@ -249,6 +255,7 @@ describe("MatchConnection", () => {
             unitQueue: [],
             rallyStack: 0,
             richness: new Map(),
+            labs: new Map(),
           },
         ],
       ]),
@@ -283,6 +290,7 @@ describe("MatchConnection", () => {
         ],
       ]),
       battles: new Map(),
+      research: { rate: 0, projectLimit: 0, projects: [], hand: [], saved: [] },
       winHold: { seat: null, ends: 0 },
     });
   });
@@ -366,6 +374,75 @@ describe("MatchConnection", () => {
 
     expect(conn.store.getState().view?.economy).toBe(before);
     expect(conn.store.getState().view?.planets.has("c")).toBe(false);
+  });
+
+  it("applies your research and Labs from a ViewDelta", async () => {
+    const { conn, send } = await playing();
+    expect(conn.store.getState().view?.research.projects).toEqual([]);
+    const planet = new PlanetViewT(
+      "a",
+      0,
+      false,
+      false,
+      ["", "", "base:research-lab"],
+      [],
+    );
+    planet.labs = [new LabT(2, ["base:drill"])];
+
+    send(
+      Op.ViewDelta,
+      pack(
+        new ViewDeltaT(
+          1000n,
+          [],
+          [planet],
+          [],
+          null,
+          [],
+          [],
+          [],
+          [],
+          null,
+          new ResearchT(
+            4,
+            5,
+            [new ProjectT("base:radar", "a", 2, 100, 20, 1000n, 2)],
+            ["base:optics"],
+            [new SavedProjectT("base:geology", 120, 30, true)],
+          ),
+        ),
+      ),
+    );
+
+    const view = conn.store.getState().view;
+    expect(view?.planets.get("a")?.labs).toEqual(
+      new Map([[2, ["base:drill"]]]),
+    );
+    const research = view?.research;
+    expect(research).toEqual({
+      rate: 4,
+      projectLimit: 5,
+      projects: [
+        {
+          tech: "base:radar",
+          planet: "a",
+          slot: 2,
+          cost: 100,
+          done: 20,
+          since: 1000,
+          rate: 2,
+        },
+      ],
+      hand: ["base:optics"],
+      saved: [{ tech: "base:geology", cost: 120, done: 30, lost: true }],
+    });
+    // 20 done at 1 s, 2 a second: 30 at 6 s, and never past the cost.
+    const [radar] = research?.projects ?? [];
+    expect(radar && projectDone(radar, 6000)).toBe(30);
+    expect(radar && projectDone(radar, 999_000)).toBe(100);
+
+    send(Op.ViewDelta, pack(new ViewDeltaT(2000n, [], [], ["c"], null)));
+    expect(conn.store.getState().view?.research).toBe(research);
   });
 
   it("sets the clock offset from each message's Match Time", async () => {

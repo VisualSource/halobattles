@@ -91,6 +91,7 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 		defend.Formations = append(defend.Formations, f)
 	}
 	defend.Buildings = slices.Clone(p.Buildings)
+	attack.Boosts, defend.Boosts = s.boosts(c, b.Attacker), s.boosts(c, b.Defender)
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
 	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID), attack, defend, s.Seed+uint64(b.ID))
 	b.Sim.Controllers = [2]battle.Controller{battle.NewAI(s.aiWeights(c, b.Attacker)), battle.NewAI(s.aiWeights(c, b.Defender))}
@@ -149,6 +150,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 		case sq.OnPad > 0: // a pad turret lasts only the Battle
 		case sq.Building:
 			if n == 0 {
+				s.loseLab(p, sq.Slot)
 				p.Buildings[sq.Slot] = ""
 			}
 		case n == 0:
@@ -247,6 +249,9 @@ func (s *State) BuildTurret(c *cs.Content, seat int, planet string, pad int, bui
 	}
 	if string(c.Buildings[building].Faction) != s.Players[seat].Faction {
 		return errors.New("that isn't your Faction's")
+	}
+	if err := s.mustUnlock(c, seat, building, false); err != nil {
+		return err
 	}
 	if err := b.Sim.CanBuild(side, pad, building); err != nil {
 		return err

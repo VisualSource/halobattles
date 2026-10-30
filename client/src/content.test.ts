@@ -20,6 +20,20 @@ const rules = {
   gracePeriodSeconds: 180,
   armyVisionSeconds: 15,
   resultsSeconds: 60,
+  tech: {
+    projectLimit: 3,
+    capitalResearch: 2,
+    costScalingPercent: 10,
+    recoveryPercent: 50,
+    labsPerPlanet: 3,
+    handSize: 3,
+    rarities: {
+      common: { from: 0, weight: 10 },
+      uncommon: { from: 4, weight: 6 },
+      rare: { from: 8, weight: 3 },
+      legendary: { from: 14, weight: 1 },
+    },
+  },
   battlefield: {
     width: 64,
     height: 48,
@@ -66,6 +80,7 @@ function doc(creditsName: string): Content {
     maps: {},
     terrains: {},
     terrainPresets: {},
+    techs: {},
   };
 }
 

@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "air-wing",
+  "name": "Air Wing",
+  "faction": "unsc",
+  "rarity": "uncommon",
+  "cost": 600,
+  "requires": { "techs": ["motor-pool"] },
+  "unlocks": { "buildings": ["air-pad"], "units": ["hornet"] }
+}

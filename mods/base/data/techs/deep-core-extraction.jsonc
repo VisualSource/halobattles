@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "deep-core-extraction",
+  "name": "Deep Core Extraction",
+  "rarity": "uncommon",
+  "cost": 600,
+  "effects": [{ "stat": "extractorYield", "percent": 15 }]
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "oni-data-mining",
+  "name": "ONI Data Mining",
+  "faction": "unsc",
+  "rarity": "common",
+  "cost": 300,
+  "effects": [{ "stat": "research", "amount": 1 }]
+}

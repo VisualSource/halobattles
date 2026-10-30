@@ -46,6 +46,7 @@ var kinds = map[string]kind{
 	"maps":           {"map.schema.json", "Map"},
 	"terrains":       {"terrain.schema.json", "Terrain"},
 	"terrainPresets": {"terrain-preset.schema.json", "Terrain Preset"},
+	"techs":          {"tech.schema.json", "Tech"},
 }
 
 // Problems lists every content error found. Manifest and dependency

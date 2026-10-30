@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "banshee-flight",
+  "name": "Banshee Flight",
+  "faction": "covenant",
+  "rarity": "uncommon",
+  "cost": 600,
+  "requires": { "techs": ["ghost-fabrication"] },
+  "unlocks": { "buildings": ["summit"], "units": ["banshee"] }
+}

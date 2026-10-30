@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "efficient-supply-lines",
+  "name": "Efficient Supply Lines",
+  "rarity": "rare",
+  "cost": 1200,
+  "effects": [{ "stat": "upkeep", "percent": -10 }]
+}

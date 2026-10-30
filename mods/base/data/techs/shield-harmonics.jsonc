@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "shield-harmonics",
+  "name": "Shield Harmonics",
+  "faction": "covenant",
+  "rarity": "uncommon",
+  "cost": 600,
+  "effects": [{ "stat": "shield", "percent": 10 }]
+}

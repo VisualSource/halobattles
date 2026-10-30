@@ -58,6 +58,23 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 			qualifyField(c, "weaponType", ns)
 			qualifyKeys(c, "tiers", ns)
 		}
+	case "techs":
+		qualifyField(obj, "faction", ns)
+		for _, field := range []string{"requires", "unlocks"} {
+			if m, ok := obj[field].(map[string]any); ok {
+				qualifyList(m, "techs", ns)
+				qualifyList(m, "units", ns)
+				qualifyList(m, "buildings", ns)
+			}
+		}
+		effects, _ := obj["effects"].([]any)
+		for _, e := range effects {
+			if e, ok := e.(map[string]any); ok {
+				qualifyField(e, "unitClass", ns)
+				qualifyField(e, "unit", ns)
+				qualifyField(e, "resource", ns)
+			}
+		}
 	case "planetTypes":
 		qualifyKeys(obj, "income", ns)
 		qualifyKeys(obj, "richness", ns)
@@ -260,6 +277,104 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 	}
 	for _, id := range slices.Sorted(maps.Keys(doc.TerrainPresets)) {
 		c.terrainPreset("terrainPresets "+id, doc.TerrainPresets[id])
+	}
+	for _, id := range slices.Sorted(maps.Keys(doc.Techs)) {
+		c.tech("techs "+id, doc.Techs[id])
+	}
+	c.techCycles(doc.Techs)
+}
+
+// tech checks a Tech's references, that a Faction's Tech names only its
+// own Faction's units and buildings, and that each effect is well-formed.
+func (c *checker) tech(where string, t contentschema.Tech) {
+	faction := ""
+	if t.Faction != nil {
+		faction = string(*t.Faction)
+		c.ref(where, "factions", faction)
+	}
+	ownFaction := func(where, kind string, id contentschema.ID) {
+		c.ref(where, kind, string(id))
+		var of contentschema.ID
+		if kind == "units" {
+			of = c.doc.Units[string(id)].Faction
+		} else {
+			of = c.doc.Buildings[string(id)].Faction
+		}
+		if faction != "" && of != "" && string(of) != faction {
+			c.fail("%s: %s is %s's, not %s's", where, id, of, faction)
+		}
+	}
+	if r := t.Requires; r != nil {
+		for _, id := range r.Techs {
+			c.ref(where+": requires", "techs", string(id))
+		}
+		for _, id := range r.Buildings {
+			ownFaction(where+": requires", "buildings", id)
+		}
+	}
+	if u := t.Unlocks; u != nil {
+		for _, id := range u.Units {
+			ownFaction(where+": unlocks", "units", id)
+		}
+		for _, id := range u.Buildings {
+			ownFaction(where+": unlocks", "buildings", id)
+		}
+	}
+	for i, e := range t.Effects {
+		ew := fmt.Sprintf("%s: effect %d", where, i+1)
+		if (e.Percent == nil) == (e.Amount == nil) {
+			c.fail("%s: needs exactly one of percent or amount", ew)
+		}
+		combat := slices.Contains([]contentschema.EffectStat{"shield", "armor", "hp", "damage"}, e.Stat)
+		if (e.UnitClass != nil || e.Unit != nil) && !combat && e.Stat != "buildTime" {
+			c.fail("%s: unitClass and unit only narrow a combat stat or buildTime, not %s", ew, e.Stat)
+		}
+		if e.Resource != nil && !slices.Contains([]contentschema.EffectStat{"extractorYield", "upkeep", "stockpileCap"}, e.Stat) {
+			c.fail("%s: resource only narrows extractorYield, upkeep or stockpileCap, not %s", ew, e.Stat)
+		}
+		if e.UnitClass != nil {
+			c.ref(ew, "unitClasses", string(*e.UnitClass))
+		}
+		if e.Unit != nil {
+			ownFaction(ew, "units", *e.Unit)
+		}
+		if e.Resource != nil {
+			c.ref(ew, "resources", string(*e.Resource))
+		}
+	}
+	c.asset(where, t.Icon)
+}
+
+// techCycles reports Techs that require themselves, directly or through
+// others: none of them could ever be offered.
+func (c *checker) techCycles(techs map[string]contentschema.Tech) {
+	const (
+		visiting = 1
+		done     = 2
+	)
+	state := map[string]int{}
+	var visit func(id string, path []string)
+	visit = func(id string, path []string) {
+		switch state[id] {
+		case visiting:
+			start := slices.Index(path, id)
+			c.fail("techs %s: requires itself through %s", id, strings.Join(slices.Concat(path[start:], []string{id}), " → "))
+			return
+		case done:
+			return
+		}
+		state[id] = visiting
+		if r := techs[id].Requires; r != nil {
+			for _, next := range r.Techs {
+				if _, ok := techs[string(next)]; ok {
+					visit(string(next), append(path, id))
+				}
+			}
+		}
+		state[id] = done
+	}
+	for _, id := range slices.Sorted(maps.Keys(techs)) {
+		visit(id, nil)
 	}
 }
 

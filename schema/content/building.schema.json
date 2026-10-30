@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Building",
-  "description": "Sits in a Building Slot. `trains` makes it a production building with its own unit queue; `combat` makes it armed.",
+  "description": "Sits in a Building Slot. `trains` makes it a production building with its own unit queue; `combat` makes it armed; `techSlots` makes it a Lab.",
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "name", "faction", "cost", "buildTime", "upkeep", "yield", "commandPointBonus"],
@@ -28,6 +28,8 @@
       }
     },
     "storage": { "description": "Raises its owner's Stockpile caps.", "$ref": "defs.schema.json#/definitions/resourceMap" },
+    "techSlots": { "description": "Makes it a Lab, holding this many Techs.", "type": "integer", "minimum": 1 },
+    "research": { "description": "Research it makes per second, the same on every Planet.", "type": "integer", "minimum": 0 },
     "commandPointBonus": { "type": "integer", "minimum": 0 },
     "trains": { "type": "array", "items": { "$ref": "defs.schema.json#/definitions/id" } },
     "padTurret": { "description": "Can be built on a build pad in Battle, lasting only that Battle. Needs a combat block.", "type": "boolean" },

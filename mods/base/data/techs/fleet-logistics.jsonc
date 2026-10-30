@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "fleet-logistics",
+  "name": "Fleet Logistics",
+  "faction": "covenant",
+  "rarity": "rare",
+  "cost": 1200,
+  "effects": [{ "stat": "commandPoints", "amount": 10 }]
+}

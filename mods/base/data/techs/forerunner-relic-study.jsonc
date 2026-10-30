@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "forerunner-relic-study",
+  "name": "Forerunner Relic Study",
+  "faction": "covenant",
+  "rarity": "legendary",
+  "cost": 2400,
+  "requires": { "buildings": ["relic-shrine"] },
+  "effects": [{ "stat": "techSlots", "amount": 1 }, { "stat": "projectLimit", "amount": 1 }]
+}

@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "motor-pool",
+  "name": "Motor Pool",
+  "faction": "unsc",
+  "rarity": "common",
+  "cost": 300,
+  "unlocks": { "buildings": ["vehicle-depot"], "units": ["warthog"] }
+}

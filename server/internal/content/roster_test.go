@@ -21,6 +21,13 @@ func rosterFiles() map[string]string {
 		"base/data/buildings/barracks.jsonc": `{"id": "barracks", "name": "Barracks", "faction": "unsc",
 			"cost": {"credits": 150}, "buildTime": 30, "upkeep": {"credits": 10}, "yield": {},
 			"commandPointBonus": 0, "trains": ["marine"]}`,
+		"base/data/buildings/lab.jsonc": `{"id": "lab", "name": "Lab", "faction": "unsc",
+			"cost": {"credits": 250}, "buildTime": 45, "upkeep": {}, "yield": {}, "commandPointBonus": 0, "techSlots": 2}`,
+		"base/data/techs/drill.jsonc": `{"id": "drill", "name": "Drill", "faction": "unsc", "rarity": "common", "cost": 300,
+			"requires": {"buildings": ["lab"]}, "unlocks": {"units": ["marine"], "buildings": ["barracks"]},
+			"effects": [{"stat": "hp", "percent": 10, "unitClass": "infantry"}, {"stat": "upkeep", "percent": -10, "resource": "credits"}]}`,
+		"base/data/techs/doctrine.jsonc": `{"id": "doctrine", "name": "Doctrine", "rarity": "rare", "cost": 1200,
+			"requires": {"techs": ["drill"]}, "effects": [{"stat": "projectLimit", "amount": 1}]}`,
 		"base/data/planetTypes/standard.jsonc": `{"id": "standard", "name": "Standard",
 			"income": {"credits": 200}, "buildingSlots": 3, "commandPointBonus": 10}`,
 		"base/data/maps/duel.jsonc": `{"id": "duel", "name": "Duel",
@@ -55,6 +62,14 @@ func TestRosterReferencesResolveToTheirMod(t *testing.T) {
 	m := c.Doc.Maps["base:duel"]
 	if m.Planets[0].Type != "base:standard" || m.Planets[0].ID != "a" || m.Garrisons["b"][0][0].Unit != "base:marine" {
 		t.Errorf("map refs: planet type %q, local id %q, garrison %v", m.Planets[0].Type, m.Planets[0].ID, m.Garrisons)
+	}
+	drill := c.Doc.Techs["base:drill"]
+	if *drill.Faction != "base:unsc" || drill.Requires.Buildings[0] != "base:lab" || drill.Unlocks.Units[0] != "base:marine" ||
+		drill.Unlocks.Buildings[0] != "base:barracks" || *drill.Effects[0].UnitClass != "base:infantry" || *drill.Effects[1].Resource != "base:credits" {
+		t.Errorf("drill refs = %+v", drill)
+	}
+	if got := c.Doc.Techs["base:doctrine"].Requires.Techs; got[0] != "base:drill" {
+		t.Errorf("doctrine requires %v", got)
 	}
 }
 
@@ -149,13 +164,34 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 		"an exchange rate for an unknown Resource": {"base/data/rulesets/rules.jsonc",
 			strings.Replace(baseRules, `"exchange": []`, `"exchange": [{"give": "gold", "giveAmount": 1, "get": "credits", "getAmount": 1}]`, 1),
 			"rulesets base:rules: exchange 1 give: unknown Resource base:gold"},
+		"a Tech's dangling references": {"base/data/techs/drill.jsonc",
+			`{"id": "drill", "name": "Drill", "faction": "innie", "rarity": "common", "cost": 300,
+				"requires": {"techs": ["warp"], "buildings": ["bunker"]}, "unlocks": {"units": ["spartan"]},
+				"effects": [{"stat": "hp", "percent": 10, "unitClass": "robot"}]}`,
+			"techs base:drill: unknown Faction base:innie; techs base:drill: requires: unknown Tech base:warp; techs base:drill: requires: unknown Building base:bunker; techs base:drill: unlocks: unknown Unit base:spartan; techs base:drill: effect 1: unknown Unit Class base:robot"},
+		"a Tech unlocking another Faction's building": {"base/data/techs/drill.jsonc",
+			`{"id": "drill", "name": "Drill", "faction": "covenant", "rarity": "common", "cost": 300, "unlocks": {"buildings": ["barracks"]}}`,
+			"techs base:drill: unlocks: base:barracks is base:unsc's, not base:covenant's"},
+		"an effect with percent and amount": {"base/data/techs/doctrine.jsonc",
+			`{"id": "doctrine", "name": "Doctrine", "rarity": "rare", "cost": 1, "effects": [{"stat": "research", "percent": 10, "amount": 1}]}`,
+			"techs base:doctrine: effect 1: needs exactly one of percent or amount"},
+		"an effect narrowed to nothing it has": {"base/data/techs/doctrine.jsonc",
+			`{"id": "doctrine", "name": "Doctrine", "rarity": "rare", "cost": 1,
+				"effects": [{"stat": "research", "amount": 1, "unitClass": "infantry"}, {"stat": "hp", "percent": 5, "resource": "credits"}]}`,
+			"techs base:doctrine: effect 1: unitClass and unit only narrow a combat stat or buildTime, not research; techs base:doctrine: effect 2: resource only narrows extractorYield, upkeep or stockpileCap, not hp"},
+		"Techs requiring each other": {"base/data/techs/drill.jsonc",
+			strings.Replace(rosterFiles()["base/data/techs/drill.jsonc"], `"requires": {"buildings": ["lab"]}`, `"requires": {"techs": ["doctrine"]}`, 1),
+			"techs base:doctrine: requires itself through base:doctrine → base:drill → base:doctrine"},
+		"a Ruleset missing a Rarity": {"base/data/rulesets/rules.jsonc",
+			strings.Replace(baseRules, `"legendary": {"from": 14, "weight": 1}`, `"mythic": {"from": 20, "weight": 1}`, 1),
+			"rulesets base:rules (from base/data/rulesets/rules.jsonc): at /tech/rarities"},
 		"dangling reference": {"base/data/buildings/barracks.jsonc",
 			strings.Replace(rosterFiles()["base/data/buildings/barracks.jsonc"], `["marine"]`, `["spartan"]`, 1),
 			"buildings base:barracks: trains: unknown Unit base:spartan"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			wantErr(t, writeMods(t, with(rosterFiles(), map[string]string{tc.file: tc.body}), "base"), tc.want)
+			wantErr(t, writeMods(t, with(rosterFiles(), map[string]string{tc.file: tc.body}), "base"), strings.Split(tc.want, "; ")...)
 		})
 	}
 }
@@ -166,7 +202,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	d := c.Doc
 
 	counts := map[string][2]int{
-		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 16},
+		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 22}, "techs": {len(d.Techs), 23},
 		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
 		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 3},
 		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
@@ -212,6 +248,35 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	}
 	if y := d.Buildings["base:mine"].Extracts["base:materials"]; y != 60 {
 		t.Errorf("mine extracts %d, want 60 Materials", y)
+	}
+	for _, f := range []string{"base:unsc", "base:covenant"} {
+		kit := d.Factions[f].StartingKit.Buildings
+		if lab := d.Buildings[string(kit[len(kit)-1])]; lab.TechSlots == nil || *lab.TechSlots != 2 || lab.Cost["base:credits"] != 250 {
+			t.Errorf("%s's Starting Kit %v doesn't end with a 2-slot Lab", f, kit)
+		}
+	}
+	if r := d.Rulesets["base:rules"].Tech; r.ProjectLimit != 3 || r.LabsPerPlanet != 3 || r.Rarities["legendary"].From != 14 {
+		t.Errorf("tech rules = %+v", r)
+	}
+	techs := map[string]int{}
+	for _, t := range d.Techs {
+		f := "shared"
+		if t.Faction != nil {
+			f = string(*t.Faction)
+		}
+		techs[f]++
+	}
+	if techs["shared"] != 7 || techs["base:unsc"] != 8 || techs["base:covenant"] != 8 {
+		t.Errorf("Techs per Faction = %v, want 7 shared and 8 each", techs)
+	}
+	if mbt := d.Techs["base:main-battle-tank"]; mbt.Cost != 600 || mbt.Requires.Techs[0] != "base:motor-pool" || mbt.Unlocks.Units[0] != "base:scorpion" {
+		t.Errorf("main-battle-tank = %+v", mbt)
+	}
+	if r := d.Techs["base:forerunner-relic-study"]; r.Rarity != "legendary" || r.Requires.Buildings[0] != "base:relic-shrine" {
+		t.Errorf("forerunner-relic-study = %+v", r)
+	}
+	if st := d.Buildings["base:seminary"]; st.Research == nil || *st.Research != 2 {
+		t.Errorf("seminary = %+v", st)
 	}
 
 	m := d.Maps["base:quadrant"]

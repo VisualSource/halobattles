@@ -49,6 +49,39 @@
       "additionalProperties": { "$ref": "#/definitions/richnessLevel" }
     },
     "richnessLevel": { "enum": ["none", "poor", "normal", "rich"] },
+    "rarity": { "description": "How likely a Tech is to be offered; rarer ones only above a Research rate.", "enum": ["common", "uncommon", "rare", "legendary"] },
+    "rarityRule": {
+      "title": "Rarity Rule",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "weight"],
+      "properties": {
+        "from": { "description": "The Research rate it's offered from.", "type": "integer", "minimum": 0 },
+        "weight": { "description": "Its draw weight.", "type": "integer", "minimum": 0 }
+      }
+    },
+    "effect": {
+      "title": "Effect",
+      "description": "A Tech's modifier, by exactly one of `percent` or `amount`. `unitClass` or `unit` narrows a combat stat or buildTime; `resource` narrows extractorYield, upkeep or stockpileCap.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stat"],
+      "properties": {
+        "stat": {
+          "enum": [
+            "shield", "armor", "hp", "damage",
+            "extractorYield", "upkeep", "stockpileCap", "buildTime", "sprawlFreePlanets",
+            "commandPoints", "projectLimit", "techSlots",
+            "research"
+          ]
+        },
+        "percent": { "type": "integer" },
+        "amount": { "type": "integer" },
+        "unitClass": { "$ref": "#/definitions/id" },
+        "unit": { "$ref": "#/definitions/id" },
+        "resource": { "$ref": "#/definitions/id" }
+      }
+    },
     "stack": {
       "title": "Stack",
       "description": "Units in one Stack, one entry per Unit Slot.",

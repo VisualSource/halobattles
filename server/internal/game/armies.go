@@ -251,10 +251,11 @@ func (p *Planet) empty() bool {
 // Losing a Capital eliminates its player.
 func (s *State) capture(p *Planet, to int, ev *Events) {
 	from := p.Owner
-	p.Owner, p.Queue, p.UnitQueues, p.Rally = to, nil, nil, 0
 	for i := range p.Buildings {
+		s.loseLab(p, i)
 		p.Buildings[i] = ""
 	}
+	p.Owner, p.Queue, p.UnitQueues, p.Rally = to, nil, nil, 0
 	viewers := []int{}
 	for seat := range s.Players {
 		if seat == from || s.sees(seat, p.ID) {

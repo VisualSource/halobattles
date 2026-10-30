@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "unggoy-conscription",
+  "name": "Unggoy Conscription",
+  "faction": "covenant",
+  "rarity": "common",
+  "cost": 300,
+  "effects": [{ "stat": "buildTime", "percent": -10, "unitClass": "infantry" }]
+}

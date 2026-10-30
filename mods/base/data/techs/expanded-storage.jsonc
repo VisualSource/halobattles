@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "expanded-storage",
+  "name": "Expanded Storage",
+  "rarity": "common",
+  "cost": 300,
+  "unlocks": { "buildings": ["depot", "reliquary"] }
+}

@@ -21,6 +21,7 @@
     "gracePeriodSeconds",
     "armyVisionSeconds",
     "resultsSeconds",
+    "tech",
     "battlefield",
     "battle"
   ],
@@ -95,6 +96,28 @@
     "gracePeriodSeconds": { "description": "How long a disconnected player keeps their Seat.", "type": "integer", "minimum": 0 },
     "armyVisionSeconds": { "description": "How long a player keeps seeing a Planet after their Army there leaves or is destroyed.", "type": "integer", "minimum": 0 },
     "resultsSeconds": { "description": "How long a Match stays in results.", "type": "integer", "minimum": 0 },
+    "tech": {
+      "title": "Tech Rules",
+      "description": "Research and Labs; see docs/specs/tech-spec.md.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projectLimit", "capitalResearch", "costScalingPercent", "recoveryPercent", "labsPerPlanet", "handSize", "rarities"],
+      "properties": {
+        "projectLimit": { "description": "Projects a player can run at once, before Techs raise it.", "type": "integer", "minimum": 1 },
+        "capitalResearch": { "description": "Research per second a player's Capital makes.", "type": "integer", "minimum": 0 },
+        "costScalingPercent": { "description": "Added to a Project's cost for each Tech the player holds.", "type": "integer", "minimum": 0 },
+        "recoveryPercent": { "description": "What a lost Tech costs to research again.", "type": "integer", "minimum": 0, "maximum": 100 },
+        "labsPerPlanet": { "type": "integer", "minimum": 0 },
+        "handSize": { "description": "Cards drawn for a hand, besides guaranteed ones.", "type": "integer", "minimum": 1 },
+        "rarities": {
+          "description": "Per Rarity: the Research rate it's offered from, and its draw weight.",
+          "type": "object",
+          "propertyNames": { "$ref": "defs.schema.json#/definitions/rarity" },
+          "required": ["common", "uncommon", "rare", "legendary"],
+          "additionalProperties": { "$ref": "defs.schema.json#/definitions/rarityRule" }
+        }
+      }
+    },
     "battlefield": {
       "title": "Battlefield Rules",
       "description": "How Battlefields are generated. A map's Planet can override the size and preset.",

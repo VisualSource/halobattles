@@ -55,8 +55,13 @@ func (s *State) QueueBuilding(c *cs.Content, seat int, planet string, slot int, 
 		return fmt.Errorf("Building Slot %d is taken", slot+1)
 	case !ok || string(b.Faction) != pl.Faction:
 		return fmt.Errorf("you can't build %s", building)
+	case b.TechSlots != nil && p.labs(c) >= c.Rulesets[RulesetID].Tech.LabsPerPlanet:
+		return fmt.Errorf("a Planet holds at most %d Labs", c.Rulesets[RulesetID].Tech.LabsPerPlanet)
 	case pl.inDebt():
 		return errInDebt
+	}
+	if err := s.mustUnlock(c, seat, building, false); err != nil {
+		return err
 	}
 	cost := s.sprawled(c, seat, b.Cost)
 	for r, a := range cost {
@@ -68,7 +73,8 @@ func (s *State) QueueBuilding(c *cs.Content, seat int, planet string, slot int, 
 		pl.Resources[r] -= a
 	}
 	s.LastID++
-	p.Queue = append(p.Queue, QueueItem{ID: s.LastID, Slot: slot, Building: building, Remaining: int64(b.BuildTime) * 1000, Paid: cost})
+	ms := buildMs(b.BuildTime, s.effects(c, seat).building("buildTime"))
+	p.Queue = append(p.Queue, QueueItem{ID: s.LastID, Slot: slot, Building: building, Remaining: ms, Paid: cost})
 	return nil
 }
 
@@ -76,6 +82,7 @@ func (s *State) QueueBuilding(c *cs.Content, seat int, planet string, slot int, 
 // Ruleset's free ones adds its percent, rounded to the nearest whole amount.
 func (s *State) sprawled(c *cs.Content, seat int, cost map[string]int) map[string]int {
 	sp := c.Rulesets[RulesetID].Sprawl
+	sp.FreePlanets = s.effects(c, seat).all("sprawlFreePlanets").of(sp.FreePlanets)
 	owned := 0
 	for _, p := range s.Planets {
 		if p.Owner == seat {
@@ -148,6 +155,7 @@ func (s *State) SellBuilding(c *cs.Content, seat int, planet string, slot int) e
 		return errors.New("cancel that building's unit queue before selling it")
 	}
 	s.Players[seat].refund(c.Buildings[p.Buildings[slot]].Cost, c.Rulesets[RulesetID].SellRefundPercent)
+	s.loseLab(p, slot)
 	p.Buildings[slot] = ""
 	return nil
 }
@@ -174,6 +182,7 @@ func (s *State) build(c *cs.Content, now int64) {
 		run := p.Owner != Neutral && !s.Players[p.Owner].inDebt() && !p.Locked
 		p.Queue = runQueue(p.Queue, run, now, func(q QueueItem) bool {
 			p.Buildings[q.Slot] = q.Building
+			delete(p.Techs, q.Slot) // a new building never inherits a lost Lab's Techs
 			return true
 		})
 		for slot, q := range p.UnitQueues {

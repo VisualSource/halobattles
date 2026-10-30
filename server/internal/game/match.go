@@ -40,6 +40,9 @@ type Planet struct {
 	// UnitQueues has a queue per production building, by Building Slot.
 	UnitQueues map[int][]QueueItem
 	Rally      int // the Stack trained units join
+	// Techs are what each Lab holds, by its Building Slot; they count only
+	// while that slot still has a Lab.
+	Techs map[int][]string
 	// From its Planet Type and the map's overrides, fixed at Start.
 	Income            map[string]int
 	Richness          map[string]string // per Resource; missing is none
@@ -59,6 +62,12 @@ type Player struct {
 	Forfeiting   bool // eliminated on the next tick
 	// Planets seen through Armies, and the Match Time each sighting ends.
 	Sighted map[string]int64
+	// Research: running Projects, the hand of Techs offered, Projects
+	// stopped with their progress kept, and how many hands have been drawn.
+	Projects []Project
+	Hand     []string
+	Saved    []Saved
+	Draws    uint64
 }
 
 // State is the full, authoritative state of a running Match. It is plain
