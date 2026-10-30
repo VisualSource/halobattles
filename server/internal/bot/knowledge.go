@@ -102,6 +102,30 @@ func (b *Bot) estimate(v game.View, id string) float64 {
 	return sum
 }
 
+// threat is the enemy strength near a Planet: Armies headed for it, and
+// half of each known enemy Planet a Lane away, since it may not come.
+func (b *Bot) threat(v game.View, id string) float64 {
+	threat := 0.0
+	for _, a := range v.Armies {
+		if a.Owner != v.You && a.To == id {
+			threat += unitsStrength(b.c, a.Units)
+		}
+	}
+	for _, l := range b.c.Maps[v.Map].Lanes {
+		var next string // the Lane's other end, if it touches id
+		switch id {
+		case string(l.From):
+			next = string(l.To)
+		case string(l.To):
+			next = string(l.From)
+		}
+		if s, ok := b.seen[next]; ok && s.planet.Owner != v.You && s.planet.Owner != game.Neutral {
+			threat += planetStrength(b.c, s.planet) * freshness(s, v.Time) / 2
+		}
+	}
+	return threat
+}
+
 // hops is each Planet's Lane jumps from the nearest Planet the Bot owns.
 func (b *Bot) hops(v game.View) map[string]int {
 	var own []string

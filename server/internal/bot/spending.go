@@ -261,19 +261,25 @@ func (b *Bot) buildLab(t *turn, _ goal) *Command     { return b.queue(t, b.labTo
 // Class; one missing from tiers is normal.
 var tierWorth = map[cs.CombatTiersValue]float64{"": 1, "normal": 1, "advantage": 1.5, "disadvantage": 0.6, "none": 0}
 
+// matchup is what a combatant's tiers make it worth against these
+// numbers of each Unit Class: 1 against none.
+func matchup(cb *cs.Combat, classes map[string]int) float64 {
+	f, n := 0.0, 0
+	for class, k := range classes {
+		f += tierWorth[cb.Tiers[class]] * float64(k)
+		n += k
+	}
+	if n == 0 {
+		return 1
+	}
+	return f / float64(n)
+}
+
 // unitScore is a unit's strength per cost, by its tiers against the enemy
 // units seen.
 func (b *Bot) unitScore(t *turn, id string) float64 {
 	u := b.c.Units[id]
-	f, n := 0.0, 0
-	for class, k := range t.foes {
-		f += tierWorth[u.Combat.Tiers[class]] * float64(k)
-		n += k
-	}
-	if n == 0 {
-		f, n = 1, 1
-	}
-	return strengthOf(&u.Combat) * f / float64(n) / float64(max(1, sum(u.Cost)))
+	return strengthOf(&u.Combat) * matchup(&u.Combat, t.foes) / float64(max(1, sum(u.Cost)))
 }
 
 // trainAt is a unit an own production building can train now.

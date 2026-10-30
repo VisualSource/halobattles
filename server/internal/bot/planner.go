@@ -6,7 +6,6 @@ import (
 
 	"github.com/VisualSource/halobattles/server/internal/game"
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
-	"github.com/VisualSource/halobattles/server/internal/gen/wire"
 )
 
 // The planner: a depth-capped search over abstract facts for the cheapest
@@ -20,8 +19,8 @@ const (
 	canBuildTrainer                   // a free Building Slot and a production building it can afford
 	canBuildEconomy                   // a free Building Slot and an economy building worth its cost
 	canBuildLab                       // a free Building Slot for a Lab it can afford
-	strongEnough                      // a force strong enough for the target, at margin
-	spareUnits                        // units on another Planet to send
+	strongEnough                      // spare units at the staging Planet, or on their way, as strong as the target's estimate at margin
+	spareUnits                        // spare units on another Planet to gather where the goal needs them
 	hasCard                           // a Tech on offer it can start
 	freeLab                           // a Project slot, and a Lab with a free Tech Slot, standing or being built
 	armySent                          // goals:
@@ -44,8 +43,8 @@ type action struct {
 var actions = []action{
 	{"buildTrainer", canBuildTrainer, hasProduction, 3, (*Bot).buildTrainer},
 	{"train", hasProduction, unitsQueued | strongEnough | garrisoned, 2, (*Bot).train},
-	{"sendArmy", strongEnough, armySent, 1, (*Bot).sendTo},
-	{"reinforce", spareUnits, garrisoned, 1, (*Bot).sendTo},
+	{"sendArmy", strongEnough, armySent, 1, (*Bot).sendArmy},
+	{"gather", spareUnits, strongEnough | garrisoned, 1, (*Bot).gather},
 	{"buildEconomy", canBuildEconomy, economyQueued, 2, (*Bot).buildEconomy},
 	{"buildLab", canBuildLab, freeLab, 2, (*Bot).buildLab},
 	{"startProject", hasCard | freeLab, projectStarted, 1, (*Bot).startProject},
@@ -96,25 +95,26 @@ func plan(now, want facts, depth int) *action {
 // turn is one think's working state: what's left to spend, and what the
 // Bot's own Planets and the enemies it has seen look like.
 type turn struct {
-	v       game.View
-	budget  map[string]int // Resources over the reserve and the next Payday's shortfall, less this think's spending
-	net     map[string]int // what the next Payday changes, with this think's Upkeep
-	sprawl  int            // the percent every cost is charged at
-	reserve int            // the percent of each cap kept back
-	held    map[string]bool
-	mine    []game.PlanetView // own Planets, by id
-	queued  map[string]string // "planet/slot" taken by this think's builds, to the building
-	cp      int               // Command Points left
-	front   map[string]int    // Lane jumps from each Planet to the nearest one not the Bot's
-	foes    map[string]int    // enemy units seen, by Unit Class
-	units   map[string]int    // own units, from queue to death, by id
-	top     [len(goalNames)]float64
+	v         game.View
+	budget    map[string]int // Resources over the reserve and the next Payday's shortfall, less this think's spending
+	net       map[string]int // what the next Payday changes, with this think's Upkeep
+	sprawl    int            // the percent every cost is charged at
+	reserve   int            // the percent of each cap kept back
+	held      map[string]bool
+	mine      []game.PlanetView // own Planets, by id
+	queued    map[string]string // "planet/slot" taken by this think's builds, to the building
+	cp        int               // Command Points left
+	front     map[string]int    // Lane jumps from each Planet to the nearest one not the Bot's
+	foes      map[string]int    // enemy units seen, by Unit Class
+	units     map[string]int    // own units, from queue to death, by id
+	gathering map[string]bool   // Planets this think gathered units at
+	top       [len(goalNames)]float64
 }
 
 func (b *Bot) newTurn(v game.View) *turn {
 	e := v.Economy
 	t := &turn{v: v, budget: map[string]int{}, net: map[string]int{}, held: held(v), queued: map[string]string{},
-		cp: e.CommandPointsCap - e.CommandPointsUsed, foes: map[string]int{}, units: map[string]int{}, reserve: b.Difficulty.ReservePercent}
+		cp: e.CommandPointsCap - e.CommandPointsUsed, foes: map[string]int{}, units: map[string]int{}, gathering: map[string]bool{}, reserve: b.Difficulty.ReservePercent}
 	maps.Copy(t.net, e.Projected)
 	for r, a := range e.Resources {
 		t.budget[r] = a - e.Caps[r]*t.reserve/100 + min(0, t.net[r])
@@ -194,12 +194,17 @@ func (b *Bot) facts(t *turn, g goal) facts {
 	if b.labToBuild(t).id != "" {
 		f |= canBuildLab
 	}
-	if from := b.strongest(t, ""); from != nil && g.target != "" &&
-		stacksStrength(b.c, *from) >= b.estimate(t.v, g.target)*b.Difficulty.AttackMargin {
-		f |= strongEnough
+	if g.kind == expand || g.kind == attack {
+		if b.ready(t, g) {
+			f |= strongEnough
+		}
 	}
-	if from := b.strongest(t, g.target); from != nil && stacksStrength(b.c, *from) > 0 {
-		f |= spareUnits
+	if g.target != "" {
+		if to := b.gatherAt(t, g); to != "" {
+			if from, _ := b.richest(t, to); from != nil {
+				f |= spareUnits
+			}
+		}
 	}
 	if len(b.cards(t)) > 0 {
 		f |= hasCard
@@ -226,39 +231,4 @@ func (b *Bot) coming(t *turn, fits func(cs.Building) bool) bool {
 		}
 	}
 	return false
-}
-
-// strongest is the own Planet with the most strength in its Stacks, other
-// than except.
-func (b *Bot) strongest(t *turn, except string) *game.PlanetView {
-	var best *game.PlanetView
-	for i, p := range t.mine {
-		if p.ID != except && (best == nil || stacksStrength(b.c, p) > stacksStrength(b.c, *best)) {
-			best = &t.mine[i]
-		}
-	}
-	return best
-}
-
-// shortcut: sendTo sends the strongest other Planet's whole garrison; #45
-// replaces it with home guards, staging and the attack margin.
-
-// sendTo sends the strongest other Planet's whole garrison to the goal's:
-// an attack, or reinforcements.
-func (b *Bot) sendTo(t *turn, g goal) *Command {
-	from, to := b.strongest(t, g.target), g.target
-	if from == nil {
-		return nil
-	}
-	var units []*wire.ArmyUnitsT
-	for s, st := range from.Stacks {
-		for _, u := range st {
-			units = append(units, &wire.ArmyUnitsT{Stack: byte(s), Unit: u.Unit, Count: uint32(u.Count)})
-		}
-	}
-	if len(units) == 0 {
-		return nil
-	}
-	from.Stacks = [game.StacksPerPlanet]game.Stack{} // gone: no later goal this think sends them again
-	return b.command(wire.OpOrderArmy, &wire.OrderArmyT{Seq: b.nextSeq(), FromPlanet: from.ID, Units: units, ToPlanet: to})
 }

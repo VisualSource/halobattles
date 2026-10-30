@@ -30,6 +30,8 @@ func apply(s *game.State, c *cs.Content, seat int, cmd Command) error {
 	case wire.OpStartProject:
 		x := wire.GetRootAsStartProject(cmd.Data, 0)
 		return s.StartProject(c, seat, string(x.Tech()), string(x.Planet()), int(x.Slot()))
+	case wire.OpBattleRetreat:
+		return s.RetreatFromBattle(seat, string(wire.GetRootAsBattleRetreat(cmd.Data, 0).Planet()), false)
 	case wire.OpExchange:
 		x := wire.GetRootAsExchange(cmd.Data, 0)
 		return s.Exchange(c, seat, string(x.Give()), string(x.Get()), int(x.Amount()))
@@ -62,10 +64,19 @@ func playAlone(t *testing.T, faction, difficulty string) {
 	income := s.View(c, 0).Economy.Projected["base:credits"]
 	b := New(c, 0, faction, difficulty, 1, 0)
 	accepted := map[wire.Op]int{}
-	researching, samples := 0, 0
+	researching, samples, lost := 0, 0, 0
+	taken := map[string]bool{}
 	for now := int64(200); now <= 10*60_000; now += 200 {
-		s.Advance(c, now)
+		ev := s.Advance(c, now)
 		v := s.View(c, 0)
+		for _, x := range ev.Ended {
+			if x.Winner != 0 { // alone on the map, every Battle is its attack
+				lost++
+			}
+		}
+		for _, x := range ev.Captures {
+			taken[x.Planet] = true
+		}
 		for r, a := range v.Economy.Resources {
 			if a < 0 {
 				t.Fatalf("%d ms: in debt, %d %s", now, a, r)
@@ -96,5 +107,13 @@ func playAlone(t *testing.T, faction, difficulty string) {
 	}
 	if researching < samples*9/10 {
 		t.Errorf("a Project running in %d of %d samples; want 90%%", researching, samples)
+	}
+	t.Logf("took %v, lost %d Battles", taken, lost)
+	// The Outpost is empty, Ridge and Depot weakly held, Vault strongly.
+	if !taken["outpost"] {
+		t.Error("never took the empty Outpost")
+	}
+	if difficulty != "easy" && (lost > 0 || !taken["ridge"] && !taken["depot"]) {
+		t.Errorf("took %v, lost %d Battles; want a weak Planet taken, and no attack it couldn't win", taken, lost)
 	}
 }

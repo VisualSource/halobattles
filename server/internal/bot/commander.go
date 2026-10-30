@@ -104,25 +104,7 @@ func (b *Bot) goals(v game.View) []goal {
 		if p.Owner != v.You {
 			continue
 		}
-		threat := 0.0
-		for _, a := range v.Armies {
-			if a.Owner != v.You && a.To == p.ID {
-				threat += unitsStrength(b.c, a.Units)
-			}
-		}
-		for _, l := range m.Lanes {
-			var next string // the Lane's other end, if it touches p
-			switch p.ID {
-			case string(l.From):
-				next = string(l.To)
-			case string(l.To):
-				next = string(l.From)
-			}
-			if s, ok := b.seen[next]; ok && s.planet.Owner != v.You && s.planet.Owner != game.Neutral {
-				threat += planetStrength(b.c, s.planet) * freshness(s, v.Time) / 2 // it may not come
-			}
-		}
-		if garrison := planetStrength(b.c, p); threat > garrison {
+		if threat, garrison := b.threat(v, p.ID), planetStrength(b.c, p); threat > garrison {
 			add(defend, p.ID, 3*(threat-garrison)/threat)
 		}
 	}

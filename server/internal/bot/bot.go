@@ -36,13 +36,15 @@ type Bot struct {
 	seen       map[string]sighting // every Planet its Views have shown, as last seen
 	current    map[string]bool     // the goals it funded last think, by key
 	mix        int                 // a fixed unit mix's next unit
+	attacking  map[uint32]string   // the Battles it was attacking in at its last think, to their Planet
+	failed     map[string]int      // attacks that failed, by Planet, until it takes it
 }
 
 // New makes the Bot for seat, playing faction at difficulty. Its random
 // choices draw from its own stream of the Match seed; its first think is
 // offset ms in, so Bots don't all think on one tick.
 func New(c *cs.Content, seat int, faction, difficulty string, seed uint64, offset int64) *Bot {
-	b := &Bot{Seat: seat, c: c, faction: faction, rng: rand.New(rand.NewPCG(seed, uint64(seat)+1000)), next: offset}
+	b := &Bot{Seat: seat, c: c, faction: faction, rng: rand.New(rand.NewPCG(seed, uint64(seat)+1000)), next: offset, failed: map[string]int{}}
 	for _, d := range c.Rulesets[game.RulesetID].BotDifficulties {
 		if string(d.ID) == difficulty {
 			b.Difficulty = d
@@ -88,6 +90,7 @@ const maxPerThink = 8
 func (b *Bot) Think(v game.View) []Command {
 	b.next = v.Time + int64(b.Difficulty.ThinkSeconds*1000)
 	b.remember(v)
+	b.learn(v)
 	t := b.newTurn(v)
 	goals := b.goals(v) // scored with last think's goals still current
 	for _, g := range goals {
@@ -97,6 +100,11 @@ func (b *Bot) Think(v game.View) []Command {
 	var out []Command
 	if c := b.exchange(t); c != nil {
 		out = append(out, *c)
+	}
+	for _, bt := range v.Battles {
+		if c := b.retreat(v, bt); c != nil {
+			out = append(out, *c)
+		}
 	}
 	for _, g := range goals {
 		if len(out) >= maxPerThink {
@@ -112,6 +120,10 @@ func (b *Bot) Think(v game.View) []Command {
 				}
 			}
 			continue
+		}
+		if g.target != "" {
+			// What it gathers there stays, even in a think that sends it nothing.
+			t.gathering[b.gatherAt(t, g)] = true
 		}
 		if c := a.issue(b, t, g); c != nil {
 			out = append(out, *c)
