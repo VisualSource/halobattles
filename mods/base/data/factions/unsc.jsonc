@@ -5,7 +5,7 @@
   // Battle AI: holds cover and high ground, regroups when hurt.
   "ai": { "aggression": 0.95, "caution": 1.1, "cover": 1.25 },
   "startingKit": {
-    "buildings": ["barracks", "supply-pad"],
+    "buildings": ["barracks", "supply-pad", "research-lab"],
     "stacks": [
       [
         { "unit": "marine", "count": 10 },

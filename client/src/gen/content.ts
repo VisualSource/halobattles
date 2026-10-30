@@ -48,6 +48,9 @@ export interface Content {
   terrainPresets: {
     [k: string]: TerrainPreset;
   };
+  techs: {
+    [k: string]: Tech;
+  };
 }
 /**
  * A stockpiled currency players earn at Payday and spend. Command Points is not a Resource.
@@ -137,6 +140,7 @@ export interface Ruleset {
    * How long a Match stays in results.
    */
   resultsSeconds: number;
+  tech: TechRules;
   battlefield: BattlefieldRules;
   battle: BattleRules;
 }
@@ -170,6 +174,48 @@ export interface ExchangeRate {
    */
   get: string;
   getAmount: number;
+}
+/**
+ * Research and Labs; see docs/specs/tech-spec.md.
+ */
+export interface TechRules {
+  /**
+   * Projects a player can run at once, before Techs raise it.
+   */
+  projectLimit: number;
+  /**
+   * Research per second a player's Capital makes.
+   */
+  capitalResearch: number;
+  /**
+   * Added to a Project's cost for each Tech the player holds.
+   */
+  costScalingPercent: number;
+  /**
+   * What a lost Tech costs to research again.
+   */
+  recoveryPercent: number;
+  labsPerPlanet: number;
+  /**
+   * Cards drawn for a hand, besides guaranteed ones.
+   */
+  handSize: number;
+  /**
+   * Per Rarity: the Research rate it's offered from, and its draw weight.
+   */
+  rarities: {
+    [k: string]: RarityRule;
+  };
+}
+export interface RarityRule {
+  /**
+   * The Research rate it's offered from.
+   */
+  from: number;
+  /**
+   * Its draw weight.
+   */
+  weight: number;
 }
 /**
  * How Battlefields are generated. A map's Planet can override the size and preset.
@@ -462,7 +508,7 @@ export interface Combat {
   };
 }
 /**
- * Sits in a Building Slot. `trains` makes it a production building with its own unit queue; `combat` makes it armed.
+ * Sits in a Building Slot. `trains` makes it a production building with its own unit queue; `combat` makes it armed; `techSlots` makes it a Lab.
  */
 export interface Building {
   $schema?: string;
@@ -492,6 +538,14 @@ export interface Building {
   extracts?: ResourceMap7;
   refines?: Refining;
   storage?: ResourceMap8;
+  /**
+   * Makes it a Lab, holding this many Techs.
+   */
+  techSlots?: number;
+  /**
+   * Research it makes per second, the same on every Planet.
+   */
+  research?: number;
   commandPointBonus: number;
   /**
    * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
@@ -837,4 +891,100 @@ export interface Clear {
    */
   terrain: string;
   height: number;
+}
+/**
+ * Researched by a player and held in a Lab: it unlocks units and buildings, and gives effects, while held. See docs/specs/tech-spec.md.
+ */
+export interface Tech {
+  $schema?: string;
+  /**
+   * Replace an existing definition with this id.
+   */
+  replace?: boolean;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  id: string;
+  /**
+   * Inline English display name.
+   */
+  name: string;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  faction?: string;
+  /**
+   * How likely a Tech is to be offered; rarer ones only above a Research rate.
+   */
+  rarity: "common" | "uncommon" | "rare" | "legendary";
+  /**
+   * Research, before the Ruleset's scaling.
+   */
+  cost: number;
+  requires?: TechRequirements;
+  unlocks?: TechUnlocks;
+  effects?: Effect[];
+  /**
+   * An asset in a Mod's assets/ folder, written `__mod__/path`.
+   */
+  icon?: string;
+}
+/**
+ * Offered only once the player holds every Tech and owns every building listed.
+ */
+export interface TechRequirements {
+  /**
+   * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  techs?: string[];
+  /**
+   * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  buildings?: string[];
+}
+/**
+ * Anything listed here, by any Tech, can be queued only while a Tech unlocking it is held.
+ */
+export interface TechUnlocks {
+  /**
+   * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  units?: string[];
+  /**
+   * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  buildings?: string[];
+}
+/**
+ * A Tech's modifier, by exactly one of `percent` or `amount`. `unitClass` or `unit` narrows a combat stat or buildTime; `resource` narrows extractorYield, upkeep or stockpileCap.
+ */
+export interface Effect {
+  stat:
+    | "shield"
+    | "armor"
+    | "hp"
+    | "damage"
+    | "extractorYield"
+    | "upkeep"
+    | "stockpileCap"
+    | "buildTime"
+    | "sprawlFreePlanets"
+    | "commandPoints"
+    | "projectLimit"
+    | "techSlots"
+    | "research";
+  percent?: number;
+  amount?: number;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  unitClass?: string;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  unit?: string;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  resource?: string;
 }

@@ -29,6 +29,9 @@ func (s *State) QueueUnit(c *cs.Content, seat int, planet string, slot int, unit
 	case pl.inDebt():
 		return errInDebt
 	}
+	if err := s.mustUnlock(c, seat, unit, true); err != nil {
+		return err
+	}
 	cost := s.sprawled(c, seat, u.Cost)
 	for r, a := range cost {
 		if pl.Resources[r] < a*count {

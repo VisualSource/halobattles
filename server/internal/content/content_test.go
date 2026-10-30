@@ -26,6 +26,8 @@ const baseRules = `{
 	"gracePeriodSeconds": 180,
 	"armyVisionSeconds": 15,
 	"resultsSeconds": 60,
+	"tech": {"projectLimit": 3, "capitalResearch": 2, "costScalingPercent": 10, "recoveryPercent": 50, "labsPerPlanet": 3, "handSize": 3,
+		"rarities": {"common": {"from": 0, "weight": 10}, "uncommon": {"from": 4, "weight": 6}, "rare": {"from": 8, "weight": 3}, "legendary": {"from": 14, "weight": 1}}},
 	"battlefield": {"width": 32, "height": 24, "terrainPreset": "plain", "pathClass": "infantry",
 		"controlPoints": 3, "controlPointSpacing": 6, "deployDepth": 3, "buildPads": 2},
 	"battle": {"startDelay": 30, "timeCap": 180, "padBuildSeconds": 10, "neutralFunds": {"credits": 400}, "captureRadius": 2, "captureSeconds": 5, "holdPoints": 2, "holdSeconds": 30,

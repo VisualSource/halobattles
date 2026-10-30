@@ -124,7 +124,7 @@ type BattlefieldRules struct {
 }
 
 // Sits in a Building Slot. `trains` makes it a production building with its own
-// unit queue; `combat` makes it armed.
+// unit queue; `combat` makes it armed; `techSlots` makes it a Lab.
 type Building struct {
 	// Schema corresponds to the JSON schema field "$schema".
 	Schema *string `json:"$schema,omitempty,omitzero"`
@@ -168,8 +168,14 @@ type Building struct {
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
 
+	// Research it makes per second, the same on every Planet.
+	Research *int `json:"research,omitempty,omitzero"`
+
 	// Raises its owner's Stockpile caps.
 	Storage map[string]int `json:"storage,omitempty,omitzero"`
+
+	// Makes it a Lab, holding this many Techs.
+	TechSlots *int `json:"techSlots,omitempty,omitzero"`
 
 	// Trains corresponds to the JSON schema field "trains".
 	Trains []ID `json:"trains,omitempty,omitzero"`
@@ -275,6 +281,9 @@ type Content struct {
 	// Rulesets corresponds to the JSON schema field "rulesets".
 	Rulesets map[string]Ruleset `json:"rulesets"`
 
+	// Techs corresponds to the JSON schema field "techs".
+	Techs map[string]Tech `json:"techs"`
+
 	// TerrainPresets corresponds to the JSON schema field "terrainPresets".
 	TerrainPresets map[string]TerrainPreset `json:"terrainPresets"`
 
@@ -290,6 +299,45 @@ type Content struct {
 	// WeaponTypes corresponds to the JSON schema field "weaponTypes".
 	WeaponTypes map[string]WeaponType `json:"weaponTypes"`
 }
+
+// A Tech's modifier, by exactly one of `percent` or `amount`. `unitClass` or
+// `unit` narrows a combat stat or buildTime; `resource` narrows extractorYield,
+// upkeep or stockpileCap.
+type Effect struct {
+	// Amount corresponds to the JSON schema field "amount".
+	Amount *int `json:"amount,omitempty,omitzero"`
+
+	// Percent corresponds to the JSON schema field "percent".
+	Percent *int `json:"percent,omitempty,omitzero"`
+
+	// Resource corresponds to the JSON schema field "resource".
+	Resource *ID `json:"resource,omitempty,omitzero"`
+
+	// Stat corresponds to the JSON schema field "stat".
+	Stat EffectStat `json:"stat"`
+
+	// Unit corresponds to the JSON schema field "unit".
+	Unit *ID `json:"unit,omitempty,omitzero"`
+
+	// UnitClass corresponds to the JSON schema field "unitClass".
+	UnitClass *ID `json:"unitClass,omitempty,omitzero"`
+}
+
+type EffectStat string
+
+const EffectStatArmor EffectStat = "armor"
+const EffectStatBuildTime EffectStat = "buildTime"
+const EffectStatCommandPoints EffectStat = "commandPoints"
+const EffectStatDamage EffectStat = "damage"
+const EffectStatExtractorYield EffectStat = "extractorYield"
+const EffectStatHp EffectStat = "hp"
+const EffectStatProjectLimit EffectStat = "projectLimit"
+const EffectStatResearch EffectStat = "research"
+const EffectStatShield EffectStat = "shield"
+const EffectStatSprawlFreePlanets EffectStat = "sprawlFreePlanets"
+const EffectStatStockpileCap EffectStat = "stockpileCap"
+const EffectStatTechSlots EffectStat = "techSlots"
+const EffectStatUpkeep EffectStat = "upkeep"
 
 type ExchangeRate struct {
 	// Get corresponds to the JSON schema field "get".
@@ -519,6 +567,22 @@ type Position struct {
 	Y float64 `json:"y"`
 }
 
+type Rarity string
+
+const RarityCommon Rarity = "common"
+const RarityLegendary Rarity = "legendary"
+const RarityRare Rarity = "rare"
+
+type RarityRule struct {
+	// The Research rate it's offered from.
+	From int `json:"from"`
+
+	// Its draw weight.
+	Weight int `json:"weight"`
+}
+
+const RarityUncommon Rarity = "uncommon"
+
 // Converts input into output at each Payday, after Upkeep. Short of input, it
 // converts what there is at the same rate.
 type Refining struct {
@@ -614,6 +678,9 @@ type Ruleset struct {
 	// over it is lost at Payday. Every Resource needs one.
 	StockpileCaps map[string]int `json:"stockpileCaps"`
 
+	// Research and Labs; see docs/specs/tech-spec.md.
+	Tech TechRules `json:"tech"`
+
 	// The defence scores where a Planet's threat becomes Medium, High and Very high,
 	// in increasing order. A unit or armed building scores (Shield + Armor + HP)
 	// times its Damage roll's average, times its count.
@@ -674,6 +741,87 @@ type Structure struct {
 
 	// UnitClass corresponds to the JSON schema field "unitClass".
 	UnitClass ID `json:"unitClass"`
+}
+
+// Researched by a player and held in a Lab: it unlocks units and buildings, and
+// gives effects, while held. See docs/specs/tech-spec.md.
+type Tech struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// Research, before the Ruleset's scaling.
+	Cost int `json:"cost"`
+
+	// Effects corresponds to the JSON schema field "effects".
+	Effects []Effect `json:"effects,omitempty,omitzero"`
+
+	// The Faction that can research it; left out, every Faction can.
+	Faction *ID `json:"faction,omitempty,omitzero"`
+
+	// Icon corresponds to the JSON schema field "icon".
+	Icon *Asset `json:"icon,omitempty,omitzero"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Rarity corresponds to the JSON schema field "rarity".
+	Rarity Rarity `json:"rarity"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Offered only once the player holds every Tech and owns every building listed.
+	Requires *TechRequirements `json:"requires,omitempty,omitzero"`
+
+	// Anything listed here, by any Tech, can be queued only while a Tech unlocking it
+	// is held.
+	Unlocks *TechUnlocks `json:"unlocks,omitempty,omitzero"`
+}
+
+// Offered only once the player holds every Tech and owns every building listed.
+type TechRequirements struct {
+	// Buildings corresponds to the JSON schema field "buildings".
+	Buildings []ID `json:"buildings,omitempty,omitzero"`
+
+	// Techs corresponds to the JSON schema field "techs".
+	Techs []ID `json:"techs,omitempty,omitzero"`
+}
+
+// Research and Labs; see docs/specs/tech-spec.md.
+type TechRules struct {
+	// Research per second a player's Capital makes.
+	CapitalResearch int `json:"capitalResearch"`
+
+	// Added to a Project's cost for each Tech the player holds.
+	CostScalingPercent int `json:"costScalingPercent"`
+
+	// Cards drawn for a hand, besides guaranteed ones.
+	HandSize int `json:"handSize"`
+
+	// LabsPerPlanet corresponds to the JSON schema field "labsPerPlanet".
+	LabsPerPlanet int `json:"labsPerPlanet"`
+
+	// Projects a player can run at once, before Techs raise it.
+	ProjectLimit int `json:"projectLimit"`
+
+	// Per Rarity: the Research rate it's offered from, and its draw weight.
+	Rarities map[string]RarityRule `json:"rarities"`
+
+	// What a lost Tech costs to research again.
+	RecoveryPercent int `json:"recoveryPercent"`
+}
+
+// Anything listed here, by any Tech, can be queued only while a Tech unlocking it
+// is held.
+type TechUnlocks struct {
+	// Buildings corresponds to the JSON schema field "buildings".
+	Buildings []ID `json:"buildings,omitempty,omitzero"`
+
+	// Units corresponds to the JSON schema field "units".
+	Units []ID `json:"units,omitempty,omitzero"`
 }
 
 // A kind of ground on a Battlefield cell.

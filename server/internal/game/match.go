@@ -40,6 +40,9 @@ type Planet struct {
 	// UnitQueues has a queue per production building, by Building Slot.
 	UnitQueues map[int][]QueueItem
 	Rally      int // the Stack trained units join
+	// Techs are what each Lab holds, by its Building Slot; they count only
+	// while that slot still has a Lab.
+	Techs map[int][]string
 	// From its Planet Type and the map's overrides, fixed at Start.
 	Income            map[string]int
 	Richness          map[string]string // per Resource; missing is none

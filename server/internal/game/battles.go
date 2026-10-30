@@ -248,6 +248,9 @@ func (s *State) BuildTurret(c *cs.Content, seat int, planet string, pad int, bui
 	if string(c.Buildings[building].Faction) != s.Players[seat].Faction {
 		return errors.New("that isn't your Faction's")
 	}
+	if err := s.mustUnlock(c, seat, building, false); err != nil {
+		return err
+	}
 	if err := b.Sim.CanBuild(side, pad, building); err != nil {
 		return err
 	}

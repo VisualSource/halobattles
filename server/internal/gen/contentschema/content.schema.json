@@ -4,7 +4,7 @@
   "description": "The merged content document the server serves: kind, then id, then definition, with every Patch applied.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["resources", "rulesets", "factions", "units", "buildings", "unitClasses", "weaponTypes", "planetTypes", "maps", "terrains", "terrainPresets"],
+  "required": ["resources", "rulesets", "factions", "units", "buildings", "unitClasses", "weaponTypes", "planetTypes", "maps", "terrains", "terrainPresets", "techs"],
   "properties": {
     "resources": { "type": "object", "additionalProperties": { "$ref": "resource.schema.json" } },
     "rulesets": { "type": "object", "additionalProperties": { "$ref": "ruleset.schema.json" } },
@@ -16,6 +16,7 @@
     "planetTypes": { "type": "object", "additionalProperties": { "$ref": "planet-type.schema.json" } },
     "maps": { "type": "object", "additionalProperties": { "$ref": "map.schema.json" } },
     "terrains": { "type": "object", "additionalProperties": { "$ref": "terrain.schema.json" } },
-    "terrainPresets": { "type": "object", "additionalProperties": { "$ref": "terrain-preset.schema.json" } }
+    "terrainPresets": { "type": "object", "additionalProperties": { "$ref": "terrain-preset.schema.json" } },
+    "techs": { "type": "object", "additionalProperties": { "$ref": "tech.schema.json" } }
   }
 }

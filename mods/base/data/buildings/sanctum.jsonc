@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "sanctum",
+  "name": "Sanctum",
+  "faction": "covenant",
+  "cost": { "credits": 250, "materials": 100 },
+  "buildTime": 45,
+  "upkeep": { "credits": 15 },
+  "yield": {},
+  // docs/specs/tech-spec.md#labs: holds Techs; losing it loses them.
+  "techSlots": 2,
+  "commandPointBonus": 0
+}

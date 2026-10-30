@@ -370,6 +370,11 @@ func TestBuildingAPadTurretChecksTheSideFactionAndPurse(t *testing.T) {
 	if err := s.BuildTurret(c, 0, "b", 0, "base:plasma-turret"); err == nil || !strings.Contains(err.Error(), "Faction") {
 		t.Errorf("a Covenant turret for the UNSC: err = %v", err)
 	}
+	c.Techs = map[string]cs.Tech{"base:fortifications": {Name: "Fortifications", Unlocks: &cs.TechUnlocks{Buildings: []cs.ID{"base:turret"}}}}
+	if err := s.BuildTurret(c, 0, "b", 0, "base:turret"); err == nil || !strings.Contains(err.Error(), "Fortifications") {
+		t.Errorf("a locked Turret: err = %v", err)
+	}
+	holdTech(s, "a", 2, "base:fortifications")
 	if err := s.BuildTurret(c, 0, "b", 0, "base:turret"); err != nil {
 		t.Fatal(err)
 	}

@@ -6,7 +6,7 @@
   // is a strong lever: 1.4 had the Covenant win 80% of their attacks.
   "ai": { "aggression": 1.05, "caution": 0.9, "cover": 0.9 },
   "startingKit": {
-    "buildings": ["hall", "warehouse"],
+    "buildings": ["hall", "warehouse", "sanctum"],
     "stacks": [
       [
         { "unit": "grunt", "count": 10 },
