@@ -140,6 +140,12 @@ export interface Ruleset {
    * How long a Match stays in results.
    */
   resultsSeconds: number;
+  /**
+   * The levels a Bot can play at, in the order the lobby offers them.
+   *
+   * @minItems 1
+   */
+  botDifficulties: [BotDifficulty, ...BotDifficulty[]];
   tech: TechRules;
   battlefield: BattlefieldRules;
   battle: BattleRules;
@@ -174,6 +180,81 @@ export interface ExchangeRate {
    */
   get: string;
   getAmount: number;
+}
+/**
+ * One level a Bot can play at. See docs/specs/bot-spec.md#difficulties.
+ */
+export interface BotDifficulty {
+  /**
+   * Local to the Ruleset, e.g. easy.
+   */
+  id: string;
+  /**
+   * Inline English display name.
+   */
+  name: string;
+  /**
+   * How often it decides.
+   */
+  thinkSeconds: number;
+  /**
+   * The random ± spread on its goal scores.
+   */
+  noisePercent: number;
+  /**
+   * How many times a target's estimated strength its Army needs before it attacks.
+   */
+  attackMargin: number;
+  /**
+   * How many steps its plans look ahead.
+   */
+  planDepth: number;
+  /**
+   * How much of each Stockpile cap it keeps back.
+   */
+  reservePercent: number;
+  /**
+   * It Retreats from a Battle when its strength falls below this share of the enemy's; 0 never Retreats.
+   */
+  retreatBelowPercent: number;
+  /**
+   * fixed: a set mix; advantage: by Advantage against the enemies seen.
+   */
+  unitChoice: "fixed" | "advantage";
+  /**
+   * first: the first card; goals: by its goals.
+   */
+  research: "first" | "goals";
+  weights?: BotGoalWeights;
+}
+/**
+ * Its goal weights, times its Faction's.
+ */
+export interface BotGoalWeights {
+  /**
+   * Defaults to 1.
+   */
+  expand?: number;
+  /**
+   * Defaults to 1.
+   */
+  attack?: number;
+  /**
+   * Defaults to 1.
+   */
+  defend?: number;
+  /**
+   * Defaults to 1.
+   */
+  economy?: number;
+  /**
+   * Defaults to 1.
+   */
+  army?: number;
+  /**
+   * Defaults to 1.
+   */
+  research?: number;
 }
 /**
  * Research and Labs; see docs/specs/tech-spec.md.
@@ -385,6 +466,42 @@ export interface AIWeights {
    * How much it searches when it can see no enemy. Defaults to 1.
    */
   scout?: number;
+  bot?: BotWeights;
+}
+/**
+ * How the Faction's Bots play the galaxy map: each weight scales one goal, times its difficulty's; 1 is neutral. See docs/specs/bot-spec.md.
+ */
+export interface BotWeights {
+  /**
+   * Defaults to 1.
+   */
+  expand?: number;
+  /**
+   * Defaults to 1.
+   */
+  attack?: number;
+  /**
+   * Defaults to 1.
+   */
+  defend?: number;
+  /**
+   * Defaults to 1.
+   */
+  economy?: number;
+  /**
+   * Defaults to 1.
+   */
+  army?: number;
+  /**
+   * Defaults to 1.
+   */
+  research?: number;
+  /**
+   * Its Bots' names, taken in order; a Bot past the end is named by its Seat.
+   *
+   * Items: Inline English display name.
+   */
+  names?: string[];
 }
 /**
  * Placed on the Faction's Capital when a Match starts. Starting resources are a lobby setting, not part of the kit.

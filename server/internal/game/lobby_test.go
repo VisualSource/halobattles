@@ -17,7 +17,47 @@ func newTestLobby() *Lobby {
 		Caps:              map[string]int{"base:credits": 3000, "base:materials": 1500},
 		Resources:         []string{"base:credits", "base:materials"},
 		StartingResources: map[string]int{"base:credits": 1000, "base:materials": 300},
+		Difficulties:      []string{"easy", "hard"},
+		BotNames:          map[string][]string{"base:covenant": {"Thel 'Vadam"}},
 	})
+}
+
+func TestBotsAreNamedReadyAndNeverHost(t *testing.T) {
+	l := joined(t, "host")
+	if err := l.SetMap("host", "base:quadrant"); err != nil { // 3 Seats
+		t.Fatal(err)
+	}
+	if err := l.AddBot("host", "base:covenant", "hard"); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AddBot("host", "base:covenant", "easy"); err != nil {
+		t.Fatal(err)
+	}
+	if b := l.Seats[1]; b.User != "bot:1" || b.DisplayName != "Thel 'Vadam" || !b.Ready || b.Bot != "hard" {
+		t.Errorf("first Bot %+v", b)
+	}
+	if b := l.Seats[2]; b.DisplayName != "Bot 3" {
+		t.Errorf("second Covenant Bot %q, want named by its Seat once the names run out", b.DisplayName)
+	}
+	if err := l.Start("host"); err != nil {
+		t.Errorf("Start with two Bots, which are always Ready and count toward minPlayers: %v", err)
+	}
+
+	// The Host leaves with a player still seated: the role skips the Bots.
+	if err := l.RemoveBot("host", "bot:2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Join("late", "late"); err != nil {
+		t.Fatal(err)
+	}
+	l.Leave("host")
+	if l.Host() != "late" || l.Players() != 1 {
+		t.Errorf("host %q, %d players; want the player, not the longer-seated Bot", l.Host(), l.Players())
+	}
+	l.Leave("late")
+	if l.Host() != "" || l.Players() != 0 {
+		t.Errorf("only a Bot left: host %q, %d players", l.Host(), l.Players())
+	}
 }
 
 func seatUsers(l *Lobby) []string {

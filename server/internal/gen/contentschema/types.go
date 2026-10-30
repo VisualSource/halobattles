@@ -8,6 +8,10 @@ type AIWeights struct {
 	// How much it goes after enemy squads it can see. Defaults to 1.
 	Aggression *float64 `json:"aggression,omitempty,omitzero"`
 
+	// How the Faction's Bots play the galaxy map: each weight scales one goal, times
+	// its difficulty's; 1 is neutral. See docs/specs/bot-spec.md.
+	Bot *BotWeights `json:"bot,omitempty,omitzero"`
+
 	// How much enemies near a goal put it off, and how readily a hurt squad regroups.
 	// Defaults to 1.
 	Caution *float64 `json:"caution,omitempty,omitzero"`
@@ -121,6 +125,101 @@ type BattlefieldRules struct {
 
 	// Width corresponds to the JSON schema field "width".
 	Width int `json:"width"`
+}
+
+// One level a Bot can play at. See docs/specs/bot-spec.md#difficulties.
+type BotDifficulty struct {
+	// How many times a target's estimated strength its Army needs before it attacks.
+	AttackMargin float64 `json:"attackMargin"`
+
+	// Local to the Ruleset, e.g. easy.
+	ID LocalID `json:"id"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// The random ± spread on its goal scores.
+	NoisePercent int `json:"noisePercent"`
+
+	// How many steps its plans look ahead.
+	PlanDepth int `json:"planDepth"`
+
+	// first: the first card; goals: by its goals.
+	Research BotDifficultyResearch `json:"research"`
+
+	// How much of each Stockpile cap it keeps back.
+	ReservePercent int `json:"reservePercent"`
+
+	// It Retreats from a Battle when its strength falls below this share of the
+	// enemy's; 0 never Retreats.
+	RetreatBelowPercent int `json:"retreatBelowPercent"`
+
+	// How often it decides.
+	ThinkSeconds float64 `json:"thinkSeconds"`
+
+	// fixed: a set mix; advantage: by Advantage against the enemies seen.
+	UnitChoice BotDifficultyUnitChoice `json:"unitChoice"`
+
+	// Its goal weights, times its Faction's.
+	Weights *BotGoalWeights `json:"weights,omitempty,omitzero"`
+}
+
+type BotDifficultyResearch string
+
+const BotDifficultyResearchFirst BotDifficultyResearch = "first"
+const BotDifficultyResearchGoals BotDifficultyResearch = "goals"
+
+type BotDifficultyUnitChoice string
+
+const BotDifficultyUnitChoiceAdvantage BotDifficultyUnitChoice = "advantage"
+const BotDifficultyUnitChoiceFixed BotDifficultyUnitChoice = "fixed"
+
+type BotGoalWeights struct {
+	// Army corresponds to the JSON schema field "army".
+	Army *BotWeight `json:"army,omitempty,omitzero"`
+
+	// Attack corresponds to the JSON schema field "attack".
+	Attack *BotWeight `json:"attack,omitempty,omitzero"`
+
+	// Defend corresponds to the JSON schema field "defend".
+	Defend *BotWeight `json:"defend,omitempty,omitzero"`
+
+	// Economy corresponds to the JSON schema field "economy".
+	Economy *BotWeight `json:"economy,omitempty,omitzero"`
+
+	// Expand corresponds to the JSON schema field "expand".
+	Expand *BotWeight `json:"expand,omitempty,omitzero"`
+
+	// Research corresponds to the JSON schema field "research".
+	Research *BotWeight `json:"research,omitempty,omitzero"`
+}
+
+// Defaults to 1.
+type BotWeight float64
+
+// How the Faction's Bots play the galaxy map: each weight scales one goal, times
+// its difficulty's; 1 is neutral. See docs/specs/bot-spec.md.
+type BotWeights struct {
+	// Army corresponds to the JSON schema field "army".
+	Army *BotWeight `json:"army,omitempty,omitzero"`
+
+	// Attack corresponds to the JSON schema field "attack".
+	Attack *BotWeight `json:"attack,omitempty,omitzero"`
+
+	// Defend corresponds to the JSON schema field "defend".
+	Defend *BotWeight `json:"defend,omitempty,omitzero"`
+
+	// Economy corresponds to the JSON schema field "economy".
+	Economy *BotWeight `json:"economy,omitempty,omitzero"`
+
+	// Expand corresponds to the JSON schema field "expand".
+	Expand *BotWeight `json:"expand,omitempty,omitzero"`
+
+	// Its Bots' names, taken in order; a Bot past the end is named by its Seat.
+	Names []Name `json:"names,omitempty,omitzero"`
+
+	// Research corresponds to the JSON schema field "research".
+	Research *BotWeight `json:"research,omitempty,omitzero"`
 }
 
 // Sits in a Building Slot. `trains` makes it a production building with its own
@@ -635,6 +734,9 @@ type Ruleset struct {
 	// How Battlefields are generated. A map's Planet can override the size and
 	// preset.
 	Battlefield BattlefieldRules `json:"battlefield"`
+
+	// The levels a Bot can play at, in the order the lobby offers them.
+	BotDifficulties []BotDifficulty `json:"botDifficulties"`
 
 	// Refund for cancelling a queue item after it started.
 	CancelRefundPercent int `json:"cancelRefundPercent"`

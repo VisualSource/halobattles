@@ -115,12 +115,19 @@ describe("MatchConnection", () => {
         ["base:materials", 300],
       ]),
       seats: [
-        { user: "u1", displayName: "Chief", faction: "base:unsc", ready: true },
+        {
+          user: "u1",
+          displayName: "Chief",
+          faction: "base:unsc",
+          ready: true,
+          bot: "",
+        },
         {
           user: "u2",
           displayName: "Arbiter",
           faction: "base:covenant",
           ready: false,
+          bot: "",
         },
       ],
       winner: null,
@@ -210,6 +217,7 @@ describe("MatchConnection", () => {
           eliminated: false,
           connected: false,
           graceEnds: 0,
+          bot: "",
         },
         {
           seat: 1,
@@ -220,6 +228,7 @@ describe("MatchConnection", () => {
           eliminated: false,
           connected: false,
           graceEnds: 0,
+          bot: "",
         },
       ],
       planets: new Map([

@@ -24,6 +24,8 @@ export enum Op {
   Exchange = 18,
   StartProject = 19,
   CancelProject = 20,
+  AddBot = 21,
+  RemoveBot = 22,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,

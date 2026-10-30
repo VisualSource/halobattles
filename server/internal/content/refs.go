@@ -192,6 +192,13 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 				c.fail("%s: startingResources %s is %d, over its Stockpile cap of %d", where, res, r.StartingResources[res], cap)
 			}
 		}
+		difficulties := map[contentschema.LocalID]bool{}
+		for _, d := range r.BotDifficulties {
+			if difficulties[d.ID] {
+				c.fail("%s: botDifficulties lists %s twice", where, d.ID)
+			}
+			difficulties[d.ID] = true
+		}
 		if !slices.IsSorted(r.ThreatBands) {
 			c.fail("%s: threatBands %v must go up in order", where, r.ThreatBands)
 		}

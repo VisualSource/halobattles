@@ -141,8 +141,8 @@ type Sim struct {
 	Funds  [2]map[string]int
 	boosts [2]map[string]Boost // each side's Force.Boosts
 	Edge   int                 // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
-	Tick  int
-	Hold  int // ticks the attacker has held enough points
+	Tick   int
+	Hold   int // ticks the attacker has held enough points
 	// HoldPaused: the attacker holds enough points, but a defender stands on
 	// one, so the hold timer waits.
 	HoldPaused bool

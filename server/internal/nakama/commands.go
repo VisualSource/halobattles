@@ -39,7 +39,7 @@ func (s *matchState) handleCommands(logger runtime.Logger, dispatcher runtime.Ma
 		if !s.isCurrent(msg) {
 			continue
 		}
-		seq, err := s.handle(msg, tick, perUser[user])
+		seq, err := s.handle(user, msg.GetOpCode(), msg.GetData(), tick, perUser[user])
 		perUser[user]++
 		s.lastSeq[user] = max(s.lastSeq[user], seq) // a malformed command has no seq
 		if err != nil {
@@ -51,20 +51,26 @@ func (s *matchState) handleCommands(logger runtime.Logger, dispatcher runtime.Ma
 	return changed
 }
 
-// handle decodes one command and applies it. A malformed FlatBuffer can
-// panic while decoding; that rejects the command, not the Match.
-func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq uint32, err error) {
+// handle decodes user's command and applies it: a player's from the socket,
+// or a Bot's. A malformed FlatBuffer can panic while decoding; that rejects
+// the command, not the Match.
+func (s *matchState) handle(user string, op int64, data []byte, tick int64, earlier int) (seq uint32, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.New("malformed command")
 		}
 	}()
-	user, data := msg.GetUserId(), msg.GetData()
 	doc := &s.content.Doc
 
 	phase := wire.PhaseLobby // the phase the command works in
 	var apply func(l *game.Lobby) error
-	switch wire.Op(msg.GetOpCode()) {
+	switch wire.Op(op) {
+	case wire.OpAddBot:
+		c := wire.GetRootAsAddBot(data, 0)
+		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.AddBot(user, string(c.Faction()), string(c.Difficulty())) }
+	case wire.OpRemoveBot:
+		c := wire.GetRootAsRemoveBot(data, 0)
+		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.RemoveBot(user, string(c.User())) }
 	case wire.OpSetFaction:
 		c := wire.GetRootAsSetFaction(data, 0)
 		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.SetFaction(user, string(c.Faction())) }
@@ -170,7 +176,7 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 			return s.start(tick)
 		}
 	default:
-		return 0, fmt.Errorf("unknown command %d", msg.GetOpCode())
+		return 0, fmt.Errorf("unknown command %d", op)
 	}
 
 	switch {

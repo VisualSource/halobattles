@@ -2,6 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
+export { AddBot, AddBotT } from './wire/add-bot.js';
 export { Amount, AmountT } from './wire/amount.js';
 export { ArmyUnits, ArmyUnitsT } from './wire/army-units.js';
 export { ArmyView, ArmyViewT } from './wire/army-view.js';
@@ -37,6 +38,7 @@ export { Project, ProjectT } from './wire/project.js';
 export { QueueBuilding, QueueBuildingT } from './wire/queue-building.js';
 export { QueueItem, QueueItemT } from './wire/queue-item.js';
 export { QueueUnit, QueueUnitT } from './wire/queue-unit.js';
+export { RemoveBot, RemoveBotT } from './wire/remove-bot.js';
 export { ReorderArmy, ReorderArmyT } from './wire/reorder-army.js';
 export { Research, ResearchT } from './wire/research.js';
 export { Richness, RichnessT } from './wire/richness.js';

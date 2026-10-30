@@ -102,6 +102,7 @@ function toLobby(t: LobbyStateT): Lobby {
       displayName: str(s.displayName),
       faction: str(s.faction),
       ready: s.ready,
+      bot: str(s.bot),
     })),
     winner: t.winner < 0 ? null : t.winner,
     endReason: str(t.endReason),
@@ -124,6 +125,7 @@ const toPlayer = (p: PlayerViewT): PlayerView => ({
   eliminated: p.eliminated,
   connected: p.connected,
   graceEnds: Number(p.graceEnds),
+  bot: str(p.bot),
 });
 
 const toPlanet = (p: PlanetViewT): PlanetView => ({

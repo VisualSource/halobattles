@@ -21,6 +21,7 @@ type Seat struct {
 	DisplayName string
 	Faction     string
 	Ready       bool
+	Bot         string // a Bot's difficulty id; "" for a player
 }
 
 // LobbyMap is what the lobby needs to know about a map.
@@ -34,8 +35,10 @@ type LobbyContent struct {
 	Maps              map[string]LobbyMap
 	Factions          []string
 	Resources         []string
-	StartingResources map[string]int // the Ruleset's defaults
-	Caps              map[string]int // the Ruleset's Stockpile caps
+	StartingResources map[string]int      // the Ruleset's defaults
+	Caps              map[string]int      // the Ruleset's Stockpile caps
+	Difficulties      []string            // Bot difficulty ids
+	BotNames          map[string][]string // per Faction, taken in order
 }
 
 // Lobby is a Match before Start.
@@ -44,6 +47,7 @@ type Lobby struct {
 	StartingResources map[string]int
 	Seats             []Seat // longest held first
 	content           LobbyContent
+	bots              int // Bots added so far, for their Seat user ids
 }
 
 // NewLobby starts on the first map by id and the Ruleset's
@@ -59,13 +63,63 @@ func NewLobby(c LobbyContent) *Lobby {
 // MaxSeats is the selected map's number of starts.
 func (l *Lobby) MaxSeats() int { return l.content.Maps[l.Map].Starts }
 
-// Host is the longest-held Seat, so the role passes on when the Host
-// leaves. It is "" in an empty lobby.
+// Host is the longest-held player's Seat, so the role passes on when the
+// Host leaves; a Bot is never Host. It is "" in a lobby with no player.
 func (l *Lobby) Host() string {
-	if len(l.Seats) == 0 {
-		return ""
+	if i := slices.IndexFunc(l.Seats, func(s Seat) bool { return s.Bot == "" }); i >= 0 {
+		return l.Seats[i].User
 	}
-	return l.Seats[0].User
+	return ""
+}
+
+// Players counts the Seats held by players, not Bots.
+func (l *Lobby) Players() int {
+	n := 0
+	for _, s := range l.Seats {
+		if s.Bot == "" {
+			n++
+		}
+	}
+	return n
+}
+
+// AddBot is Host only: a Bot of faction at difficulty takes an empty Seat,
+// always Ready, named by the next of its Faction's names no Seat has.
+func (l *Lobby) AddBot(user, faction, difficulty string) error {
+	if err := l.mustBeHost(user); err != nil {
+		return err
+	}
+	switch {
+	case len(l.Seats) >= l.MaxSeats():
+		return ErrLobbyFull
+	case !slices.Contains(l.content.Factions, faction):
+		return fmt.Errorf("unknown Faction %s", faction)
+	case !slices.Contains(l.content.Difficulties, difficulty):
+		return fmt.Errorf("unknown difficulty %s", difficulty)
+	}
+	l.bots++
+	name := fmt.Sprintf("Bot %d", len(l.Seats)+1)
+	for _, n := range l.content.BotNames[faction] {
+		if !slices.ContainsFunc(l.Seats, func(s Seat) bool { return s.DisplayName == n }) {
+			name = n
+			break
+		}
+	}
+	l.Seats = append(l.Seats, Seat{User: fmt.Sprintf("bot:%d", l.bots), DisplayName: name, Faction: faction, Ready: true, Bot: difficulty})
+	return nil
+}
+
+// RemoveBot is Host only, and frees a Bot's Seat.
+func (l *Lobby) RemoveBot(user, bot string) error {
+	if err := l.mustBeHost(user); err != nil {
+		return err
+	}
+	i := l.seatIndex(bot)
+	if i < 0 || l.Seats[i].Bot == "" {
+		return errors.New("that Seat isn't a Bot's")
+	}
+	l.Seats = slices.Delete(l.Seats, i, i+1)
+	return nil
 }
 
 func (l *Lobby) seatIndex(user string) int {
@@ -180,7 +234,7 @@ func (l *Lobby) SetStartingResources(user string, amounts map[string]int) error 
 }
 
 // Start is Host only, once every other Seat is ready and the map's
-// minPlayers are seated. The Host's own flag doesn't count.
+// minPlayers are seated, Bots counting. The Host's own flag doesn't count.
 func (l *Lobby) Start(user string) error {
 	if err := l.mustBeHost(user); err != nil {
 		return err
@@ -188,7 +242,7 @@ func (l *Lobby) Start(user string) error {
 	if min := l.content.Maps[l.Map].MinPlayers; len(l.Seats) < min {
 		return fmt.Errorf("%s needs at least %d players", l.Map, min)
 	}
-	if slices.ContainsFunc(l.Seats[1:], func(s Seat) bool { return !s.Ready }) {
+	if slices.ContainsFunc(l.Seats, func(s Seat) bool { return !s.Ready && s.User != user }) {
 		return errors.New("not every Seat is ready")
 	}
 	return nil

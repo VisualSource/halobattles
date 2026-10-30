@@ -8,7 +8,7 @@ import (
 )
 
 func pct(stat cs.EffectStat, p int) cs.Effect { return cs.Effect{Stat: stat, Percent: new(p)} }
-func amt(stat cs.EffectStat, a int) cs.Effect  { return cs.Effect{Stat: stat, Amount: new(a)} }
+func amt(stat cs.EffectStat, a int) cs.Effect { return cs.Effect{Stat: stat, Amount: new(a)} }
 
 // withEffects makes Seat 0 hold one Tech per effect list, in the Lab in its
 // Capital a's slot 2.

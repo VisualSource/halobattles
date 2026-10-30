@@ -11,6 +11,7 @@ import { useRingBackdrop } from "../backdrop";
 import type { ContentLookups } from "../content";
 import type { Faction, GalaxyMap } from "../gen/content";
 import { seatColour } from "../scene/galaxy";
+import { BotTag } from "./bot-tag";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
 import { inviteUrl } from "./phase";
@@ -273,6 +274,7 @@ function Seats(props: {
                     {s.displayName || "(no name)"}
                   </span>
                   {me && <span className="text-ink-3 text-xs">(you)</span>}
+                  {s.bot && <BotTag content={content} difficulty={s.bot} />}
                   {host && (
                     <span className="bg-host-wash text-host rounded px-2 py-0.5 text-[11px] font-semibold tracking-widest">
                       HOST

@@ -187,6 +187,17 @@ func TestTheLastPlayerMustBeConnectedToWin(t *testing.T) {
 	}
 }
 
+func TestBotsNeverKeepAMatchGoingAlone(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Players[1].Bot = "hard"
+	s.Forfeit(0) // the only player surrenders; the Bot is still in
+
+	ev := s.Advance(c, 1_000)
+	if ev.MatchEnded == nil || *ev.MatchEnded != (Result{Winner: Neutral, Reason: ReasonAbandoned}) {
+		t.Errorf("ended %+v, want abandoned, not a win for the Bot", ev.MatchEnded)
+	}
+}
+
 func TestEveryoneRunningOutTheirGraceAbandonsTheMatch(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	s.Disconnect(0, grace)

@@ -21,7 +21,22 @@
         "caution": { "description": "How much enemies near a goal put it off, and how readily a hurt squad regroups. Defaults to 1.", "type": "number", "minimum": 0, "maximum": 4 },
         "cover": { "description": "How much it prefers cover and high ground when it stops to fight or hold. Defaults to 1.", "type": "number", "minimum": 0, "maximum": 4 },
         "raid": { "description": "How much it goes after enemy buildings. Defaults to 1.", "type": "number", "minimum": 0, "maximum": 4 },
-        "scout": { "description": "How much it searches when it can see no enemy. Defaults to 1.", "type": "number", "minimum": 0, "maximum": 4 }
+        "scout": { "description": "How much it searches when it can see no enemy. Defaults to 1.", "type": "number", "minimum": 0, "maximum": 4 },
+        "bot": {
+          "title": "Bot Weights",
+          "description": "How the Faction's Bots play the galaxy map: each weight scales one goal, times its difficulty's; 1 is neutral. See docs/specs/bot-spec.md.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expand": { "$ref": "defs.schema.json#/definitions/botWeight" },
+            "attack": { "$ref": "defs.schema.json#/definitions/botWeight" },
+            "defend": { "$ref": "defs.schema.json#/definitions/botWeight" },
+            "economy": { "$ref": "defs.schema.json#/definitions/botWeight" },
+            "army": { "$ref": "defs.schema.json#/definitions/botWeight" },
+            "research": { "$ref": "defs.schema.json#/definitions/botWeight" },
+            "names": { "description": "Its Bots' names, taken in order; a Bot past the end is named by its Seat.", "type": "array", "items": { "$ref": "defs.schema.json#/definitions/name" } }
+          }
+        }
       }
     },
     "startingKit": {

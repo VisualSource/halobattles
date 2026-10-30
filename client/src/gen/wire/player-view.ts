@@ -70,8 +70,15 @@ graceEnds():bigint {
   return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
 }
 
+bot():string|null
+bot(optionalEncoding:flatbuffers.Encoding):string|Uint8Array|null
+bot(optionalEncoding?:any):string|Uint8Array|null {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
+}
+
 static startPlayerView(builder:flatbuffers.Builder) {
-  builder.startObject(8);
+  builder.startObject(9);
 }
 
 static addSeat(builder:flatbuffers.Builder, seat:number) {
@@ -106,12 +113,16 @@ static addGraceEnds(builder:flatbuffers.Builder, graceEnds:bigint) {
   builder.addFieldInt64(7, graceEnds, BigInt('0'));
 }
 
+static addBot(builder:flatbuffers.Builder, botOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(8, botOffset, 0);
+}
+
 static endPlayerView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createPlayerView(builder:flatbuffers.Builder, seat:number, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, planetCount:number, eliminated:boolean, connected:boolean, graceEnds:bigint):flatbuffers.Offset {
+static createPlayerView(builder:flatbuffers.Builder, seat:number, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, planetCount:number, eliminated:boolean, connected:boolean, graceEnds:bigint, botOffset:flatbuffers.Offset):flatbuffers.Offset {
   PlayerView.startPlayerView(builder);
   PlayerView.addSeat(builder, seat);
   PlayerView.addUser(builder, userOffset);
@@ -121,6 +132,7 @@ static createPlayerView(builder:flatbuffers.Builder, seat:number, userOffset:fla
   PlayerView.addEliminated(builder, eliminated);
   PlayerView.addConnected(builder, connected);
   PlayerView.addGraceEnds(builder, graceEnds);
+  PlayerView.addBot(builder, botOffset);
   return PlayerView.endPlayerView(builder);
 }
 
@@ -133,7 +145,8 @@ unpack(): PlayerViewT {
     this.planetCount(),
     this.eliminated(),
     this.connected(),
-    this.graceEnds()
+    this.graceEnds(),
+    this.bot()
   );
 }
 
@@ -147,6 +160,7 @@ unpackTo(_o: PlayerViewT): void {
   _o.eliminated = this.eliminated();
   _o.connected = this.connected();
   _o.graceEnds = this.graceEnds();
+  _o.bot = this.bot();
 }
 }
 
@@ -159,7 +173,8 @@ constructor(
   public planetCount: number = 0,
   public eliminated: boolean = false,
   public connected: boolean = false,
-  public graceEnds: bigint = BigInt('0')
+  public graceEnds: bigint = BigInt('0'),
+  public bot: string|Uint8Array|null = null
 ){}
 
 
@@ -167,6 +182,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const user = (this.user !== null ? builder.createString(this.user!) : 0);
   const displayName = (this.displayName !== null ? builder.createString(this.displayName!) : 0);
   const faction = (this.faction !== null ? builder.createString(this.faction!) : 0);
+  const bot = (this.bot !== null ? builder.createString(this.bot!) : 0);
 
   return PlayerView.createPlayerView(builder,
     this.seat,
@@ -176,7 +192,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.planetCount,
     this.eliminated,
     this.connected,
-    this.graceEnds
+    this.graceEnds,
+    bot
   );
 }
 }

@@ -15,6 +15,7 @@ import type { ContentLookups } from "../content";
 import { GalaxyScene, seatColour } from "../scene/galaxy";
 import { planetIconsQuery } from "../scene/planet-icons";
 import { BattlePanel } from "./battle";
+import { BotTag } from "./bot-tag";
 import type { MatchConnection } from "./connection";
 import { moneyOf, presets, quote } from "./exchange";
 import { isPending } from "./local";
@@ -104,7 +105,7 @@ export function PlayScreen(props: {
       />
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div ref={container} className="size-full" />
-        <Players conn={conn} />
+        <Players conn={conn} content={content} />
         <PlanetList conn={conn} content={content} />
         {researchOpen && (
           <ResearchPanel
@@ -832,8 +833,8 @@ function Notifications() {
  * Every player, and whether they're offline or out, all public. Closed by
  * default; it opens upward from the map's corner.
  */
-function Players(props: { conn: MatchConnection }) {
-  const { conn } = props;
+function Players(props: { conn: MatchConnection; content: ContentLookups }) {
+  const { conn, content } = props;
   const view = useStore(conn.store, (s) => s.view);
   const now = useMatchNow(conn.local);
   const [pop, popRef] = usePopover();
@@ -875,6 +876,12 @@ function Players(props: { conn: MatchConnection }) {
                 {p.displayName || `Player ${p.seat + 1}`}
                 {p.seat === view.you && (
                   <span className="text-ink-3"> (you)</span>
+                )}
+                {p.bot && (
+                  <>
+                    {" "}
+                    <BotTag content={content} difficulty={p.bot} />
+                  </>
                 )}
                 {!p.eliminated && !p.connected && (
                   <span className="text-danger text-xs">
