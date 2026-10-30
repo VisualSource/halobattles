@@ -71,7 +71,7 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 | Legendary | 14 | 1 |
 
 - The threshold only controls the draw. Cards already in the hand and running Projects stay if the rate drops below it.
-- Whether the research screen shows the next threshold is decided with its mockup (see [UI](#ui)).
+- The thresholds aren't shown: a rarer card turning up is the sign Research has grown.
 
 ## Losing Techs
 
@@ -118,8 +118,9 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 
 ## UI
 
-- A **research screen**: the running Projects with their progress, the hand and guaranteed cards, and the Lab picker. Needs a mockup first; the mockup also decides whether the next Rarity's threshold is shown.
-- The Planet window shows its Labs' Tech Slots.
+- The top bar shows Research per Payday, like a Resource (`+810` for 9 a second); clicking it opens the **Research panel**, docked over the map's left edge.
+- The panel is a column of Project slots, as many as the Project limit. A running one shows its Tech, what it does, its Lab, and a progress bar with Research done and cost, or why it's paused. A free slot opens a popover: pick a card from the hand or back on offer (Resume, Recover), each tinted by its Rarity's colour, then a Lab with a free Tech Slot.
+- The Planet window shows its Labs' Tech Slots, other players' in Vision too. Selling a Lab that holds Techs asks first, naming them.
 - Locked units and buildings show disabled, naming their Tech (see [Locked content](#locked-content)).
 
 ## Ruleset additions
