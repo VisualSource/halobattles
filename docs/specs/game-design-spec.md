@@ -11,7 +11,8 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 - Players build on Planets and send Armies along Lanes to capture enemy Planets. A **Battle** is ground only, a real-time AI-run fight over Control Points on a 2D Battlefield ([tactical Battle spec](tactical-battle-spec.md)), and its Planet is **Locked** while it runs. Players watch, and can only order a Retreat.
 - **Vision**: a player sees the Planets they own plus their neighbours one Lane away. They also see a Planet one of their Armies is at (passing through, waiting in orbit, landed, or attacking it), and for `armyVisionSeconds` after it leaves or is destroyed; only that Planet, not its neighbours, and never from a Retreating Army. When vision of a Planet ends, its client keeps it as last seen.
 - **Winning**: hold more than a map-set share of Planets for a set time, or be the last player not eliminated. Losing your Capital eliminates you.
-- There is no tech tree, no research, no bots, no Pops and no space Battles. See [Out of scope](#out-of-scope).
+- **Tech**: players research Techs that unlock units and buildings or give effects, held in Labs an enemy can destroy ([tech spec](tech-spec.md)).
+- There are no bots, no Pops and no space Battles. See [Out of scope](#out-of-scope).
 
 ## Economy
 
@@ -37,7 +38,7 @@ The full rules and numbers are in the [economy spec](economy-spec.md) (Economy v
 - The full cost is paid when an item is queued.
 - **Cancelling** refunds 100% if the item hasn't started, or 50% if it has.
 - **Selling** a finished building refunds 50%, and its Upkeep stops at once.
-- There are no build limits or prerequisites.
+- A unit or building a Tech unlocks can be queued only while the player holds that Tech ([tech spec](tech-spec.md#locked-content)). A Planet holds at most 3 Labs; there are no other build limits.
 - Queues pause while the player is in debt or the Planet is Locked, and resume afterwards.
 
 ## Stacks, Unit Slots and Armies
@@ -216,6 +217,7 @@ Each kit puts two buildings on the Capital, leaving 2 of its 4 Building Slots fr
 
 - **UNSC:** Barracks, Supply Pad, 10 Marines, 2 Warthogs.
 - **Covenant:** Hall, Warehouse, 10 Grunts, 2 Ghosts.
+- With Tech (issue #23), each kit also gains a Lab, using a third Building Slot ([tech spec](tech-spec.md#labs)).
 
 ## The first map
 
@@ -320,7 +322,6 @@ Post-MVP, decided when the MVP was specified:
 - **Saving and resuming long-running Matches.** Match state is in memory only, kept serialisable.
 - **Bots** filling empty Seats. The MVP is PvP only.
 - **Spies and richer vision rules.** MVP vision is owned Planets plus their neighbours one Lane away.
-- **A tech tree or unlocks.**
 - **Halo-style Shield regeneration during Battles** (after a few seconds without damage). MVP Shields refill only after a Battle.
 - **Player control in Battles** beyond Retreat, and the rest of the tactical spec's [Later](tactical-battle-spec.md#later) list.
 - **Touch and mobile layouts.** The MVP is desktop mouse and keyboard at 1280×720 or larger.

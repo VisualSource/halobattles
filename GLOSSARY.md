@@ -203,3 +203,31 @@ _Avoid_: Starting army, loadout
 **Planet Type**:
 A template of Planet values (base income, Building Slots, Command Point bonus) that a map's Planets are based on.
 _Avoid_: Biome, planet class
+
+**Tech**:
+Something a player gains by researching it: units or buildings it lets them make, or an effect; theirs on every Planet, but only while the building holding it stands. A Faction has its own Techs besides the shared ones.
+_Avoid_: Technology, upgrade, unlock (an unlock is one thing a Tech can do)
+
+**Research**:
+The rate at which a player's Projects progress; never stockpiled, so it is not a Resource.
+_Avoid_: Research points, science
+
+**Lab**:
+A building that holds Techs in its Tech Slots; losing it loses every Tech it holds. A Planet has at most three.
+_Avoid_: Archive, research building (a Lab holds Techs, it doesn't make Research)
+
+**Tech Slot**:
+A place in a Lab that holds one Tech, reserved from the moment a Project for it starts there.
+_Avoid_: Research slot (see Project limit)
+
+**Project**:
+The research of one Tech, running in a chosen Lab; a lost or cancelled Project keeps its progress for later.
+_Avoid_: Research slot, research job
+
+**Project limit**:
+The most Projects a player can run at once; 3 to start, raised by Techs.
+_Avoid_: Research slots, queue size
+
+**Rarity**:
+How likely a Tech is to be offered (Common, Uncommon, Rare or Legendary); each rarity above Common is offered only once the player's Research rate is high enough.
+_Avoid_: Tier, level

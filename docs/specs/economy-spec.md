@@ -2,7 +2,7 @@
 
 How players earn and spend, leaning on Stellaris's economy rather than Empire at War's: three Resources with a refining chain, deposits that make placement matter, unit Upkeep, stockpile caps, empire sprawl, and an exchange. This is the single source for the economy's rules and numbers; the [game-design spec](game-design-spec.md) summarises it. Terms follow [GLOSSARY.md](../../GLOSSARY.md). Tracked in issue #22, built in its sub-issues; the game-design spec's roster tables change as each one lands.
 
-There are still no Pops, no research and no tech tree (see the game-design spec's [Out of scope](game-design-spec.md#out-of-scope)).
+There are still no Pops (see the game-design spec's [Out of scope](game-design-spec.md#out-of-scope)). Research and Techs are in the [tech spec](tech-spec.md); Research is a rate, not a Resource.
 
 ## Payday
 
