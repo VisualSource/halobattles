@@ -42,6 +42,12 @@
   --color-res-credits: #f2c94c;
   --color-res-materials: #e0735c;
   --color-res-alloys: #b48cf0;
+  --color-res-research: #5fb3e8;
+  /* Tech Rarities, on the research picker's cards */
+  --color-rarity-common: #c3ccd4;
+  --color-rarity-uncommon: #7fdca0;
+  --color-rarity-rare: #8fb8f5;
+  --color-rarity-legendary: #f0a93b;
 }
 
 /* react-toastify's dark theme, in the app's colours; toasts clear the play HUD. */

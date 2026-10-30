@@ -19,6 +19,7 @@ import type { MatchConnection } from "./connection";
 import { moneyOf, presets, quote } from "./exchange";
 import { isPending } from "./local";
 import { inMatch } from "./phase";
+import { ResearchButton, ResearchPanel } from "./research";
 import { laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import { ConfirmDialog } from "./status";
@@ -61,6 +62,7 @@ export function PlayScreen(props: {
   const map = mapId ? content.maps.get(mapId) : undefined;
   const container = useRef<HTMLDivElement>(null);
   const [stacksOpen, setStacksOpen] = useState(true);
+  const [researchOpen, setResearchOpen] = useState(false);
 
   useEffect(() => {
     if (!map || !container.current) return;
@@ -94,11 +96,23 @@ export function PlayScreen(props: {
         Leaving a Match in play is final: you'll be eliminated, and your Planets
         turn neutral.
       </ConfirmDialog>
-      <Hud conn={conn} content={content} />
+      <Hud
+        conn={conn}
+        content={content}
+        researchOpen={researchOpen}
+        onResearch={() => setResearchOpen(!researchOpen)}
+      />
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div ref={container} className="size-full" />
         <Players conn={conn} />
         <PlanetList conn={conn} content={content} />
+        {researchOpen && (
+          <ResearchPanel
+            conn={conn}
+            content={content}
+            onClose={() => setResearchOpen(false)}
+          />
+        )}
         <PlanetWindow
           conn={conn}
           content={content}
@@ -277,7 +291,12 @@ const clock = (ms: number) => {
  * change, the Exchange, Command Points, the Payday countdown, the game
  * mode, any running win-hold countdown, notifications and Surrender.
  */
-function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
+function Hud(props: {
+  conn: MatchConnection;
+  content: ContentLookups;
+  researchOpen: boolean;
+  onResearch: () => void;
+}) {
   const { conn, content } = props;
   const view = useStore(conn.store, (s) => s.view);
   const local = useStore(conn.local);
@@ -298,6 +317,12 @@ function Hud(props: { conn: MatchConnection; content: ContentLookups }) {
       </span>
       <span aria-hidden="true" className="bg-line h-7 w-px" />
       <Stockpile conn={conn} content={content} />
+      <ResearchButton
+        conn={conn}
+        content={content}
+        open={props.researchOpen}
+        onToggle={props.onResearch}
+      />
       <span
         title="Command Points in use, of your cap"
         className="flex flex-col items-center gap-0.5 font-mono leading-none"

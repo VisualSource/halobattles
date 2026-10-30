@@ -15,7 +15,9 @@ import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
 import { laneTimes } from "./route";
 import { freeCell, moveSlot } from "./stacks";
+import { ConfirmDialog } from "./status";
 import type { PlanetView, QueueItem, UnitSlot, View } from "./store";
+import { heldTechs, listed, needsTech } from "./tech";
 import { THREAT_LEVELS, threat } from "./threat";
 import { formatAge, useMatchNow } from "./time";
 
@@ -648,6 +650,11 @@ function BuildingsTab(props: {
     setPick(slot === null ? null : { planet: planet.id, slot });
   const refund = content.rules.sellRefundPercent / 100;
   const card = "flex flex-col gap-2 rounded-md border p-2";
+  // The Lab slot whose sale is being confirmed: it holds Techs.
+  const [selling, setSelling] = useState<number | null>(null);
+  const sellingTechs = (
+    selling === null ? [] : (planet.labs.get(selling) ?? [])
+  ).map((t) => content.techs.get(t)?.name ?? t);
 
   if (picking !== null && editable) {
     const buildable = [...content.buildings.values()].filter(
@@ -666,36 +673,46 @@ function BuildingsTab(props: {
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {buildable.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              disabled={isPending(local, "build")}
-              onClick={() => {
-                conn.queueBuilding(planet.id, picking, b.id);
-                setPicking(null);
-              }}
-              className="border-edge bg-item flex items-center gap-2.5 rounded-md p-2 text-left"
-            >
-              <Tile name={b.name} size="size-12" />
-              <span className="flex flex-col gap-0.5">
-                <span className="font-semibold">{b.name}</span>
-                <span className="text-ink-3 text-[11px]">
-                  {b.trains?.length
-                    ? `Trains ${b.trains.map((u) => content.units.get(u)?.name ?? u).join(", ")}`
-                    : outputText(content, b, planet.richness)
-                      ? `${outputText(content, b, planet.richness)}${b.extracts ? " here" : ""}`
-                      : b.combat
-                        ? "Armed: fights in Battles"
-                        : ""}
+          {buildable.map((b) => {
+            const needs = view
+              ? needsTech(content, heldTechs(view), "buildings", b.id)
+              : [];
+            return (
+              <button
+                key={b.id}
+                type="button"
+                disabled={isPending(local, "build") || needs.length > 0}
+                onClick={() => {
+                  conn.queueBuilding(planet.id, picking, b.id);
+                  setPicking(null);
+                }}
+                className={`border-edge flex items-center gap-2.5 rounded-md p-2 text-left ${needs.length ? "border-dashed bg-transparent opacity-60" : "bg-item"}`}
+              >
+                <Tile name={b.name} size="size-12" />
+                <span className="flex flex-col gap-0.5">
+                  <span className="font-semibold">{b.name}</span>
+                  {needs.length > 0 && (
+                    <span className="text-accent text-[11px]">
+                      Needs {needs.join(" or ")}
+                    </span>
+                  )}
+                  <span className="text-ink-3 text-[11px]">
+                    {b.trains?.length
+                      ? `Trains ${b.trains.map((u) => content.units.get(u)?.name ?? u).join(", ")}`
+                      : outputText(content, b, planet.richness)
+                        ? `${outputText(content, b, planet.richness)}${b.extracts ? " here" : ""}`
+                        : b.combat
+                          ? "Armed: fights in Battles"
+                          : ""}
+                  </span>
+                  <span className="font-mono text-[11px]">
+                    {amounts(content, sprawled(content, view, b.cost))} ·{" "}
+                    {b.buildTime} s
+                  </span>
                 </span>
-                <span className="font-mono text-[11px]">
-                  {amounts(content, sprawled(content, view, b.cost))} ·{" "}
-                  {b.buildTime} s
-                </span>
-              </span>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       </>
     );
@@ -703,6 +720,22 @@ function BuildingsTab(props: {
 
   return (
     <>
+      <ConfirmDialog
+        open={selling !== null}
+        eyebrow="SELL LAB"
+        title={`Lose ${listed(sellingTechs)}?`}
+        confirm="SELL"
+        cancel="Keep it"
+        onConfirm={() => {
+          if (selling !== null) conn.sellBuilding(planet.id, selling);
+          setSelling(null);
+        }}
+        onCancel={() => setSelling(null)}
+      >
+        Selling this Lab loses every Tech it holds. They come back as cards you
+        can research again for {content.rules.tech.recoveryPercent}% of their
+        cost.
+      </ConfirmDialog>
       <span className={label}>Buildings</span>
       <div className="grid grid-cols-2 gap-2">
         {planet.buildings.map((id, i) => {
@@ -718,7 +751,11 @@ function BuildingsTab(props: {
                     <button
                       type="button"
                       disabled={isPending(local, "sell")}
-                      onClick={() => conn.sellBuilding(planet.id, i)}
+                      onClick={() =>
+                        planet.labs.get(i)?.length
+                          ? setSelling(i)
+                          : conn.sellBuilding(planet.id, i)
+                      }
                       title={`Refunds ${amounts(content, b.cost, refund)}`}
                       className={smallButton}
                     >
@@ -726,7 +763,24 @@ function BuildingsTab(props: {
                     </button>
                   )}
                 </div>
-                <Tile name={b.name} size="size-14" />
+                {b.techSlots ? (
+                  <LabSlots
+                    content={content}
+                    holds={planet.labs.get(i) ?? []}
+                    researching={
+                      planet.owner === view?.you
+                        ? (view?.research.projects ?? [])
+                            .filter(
+                              (p) => p.planet === planet.id && p.slot === i,
+                            )
+                            .map((p) => p.tech)
+                        : []
+                    }
+                    slots={b.techSlots}
+                  />
+                ) : (
+                  <Tile name={b.name} size="size-14" />
+                )}
                 <div className="text-ink-3 font-mono text-[11px]">
                   {[
                     outputText(content, b, planet.richness),
@@ -799,6 +853,51 @@ function BuildingsTab(props: {
   );
 }
 
+/**
+ * A Lab's Tech Slots: the Techs it holds, the Projects reserving one, then
+ * the free ones. Other players see what it holds too.
+ */
+function LabSlots(props: {
+  content: ContentLookups;
+  holds: string[];
+  researching: string[];
+  slots: number;
+}) {
+  const name = (t: string) => props.content.techs.get(t)?.name ?? t;
+  const free = Math.max(
+    0,
+    props.slots - props.holds.length - props.researching.length,
+  );
+  return (
+    <ul className="flex min-h-14 flex-col gap-1">
+      {props.holds.map((t) => (
+        <li
+          key={t}
+          className="border-edge bg-tile truncate rounded border px-2 py-0.5 text-xs"
+        >
+          {name(t)}
+        </li>
+      ))}
+      {props.researching.map((t) => (
+        <li
+          key={t}
+          className="border-accent text-accent truncate rounded border px-2 py-0.5 text-xs"
+        >
+          {name(t)} · researching
+        </li>
+      ))}
+      {Array.from({ length: free }, (_, n) => `free-${n}`).map((key) => (
+        <li
+          key={key}
+          className="border-edge text-ink-4 rounded border border-dashed px-2 py-0.5 text-xs"
+        >
+          Free Tech Slot
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Every unit your Faction trains, grouped by the building that trains it. */
 function UnitsTab(props: {
   conn: MatchConnection;
@@ -865,11 +964,17 @@ function UnitsTab(props: {
               {(b.trains ?? []).map((id) => {
                 const u = content.units.get(id);
                 if (!u) return null;
+                const needs = view
+                  ? needsTech(content, heldTechs(view), "units", id)
+                  : [];
                 return (
                   <button
                     key={id}
                     type="button"
-                    disabled={slot === undefined || busy}
+                    title={
+                      needs.length ? `Needs ${needs.join(" or ")}` : undefined
+                    }
+                    disabled={slot === undefined || busy || needs.length > 0}
                     onClick={(e) =>
                       slot !== undefined &&
                       conn.queueUnit(planet.id, slot, id, e.shiftKey ? 5 : 1)
@@ -879,6 +984,11 @@ function UnitsTab(props: {
                     <Tile name={u.name} size="size-12" />
                     <span className="flex flex-col gap-0.5">
                       <span className="font-semibold">{u.name}</span>
+                      {needs.length > 0 && (
+                        <span className="text-accent text-[11px]">
+                          Needs {needs.join(" or ")}
+                        </span>
+                      )}
                       <span className="text-ink-3 text-[11px]">
                         {nameOf("unitClasses", u.combat.unitClass)} ·{" "}
                         {nameOf("weaponTypes", u.combat.weaponType)}
