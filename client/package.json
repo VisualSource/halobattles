@@ -17,6 +17,7 @@
     "@tanstack/react-query": "5.105.0",
     "@tanstack/react-router": "1.170.46",
     "flatbuffers": "25.9.23",
+    "motion": "^14.7.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-toastify": "11.1.0",

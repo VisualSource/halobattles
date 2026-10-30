@@ -1,6 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+  ViewTransition,
+} from "react";
 import { useNotificationCenter } from "react-toastify/addons/use-notification-center";
 import { useStore } from "zustand";
 import { useHideHeader } from "../backdrop";
@@ -135,81 +142,105 @@ function PlanetList(props: { conn: MatchConnection; content: ContentLookups }) {
   const jump = (planet: string) =>
     conn.local.setState({ selected: planet, focus: { planet } });
 
+  // One section morphs between the panel and a tab on the screen's right edge.
+  const toggle = () => startTransition(() => setOpen(!open));
+
   return (
-    <section
-      aria-label="Your Planets"
-      className={`border-edge bg-panel/95 absolute top-1/2 right-4 z-10 flex w-72 -translate-y-1/2 flex-col overflow-hidden rounded-lg border shadow-[0_12px_32px_#000a] ${open ? "h-[min(30rem,calc(100%-2rem))]" : ""}`}
-    >
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="bg-bar border-line flex h-10 flex-none items-center gap-2 rounded-none border-0 border-b px-3 text-left"
+    <ViewTransition name="planet-list">
+      <section
+        aria-label="Your Planets"
+        className={`border-edge bg-panel/95 absolute top-1/2 z-10 flex -translate-y-1/2 flex-col overflow-hidden border shadow-[0_12px_32px_#000a] ${open ? "right-4 h-[min(30rem,calc(100%-2rem))] w-72 rounded-lg" : "right-0 h-32 w-8 rounded-l-lg border-r-0"}`}
       >
-        <h2 className="font-display flex-1 text-base font-semibold">Planets</h2>
-        <span className="text-ink-3 font-mono text-sm">{mine.length}</span>
-        <span aria-hidden="true" className="text-ink-3 text-xs">
-          {open ? "▴" : "▾"}
-        </span>
-      </button>
-      {open && (
-        <ul className="min-h-0 flex-1 overflow-y-auto">
-          {mine.map(({ mp, p }) => {
-            if (!p) return null;
-            const units = p.stacks.flat().reduce((n, s) => n + s.count, 0);
-            const building = p.queue.length;
-            const training = p.unitQueue.length;
-            return (
-              <li key={mp.id}>
-                <button
-                  type="button"
-                  title="Double-click to jump to it"
-                  aria-current={selected === mp.id}
-                  onClick={() => conn.local.setState({ selected: mp.id })}
-                  onDoubleClick={() => jump(mp.id)}
-                  onKeyDown={(e) => e.key === "Enter" && jump(mp.id)}
-                  className={`border-divider flex w-full items-center gap-2.5 rounded-none border-0 border-b px-3 py-2 text-left ${selected === mp.id ? "bg-highlight" : "hover:bg-item bg-transparent"}`}
-                >
-                  <PlanetIcon url={icons?.get(mp.id)} />
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="flex items-center gap-1.5 truncate font-semibold">
-                      {p.capital && (
-                        <span title="Capital" className="text-host">
-                          ★
+        {open ? (
+          <button
+            type="button"
+            aria-expanded
+            title="Collapse"
+            onClick={toggle}
+            className="bg-bar border-line flex h-10 flex-none items-center gap-2 rounded-none border-0 border-b px-3 text-left"
+          >
+            <h2 className="font-display flex-1 text-base font-semibold">
+              Planets
+            </h2>
+            <span className="text-ink-3 font-mono text-sm">{mine.length}</span>
+            <span aria-hidden="true" className="text-ink-3">
+              ›
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            aria-expanded={false}
+            aria-label="Show Planets"
+            title="Show Planets"
+            onClick={toggle}
+            className="text-ink-2 hover:bg-raised size-full rounded-none border-0 bg-transparent p-0 text-xl"
+          >
+            <span aria-hidden="true">‹</span>
+          </button>
+        )}
+        {open && (
+          <ul className="min-h-0 flex-1 overflow-y-auto">
+            {mine.map(({ mp, p }) => {
+              if (!p) return null;
+              const units = p.stacks.flat().reduce((n, s) => n + s.count, 0);
+              const building = p.queue.length;
+              const training = p.unitQueue.length;
+              return (
+                <li key={mp.id}>
+                  <button
+                    type="button"
+                    title="Double-click to jump to it"
+                    aria-current={selected === mp.id}
+                    onClick={() => conn.local.setState({ selected: mp.id })}
+                    onDoubleClick={() => jump(mp.id)}
+                    onKeyDown={(e) => e.key === "Enter" && jump(mp.id)}
+                    className={`border-divider flex w-full items-center gap-2.5 rounded-none border-0 border-b px-3 py-2 text-left ${selected === mp.id ? "bg-highlight" : "hover:bg-item bg-transparent"}`}
+                  >
+                    <PlanetIcon url={icons?.get(mp.id)} />
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="flex items-center gap-1.5 truncate font-semibold">
+                        {p.capital && (
+                          <span title="Capital" className="text-host">
+                            ★
+                          </span>
+                        )}
+                        {mp.name}
+                      </span>
+                      <span className="text-ink-3 truncate text-xs">
+                        {content.planetTypes.get(mp.type)?.name ?? mp.type}
+                      </span>
+                    </span>
+                    <span className="flex flex-col items-end gap-0.5 font-mono text-xs">
+                      {p.locked ? (
+                        <span className="text-danger">In Battle</span>
+                      ) : (
+                        <span
+                          className="text-ink-2"
+                          title="Units in its Stacks"
+                        >
+                          {units} units
                         </span>
                       )}
-                      {mp.name}
+                      {(building > 0 || training > 0) && (
+                        <span
+                          className="text-ok"
+                          title="Queued: buildings, units"
+                        >
+                          {building > 0 && `⚒${building}`}
+                          {building > 0 && training > 0 && " "}
+                          {training > 0 && `⚔${training}`}
+                        </span>
+                      )}
                     </span>
-                    <span className="text-ink-3 truncate text-xs">
-                      {content.planetTypes.get(mp.type)?.name ?? mp.type}
-                    </span>
-                  </span>
-                  <span className="flex flex-col items-end gap-0.5 font-mono text-xs">
-                    {p.locked ? (
-                      <span className="text-danger">In Battle</span>
-                    ) : (
-                      <span className="text-ink-2" title="Units in its Stacks">
-                        {units} units
-                      </span>
-                    )}
-                    {(building > 0 || training > 0) && (
-                      <span
-                        className="text-ok"
-                        title="Queued: buildings, units"
-                      >
-                        {building > 0 && `⚒${building}`}
-                        {building > 0 && training > 0 && " "}
-                        {training > 0 && `⚔${training}`}
-                      </span>
-                    )}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </ViewTransition>
   );
 }
 
