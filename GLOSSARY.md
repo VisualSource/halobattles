@@ -110,7 +110,11 @@ _Avoid_: Vision (Vision is galaxy-level), range (that's how far it fires)
 
 **Controller**:
 What drives one side of a Battle: it reads that side's fog-filtered view and issues orders. The AI is a Controller, and a player will be one later.
-_Avoid_: AI player, brain, bot (bots fill Seats, which is out of scope)
+_Avoid_: AI player, brain, Bot (a Bot plays a whole Seat; the Battle AI drives one side of one Battle)
+
+**Bot**:
+A Seat played by the AI: it reads only its View and sends only the commands a player could, at an Easy, Normal or Hard difficulty.
+_Avoid_: AI player, computer, CPU
 
 **Commander**:
 The AI Controller's side-level layer, which assigns each Squad a goal.
