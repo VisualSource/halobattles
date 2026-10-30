@@ -41,8 +41,13 @@ done():number {
   return offset ? this.bb!.readFloat64(this.bb_pos + offset) : 0.0;
 }
 
+lost():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 10);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startSavedProject(builder:flatbuffers.Builder) {
-  builder.startObject(3);
+  builder.startObject(4);
 }
 
 static addTech(builder:flatbuffers.Builder, techOffset:flatbuffers.Offset) {
@@ -57,16 +62,21 @@ static addDone(builder:flatbuffers.Builder, done:number) {
   builder.addFieldFloat64(2, done, 0.0);
 }
 
+static addLost(builder:flatbuffers.Builder, lost:boolean) {
+  builder.addFieldInt8(3, +lost, +false);
+}
+
 static endSavedProject(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createSavedProject(builder:flatbuffers.Builder, techOffset:flatbuffers.Offset, cost:number, done:number):flatbuffers.Offset {
+static createSavedProject(builder:flatbuffers.Builder, techOffset:flatbuffers.Offset, cost:number, done:number, lost:boolean):flatbuffers.Offset {
   SavedProject.startSavedProject(builder);
   SavedProject.addTech(builder, techOffset);
   SavedProject.addCost(builder, cost);
   SavedProject.addDone(builder, done);
+  SavedProject.addLost(builder, lost);
   return SavedProject.endSavedProject(builder);
 }
 
@@ -74,7 +84,8 @@ unpack(): SavedProjectT {
   return new SavedProjectT(
     this.tech(),
     this.cost(),
-    this.done()
+    this.done(),
+    this.lost()
   );
 }
 
@@ -83,6 +94,7 @@ unpackTo(_o: SavedProjectT): void {
   _o.tech = this.tech();
   _o.cost = this.cost();
   _o.done = this.done();
+  _o.lost = this.lost();
 }
 }
 
@@ -90,7 +102,8 @@ export class SavedProjectT implements flatbuffers.IGeneratedObject {
 constructor(
   public tech: string|Uint8Array|null = null,
   public cost: number = 0,
-  public done: number = 0.0
+  public done: number = 0.0,
+  public lost: boolean = false
 ){}
 
 
@@ -100,7 +113,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   return SavedProject.createSavedProject(builder,
     tech,
     this.cost,
-    this.done
+    this.done,
+    this.lost
   );
 }
 }

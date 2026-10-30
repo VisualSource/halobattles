@@ -251,7 +251,7 @@ table PlanetView {
   unit_queue: [QueueItem]; // every unit queue, by slot then order; own only
   rally_stack: ubyte;      // where trained units go; own Planets only
   richness: [Richness];    // per Resource; a Resource left out is none
-  labs: [Lab];             // own only: the Techs each Lab holds
+  labs: [Lab];             // the Techs each Lab holds; public, like its buildings
 }
 
 table Lab {
@@ -400,11 +400,13 @@ table Project {
   rate: double;
 }
 
-// A stopped Project, offered again beside the hand.
+// A guaranteed card, offered beside the hand until picked: a stopped
+// Project, or a lost Tech (lost, done 0, at its recovery cost right now).
 table SavedProject {
   tech: string;
   cost: uint32;
   done: double;
+  lost: bool;
 }
 
 // The viewer's own research. Never sent for anyone else.

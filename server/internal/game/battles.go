@@ -149,6 +149,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 		case sq.OnPad > 0: // a pad turret lasts only the Battle
 		case sq.Building:
 			if n == 0 {
+				s.loseLab(p, sq.Slot)
 				p.Buildings[sq.Slot] = ""
 			}
 		case n == 0:

@@ -153,6 +153,7 @@ func (s *State) SellBuilding(c *cs.Content, seat int, planet string, slot int) e
 		return errors.New("cancel that building's unit queue before selling it")
 	}
 	s.Players[seat].refund(c.Buildings[p.Buildings[slot]].Cost, c.Rulesets[RulesetID].SellRefundPercent)
+	s.loseLab(p, slot)
 	p.Buildings[slot] = ""
 	return nil
 }

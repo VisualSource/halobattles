@@ -407,7 +407,7 @@ describe("MatchConnection", () => {
             4,
             [new ProjectT("base:radar", "a", 2, 100, 20, 1000n, 2)],
             ["base:optics"],
-            [new SavedProjectT("base:geology", 120, 30)],
+            [new SavedProjectT("base:geology", 120, 30, true)],
           ),
         ),
       ),
@@ -432,7 +432,7 @@ describe("MatchConnection", () => {
         },
       ],
       hand: ["base:optics"],
-      saved: [{ tech: "base:geology", cost: 120, done: 30 }],
+      saved: [{ tech: "base:geology", cost: 120, done: 30, lost: true }],
     });
     // 20 done at 1 s, 2 a second: 30 at 6 s, and never past the cost.
     const [radar] = research?.projects ?? [];

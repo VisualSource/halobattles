@@ -387,7 +387,7 @@ func research(r *game.Research) *wire.ResearchT {
 		})
 	}
 	for _, v := range r.Saved {
-		out.Saved = append(out.Saved, &wire.SavedProjectT{Tech: v.Tech, Cost: uint32(v.Cost), Done: v.Done})
+		out.Saved = append(out.Saved, &wire.SavedProjectT{Tech: v.Tech, Cost: uint32(v.Cost), Done: v.Done, Lost: v.Lost})
 	}
 	return out
 }

@@ -76,7 +76,7 @@ type PlanetView struct {
 	UnitQueue []QueueItem // every unit queue, by slot then order; own only
 	Rally     int         // own only
 	Richness  map[string]string
-	Labs      map[int][]string // own only: the Techs each Lab holds, by Building Slot
+	Labs      map[int][]string // the Techs each Lab holds, by Building Slot
 }
 
 // ArmyView is an Army in vision. Other players' show only the current hop,
@@ -144,6 +144,11 @@ func (s *State) View(c *cs.Content, seat int) View {
 		Rate: s.researchRate(c, seat), Projects: slices.Clone(pl.Projects),
 		Hand: slices.Clone(pl.Hand), Saved: slices.Clone(pl.Saved),
 	}
+	for i, card := range v.Research.Saved {
+		if card.Lost {
+			v.Research.Saved[i].Cost = s.recoveryCost(c, seat, card.Tech)
+		}
+	}
 	counts := map[int]int{}
 	for _, p := range s.Planets {
 		counts[p.Owner]++
@@ -169,13 +174,13 @@ func (s *State) View(c *cs.Content, seat int) View {
 				pv.UnitQueue = append(pv.UnitQueue, p.UnitQueues[slot]...)
 			}
 			pv.Rally = p.Rally
-			for slot, techs := range p.Techs {
-				if c.Buildings[p.Buildings[slot]].TechSlots != nil && len(techs) > 0 {
-					if pv.Labs == nil {
-						pv.Labs = map[int][]string{}
-					}
-					pv.Labs[slot] = slices.Clone(techs)
+		}
+		for slot, techs := range p.Techs { // public, so a raid on a Lab can be planned
+			if c.Buildings[p.Buildings[slot]].TechSlots != nil && len(techs) > 0 {
+				if pv.Labs == nil {
+					pv.Labs = map[int][]string{}
 				}
+				pv.Labs[slot] = slices.Clone(techs)
 			}
 		}
 		v.Planets = append(v.Planets, pv)

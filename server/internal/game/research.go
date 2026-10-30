@@ -24,12 +24,33 @@ type Project struct {
 	Rate   float64 // its share of Research per second; 0 while paused
 }
 
-// Saved is a stopped Project, offered again beside the hand with its
-// progress and cost.
+// Saved is a guaranteed card, offered beside the hand until picked: a
+// stopped Project with its progress and cost, or a lost Tech, which costs
+// the Ruleset's recovery percentage of techCost when it's picked.
 type Saved struct {
 	Tech string
 	Cost int
 	Done float64
+	Lost bool
+}
+
+// recoveryCost is what researching a lost tech again costs seat now.
+func (s *State) recoveryCost(c *cs.Content, seat int, tech string) int {
+	return (s.techCost(c, seat, tech)*c.Rulesets[RulesetID].Tech.RecoveryPercent + 50) / 100
+}
+
+// loseLab empties the Lab in slot of p: its owner gets each Tech it held
+// back as a guaranteed card. Call it before the building leaves the slot.
+func (s *State) loseLab(p *Planet, slot int) {
+	techs := p.Techs[slot]
+	delete(p.Techs, slot)
+	if p.Owner == Neutral {
+		return
+	}
+	pl := &s.Players[p.Owner]
+	for _, t := range techs {
+		pl.Saved = append(pl.Saved, Saved{Tech: t, Lost: true})
+	}
 }
 
 // researchRate is seat's Research per second: its Capital's, plus each
@@ -154,10 +175,12 @@ func (s *State) labAt(c *cs.Content, seat int, planet string, slot int) (*Planet
 	return p, *n, true
 }
 
-// StartProject starts researching tech, a card from seat's hand or a saved
-// Project, in the Lab in slot of planet, reserving one of its Tech Slots. A
-// card from the hand costs what techCost says now; a saved one keeps its
-// cost and progress. Starting from the hand draws a new one.
+// StartProject starts researching tech, a card from seat's hand or a
+// guaranteed card, in the Lab in slot of planet, reserving one of its Tech
+// Slots. A card from the hand costs what techCost says now; a stopped
+// Project keeps its cost and progress; a lost Tech costs recoveryCost. A
+// guaranteed card still needs its requirements. Starting from the hand
+// draws a new one.
 func (s *State) StartProject(c *cs.Content, seat int, tech, planet string, slot int) error {
 	pl, err := s.player(seat)
 	if err != nil {
@@ -174,6 +197,8 @@ func (s *State) StartProject(c *cs.Content, seat int, tech, planet string, slot 
 	switch {
 	case !slices.Contains(pl.Hand, tech) && saved < 0:
 		return errors.New("that Tech isn't on offer")
+	case saved >= 0 && !s.requirementsMet(c, seat, tech, s.heldTechs(c, seat)):
+		return errors.New("you no longer have what that Tech requires")
 	case !isLab:
 		return fmt.Errorf("you have no Lab in Building Slot %d of %s", slot+1, planet)
 	case len(s.Planets[planet].Techs[slot])+reserved >= slots:
@@ -184,6 +209,9 @@ func (s *State) StartProject(c *cs.Content, seat int, tech, planet string, slot 
 	p := Project{Tech: tech, Planet: planet, Slot: slot, Since: s.Time}
 	if saved >= 0 {
 		p.Cost, p.Done = pl.Saved[saved].Cost, pl.Saved[saved].Done
+		if pl.Saved[saved].Lost {
+			p.Cost = s.recoveryCost(c, seat, tech)
+		}
 		pl.Saved = slices.Delete(pl.Saved, saved, saved+1)
 	} else {
 		p.Cost = s.techCost(c, seat, tech)

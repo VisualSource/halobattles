@@ -53,7 +53,7 @@ export type PlanetView = {
   unitQueue: QueueItem[]; // every unit queue, by slot then order; own only
   rallyStack: number; // where trained units go; own only
   richness: Map<string, string>; // per Resource; a Resource left out is none
-  labs: Map<number, string[]>; // own only: the Techs each Lab holds, by Building Slot
+  labs: Map<number, string[]>; // the Techs each Lab holds, by Building Slot
 };
 
 /**
@@ -199,7 +199,8 @@ export type Research = {
   rate: number; // Research per second
   projects: Project[];
   hand: string[]; // Techs offered
-  saved: { tech: string; cost: number; done: number }[]; // stopped Projects, offered again
+  // Guaranteed cards: stopped Projects, and lost Techs at their recovery cost.
+  saved: { tech: string; cost: number; done: number; lost: boolean }[];
 };
 
 /** A Project's progress at Match Time `now`. */

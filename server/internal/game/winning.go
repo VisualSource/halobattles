@@ -34,8 +34,8 @@ func (s *State) Forfeit(seat int) {
 }
 
 // eliminate takes a player out: their Planets turn neutral, keeping their
-// garrisons and buildings, and their Armies are destroyed, whether
-// travelling, waiting or Retreating.
+// garrisons and buildings, but their Labs are left empty; and their Armies
+// are destroyed, whether travelling, waiting or Retreating.
 func (s *State) eliminate(seat int, ev *Events) {
 	if s.Players[seat].Eliminated {
 		return
@@ -43,7 +43,7 @@ func (s *State) eliminate(seat int, ev *Events) {
 	s.Players[seat].Eliminated = true
 	for _, p := range s.Planets {
 		if p.Owner == seat {
-			p.Owner, p.Queue, p.UnitQueues, p.Rally = Neutral, nil, nil, 0
+			p.Owner, p.Queue, p.UnitQueues, p.Rally, p.Techs = Neutral, nil, nil, 0, nil
 		}
 	}
 	for id, a := range s.Armies {

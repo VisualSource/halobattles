@@ -273,6 +273,7 @@ const toResearch = (r: ResearchT): Research => ({
     tech: str(v.tech),
     cost: v.cost,
     done: v.done,
+    lost: v.lost,
   })),
 });
 

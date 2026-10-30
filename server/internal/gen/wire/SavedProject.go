@@ -10,6 +10,7 @@ type SavedProjectT struct {
 	Tech string  `json:"tech"`
 	Cost uint32  `json:"cost"`
 	Done float64 `json:"done"`
+	Lost bool    `json:"lost"`
 }
 
 func (t *SavedProjectT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -24,6 +25,7 @@ func (t *SavedProjectT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	SavedProjectAddTech(builder, techOffset)
 	SavedProjectAddCost(builder, t.Cost)
 	SavedProjectAddDone(builder, t.Done)
+	SavedProjectAddLost(builder, t.Lost)
 	return SavedProjectEnd(builder)
 }
 
@@ -31,6 +33,7 @@ func (rcv *SavedProject) UnPackTo(t *SavedProjectT) {
 	t.Tech = string(rcv.Tech())
 	t.Cost = rcv.Cost()
 	t.Done = rcv.Done()
+	t.Lost = rcv.Lost()
 }
 
 func (rcv *SavedProject) UnPack() *SavedProjectT {
@@ -109,8 +112,20 @@ func (rcv *SavedProject) MutateDone(n float64) bool {
 	return rcv._tab.MutateFloat64Slot(8, n)
 }
 
+func (rcv *SavedProject) Lost() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *SavedProject) MutateLost(n bool) bool {
+	return rcv._tab.MutateBoolSlot(10, n)
+}
+
 func SavedProjectStart(builder *flatbuffers.Builder) {
-	builder.StartObject(3)
+	builder.StartObject(4)
 }
 func SavedProjectAddTech(builder *flatbuffers.Builder, tech flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(tech), 0)
@@ -120,6 +135,9 @@ func SavedProjectAddCost(builder *flatbuffers.Builder, cost uint32) {
 }
 func SavedProjectAddDone(builder *flatbuffers.Builder, done float64) {
 	builder.PrependFloat64Slot(2, done, 0.0)
+}
+func SavedProjectAddLost(builder *flatbuffers.Builder, lost bool) {
+	builder.PrependBoolSlot(3, lost, false)
 }
 func SavedProjectEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
