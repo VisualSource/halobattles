@@ -18,6 +18,7 @@ type ViewFullT struct {
 	Armies      []*ArmyViewT   `json:"armies"`
 	Battles     []*BattleViewT `json:"battles"`
 	WinHold     *WinHoldT      `json:"win_hold"`
+	Research    *ResearchT     `json:"research"`
 }
 
 func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -90,6 +91,7 @@ func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		battlesOffset = builder.EndVector(battlesLength)
 	}
 	winHoldOffset := t.WinHold.Pack(builder)
+	researchOffset := t.Research.Pack(builder)
 	ViewFullStart(builder)
 	ViewFullAddMatchTime(builder, t.MatchTime)
 	ViewFullAddContentHash(builder, contentHashOffset)
@@ -102,6 +104,7 @@ func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	ViewFullAddArmies(builder, armiesOffset)
 	ViewFullAddBattles(builder, battlesOffset)
 	ViewFullAddWinHold(builder, winHoldOffset)
+	ViewFullAddResearch(builder, researchOffset)
 	return ViewFullEnd(builder)
 }
 
@@ -141,6 +144,7 @@ func (rcv *ViewFull) UnPackTo(t *ViewFullT) {
 		t.Battles[j] = x.UnPack()
 	}
 	t.WinHold = rcv.WinHold(nil).UnPack()
+	t.Research = rcv.Research(nil).UnPack()
 }
 
 func (rcv *ViewFull) UnPack() *ViewFullT {
@@ -368,8 +372,21 @@ func (rcv *ViewFull) WinHold(obj *WinHold) *WinHold {
 	return nil
 }
 
+func (rcv *ViewFull) Research(obj *Research) *Research {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(Research)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
+}
+
 func ViewFullStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(12)
 }
 func ViewFullAddMatchTime(builder *flatbuffers.Builder, matchTime int64) {
 	builder.PrependInt64Slot(0, matchTime, 0)
@@ -415,6 +432,9 @@ func ViewFullStartBattlesVector(builder *flatbuffers.Builder, numElems int) flat
 }
 func ViewFullAddWinHold(builder *flatbuffers.Builder, winHold flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(winHold), 0)
+}
+func ViewFullAddResearch(builder *flatbuffers.Builder, research flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(11, flatbuffers.UOffsetT(research), 0)
 }
 func ViewFullEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

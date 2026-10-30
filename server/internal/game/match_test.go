@@ -25,7 +25,9 @@ func lineContent() *cs.Content {
 		Rulesets: map[string]cs.Ruleset{RulesetID: {
 			PaydaySeconds: 90, CancelRefundPercent: 50, SellRefundPercent: 50, UnitSlotsPerStack: 10,
 			ToHit: 3, Sprawl: cs.Sprawl{FreePlanets: 4, Percent: 5},
-			Tech: cs.TechRules{ProjectLimit: 3, LabsPerPlanet: 3, HandSize: 3},
+			Tech: cs.TechRules{ProjectLimit: 3, LabsPerPlanet: 3, HandSize: 3, CapitalResearch: 2, CostScalingPercent: 10,
+				Rarities: map[string]cs.RarityRule{"common": {From: 0, Weight: 10}, "uncommon": {From: 4, Weight: 6},
+					"rare": {From: 8, Weight: 3}, "legendary": {From: 14, Weight: 1}}},
 		}},
 		WeaponTypes: battleContent().WeaponTypes,
 		Resources:   map[string]cs.Resource{"base:credits": {Name: "Credits"}, "base:materials": {Name: "Materials"}},

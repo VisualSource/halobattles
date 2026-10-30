@@ -362,6 +362,7 @@ func encodeView(v game.View, contentHash string) []byte {
 		MatchTime: v.Time, ContentHash: contentHash, Ruleset: game.RulesetID, Map: v.Map, You: uint8(v.You),
 		Players: players(v.Players), Planets: planets(v.Planets), Economy: economy(&v.Economy), Armies: armies(v.Armies),
 		Battles: battles(v.Battles, true), WinHold: &wire.WinHoldT{Seat: int8(v.Hold.Seat), Ends: v.Hold.Ends},
+		Research: research(&v.Research),
 	})
 }
 
@@ -371,7 +372,24 @@ func encodeDelta(d game.Delta) []byte {
 		RemovedPlanets: d.RemovedPlanets, Economy: economy(d.Economy),
 		Armies: armies(d.Armies), RemovedArmies: d.RemovedArmies,
 		Battles: battles(d.Battles, false), RemovedBattles: d.RemovedBattles, WinHold: winHold(d.Hold),
+		Research: research(d.Research),
 	})
+}
+
+func research(r *game.Research) *wire.ResearchT {
+	if r == nil {
+		return nil
+	}
+	out := &wire.ResearchT{Rate: uint32(r.Rate), Hand: r.Hand}
+	for _, p := range r.Projects {
+		out.Projects = append(out.Projects, &wire.ProjectT{
+			Tech: p.Tech, Planet: p.Planet, Slot: uint8(p.Slot), Cost: uint32(p.Cost), Done: p.Done, Since: p.Since, Rate: p.Rate,
+		})
+	}
+	for _, v := range r.Saved {
+		out.Saved = append(out.Saved, &wire.SavedProjectT{Tech: v.Tech, Cost: uint32(v.Cost), Done: v.Done})
+	}
+	return out
 }
 
 func winHold(h *game.Hold) *wire.WinHoldT {
@@ -473,6 +491,9 @@ func planets(ps []game.PlanetView) []*wire.PlanetViewT {
 		pv.Queue, pv.UnitQueue, pv.RallyStack = queueItems(p.Queue), queueItems(p.UnitQueue), uint8(p.Rally)
 		for _, r := range slices.Sorted(maps.Keys(p.Richness)) { // sorted, as the (key) needs
 			pv.Richness = append(pv.Richness, &wire.RichnessT{Resource: r, Level: p.Richness[r]})
+		}
+		for _, slot := range slices.Sorted(maps.Keys(p.Labs)) { // sorted, as the (key) needs
+			pv.Labs = append(pv.Labs, &wire.LabT{Slot: uint8(slot), Techs: p.Labs[slot]})
 		}
 		out = append(out, pv)
 	}

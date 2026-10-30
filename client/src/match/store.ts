@@ -53,6 +53,7 @@ export type PlanetView = {
   unitQueue: QueueItem[]; // every unit queue, by slot then order; own only
   rallyStack: number; // where trained units go; own only
   richness: Map<string, string>; // per Resource; a Resource left out is none
+  labs: Map<number, string[]>; // own only: the Techs each Lab holds, by Building Slot
 };
 
 /**
@@ -179,6 +180,32 @@ export type Economy = {
   projected: Map<string, number>; // what the next Payday would change if it came now; before caps
 };
 
+/**
+ * A running Project: `done` Research as of `since` (Match Time), growing at
+ * `rate` per second (0 while paused) until it reaches `cost`.
+ */
+export type Project = {
+  tech: string;
+  planet: string;
+  slot: number; // its Lab's Building Slot
+  cost: number;
+  done: number;
+  since: number;
+  rate: number;
+};
+
+/** Your own research; nobody else's is ever sent. */
+export type Research = {
+  rate: number; // Research per second
+  projects: Project[];
+  hand: string[]; // Techs offered
+  saved: { tech: string; cost: number; done: number }[]; // stopped Projects, offered again
+};
+
+/** A Project's progress at Match Time `now`. */
+export const projectDone = (p: Project, now: number) =>
+  Math.min(p.cost, p.done + (p.rate * (now - p.since)) / 1000);
+
 export type View = {
   matchTime: number; // ms since Start
   contentHash: string;
@@ -190,6 +217,7 @@ export type View = {
   armies: Map<number, Army>;
   battles: Map<number, Battle>;
   economy: Economy;
+  research: Research;
   winHold: WinHold;
 };
 
@@ -204,6 +232,7 @@ export type ViewDelta = {
   battles: Battle[];
   removedBattles: number[];
   economy: Economy | null; // null when unchanged
+  research: Research | null; // null when unchanged
   winHold: WinHold | null; // null when unchanged
 };
 
@@ -227,6 +256,7 @@ export function applyDelta(view: View, d: ViewDelta): View {
     armies,
     battles,
     economy: d.economy ?? view.economy,
+    research: d.research ?? view.research,
     winHold: d.winHold ?? view.winHold,
   };
 }

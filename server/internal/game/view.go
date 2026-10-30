@@ -20,8 +20,18 @@ type View struct {
 	Planets []PlanetView // only Planets in vision, sorted by id
 	Armies  []ArmyView   // only Armies in vision, sorted by id
 	Battles []BattleView // only the viewer's own Battles, as a side, sorted by id
-	Economy Economy
-	Hold    Hold // public
+	Economy  Economy
+	Research Research
+	Hold     Hold // public
+}
+
+// Research is the viewer's own: their Research rate, Projects, hand and
+// saved Projects.
+type Research struct {
+	Rate     int
+	Projects []Project
+	Hand     []string
+	Saved    []Saved
 }
 
 // Hold is the running win-hold countdown, if any.
@@ -66,6 +76,7 @@ type PlanetView struct {
 	UnitQueue []QueueItem // every unit queue, by slot then order; own only
 	Rally     int         // own only
 	Richness  map[string]string
+	Labs      map[int][]string // own only: the Techs each Lab holds, by Building Slot
 }
 
 // ArmyView is an Army in vision. Other players' show only the current hop,
@@ -128,6 +139,11 @@ func (s *State) View(c *cs.Content, seat int) View {
 		PaydayStart: s.NextPayday - s.PaydayEvery, PaydayEnd: s.NextPayday,
 		Caps: s.caps(c, seat), Projected: s.paydayNet(c, seat),
 	}
+	pl := s.Players[seat]
+	v.Research = Research{
+		Rate: s.researchRate(c, seat), Projects: slices.Clone(pl.Projects),
+		Hand: slices.Clone(pl.Hand), Saved: slices.Clone(pl.Saved),
+	}
 	counts := map[int]int{}
 	for _, p := range s.Planets {
 		counts[p.Owner]++
@@ -153,6 +169,14 @@ func (s *State) View(c *cs.Content, seat int) View {
 				pv.UnitQueue = append(pv.UnitQueue, p.UnitQueues[slot]...)
 			}
 			pv.Rally = p.Rally
+			for slot, techs := range p.Techs {
+				if c.Buildings[p.Buildings[slot]].TechSlots != nil && len(techs) > 0 {
+					if pv.Labs == nil {
+						pv.Labs = map[int][]string{}
+					}
+					pv.Labs[slot] = slices.Clone(techs)
+				}
+			}
 		}
 		v.Planets = append(v.Planets, pv)
 	}
@@ -202,6 +226,7 @@ type Delta struct {
 	Battles        []BattleView // sorted by id
 	RemovedBattles []uint32     // sorted
 	Economy        *Economy     // nil when unchanged
+	Research       *Research    // nil when unchanged
 	Hold           *Hold        // nil when unchanged
 }
 
@@ -220,11 +245,14 @@ func Diff(prev, next View) (Delta, bool) {
 	if !reflect.DeepEqual(prev.Economy, next.Economy) {
 		d.Economy = &next.Economy
 	}
+	if !reflect.DeepEqual(prev.Research, next.Research) {
+		d.Research = &next.Research
+	}
 	if prev.Hold != next.Hold {
 		d.Hold = &next.Hold
 	}
 	changed := len(d.Players)+len(d.Planets)+len(d.RemovedPlanets)+len(d.Armies)+len(d.RemovedArmies)+
-		len(d.Battles)+len(d.RemovedBattles) > 0 || d.Economy != nil || d.Hold != nil
+		len(d.Battles)+len(d.RemovedBattles) > 0 || d.Economy != nil || d.Research != nil || d.Hold != nil
 	return d, changed
 }
 

@@ -22,6 +22,8 @@ export enum Op {
   BattleCancelRetreat = 16,
   BattleBuildTurret = 17,
   Exchange = 18,
+  StartProject = 19,
+  CancelProject = 20,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,

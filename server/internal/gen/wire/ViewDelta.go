@@ -17,6 +17,7 @@ type ViewDeltaT struct {
 	Battles        []*BattleViewT `json:"battles"`
 	RemovedBattles []uint32       `json:"removed_battles"`
 	WinHold        *WinHoldT      `json:"win_hold"`
+	Research       *ResearchT     `json:"research"`
 }
 
 func (t *ViewDeltaT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -108,6 +109,7 @@ func (t *ViewDeltaT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		removedBattlesOffset = builder.EndVector(removedBattlesLength)
 	}
 	winHoldOffset := t.WinHold.Pack(builder)
+	researchOffset := t.Research.Pack(builder)
 	ViewDeltaStart(builder)
 	ViewDeltaAddMatchTime(builder, t.MatchTime)
 	ViewDeltaAddPlayers(builder, playersOffset)
@@ -119,6 +121,7 @@ func (t *ViewDeltaT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	ViewDeltaAddBattles(builder, battlesOffset)
 	ViewDeltaAddRemovedBattles(builder, removedBattlesOffset)
 	ViewDeltaAddWinHold(builder, winHoldOffset)
+	ViewDeltaAddResearch(builder, researchOffset)
 	return ViewDeltaEnd(builder)
 }
 
@@ -169,6 +172,7 @@ func (rcv *ViewDelta) UnPackTo(t *ViewDeltaT) {
 		t.RemovedBattles[j] = rcv.RemovedBattles(j)
 	}
 	t.WinHold = rcv.WinHold(nil).UnPack()
+	t.Research = rcv.Research(nil).UnPack()
 }
 
 func (rcv *ViewDelta) UnPack() *ViewDeltaT {
@@ -429,8 +433,21 @@ func (rcv *ViewDelta) WinHold(obj *WinHold) *WinHold {
 	return nil
 }
 
+func (rcv *ViewDelta) Research(obj *Research) *Research {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(Research)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
+}
+
 func ViewDeltaStart(builder *flatbuffers.Builder) {
-	builder.StartObject(10)
+	builder.StartObject(11)
 }
 func ViewDeltaAddMatchTime(builder *flatbuffers.Builder, matchTime int64) {
 	builder.PrependInt64Slot(0, matchTime, 0)
@@ -482,6 +499,9 @@ func ViewDeltaStartRemovedBattlesVector(builder *flatbuffers.Builder, numElems i
 }
 func ViewDeltaAddWinHold(builder *flatbuffers.Builder, winHold flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(winHold), 0)
+}
+func ViewDeltaAddResearch(builder *flatbuffers.Builder, research flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(research), 0)
 }
 func ViewDeltaEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

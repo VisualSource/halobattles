@@ -62,6 +62,12 @@ type Player struct {
 	Forfeiting   bool // eliminated on the next tick
 	// Planets seen through Armies, and the Match Time each sighting ends.
 	Sighted map[string]int64
+	// Research: running Projects, the hand of Techs offered, Projects
+	// stopped with their progress kept, and how many hands have been drawn.
+	Projects []Project
+	Hand     []string
+	Saved    []Saved
+	Draws    uint64
 }
 
 // State is the full, authoritative state of a running Match. It is plain

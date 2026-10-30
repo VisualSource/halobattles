@@ -139,6 +139,16 @@ func (s *matchState) handle(msg runtime.MatchData, tick int64, earlier int) (seq
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
 			return s.play.Exchange(doc, s.seat(user), string(c.Give()), string(c.Get()), int(c.Amount()))
 		}
+	case wire.OpStartProject:
+		c := wire.GetRootAsStartProject(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.StartProject(doc, s.seat(user), string(c.Tech()), string(c.Planet()), int(c.Slot()))
+		}
+	case wire.OpCancelProject:
+		c := wire.GetRootAsCancelProject(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.CancelProject(s.seat(user), string(c.Tech()))
+		}
 	case wire.OpSetRallyStack:
 		c := wire.GetRootAsSetRallyStack(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {

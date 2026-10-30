@@ -31,6 +31,7 @@ func (s *State) Advance(c *cs.Content, now int64) Events {
 		s.NextPayday += s.PaydayEvery
 	}
 	s.build(c, now) // after Payday, so income that clears a debt resumes queues now
+	s.research(c, now)
 	return ev
 }
 

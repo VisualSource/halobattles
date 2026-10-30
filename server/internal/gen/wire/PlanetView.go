@@ -18,6 +18,7 @@ type PlanetViewT struct {
 	UnitQueue  []*QueueItemT `json:"unit_queue"`
 	RallyStack byte          `json:"rally_stack"`
 	Richness   []*RichnessT  `json:"richness"`
+	Labs       []*LabT       `json:"labs"`
 }
 
 func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -93,6 +94,19 @@ func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		}
 		richnessOffset = builder.EndVector(richnessLength)
 	}
+	labsOffset := flatbuffers.UOffsetT(0)
+	if t.Labs != nil {
+		labsLength := len(t.Labs)
+		labsOffsets := make([]flatbuffers.UOffsetT, labsLength)
+		for j := 0; j < labsLength; j++ {
+			labsOffsets[j] = t.Labs[j].Pack(builder)
+		}
+		PlanetViewStartLabsVector(builder, labsLength)
+		for j := labsLength - 1; j >= 0; j-- {
+			builder.PrependUOffsetT(labsOffsets[j])
+		}
+		labsOffset = builder.EndVector(labsLength)
+	}
 	PlanetViewStart(builder)
 	PlanetViewAddId(builder, idOffset)
 	PlanetViewAddOwner(builder, t.Owner)
@@ -104,6 +118,7 @@ func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	PlanetViewAddUnitQueue(builder, unitQueueOffset)
 	PlanetViewAddRallyStack(builder, t.RallyStack)
 	PlanetViewAddRichness(builder, richnessOffset)
+	PlanetViewAddLabs(builder, labsOffset)
 	return PlanetViewEnd(builder)
 }
 
@@ -145,6 +160,13 @@ func (rcv *PlanetView) UnPackTo(t *PlanetViewT) {
 		x := Richness{}
 		rcv.Richness(&x, j)
 		t.Richness[j] = x.UnPack()
+	}
+	labsLength := rcv.LabsLength()
+	t.Labs = make([]*LabT, labsLength)
+	for j := 0; j < labsLength; j++ {
+		x := Lab{}
+		rcv.Labs(&x, j)
+		t.Labs[j] = x.UnPack()
 	}
 }
 
@@ -386,8 +408,37 @@ func (rcv *PlanetView) RichnessLength() int {
 	return 0
 }
 
+func (rcv *PlanetView) Labs(obj *Lab, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 4
+		x = rcv._tab.Indirect(x)
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *PlanetView) LabsByKey(obj *Lab, key byte) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		return obj.LookupByKey(key, x, rcv._tab.Bytes)
+	}
+	return false
+}
+
+func (rcv *PlanetView) LabsLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func PlanetViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(10)
+	builder.StartObject(11)
 }
 func PlanetViewAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -432,6 +483,12 @@ func PlanetViewAddRichness(builder *flatbuffers.Builder, richness flatbuffers.UO
 	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(richness), 0)
 }
 func PlanetViewStartRichnessVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(4, numElems, 4)
+}
+func PlanetViewAddLabs(builder *flatbuffers.Builder, labs flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(labs), 0)
+}
+func PlanetViewStartLabsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func PlanetViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {

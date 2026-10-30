@@ -9,6 +9,7 @@ import { BattleView, BattleViewT } from '../wire/battle-view.js';
 import { Economy, EconomyT } from '../wire/economy.js';
 import { PlanetView, PlanetViewT } from '../wire/planet-view.js';
 import { PlayerView, PlayerViewT } from '../wire/player-view.js';
+import { Research, ResearchT } from '../wire/research.js';
 import { WinHold, WinHoldT } from '../wire/win-hold.js';
 
 
@@ -111,8 +112,13 @@ winHold(obj?:WinHold):WinHold|null {
   return offset ? (obj || new WinHold()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
 }
 
+research(obj?:Research):Research|null {
+  const offset = this.bb!.__offset(this.bb_pos, 26);
+  return offset ? (obj || new Research()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
+}
+
 static startViewFull(builder:flatbuffers.Builder) {
-  builder.startObject(11);
+  builder.startObject(12);
 }
 
 static addMatchTime(builder:flatbuffers.Builder, matchTime:bigint) {
@@ -207,6 +213,10 @@ static addWinHold(builder:flatbuffers.Builder, winHoldOffset:flatbuffers.Offset)
   builder.addFieldOffset(10, winHoldOffset, 0);
 }
 
+static addResearch(builder:flatbuffers.Builder, researchOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(11, researchOffset, 0);
+}
+
 static endViewFull(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -225,7 +235,8 @@ unpack(): ViewFullT {
     (this.economy() !== null ? this.economy()!.unpack() : null),
     this.bb!.createObjList<ArmyView, ArmyViewT>(this.armies.bind(this), this.armiesLength()),
     this.bb!.createObjList<BattleView, BattleViewT>(this.battles.bind(this), this.battlesLength()),
-    (this.winHold() !== null ? this.winHold()!.unpack() : null)
+    (this.winHold() !== null ? this.winHold()!.unpack() : null),
+    (this.research() !== null ? this.research()!.unpack() : null)
   );
 }
 
@@ -242,6 +253,7 @@ unpackTo(_o: ViewFullT): void {
   _o.armies = this.bb!.createObjList<ArmyView, ArmyViewT>(this.armies.bind(this), this.armiesLength());
   _o.battles = this.bb!.createObjList<BattleView, BattleViewT>(this.battles.bind(this), this.battlesLength());
   _o.winHold = (this.winHold() !== null ? this.winHold()!.unpack() : null);
+  _o.research = (this.research() !== null ? this.research()!.unpack() : null);
 }
 }
 
@@ -257,7 +269,8 @@ constructor(
   public economy: EconomyT|null = null,
   public armies: (ArmyViewT)[] = [],
   public battles: (BattleViewT)[] = [],
-  public winHold: WinHoldT|null = null
+  public winHold: WinHoldT|null = null,
+  public research: ResearchT|null = null
 ){}
 
 
@@ -271,6 +284,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const armies = ViewFull.createArmiesVector(builder, builder.createObjectOffsetList(this.armies));
   const battles = ViewFull.createBattlesVector(builder, builder.createObjectOffsetList(this.battles));
   const winHold = (this.winHold !== null ? this.winHold!.pack(builder) : 0);
+  const research = (this.research !== null ? this.research!.pack(builder) : 0);
 
   ViewFull.startViewFull(builder);
   ViewFull.addMatchTime(builder, this.matchTime);
@@ -284,6 +298,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   ViewFull.addArmies(builder, armies);
   ViewFull.addBattles(builder, battles);
   ViewFull.addWinHold(builder, winHold);
+  ViewFull.addResearch(builder, research);
 
   return ViewFull.endViewFull(builder);
 }

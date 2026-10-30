@@ -25,6 +25,8 @@ enum Op : int {
   BattleCancelRetreat = 16,
   BattleBuildTurret = 17,
   Exchange = 18,
+  StartProject = 19,
+  CancelProject = 20,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -168,6 +170,18 @@ table Exchange {          // any time in play, even in debt
   amount: int;             // how much to give: a whole multiple of its rate's giveAmount
 }
 
+table StartProject {      // a Tech from the hand or a saved Project, in a Lab with a free Tech Slot
+  seq: uint32;
+  tech: string;
+  planet: string;
+  slot: ubyte;             // the Lab's Building Slot
+}
+
+table CancelProject {     // saved with its progress
+  seq: uint32;
+  tech: string;
+}
+
 // Server messages.
 
 table Seat {
@@ -237,6 +251,12 @@ table PlanetView {
   unit_queue: [QueueItem]; // every unit queue, by slot then order; own only
   rally_stack: ubyte;      // where trained units go; own Planets only
   richness: [Richness];    // per Resource; a Resource left out is none
+  labs: [Lab];             // own only: the Techs each Lab holds
+}
+
+table Lab {
+  slot: ubyte (key);       // its Building Slot
+  techs: [string];
 }
 
 table Richness {
@@ -368,6 +388,33 @@ table Economy {
   projected: [Amount];     // what the next Payday would change if it came now, Upkeep and refining included; before caps
 }
 
+// A running Project: done Research as of since, growing at rate per second
+// (0 while paused) until it reaches cost. It changes only when its rate does.
+table Project {
+  tech: string;
+  planet: string;
+  slot: ubyte;             // its Lab's Building Slot
+  cost: uint32;
+  done: double;
+  since: long;             // Match Time
+  rate: double;
+}
+
+// A stopped Project, offered again beside the hand.
+table SavedProject {
+  tech: string;
+  cost: uint32;
+  done: double;
+}
+
+// The viewer's own research. Never sent for anyone else.
+table Research {
+  rate: uint32;            // Research per second
+  projects: [Project];
+  hand: [string];          // Techs offered
+  saved: [SavedProject];
+}
+
 // Sent on entering play and on every rejoin. Content is referred to by id;
 // a client whose cached content doesn't match content_hash refetches it.
 table ViewFull {
@@ -382,6 +429,7 @@ table ViewFull {
   armies: [ArmyView];
   battles: [BattleView];
   win_hold: WinHold;
+  research: Research;
 }
 
 // Sent on a tick when the viewer's View changed since the last one sent.
@@ -397,6 +445,7 @@ table ViewDelta {
   battles: [BattleView];
   removed_battles: [uint32];
   win_hold: WinHold;       // absent when unchanged
+  research: Research;      // absent when unchanged
 }
 
 // Sent to everyone who can see the Planet, and its previous owner.

@@ -4,6 +4,7 @@
 
 import * as flatbuffers from 'flatbuffers';
 
+import { Lab, LabT } from '../wire/lab.js';
 import { QueueItem, QueueItemT } from '../wire/queue-item.js';
 import { Richness, RichnessT } from '../wire/richness.js';
 import { Stack, StackT } from '../wire/stack.js';
@@ -106,8 +107,18 @@ richnessLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+labs(index: number, obj?:Lab):Lab|null {
+  const offset = this.bb!.__offset(this.bb_pos, 24);
+  return offset ? (obj || new Lab()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+labsLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 24);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
 static startPlanetView(builder:flatbuffers.Builder) {
-  builder.startObject(10);
+  builder.startObject(11);
 }
 
 static addId(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset) {
@@ -210,13 +221,29 @@ static startRichnessVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addLabs(builder:flatbuffers.Builder, labsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(10, labsOffset, 0);
+}
+
+static createLabsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startLabsVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
 static endPlanetView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   builder.requiredField(offset, 4) // id
   return offset;
 }
 
-static createPlanetView(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset, owner:number, capital:boolean, locked:boolean, buildingsOffset:flatbuffers.Offset, stacksOffset:flatbuffers.Offset, queueOffset:flatbuffers.Offset, unitQueueOffset:flatbuffers.Offset, rallyStack:number, richnessOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createPlanetView(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset, owner:number, capital:boolean, locked:boolean, buildingsOffset:flatbuffers.Offset, stacksOffset:flatbuffers.Offset, queueOffset:flatbuffers.Offset, unitQueueOffset:flatbuffers.Offset, rallyStack:number, richnessOffset:flatbuffers.Offset, labsOffset:flatbuffers.Offset):flatbuffers.Offset {
   PlanetView.startPlanetView(builder);
   PlanetView.addId(builder, idOffset);
   PlanetView.addOwner(builder, owner);
@@ -228,6 +255,7 @@ static createPlanetView(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset
   PlanetView.addUnitQueue(builder, unitQueueOffset);
   PlanetView.addRallyStack(builder, rallyStack);
   PlanetView.addRichness(builder, richnessOffset);
+  PlanetView.addLabs(builder, labsOffset);
   return PlanetView.endPlanetView(builder);
 }
 
@@ -242,7 +270,8 @@ unpack(): PlanetViewT {
     this.bb!.createObjList<QueueItem, QueueItemT>(this.queue.bind(this), this.queueLength()),
     this.bb!.createObjList<QueueItem, QueueItemT>(this.unitQueue.bind(this), this.unitQueueLength()),
     this.rallyStack(),
-    this.bb!.createObjList<Richness, RichnessT>(this.richness.bind(this), this.richnessLength())
+    this.bb!.createObjList<Richness, RichnessT>(this.richness.bind(this), this.richnessLength()),
+    this.bb!.createObjList<Lab, LabT>(this.labs.bind(this), this.labsLength())
   );
 }
 
@@ -258,6 +287,7 @@ unpackTo(_o: PlanetViewT): void {
   _o.unitQueue = this.bb!.createObjList<QueueItem, QueueItemT>(this.unitQueue.bind(this), this.unitQueueLength());
   _o.rallyStack = this.rallyStack();
   _o.richness = this.bb!.createObjList<Richness, RichnessT>(this.richness.bind(this), this.richnessLength());
+  _o.labs = this.bb!.createObjList<Lab, LabT>(this.labs.bind(this), this.labsLength());
 }
 }
 
@@ -272,7 +302,8 @@ constructor(
   public queue: (QueueItemT)[] = [],
   public unitQueue: (QueueItemT)[] = [],
   public rallyStack: number = 0,
-  public richness: (RichnessT)[] = []
+  public richness: (RichnessT)[] = [],
+  public labs: (LabT)[] = []
 ){}
 
 
@@ -283,6 +314,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const queue = PlanetView.createQueueVector(builder, builder.createObjectOffsetList(this.queue));
   const unitQueue = PlanetView.createUnitQueueVector(builder, builder.createObjectOffsetList(this.unitQueue));
   const richness = PlanetView.createRichnessVector(builder, builder.createObjectOffsetList(this.richness));
+  const labs = PlanetView.createLabsVector(builder, builder.createObjectOffsetList(this.labs));
 
   return PlanetView.createPlanetView(builder,
     id,
@@ -294,7 +326,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     queue,
     unitQueue,
     this.rallyStack,
-    richness
+    richness,
+    labs
   );
 }
 }
