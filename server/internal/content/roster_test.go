@@ -202,7 +202,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	d := c.Doc
 
 	counts := map[string][2]int{
-		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 18},
+		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 22}, "techs": {len(d.Techs), 23},
 		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
 		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 3},
 		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
@@ -257,6 +257,26 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	}
 	if r := d.Rulesets["base:rules"].Tech; r.ProjectLimit != 3 || r.LabsPerPlanet != 3 || r.Rarities["legendary"].From != 14 {
 		t.Errorf("tech rules = %+v", r)
+	}
+	techs := map[string]int{}
+	for _, t := range d.Techs {
+		f := "shared"
+		if t.Faction != nil {
+			f = string(*t.Faction)
+		}
+		techs[f]++
+	}
+	if techs["shared"] != 7 || techs["base:unsc"] != 8 || techs["base:covenant"] != 8 {
+		t.Errorf("Techs per Faction = %v, want 7 shared and 8 each", techs)
+	}
+	if mbt := d.Techs["base:main-battle-tank"]; mbt.Cost != 600 || mbt.Requires.Techs[0] != "base:motor-pool" || mbt.Unlocks.Units[0] != "base:scorpion" {
+		t.Errorf("main-battle-tank = %+v", mbt)
+	}
+	if r := d.Techs["base:forerunner-relic-study"]; r.Rarity != "legendary" || r.Requires.Buildings[0] != "base:relic-shrine" {
+		t.Errorf("forerunner-relic-study = %+v", r)
+	}
+	if st := d.Buildings["base:seminary"]; st.Research == nil || *st.Research != 2 {
+		t.Errorf("seminary = %+v", st)
 	}
 
 	m := d.Maps["base:quadrant"]

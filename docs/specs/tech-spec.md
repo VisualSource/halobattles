@@ -167,7 +167,7 @@ A draft for review. Requirements in parentheses; "UNSC" units below means the ho
 |---|---|---|
 | Motor Pool | Common | unlocks Vehicle Depot, Warthog |
 | Marine Training Program | Common | +10% Infantry HP |
-| ONI Data Mining | Common | +10% Research |
+| ONI Data Mining | Common | +1 Research |
 | Main Battle Tank | Uncommon (Motor Pool) | unlocks Scorpion |
 | Air Wing | Uncommon (Motor Pool) | unlocks Air Pad, Hornet |
 | Titanium-A Plating | Uncommon | +10% Vehicle and Aircraft Armor |
@@ -180,7 +180,7 @@ A draft for review. Requirements in parentheses; "UNSC" units below means the ho
 |---|---|---|
 | Ghost Fabrication | Common | unlocks Summoning Foundry, Ghost |
 | Unggoy Conscription | Common | −10% Infantry build time |
-| San'Shyuum Archives | Common | +10% Research |
+| San'Shyuum Archives | Common | +1 Research |
 | Wraith Fabrication | Uncommon (Ghost Fabrication) | unlocks Wraith |
 | Banshee Flight | Uncommon (Ghost Fabrication) | unlocks Summit, Banshee |
 | Shield Harmonics | Uncommon | +10% Shield, every unit |

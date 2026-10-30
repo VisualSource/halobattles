@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "logistics-command",
+  "name": "Logistics Command",
+  "faction": "unsc",
+  "rarity": "rare",
+  "cost": 1200,
+  "effects": [{ "stat": "commandPoints", "amount": 10 }]
+}

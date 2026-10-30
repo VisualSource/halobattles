@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "titanium-a-plating",
+  "name": "Titanium-A Plating",
+  "faction": "unsc",
+  "rarity": "uncommon",
+  "cost": 600,
+  "effects": [{ "stat": "armor", "percent": 10, "unitClass": "vehicle" }, { "stat": "armor", "percent": 10, "unitClass": "aircraft" }]
+}

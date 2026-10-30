@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "sanshyuum-archives",
+  "name": "San'Shyuum Archives",
+  "faction": "covenant",
+  "rarity": "common",
+  "cost": 300,
+  "effects": [{ "stat": "research", "amount": 1 }]
+}

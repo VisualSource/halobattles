@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "forerunner-reverse-engineering",
+  "name": "Forerunner Reverse-Engineering",
+  "faction": "unsc",
+  "rarity": "legendary",
+  "cost": 2400,
+  "requires": { "buildings": ["forerunner-dig-site"] },
+  "effects": [{ "stat": "techSlots", "amount": 1 }, { "stat": "projectLimit", "amount": 1 }]
+}

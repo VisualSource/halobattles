@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "parallel-research",
+  "name": "Parallel Research",
+  "rarity": "rare",
+  "cost": 1200,
+  "effects": [{ "stat": "projectLimit", "amount": 1 }]
+}

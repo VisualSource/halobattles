@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "wraith-fabrication",
+  "name": "Wraith Fabrication",
+  "faction": "covenant",
+  "rarity": "uncommon",
+  "cost": 600,
+  "requires": { "techs": ["ghost-fabrication"] },
+  "unlocks": { "units": ["wraith"] }
+}

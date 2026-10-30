@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "main-battle-tank",
+  "name": "Main Battle Tank",
+  "faction": "unsc",
+  "rarity": "uncommon",
+  "cost": 600,
+  "requires": { "techs": ["motor-pool"] },
+  "unlocks": { "units": ["scorpion"] }
+}
