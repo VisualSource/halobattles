@@ -10,6 +10,7 @@ export type CommandKind =
   | "map"
   | "startingResources"
   | "start"
+  | "bot"
   | "build"
   | "cancel"
   | "sell"

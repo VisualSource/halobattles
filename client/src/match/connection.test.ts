@@ -2,6 +2,7 @@ import type { MatchData, Session } from "@heroiclabs/nakama-js";
 import * as flatbuffers from "flatbuffers";
 import { describe, expect, it, vi } from "vitest";
 import {
+  AddBot,
   AmountT,
   ArmyViewT,
   BattleEndedT,
@@ -29,6 +30,7 @@ import {
   QueueBuilding,
   QueueItemT,
   QueueUnit,
+  RemoveBot,
   ResearchT,
   RichnessT,
   SavedProjectT,
@@ -597,6 +599,27 @@ describe("MatchConnection", () => {
       "surrender",
       "exchange",
     ]);
+  });
+
+  it("sends the Host's Bot commands", async () => {
+    const { socket } = fakeSocket();
+    const sent: [number, Uint8Array][] = [];
+    socket.sendMatchState = async (_id, op, data) => {
+      sent.push([op, data as Uint8Array]);
+    };
+    const conn = new MatchConnection(socket, { log: false });
+    await conn.open({} as Session, "m1");
+
+    conn.addBot("base:covenant", "hard");
+    conn.removeBot("bot:1");
+
+    expect(sent.map(([op]) => op)).toEqual([Op.AddBot, Op.RemoveBot]);
+    const bb = (i: number) =>
+      new flatbuffers.ByteBuffer(sent[i]?.[1] ?? new Uint8Array());
+    const a = AddBot.getRootAsAddBot(bb(0)).unpack();
+    expect([a.faction, a.difficulty]).toEqual(["base:covenant", "hard"]);
+    expect(RemoveBot.getRootAsRemoveBot(bb(1)).unpack().user).toBe("bot:1");
+    expect([...conn.local.getState().pending.values()]).toEqual(["bot", "bot"]);
   });
 
   it("applies Armies in a ViewDelta: upserts and removals", async () => {
