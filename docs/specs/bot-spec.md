@@ -62,6 +62,7 @@ The Match's win conditions add to goal scores. Each condition has its own rules,
 ### Planning
 
 - The top-scoring goals are funded in score order until the budget is spent. Each gets a **GOAP plan**: a depth-capped search over abstract facts, to the difficulty's **plan depth**.
+- A goal it can't afford now but can after the next Payday is **saved for**: nothing scoring less is funded that think. One that even the next Payday can't afford is passed over.
 - Facts are things like *has an Army of strength N at Planet X*, *has a production building for unit U*, *can afford C*, *holds Tech T*. Actions turn into commands: build, train, research, move units, order an Army, Exchange.
 - Only a plan's first actions are sent. The next think plans again from the new View, so nothing is tracked step by step.
 

@@ -38,14 +38,19 @@ func (b *Bot) goals(v game.View) []goal {
 	hops := b.hops(v)
 	own, enemy := 0.0, 0.0 // the Bot's whole strength, and the strongest enemy force it knows of
 	owned := 0
-	var extractors int
+	var slots, empty int // Building Slots on its Planets, and those with nothing built or building
+	var mine []game.PlanetView
 	for _, p := range v.Planets {
 		if p.Owner == v.You {
 			owned++
+			if !p.Locked {
+				mine = append(mine, p) // as newTurn's: a Locked Planet's Lab can't start a Project
+			}
 			own += planetStrength(b.c, p)
-			for _, id := range p.Buildings {
-				if len(b.c.Buildings[id].Extracts) > 0 {
-					extractors++
+			slots += len(p.Buildings)
+			for s, id := range p.Buildings {
+				if id == "" && !slices.ContainsFunc(p.Queue, func(q game.QueueItem) bool { return q.Slot == s }) {
+					empty++
 				}
 			}
 		}
@@ -122,10 +127,14 @@ func (b *Bot) goals(v game.View) []goal {
 		}
 	}
 
-	add(economy, "", 1.2*float64(owned)/float64(1+extractors))
+	add(economy, "", 0.4+1.6*float64(empty)/float64(max(1, slots))) // empty slots: income its Planets could make
 	add(army, "", 0.8+min(3, max(0, enemy-own)/max(own, 1)))
 	if free := v.Research.Limit - len(v.Research.Projects); free > 0 && len(v.Research.Hand)+len(v.Research.Saved) > 0 {
-		add(research, "", 0.8*float64(free))
+		value := 0.8 * float64(free)
+		if _, _, ok := b.lab(&turn{v: v, mine: mine}); !ok {
+			value *= 2 // every Tech Slot taken: research stops once the running Projects finish
+		}
+		add(research, "", value)
 	}
 
 	w := b.Weights

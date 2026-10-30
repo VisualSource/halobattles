@@ -41,7 +41,7 @@ func lineContent() *cs.Content {
 
 // view has Seat 0 on a with buildings and marines, b in sight and empty.
 func view(buildings []string, marines int) game.View {
-	a := game.PlanetView{ID: "a", Owner: 0, Capital: true, Buildings: buildings}
+	a := game.PlanetView{ID: "a", Owner: 0, Capital: true, Buildings: buildings, Richness: map[string]string{"base:credits": "normal"}}
 	if marines > 0 {
 		a.Stacks[0] = game.Stack{{Unit: "base:marine", Count: marines}}
 	}
@@ -234,6 +234,8 @@ func decode(c Command) any {
 		return wire.GetRootAsQueueUnit(c.Data, 0).UnPack()
 	case wire.OpStartProject:
 		return wire.GetRootAsStartProject(c.Data, 0).UnPack()
+	case wire.OpExchange:
+		return wire.GetRootAsExchange(c.Data, 0).UnPack()
 	}
 	return nil
 }

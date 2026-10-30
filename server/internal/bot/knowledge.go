@@ -104,19 +104,26 @@ func (b *Bot) estimate(v game.View, id string) float64 {
 
 // hops is each Planet's Lane jumps from the nearest Planet the Bot owns.
 func (b *Bot) hops(v game.View) map[string]int {
-	m := b.c.Maps[v.Map]
+	var own []string
+	for _, p := range v.Planets {
+		if p.Owner == v.You {
+			own = append(own, p.ID)
+		}
+	}
+	return b.distances(v.Map, own)
+}
+
+// distances is each Planet's Lane jumps from the nearest of from.
+func (b *Bot) distances(mapID string, from []string) map[string]int {
 	next := map[string][]string{}
-	for _, l := range m.Lanes {
+	for _, l := range b.c.Maps[mapID].Lanes {
 		next[string(l.From)] = append(next[string(l.From)], string(l.To))
 		next[string(l.To)] = append(next[string(l.To)], string(l.From))
 	}
 	dist := map[string]int{}
-	var queue []string
-	for _, p := range v.Planets {
-		if p.Owner == v.You {
-			dist[p.ID] = 0
-			queue = append(queue, p.ID)
-		}
+	queue := slices.Clone(from)
+	for _, id := range from {
+		dist[id] = 0
 	}
 	for len(queue) > 0 {
 		id := queue[0]

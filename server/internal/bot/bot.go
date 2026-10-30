@@ -35,6 +35,7 @@ type Bot struct {
 	seq        uint32              // the last command seq it used
 	seen       map[string]sighting // every Planet its Views have shown, as last seen
 	current    map[string]bool     // the goals it funded last think, by key
+	mix        int                 // a fixed unit mix's next unit
 }
 
 // New makes the Bot for seat, playing faction at difficulty. Its random
@@ -81,21 +82,35 @@ func (b *Bot) Due(t int64) bool { return t >= b.next }
 const maxPerThink = 8
 
 // Think decides from v and returns the commands to send, and schedules the
-// next think. The Commander's goals are funded best first: each gets a plan,
-// and its first action is sent, until the budget or maxPerThink runs out.
+// next think. Any Exchange comes first; then the Commander's goals are
+// funded best first: each gets a plan, and its first action is sent, until
+// the budget or maxPerThink runs out.
 func (b *Bot) Think(v game.View) []Command {
 	b.next = v.Time + int64(b.Difficulty.ThinkSeconds*1000)
 	b.remember(v)
 	t := b.newTurn(v)
 	goals := b.goals(v) // scored with last think's goals still current
+	for _, g := range goals {
+		t.top[g.kind] = max(t.top[g.kind], g.score)
+	}
 	b.current = map[string]bool{}
 	var out []Command
+	if c := b.exchange(t); c != nil {
+		out = append(out, *c)
+	}
 	for _, g := range goals {
 		if len(out) >= maxPerThink {
 			break
 		}
 		a := plan(b.facts(t, g), goalFact[g.kind], b.Difficulty.PlanDepth)
 		if a == nil {
+			if plan(b.facts(t.paid(), g), goalFact[g.kind], b.Difficulty.PlanDepth) != nil {
+				// The next Payday affords it: save for it. Goals scoring less get nothing that
+				// costs, but free moves, like reinforcing, still go.
+				for r := range t.budget {
+					t.budget[r] = min(t.budget[r], 0)
+				}
+			}
 			continue
 		}
 		if c := a.issue(b, t, g); c != nil {

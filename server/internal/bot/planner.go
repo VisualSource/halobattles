@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"fmt"
 	"maps"
 	"slices"
 
@@ -17,16 +16,17 @@ import (
 type facts uint16
 
 const (
-	hasProduction   facts = 1 << iota // a building that trains units
+	hasProduction   facts = 1 << iota // a building that trains units, standing or being built
 	canBuildTrainer                   // a free Building Slot and a production building it can afford
-	canBuildMine                      // a free Building Slot and an extractor it can afford
+	canBuildEconomy                   // a free Building Slot and an economy building worth its cost
+	canBuildLab                       // a free Building Slot for a Lab it can afford
 	strongEnough                      // a force strong enough for the target, at margin
 	spareUnits                        // units on another Planet to send
-	hasCard                           // a Tech on offer
-	freeLab                           // a Project slot and a Lab with a free Tech Slot
+	hasCard                           // a Tech on offer it can start
+	freeLab                           // a Project slot, and a Lab with a free Tech Slot, standing or being built
 	armySent                          // goals:
 	garrisoned
-	mineQueued
+	economyQueued
 	unitsQueued
 	projectStarted
 )
@@ -46,11 +46,12 @@ var actions = []action{
 	{"train", hasProduction, unitsQueued | strongEnough | garrisoned, 2, (*Bot).train},
 	{"sendArmy", strongEnough, armySent, 1, (*Bot).sendTo},
 	{"reinforce", spareUnits, garrisoned, 1, (*Bot).sendTo},
-	{"buildMine", canBuildMine, mineQueued, 2, (*Bot).buildMine},
+	{"buildEconomy", canBuildEconomy, economyQueued, 2, (*Bot).buildEconomy},
+	{"buildLab", canBuildLab, freeLab, 2, (*Bot).buildLab},
 	{"startProject", hasCard | freeLab, projectStarted, 1, (*Bot).startProject},
 }
 
-var goalFact = [...]facts{expand: armySent, attack: armySent, defend: garrisoned, economy: mineQueued, army: unitsQueued, research: projectStarted}
+var goalFact = [...]facts{expand: armySent, attack: armySent, defend: garrisoned, economy: economyQueued, army: unitsQueued, research: projectStarted}
 
 // plan finds the cheapest sequence of at most depth actions from now to
 // want, and returns its first action, or nil if there's none or want holds.
@@ -93,56 +94,105 @@ func plan(now, want facts, depth int) *action {
 }
 
 // turn is one think's working state: what's left to spend, and what the
-// Bot's own Planets look like.
+// Bot's own Planets and the enemies it has seen look like.
 type turn struct {
-	v      game.View
-	budget map[string]int // Resources over the reserve, less what this think spent
-	held   map[string]bool
-	mine   []game.PlanetView // own Planets, by id
-	queued map[string]string // "planet/slot" taken by this think's builds, to the building
-	cp     int               // Command Points left
+	v       game.View
+	budget  map[string]int // Resources over the reserve and the next Payday's shortfall, less this think's spending
+	net     map[string]int // what the next Payday changes, with this think's Upkeep
+	sprawl  int            // the percent every cost is charged at
+	reserve int            // the percent of each cap kept back
+	held    map[string]bool
+	mine    []game.PlanetView // own Planets, by id
+	queued  map[string]string // "planet/slot" taken by this think's builds, to the building
+	cp      int               // Command Points left
+	front   map[string]int    // Lane jumps from each Planet to the nearest one not the Bot's
+	foes    map[string]int    // enemy units seen, by Unit Class
+	units   map[string]int    // own units, from queue to death, by id
+	top     [len(goalNames)]float64
 }
 
 func (b *Bot) newTurn(v game.View) *turn {
-	t := &turn{v: v, budget: map[string]int{}, held: held(v), queued: map[string]string{},
-		cp: v.Economy.CommandPointsCap - v.Economy.CommandPointsUsed}
-	for r, a := range v.Economy.Resources {
-		t.budget[r] = a - v.Economy.Caps[r]*b.Difficulty.ReservePercent/100
+	e := v.Economy
+	t := &turn{v: v, budget: map[string]int{}, net: map[string]int{}, held: held(v), queued: map[string]string{},
+		cp: e.CommandPointsCap - e.CommandPointsUsed, foes: map[string]int{}, units: map[string]int{}, reserve: b.Difficulty.ReservePercent}
+	maps.Copy(t.net, e.Projected)
+	for r, a := range e.Resources {
+		t.budget[r] = a - e.Caps[r]*t.reserve/100 + min(0, t.net[r])
 	}
+	own := map[string]bool{}
 	for _, p := range v.Planets {
-		if p.Owner == v.You && !p.Locked {
+		if p.Owner != v.You {
+			continue
+		}
+		own[p.ID] = true
+		if !p.Locked {
 			t.mine = append(t.mine, p)
 		}
+		for _, st := range p.Stacks {
+			for _, u := range st {
+				t.units[u.Unit] += u.Count
+			}
+		}
+		for _, q := range p.UnitQueue {
+			t.units[q.Unit]++
+		}
 	}
+	sp := b.c.Rulesets[game.RulesetID].Sprawl
+	// shortcut: leaves out Techs that raise freePlanets, so it can overrate a cost by one Planet's percent; read it from the View if that matters.
+	t.sprawl = 100 + max(0, len(own)-sp.FreePlanets)*sp.Percent
+	for _, a := range v.Armies {
+		for _, u := range a.Units {
+			if a.Owner == v.You {
+				t.units[u.Unit] += u.Count
+			} else {
+				t.foes[string(b.c.Units[u.Unit].Combat.UnitClass)] += u.Count
+			}
+		}
+	}
+	for _, s := range b.seen {
+		if s.planet.Owner == v.You {
+			continue
+		}
+		for _, st := range s.planet.Stacks {
+			for _, u := range st {
+				t.foes[string(b.c.Units[u.Unit].Combat.UnitClass)] += u.Count
+			}
+		}
+	}
+	var others []string
+	for _, mp := range b.c.Maps[v.Map].Planets {
+		if !own[string(mp.ID)] {
+			others = append(others, string(mp.ID))
+		}
+	}
+	t.front = b.distances(v.Map, others)
 	return t
 }
 
-func (t *turn) affords(cost map[string]int) bool {
-	for r, a := range cost {
-		if t.budget[r] < a {
-			return false
-		}
+// dist is a Planet's Lane jumps to the front; one cut off from it is far.
+func (t *turn) dist(id string) int {
+	if d, ok := t.front[id]; ok {
+		return min(d, 99)
 	}
-	return true
-}
-
-func (t *turn) spend(cost map[string]int, n int) {
-	for r, a := range cost {
-		t.budget[r] -= a * n
-	}
+	return 99
 }
 
 // facts is what holds now, for g.
 func (b *Bot) facts(t *turn, g goal) facts {
 	var f facts
-	if _, _, u := b.trainer(t); u != "" || b.trainerComing(t) {
+	trains := func(x cs.Building) bool { return len(x.Trains) > 0 }
+	isLab := func(x cs.Building) bool { return x.TechSlots != nil }
+	if len(b.trainers(t)) > 0 || b.coming(t, trains) {
 		f |= hasProduction // one being built counts: train waits for it rather than another being queued
 	}
-	if _, _, id := b.building(t, func(x cs.Building) bool { return len(x.Trains) > 0 }); id != "" {
+	if b.trainerToBuild(t).id != "" {
 		f |= canBuildTrainer
 	}
-	if _, _, id := b.building(t, func(x cs.Building) bool { return len(x.Extracts) > 0 }); id != "" {
-		f |= canBuildMine
+	if b.economyToBuild(t).id != "" {
+		f |= canBuildEconomy
+	}
+	if b.labToBuild(t).id != "" {
+		f |= canBuildLab
 	}
 	if from := b.strongest(t, ""); from != nil && g.target != "" &&
 		stacksStrength(b.c, *from) >= b.estimate(t.v, g.target)*b.Difficulty.AttackMargin {
@@ -151,65 +201,27 @@ func (b *Bot) facts(t *turn, g goal) facts {
 	if from := b.strongest(t, g.target); from != nil && stacksStrength(b.c, *from) > 0 {
 		f |= spareUnits
 	}
-	if len(t.v.Research.Hand)+len(t.v.Research.Saved) > 0 {
+	if len(b.cards(t)) > 0 {
 		f |= hasCard
 	}
-	if _, _, ok := b.lab(t); ok && len(t.v.Research.Projects) < t.v.Research.Limit {
+	if _, _, ok := b.lab(t); (ok || b.coming(t, isLab)) && len(t.v.Research.Projects) < t.v.Research.Limit {
 		f |= freeLab
 	}
 	return f
 }
 
-// shortcut: the actions below make the simplest valid choice (first
-// building, first unit, the strongest Planet's whole garrison); #44 and #45
-// replace them with placement, unit choice, home guards and staging.
-
-// building finds an own Planet with a free Building Slot and an affordable,
-// unlocked building of the Bot's Faction that fits.
-func (b *Bot) building(t *turn, fits func(cs.Building) bool) (planet game.PlanetView, slot int, id string) {
-	for _, bid := range slices.Sorted(maps.Keys(b.c.Buildings)) {
-		x := b.c.Buildings[bid]
-		if string(x.Faction) != b.faction || !fits(x) || !t.affords(x.Cost) || !unlocked(b.c, t.held, bid, false) {
-			continue
-		}
-		for _, p := range t.mine {
-			for s, have := range p.Buildings {
-				key := fmt.Sprintf("%s/%d", p.ID, s)
-				if have == "" && t.queued[key] == "" && !slices.ContainsFunc(p.Queue, func(q game.QueueItem) bool { return q.Slot == s }) {
-					return p, s, bid
-				}
-			}
-		}
-	}
-	return game.PlanetView{}, 0, ""
-}
-
-// trainer finds an own production building and a unit it can train now.
-func (b *Bot) trainer(t *turn) (planet game.PlanetView, slot int, unit string) {
-	for _, p := range t.mine {
-		for s, bid := range p.Buildings {
-			for _, u := range b.c.Buildings[bid].Trains {
-				if unlocked(b.c, t.held, string(u), true) {
-					return p, s, string(u)
-				}
-			}
-		}
-	}
-	return game.PlanetView{}, 0, ""
-}
-
-// trainerComing reports whether a production building is being built on
-// an own Planet, or was queued this think.
-func (b *Bot) trainerComing(t *turn) bool {
+// coming reports whether a building that fits is being built on an own
+// Planet, or was queued this think.
+func (b *Bot) coming(t *turn, fits func(cs.Building) bool) bool {
 	for _, p := range t.mine {
 		for _, q := range p.Queue {
-			if len(b.c.Buildings[q.Building].Trains) > 0 {
+			if q.Building != "" && fits(b.c.Buildings[q.Building]) {
 				return true
 			}
 		}
 	}
 	for _, id := range t.queued {
-		if len(b.c.Buildings[id].Trains) > 0 {
+		if fits(b.c.Buildings[id]) {
 			return true
 		}
 	}
@@ -228,63 +240,8 @@ func (b *Bot) strongest(t *turn, except string) *game.PlanetView {
 	return best
 }
 
-// lab finds an own Lab with a free Tech Slot.
-func (b *Bot) lab(t *turn) (planet string, slot int, ok bool) {
-	for _, p := range t.mine {
-		for s, bid := range p.Buildings {
-			n := b.c.Buildings[bid].TechSlots
-			if n == nil {
-				continue
-			}
-			used := len(p.Labs[s])
-			for _, pr := range t.v.Research.Projects {
-				if pr.Planet == p.ID && pr.Slot == s {
-					used++
-				}
-			}
-			if used < *n {
-				return p.ID, s, true
-			}
-		}
-	}
-	return "", 0, false
-}
-
-func (b *Bot) buildOne(t *turn, fits func(cs.Building) bool) *Command {
-	p, s, id := b.building(t, fits)
-	if id == "" {
-		return nil
-	}
-	t.spend(b.c.Buildings[id].Cost, 1)
-	t.queued[fmt.Sprintf("%s/%d", p.ID, s)] = id
-	return b.command(wire.OpQueueBuilding, &wire.QueueBuildingT{Seq: b.nextSeq(), Planet: p.ID, Slot: byte(s), Building: id})
-}
-
-func (b *Bot) buildTrainer(t *turn, _ goal) *Command {
-	return b.buildOne(t, func(x cs.Building) bool { return len(x.Trains) > 0 })
-}
-
-func (b *Bot) buildMine(t *turn, _ goal) *Command {
-	return b.buildOne(t, func(x cs.Building) bool { return len(x.Extracts) > 0 })
-}
-
-func (b *Bot) train(t *turn, _ goal) *Command {
-	p, s, id := b.trainer(t)
-	if id == "" {
-		return nil
-	}
-	u := b.c.Units[id]
-	n := 0
-	for n < 5 && t.affords(u.Cost) && t.cp >= u.CommandPoints {
-		t.spend(u.Cost, 1)
-		t.cp -= u.CommandPoints
-		n++
-	}
-	if n == 0 {
-		return nil
-	}
-	return b.command(wire.OpQueueUnit, &wire.QueueUnitT{Seq: b.nextSeq(), Planet: p.ID, Slot: byte(s), Unit: id, Count: uint16(n)})
-}
+// shortcut: sendTo sends the strongest other Planet's whole garrison; #45
+// replaces it with home guards, staging and the attack margin.
 
 // sendTo sends the strongest other Planet's whole garrison to the goal's:
 // an attack, or reinforcements.
@@ -304,21 +261,4 @@ func (b *Bot) sendTo(t *turn, g goal) *Command {
 	}
 	from.Stacks = [game.StacksPerPlanet]game.Stack{} // gone: no later goal this think sends them again
 	return b.command(wire.OpOrderArmy, &wire.OrderArmyT{Seq: b.nextSeq(), FromPlanet: from.ID, Units: units, ToPlanet: to})
-}
-
-func (b *Bot) startProject(t *turn, _ goal) *Command {
-	planet, slot, ok := b.lab(t)
-	if !ok {
-		return nil
-	}
-	tech := ""
-	if len(t.v.Research.Saved) > 0 {
-		tech = t.v.Research.Saved[0].Tech // a guaranteed card: progress kept, or half cost
-	} else if len(t.v.Research.Hand) > 0 {
-		tech = t.v.Research.Hand[0]
-	}
-	if tech == "" {
-		return nil
-	}
-	return b.command(wire.OpStartProject, &wire.StartProjectT{Seq: b.nextSeq(), Tech: tech, Planet: planet, Slot: byte(slot)})
 }
