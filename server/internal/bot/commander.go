@@ -126,8 +126,8 @@ func (b *Bot) goals(v game.View) []goal {
 
 	add(economy, "", 0.4+1.6*float64(empty)/float64(max(1, slots))) // empty slots: income its Planets could make
 	add(army, "", 0.8+min(3, max(0, enemy-own)/max(own, 1)))
-	if free := v.Research.Limit - len(v.Research.Projects); free > 0 && len(v.Research.Hand)+len(v.Research.Saved) > 0 {
-		value := 0.8 * float64(free)
+	if idle := b.idleFields(v); idle > 0 {
+		value := 0.8 * float64(idle)
 		if _, _, ok := b.lab(&turn{v: v, mine: mine}); !ok {
 			value *= 2 // every Tech Slot taken: research stops once the running Projects finish
 		}

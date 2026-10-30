@@ -3,6 +3,7 @@
   "id": "marine-training-program",
   "name": "Marine Training Program",
   "faction": "unsc",
+  "field": "military",
   "rarity": "common",
   "cost": 300,
   "effects": [{ "stat": "hp", "percent": 10, "unitClass": "infantry" }]

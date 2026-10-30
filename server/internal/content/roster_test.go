@@ -23,11 +23,11 @@ func rosterFiles() map[string]string {
 			"commandPointBonus": 0, "trains": ["marine"]}`,
 		"base/data/buildings/lab.jsonc": `{"id": "lab", "name": "Lab", "faction": "unsc",
 			"cost": {"credits": 250}, "buildTime": 45, "upkeep": {}, "yield": {}, "commandPointBonus": 0, "techSlots": 2}`,
-		"base/data/techs/drill.jsonc": `{"id": "drill", "name": "Drill", "faction": "unsc", "rarity": "common", "cost": 300,
+		"base/data/techs/drill.jsonc": `{"id": "drill", "name": "Drill", "faction": "unsc", "field": "industry", "rarity": "common", "cost": 300,
 			"requires": {"buildings": ["lab"]}, "unlocks": {"units": ["marine"], "buildings": ["barracks"]},
 			"effects": [{"stat": "hp", "percent": 10, "unitClass": "infantry"}, {"stat": "upkeep", "percent": -10, "resource": "credits"}]}`,
-		"base/data/techs/doctrine.jsonc": `{"id": "doctrine", "name": "Doctrine", "rarity": "rare", "cost": 1200,
-			"requires": {"techs": ["drill"]}, "effects": [{"stat": "projectLimit", "amount": 1}]}`,
+		"base/data/techs/doctrine.jsonc": `{"id": "doctrine", "name": "Doctrine", "field": "military", "rarity": "rare", "cost": 1200,
+			"requires": {"techs": ["drill"]}, "effects": [{"stat": "research", "percent": 20}]}`,
 		"base/data/planetTypes/standard.jsonc": `{"id": "standard", "name": "Standard",
 			"income": {"credits": 200}, "buildingSlots": 3, "commandPointBonus": 10}`,
 		"base/data/maps/duel.jsonc": `{"id": "duel", "name": "Duel",
@@ -165,20 +165,26 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 			strings.Replace(baseRules, `"exchange": []`, `"exchange": [{"give": "gold", "giveAmount": 1, "get": "credits", "getAmount": 1}]`, 1),
 			"rulesets base:rules: exchange 1 give: unknown Resource base:gold"},
 		"a Tech's dangling references": {"base/data/techs/drill.jsonc",
-			`{"id": "drill", "name": "Drill", "faction": "innie", "rarity": "common", "cost": 300,
+			`{"id": "drill", "name": "Drill", "faction": "innie", "field": "industry", "rarity": "common", "cost": 300,
 				"requires": {"techs": ["warp"], "buildings": ["bunker"]}, "unlocks": {"units": ["spartan"]},
 				"effects": [{"stat": "hp", "percent": 10, "unitClass": "robot"}]}`,
 			"techs base:drill: unknown Faction base:innie; techs base:drill: requires: unknown Tech base:warp; techs base:drill: requires: unknown Building base:bunker; techs base:drill: unlocks: unknown Unit base:spartan; techs base:drill: effect 1: unknown Unit Class base:robot"},
 		"a Tech unlocking another Faction's building": {"base/data/techs/drill.jsonc",
-			`{"id": "drill", "name": "Drill", "faction": "covenant", "rarity": "common", "cost": 300, "unlocks": {"buildings": ["barracks"]}}`,
+			`{"id": "drill", "name": "Drill", "faction": "covenant", "field": "industry", "rarity": "common", "cost": 300, "unlocks": {"buildings": ["barracks"]}}`,
 			"techs base:drill: unlocks: base:barracks is base:unsc's, not base:covenant's"},
 		"an effect with percent and amount": {"base/data/techs/doctrine.jsonc",
-			`{"id": "doctrine", "name": "Doctrine", "rarity": "rare", "cost": 1, "effects": [{"stat": "research", "percent": 10, "amount": 1}]}`,
+			`{"id": "doctrine", "name": "Doctrine", "field": "military", "rarity": "rare", "cost": 1, "effects": [{"stat": "research", "percent": 10, "amount": 1}]}`,
 			"techs base:doctrine: effect 1: needs exactly one of percent or amount"},
 		"an effect narrowed to nothing it has": {"base/data/techs/doctrine.jsonc",
-			`{"id": "doctrine", "name": "Doctrine", "rarity": "rare", "cost": 1,
-				"effects": [{"stat": "research", "amount": 1, "unitClass": "infantry"}, {"stat": "hp", "percent": 5, "resource": "credits"}]}`,
-			"techs base:doctrine: effect 1: unitClass and unit only narrow a combat stat or buildTime, not research; techs base:doctrine: effect 2: resource only narrows extractorYield, upkeep or stockpileCap, not hp"},
+			`{"id": "doctrine", "name": "Doctrine", "field": "military", "rarity": "rare", "cost": 1,
+				"effects": [{"stat": "research", "amount": 1, "unitClass": "infantry"}, {"stat": "hp", "percent": 5, "resource": "credits"}, {"stat": "hp", "percent": 5, "field": "military"}]}`,
+			"techs base:doctrine: effect 1: unitClass and unit only narrow a combat stat or buildTime, not research; techs base:doctrine: effect 2: resource only narrows extractorYield, upkeep or stockpileCap, not hp; techs base:doctrine: effect 3: field only narrows research, not hp"},
+		"unknown Research fields": {"base/data/techs/doctrine.jsonc",
+			`{"id": "doctrine", "name": "Doctrine", "field": "magic", "rarity": "rare", "cost": 1, "effects": [{"stat": "research", "percent": 10, "field": "psionics"}]}`,
+			"techs base:doctrine: unknown Research field base:magic; techs base:doctrine: effect 1: unknown Research field base:psionics"},
+		"a research building feeding an unknown field": {"base/data/buildings/lab.jsonc",
+			strings.Replace(rosterFiles()["base/data/buildings/lab.jsonc"], `"techSlots": 2`, `"techSlots": 2, "research": {"industry": 2, "logistics": 1}`, 1),
+			"buildings base:lab: research: unknown Research field base:logistics"},
 		"Techs requiring each other": {"base/data/techs/drill.jsonc",
 			strings.Replace(rosterFiles()["base/data/techs/drill.jsonc"], `"requires": {"buildings": ["lab"]}`, `"requires": {"techs": ["doctrine"]}`, 1),
 			"techs base:doctrine: requires itself through base:doctrine → base:drill → base:doctrine"},
@@ -206,7 +212,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	d := c.Doc
 
 	counts := map[string][2]int{
-		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 22}, "techs": {len(d.Techs), 23},
+		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 26}, "techs": {len(d.Techs), 23},
 		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
 		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 3},
 		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
@@ -255,12 +261,24 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	}
 	for _, f := range []string{"base:unsc", "base:covenant"} {
 		kit := d.Factions[f].StartingKit.Buildings
-		if lab := d.Buildings[string(kit[len(kit)-1])]; lab.TechSlots == nil || *lab.TechSlots != 2 || lab.Cost["base:credits"] != 250 {
-			t.Errorf("%s's Starting Kit %v doesn't end with a 2-slot Lab", f, kit)
+		if lab := d.Buildings[string(kit[len(kit)-1])]; lab.TechSlots == nil || *lab.TechSlots != 3 || lab.Cost["base:credits"] != 250 {
+			t.Errorf("%s's Starting Kit %v doesn't end with a 3-slot Lab", f, kit)
 		}
 	}
-	if r := d.Rulesets["base:rules"].Tech; r.ProjectLimit != 3 || r.LabsPerPlanet != 3 || r.Rarities["legendary"].From != 14 {
+	if r := d.Rulesets["base:rules"].Tech; len(r.Fields) != 3 || r.Fields["base:military"].Name != "Military" || r.CapitalResearch != 1 ||
+		r.LabsPerPlanet != 3 || r.Rarities["uncommon"].From != 3 || r.Rarities["rare"].From != 5 || r.Rarities["legendary"].From != 9 {
 		t.Errorf("tech rules = %+v", r)
+	}
+	for id, tech := range d.Techs {
+		if _, ok := d.Rulesets["base:rules"].Tech.Fields[string(tech.Field)]; !ok {
+			t.Errorf("%s has no Research field: %q", id, tech.Field)
+		}
+	}
+	if f := d.Techs["base:research-networks"]; f.Field != "base:logistics" || f.Rarity != "rare" || len(f.Effects) != 1 || f.Effects[0].Field != nil || *f.Effects[0].Percent != 15 {
+		t.Errorf("research-networks = %+v", f)
+	}
+	if f := d.Techs["base:forerunner-reverse-engineering"]; len(f.Effects) != 2 || f.Effects[1].Stat != "research" || *f.Effects[1].Percent != 20 {
+		t.Errorf("forerunner-reverse-engineering effects = %+v", f.Effects)
 	}
 	techs := map[string]int{}
 	for _, t := range d.Techs {
@@ -285,8 +303,14 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	if n := d.Factions["base:covenant"].Ai.Bot.Names; len(n) < 2 || n[0] != "Thel 'Vadam" {
 		t.Errorf("Covenant Bot names = %v", n)
 	}
-	if st := d.Buildings["base:seminary"]; st.Research == nil || *st.Research != 2 {
-		t.Errorf("seminary = %+v", st)
+	for id, field := range map[string]string{
+		"base:proving-grounds": "base:military", "base:armory": "base:military",
+		"base:oni-station": "base:industry", "base:seminary": "base:industry",
+		"base:fleet-command": "base:logistics", "base:ministry-of-tranquility": "base:logistics",
+	} {
+		if b := d.Buildings[id]; len(b.Research) != 1 || b.Research[field] != 2 || b.Cost["base:credits"] != 200 {
+			t.Errorf("%s research %v, cost %v; want +2 %s for 200 Credits", id, b.Research, b.Cost, field)
+		}
 	}
 
 	m := d.Maps["base:quadrant"]

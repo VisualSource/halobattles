@@ -3,7 +3,8 @@
   "id": "sanshyuum-archives",
   "name": "San'Shyuum Archives",
   "faction": "covenant",
+  "field": "industry",
   "rarity": "common",
   "cost": 300,
-  "effects": [{ "stat": "research", "amount": 1 }]
+  "effects": [{ "stat": "research", "amount": 1, "field": "industry" }]
 }

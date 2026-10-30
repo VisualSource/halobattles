@@ -3,7 +3,8 @@
   "id": "oni-data-mining",
   "name": "ONI Data Mining",
   "faction": "unsc",
+  "field": "industry",
   "rarity": "common",
   "cost": 300,
-  "effects": [{ "stat": "research", "amount": 1 }]
+  "effects": [{ "stat": "research", "amount": 1, "field": "industry" }]
 }

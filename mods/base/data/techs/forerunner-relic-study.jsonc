@@ -3,8 +3,9 @@
   "id": "forerunner-relic-study",
   "name": "Forerunner Relic Study",
   "faction": "covenant",
+  "field": "logistics",
   "rarity": "legendary",
   "cost": 2400,
   "requires": { "buildings": ["relic-shrine"] },
-  "effects": [{ "stat": "techSlots", "amount": 1 }, { "stat": "projectLimit", "amount": 1 }]
+  "effects": [{ "stat": "techSlots", "amount": 1 }, { "stat": "research", "percent": 20 }]
 }

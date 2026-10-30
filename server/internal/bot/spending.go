@@ -239,14 +239,14 @@ func (b *Bot) economyToBuild(t *turn) build {
 	payday := float64(b.c.Rulesets[game.RulesetID].PaydaySeconds)
 	isEconomy := func(x cs.Building) bool {
 		return len(x.Trains) == 0 && x.TechSlots == nil &&
-			(len(x.Extracts) > 0 || len(x.Yield) > 0 || x.Refines != nil || len(x.Storage) > 0 || x.Research != nil)
+			(len(x.Extracts) > 0 || len(x.Yield) > 0 || x.Refines != nil || len(x.Storage) > 0 || len(x.Research) > 0)
 	}
 	best, out := 0.0, build{}
 	for _, id := range b.buildable(t, isEconomy) {
 		x := b.c.Buildings[id]
 		base := worth(x.Yield) - worth(x.Upkeep)
-		if x.Research != nil {
-			base += float64(*x.Research) * payday * researchWorth
+		for f, a := range x.Research {
+			base += float64(a) * payday * researchWorth * b.fieldWeight(f)
 		}
 		if x.Refines != nil && covers(t.net, x.Refines.Input) {
 			base += worth(x.Refines.Output) - worth(x.Refines.Input)
@@ -447,12 +447,57 @@ func (b *Bot) train(t *turn, _ goal) *Command {
 	return b.command(wire.OpQueueUnit, &wire.QueueUnitT{Seq: b.nextSeq(), Planet: at.planet, Slot: byte(at.slot), Unit: unit, Count: uint16(n)})
 }
 
-// cards are the Techs the Bot can start now: its hand, then the saved
-// ones whose requirements it still has (the server refuses the rest).
+// fieldWeight is how much the Bot wants Research in a field: by the goal
+// the field serves, or the higher of Army and Economy when it names none.
+func (b *Bot) fieldWeight(field string) float64 {
+	if g := b.c.Rulesets[game.RulesetID].Tech.Fields[field].BotGoal; g != nil {
+		switch *g {
+		case cs.ResearchFieldBotGoalArmy:
+			return b.Weights.Army
+		case cs.ResearchFieldBotGoalEconomy:
+			return b.Weights.Economy
+		}
+	}
+	return max(b.Weights.Army, b.Weights.Economy)
+}
+
+// busy reports whether field already runs a Project.
+func (b *Bot) busy(v game.View, field string) bool {
+	return slices.ContainsFunc(v.Research.Projects, func(p game.Project) bool { return string(b.c.Techs[p.Tech].Field) == field })
+}
+
+// idleFields counts the Research fields with no Project and a card on
+// offer: each is its whole Research rate wasted.
+func (b *Bot) idleFields(v game.View) int {
+	n := 0
+	for f := range v.Research.Rates {
+		saved := slices.ContainsFunc(v.Research.Saved, func(s game.Saved) bool { return string(b.c.Techs[s.Tech].Field) == f })
+		if !b.busy(v, f) && (len(v.Research.Hands[f]) > 0 || saved) {
+			n++
+		}
+	}
+	return n
+}
+
+// hand is every idle field's hand, by field: the cards the Bot can start
+// without a saved one.
+func (b *Bot) hand(t *turn) []string {
+	var out []string
+	for _, f := range slices.Sorted(maps.Keys(t.v.Research.Hands)) {
+		if !b.busy(t.v, f) {
+			out = append(out, t.v.Research.Hands[f]...)
+		}
+	}
+	return out
+}
+
+// cards are the Techs the Bot can start now: each idle field's hand, then
+// the saved ones of an idle field whose requirements it still has (the
+// server refuses the rest).
 func (b *Bot) cards(t *turn) []string {
-	out := slices.Clone(t.v.Research.Hand)
+	out := b.hand(t)
 	for _, s := range t.v.Research.Saved {
-		if b.requirementsMet(t, s.Tech) {
+		if !b.busy(t.v, string(b.c.Techs[s.Tech].Field)) && b.requirementsMet(t, s.Tech) {
 			out = append(out, s.Tech)
 		}
 	}
@@ -493,9 +538,10 @@ func (b *Bot) card(t *turn) string {
 		return cards[0]
 	}
 	best, out := -1.0, ""
+	dealt := len(b.hand(t))
 	for i, id := range cards {
 		v := b.cardScore(t, id)
-		if i >= len(t.v.Research.Hand) {
+		if i >= dealt {
 			v *= 1.5
 		}
 		if v > best {

@@ -3,6 +3,7 @@
   "id": "shield-harmonics",
   "name": "Shield Harmonics",
   "faction": "covenant",
+  "field": "military",
   "rarity": "uncommon",
   "cost": 600,
   "effects": [{ "stat": "shield", "percent": 10 }]

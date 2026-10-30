@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/tech.schema.json",
   "id": "frontier-administration",
   "name": "Frontier Administration",
+  "field": "logistics",
   "rarity": "rare",
   "cost": 1200,
   "effects": [{ "stat": "sprawlFreePlanets", "amount": 1 }]

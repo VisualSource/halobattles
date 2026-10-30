@@ -14,6 +14,7 @@ import {
 
 const tech = (t: Partial<Tech> & { id: string }): Tech => ({
   name: t.id,
+  field: "industry",
   rarity: "common",
   cost: 300,
   ...t,
@@ -56,7 +57,12 @@ const content = {
   units: new Map([["warthog", { name: "Warthog" }]]),
   unitClasses: new Map([["infantry", { name: "Infantry" }]]),
   resources: new Map(),
-  rules: { tech: { costScalingPercent: 10 } },
+  rules: {
+    tech: {
+      costScalingPercent: 10,
+      fields: { industry: { name: "Industry" } },
+    },
+  },
 } as unknown as ContentLookups;
 
 const planet = (
@@ -81,7 +87,12 @@ function view(
     you: 0,
     planets: new Map(planets.map((p) => [p.id, p])),
     economy: { resources: new Map([["credits", 100]]) },
-    research: { rate: 4, projectLimit: 3, projects, hand: [], saved: [] },
+    research: {
+      rates: new Map([["industry", 4]]),
+      projects,
+      hands: new Map(),
+      saved: [],
+    },
   } as unknown as View;
 }
 
@@ -121,6 +132,12 @@ describe("Techs", () => {
     );
     expect(effectText(content, { stat: "commandPoints", amount: 10 })).toBe(
       "+10 Command Points",
+    );
+    expect(
+      effectText(content, { stat: "research", amount: 1, field: "industry" }),
+    ).toBe("+1 Industry Research");
+    expect(effectText(content, { stat: "research", percent: 15 })).toBe(
+      "+15% Research, every field",
     );
   });
 

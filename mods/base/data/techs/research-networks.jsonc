@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "research-networks",
+  "name": "Research Networks",
+  "field": "logistics",
+  "rarity": "rare",
+  "cost": 1200,
+  "effects": [{ "stat": "research", "percent": 15 }]
+}

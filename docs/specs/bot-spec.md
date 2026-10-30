@@ -88,7 +88,7 @@ The Match's win conditions add to goal scores. Each condition has its own rules,
 
 - Every Research field idle is its whole rate wasted, so a Bot keeps each one running.
 - Normal and Hard score each card in an idle field's hand by how much it serves their top goals: an unlock their unit choice needs, the economy Techs while Economy weighs heavily. Recover and Resume cards get a bonus. Easy picks the first card.
-- A research building is worth its field's Research, weighted by the goal that field serves: Military by Army, Industry by Economy, Logistics by the higher of the two.
+- A research building is worth its field's Research, weighted by the goal that field serves, its Ruleset `botGoal`: Military by Army, Industry by Economy, and a field naming none (Logistics) by the higher of the two.
 - The Lab is the one with the most free Tech Slots on the safest Planet.
 
 ## Difficulties

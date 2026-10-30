@@ -262,8 +262,7 @@ const NO_ECONOMY: Economy = {
 };
 
 const toResearch = (r: ResearchT): Research => ({
-  rate: r.rate,
-  projectLimit: r.projectLimit,
+  rates: new Map(r.fields.map((f) => [str(f.field), f.rate])),
   projects: r.projects.map((p) => ({
     tech: str(p.tech),
     planet: str(p.planet),
@@ -273,7 +272,11 @@ const toResearch = (r: ResearchT): Research => ({
     since: Number(p.since),
     rate: p.rate,
   })),
-  hand: r.hand.map(str),
+  hands: new Map(
+    r.fields
+      .filter((f) => f.hand.length > 0)
+      .map((f) => [str(f.field), f.hand.map(str)]),
+  ),
   saved: r.saved.map((v) => ({
     tech: str(v.tech),
     cost: v.cost,
@@ -283,10 +286,9 @@ const toResearch = (r: ResearchT): Research => ({
 });
 
 const NO_RESEARCH: Research = {
-  rate: 0,
-  projectLimit: 0,
+  rates: new Map(),
   projects: [],
-  hand: [],
+  hands: new Map(),
   saved: [],
 };
 

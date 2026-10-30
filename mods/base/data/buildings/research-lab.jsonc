@@ -8,6 +8,6 @@
   "upkeep": { "credits": 15 },
   "yield": {},
   // docs/specs/tech-spec.md#labs: holds Techs; losing it loses them.
-  "techSlots": 2,
+  "techSlots": 3,
   "commandPointBonus": 0
 }

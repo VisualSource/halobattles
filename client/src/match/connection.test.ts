@@ -31,6 +31,7 @@ import {
   QueueItemT,
   QueueUnit,
   RemoveBot,
+  ResearchFieldT,
   ResearchT,
   RichnessT,
   SavedProjectT,
@@ -301,7 +302,12 @@ describe("MatchConnection", () => {
         ],
       ]),
       battles: new Map(),
-      research: { rate: 0, projectLimit: 0, projects: [], hand: [], saved: [] },
+      research: {
+        rates: new Map(),
+        projects: [],
+        hands: new Map(),
+        saved: [],
+      },
       winHold: { seat: null, ends: 0 },
     });
   });
@@ -415,10 +421,11 @@ describe("MatchConnection", () => {
           [],
           null,
           new ResearchT(
-            4,
-            5,
+            [
+              new ResearchFieldT("base:industry", 4, ["base:optics"]),
+              new ResearchFieldT("base:military", 2, []),
+            ],
             [new ProjectT("base:radar", "a", 2, 100, 20, 1000n, 2)],
-            ["base:optics"],
             [new SavedProjectT("base:geology", 120, 30, true)],
           ),
         ),
@@ -431,8 +438,10 @@ describe("MatchConnection", () => {
     );
     const research = view?.research;
     expect(research).toEqual({
-      rate: 4,
-      projectLimit: 5,
+      rates: new Map([
+        ["base:industry", 4],
+        ["base:military", 2],
+      ]),
       projects: [
         {
           tech: "base:radar",
@@ -444,7 +453,7 @@ describe("MatchConnection", () => {
           rate: 2,
         },
       ],
-      hand: ["base:optics"],
+      hands: new Map([["base:industry", ["base:optics"]]]),
       saved: [{ tech: "base:geology", cost: 120, done: 30, lost: true }],
     });
     // 20 done at 1 s, 2 a second: 30 at 6 s, and never past the cost.

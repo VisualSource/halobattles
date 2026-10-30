@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/VisualSource/halobattles/server/internal/game"
@@ -155,20 +156,21 @@ func TestResearchPicks(t *testing.T) {
 	c := lineContent()
 	pct := 10
 	c.Techs = map[string]cs.Tech{
-		"base:armor": {Effects: []cs.Effect{{Stat: "armor", Percent: &pct}}},
-		"base:drill": {Effects: []cs.Effect{{Stat: "extractorYield", Percent: &pct}}},
-		"base:gated": {Requires: &cs.TechRequirements{Techs: []cs.ID{"base:armor"}}},
+		"base:armor": {Field: "base:military", Effects: []cs.Effect{{Stat: "armor", Percent: &pct}}},
+		"base:drill": {Field: "base:industry", Effects: []cs.Effect{{Stat: "extractorYield", Percent: &pct}}},
+		"base:gated": {Field: "base:military", Requires: &cs.TechRequirements{Techs: []cs.ID{"base:armor"}}},
+		"base:radar": {Field: "base:military"},
 	}
 	b := New(c, 0, "base:unsc", "hard", 1, 0)
 	v := view([]string{"base:lab", "", ""}, 0)
-	v.Research.Hand = []string{"base:armor", "base:drill"}
+	v.Research.Hands = map[string][]string{"base:military": {"base:armor"}, "base:industry": {"base:drill"}}
 	tt := b.newTurn(v)
 	tt.top[economy], tt.top[army] = 2, 1
 	if got := b.card(tt); got != "base:drill" {
 		t.Errorf("picked %s with Economy the top goal; want the economy Tech", got)
 	}
 
-	v.Research.Hand = []string{"base:drill"}
+	v.Research.Hands = map[string][]string{"base:industry": {"base:drill"}}
 	v.Research.Saved = []game.Saved{{Tech: "base:gated"}, {Tech: "base:armor"}}
 	tt = b.newTurn(v)
 	tt.top[economy], tt.top[army] = 1.2, 1
@@ -183,6 +185,40 @@ func TestResearchPicks(t *testing.T) {
 	if got := b.card(tt); got != "base:drill" {
 		t.Errorf("Easy picked %s; want the first card", got)
 	}
+
+	// Military runs Radar: its saved armor waits, and only Industry is idle.
+	v.Research.Projects = []game.Project{{Tech: "base:radar"}}
+	tt = b.newTurn(v)
+	if got := b.cards(tt); !slices.Equal(got, []string{"base:drill"}) {
+		t.Errorf("cards %v with Military busy; want only Industry's drill", got)
+	}
+	if got := b.idleFields(v); got != 1 {
+		t.Errorf("%d idle fields; want 1, Industry", got)
+	}
+}
+
+func TestAResearchBuildingIsWorthItsFieldsGoal(t *testing.T) {
+	c := lineContent()
+	c.Buildings["base:proving-grounds"] = cs.Building{Faction: "base:unsc", Cost: map[string]int{"base:credits": 200}, Research: map[string]int{"base:military": 2}}
+	c.Buildings["base:oni-station"] = cs.Building{Faction: "base:unsc", Cost: map[string]int{"base:credits": 200}, Research: map[string]int{"base:industry": 2}}
+	delete(c.Buildings, "base:mine")
+	b := New(c, 0, "base:unsc", "hard", 1, 0)
+	army, econ := cs.ResearchFieldBotGoalArmy, cs.ResearchFieldBotGoalEconomy
+	rules(b.c, func(r *cs.Ruleset) {
+		r.PaydaySeconds = 90 // Research is worth a Payday's
+		r.Tech.Fields = map[string]cs.ResearchField{"base:military": {BotGoal: &army}, "base:industry": {BotGoal: &econ}}
+	})
+	v := view([]string{"base:barracks", "", ""}, 0)
+	for _, tc := range []struct {
+		army, economy float64
+		want          string
+	}{{3, 1, "base:proving-grounds"}, {1, 3, "base:oni-station"}} {
+		b.Weights.Army, b.Weights.Economy = tc.army, tc.economy
+		cmd := b.buildEconomy(b.newTurn(v), goal{kind: economy})
+		if cmd == nil || decode(*cmd).(*wire.QueueBuildingT).Building != tc.want {
+			t.Errorf("Army %v, Economy %v: built %v; want %s", tc.army, tc.economy, cmd, tc.want)
+		}
+	}
 }
 
 func TestItSavesForATopGoalTheNextPaydayAffords(t *testing.T) {
@@ -190,7 +226,7 @@ func TestItSavesForATopGoalTheNextPaydayAffords(t *testing.T) {
 	rules(b.c, func(r *cs.Ruleset) { r.Tech.LabsPerPlanet = 3 })
 	b.Weights.Research = 100
 	v := view([]string{"base:barracks", "", ""}, 0)
-	v.Research.Hand = []string{"base:drill"}
+	v.Research.Hands = map[string][]string{"base:industry": {"base:drill"}}
 	v.Economy.Resources = credits(100) // a Lab costs 250
 	v.Economy.Projected = credits(500)
 	if cmds := b.Think(v); len(cmds) != 0 {

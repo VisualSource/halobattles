@@ -108,16 +108,22 @@
       "description": "Research and Labs; see docs/specs/tech-spec.md.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["projectLimit", "capitalResearch", "costScalingPercent", "recoveryPercent", "labsPerPlanet", "handSize", "rarities"],
+      "required": ["fields", "capitalResearch", "costScalingPercent", "recoveryPercent", "labsPerPlanet", "handSize", "rarities"],
       "properties": {
-        "projectLimit": { "description": "Projects a player can run at once, before Techs raise it.", "type": "integer", "minimum": 1 },
-        "capitalResearch": { "description": "Research per second a player's Capital makes.", "type": "integer", "minimum": 0 },
+        "fields": {
+          "description": "The Research fields, by id. Each has its own Research rate, one Project and its own hand.",
+          "type": "object",
+          "propertyNames": { "$ref": "defs.schema.json#/definitions/id" },
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "defs.schema.json#/definitions/researchField" }
+        },
+        "capitalResearch": { "description": "Research per second a player's Capital makes, in every field.", "type": "integer", "minimum": 0 },
         "costScalingPercent": { "description": "Added to a Project's cost for each Tech the player holds.", "type": "integer", "minimum": 0 },
         "recoveryPercent": { "description": "What a lost Tech costs to research again.", "type": "integer", "minimum": 0, "maximum": 100 },
         "labsPerPlanet": { "type": "integer", "minimum": 0 },
         "handSize": { "description": "Cards drawn for a hand, besides guaranteed ones.", "type": "integer", "minimum": 1 },
         "rarities": {
-          "description": "Per Rarity: the Research rate it's offered from, and its draw weight.",
+          "description": "Per Rarity: the field's Research rate it's offered from, and its draw weight.",
           "type": "object",
           "propertyNames": { "$ref": "defs.schema.json#/definitions/rarity" },
           "required": ["common", "uncommon", "rare", "legendary"],

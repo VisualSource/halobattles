@@ -3,6 +3,7 @@
   "id": "air-wing",
   "name": "Air Wing",
   "faction": "unsc",
+  "field": "military",
   "rarity": "uncommon",
   "cost": 600,
   "requires": { "techs": ["motor-pool"] },

@@ -3,6 +3,7 @@
   "id": "main-battle-tank",
   "name": "Main Battle Tank",
   "faction": "unsc",
+  "field": "military",
   "rarity": "uncommon",
   "cost": 600,
   "requires": { "techs": ["motor-pool"] },

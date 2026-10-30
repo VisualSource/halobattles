@@ -6,8 +6,9 @@ import (
 	"testing"
 )
 
-// The base Mod's tech tree, played from the UNSC Starting Kit: build ONI
-// Stations, Labs and a Forerunner Dig Site, keep every Project slot busy
+// The base Mod's tech tree, played from the UNSC Starting Kit: build a
+// research building of each field (Fleet Command most, for Logistics'
+// Legendary), Labs and a Forerunner Dig Site, keep every field busy
 // (Legendary first, then the rarest card), and reach Forerunner
 // Reverse-Engineering. Resources are topped up each second and Seat 0 is
 // handed Planets to build on, so only research is being tested.
@@ -49,10 +50,12 @@ func TestTheBaseModResearchesFromAStartingKitToALegendaryTech(t *testing.T) {
 		t.Fatalf("nowhere to build %s", building)
 	}
 	place("base:forerunner-dig-site")
-	for range 7 {
-		place("base:oni-station")
+	for range 4 {
+		place("base:fleet-command")
 		place("base:research-lab")
 	}
+	place("base:oni-station")
+	place("base:proving-grounds")
 
 	rank := map[string]int{"legendary": 0, "rare": 1, "uncommon": 2, "common": 3}
 	const goal = "base:forerunner-reverse-engineering"
@@ -60,30 +63,34 @@ func TestTheBaseModResearchesFromAStartingKitToALegendaryTech(t *testing.T) {
 		topUp()
 		s.Advance(c, now)
 		if s.heldTechs(c, 0)[goal] {
-			t.Logf("held %d Techs by %d s at %d Research", len(s.heldTechs(c, 0)), now/1000, s.researchRate(c, 0))
+			t.Logf("held %d Techs by %d s at %v Research", len(s.heldTechs(c, 0)), now/1000, s.researchRates(c, 0))
 			return
 		}
 		pl := &s.Players[0]
-		if len(pl.Projects) >= s.projectLimit(c, 0) {
-			continue
+		var cards []string // a busy field's cards are refused
+		for _, f := range slices.Sorted(maps.Keys(pl.Hands)) {
+			cards = append(cards, pl.Hands[f]...)
 		}
-		cards := slices.Clone(pl.Hand)
 		for _, v := range pl.Saved {
 			cards = append(cards, v.Tech)
 		}
 		slices.SortStableFunc(cards, func(a, b string) int {
 			return rank[string(c.Techs[a].Rarity)] - rank[string(c.Techs[b].Rarity)]
 		})
+		started := map[string]bool{}
 	pick:
 		for _, tech := range cards {
-			for _, id := range slices.Sorted(maps.Keys(s.Planets)) {
-				for slot := range s.Planets[id].Buildings {
-					if s.StartProject(c, 0, tech, id, slot) == nil {
-						break pick
+			if f := string(c.Techs[tech].Field); !started[f] {
+				for _, id := range slices.Sorted(maps.Keys(s.Planets)) {
+					for slot := range s.Planets[id].Buildings {
+						if s.StartProject(c, 0, tech, id, slot) == nil {
+							started[f] = true
+							continue pick
+						}
 					}
 				}
 			}
 		}
 	}
-	t.Fatalf("no %s after 3 hours: held %v at %d Research", goal, slices.Sorted(maps.Keys(s.heldTechs(c, 0))), s.researchRate(c, 0))
+	t.Fatalf("no %s after 3 hours: held %v at %v Research", goal, slices.Sorted(maps.Keys(s.heldTechs(c, 0))), s.researchRates(c, 0))
 }

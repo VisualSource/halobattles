@@ -64,10 +64,13 @@ func playAlone(t *testing.T, faction, difficulty string) {
 	income := s.View(c, 0).Economy.Projected["base:credits"]
 	b := New(c, 0, faction, difficulty, 1, 0)
 	accepted := map[wire.Op]int{}
-	researching, samples, lost := 0, 0, 0
+	waiting, samples, lost := 0, 0, 0
 	taken := map[string]bool{}
 	for now := int64(200); now <= 10*60_000; now += 200 {
 		ev := s.Advance(c, now)
+		if s.Result != nil {
+			break // won: nothing moves after
+		}
 		v := s.View(c, 0)
 		for _, x := range ev.Ended {
 			if x.Winner != 0 { // alone on the map, every Battle is its attack
@@ -82,10 +85,12 @@ func playAlone(t *testing.T, faction, difficulty string) {
 				t.Fatalf("%d ms: in debt, %d %s", now, a, r)
 			}
 		}
-		if now%10_000 == 0 {
-			samples++
-			if len(v.Research.Projects) > 0 {
-				researching++
+		if now%10_000 == 0 { // a field with a hand has no Project: its Research is wasted
+			for f := range v.Research.Rates {
+				samples++
+				if len(v.Research.Hands[f]) > 0 {
+					waiting++
+				}
 			}
 		}
 		if !b.Due(now) {
@@ -105,8 +110,8 @@ func playAlone(t *testing.T, faction, difficulty string) {
 	if accepted[wire.OpQueueUnit] == 0 {
 		t.Error("never trained")
 	}
-	if researching < samples*9/10 {
-		t.Errorf("a Project running in %d of %d samples; want 90%%", researching, samples)
+	if waiting > samples/10 {
+		t.Errorf("a field left waiting with a hand in %d of %d samples; want at most 10%%", waiting, samples)
 	}
 	t.Logf("took %v, lost %d Battles", taken, lost)
 	// The Outpost is empty, Ridge and Depot weakly held, Vault strongly.

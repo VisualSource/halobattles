@@ -3,6 +3,7 @@
   "id": "banshee-flight",
   "name": "Banshee Flight",
   "faction": "covenant",
+  "field": "military",
   "rarity": "uncommon",
   "cost": 600,
   "requires": { "techs": ["ghost-fabrication"] },

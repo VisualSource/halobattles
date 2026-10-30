@@ -84,6 +84,24 @@
         "weights": { "description": "Its goal weights, times its Faction's.", "$ref": "#/definitions/botGoalWeights" }
       }
     },
+    "researchField": {
+      "title": "Research Field",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "colour"],
+      "properties": {
+        "name": { "$ref": "#/definitions/name" },
+        "colour": { "description": "What the client tints it with.", "type": "string", "pattern": "^#[0-9a-f]{6}$" },
+        "icon": { "$ref": "#/definitions/asset" },
+        "botGoal": { "description": "The Bot goal its Research serves; left out, the higher of the two.", "enum": ["army", "economy"] }
+      }
+    },
+    "researchMap": {
+      "description": "Research per second, keyed by Research field id.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/definitions/id" },
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
     "rarityRule": {
       "title": "Rarity Rule",
       "type": "object",
@@ -96,7 +114,7 @@
     },
     "effect": {
       "title": "Effect",
-      "description": "A Tech's modifier, by exactly one of `percent` or `amount`. `unitClass` or `unit` narrows a combat stat or buildTime; `resource` narrows extractorYield, upkeep or stockpileCap.",
+      "description": "A Tech's modifier, by exactly one of `percent` or `amount`. `unitClass` or `unit` narrows a combat stat or buildTime; `resource` narrows extractorYield, upkeep or stockpileCap; `field` narrows research.",
       "type": "object",
       "additionalProperties": false,
       "required": ["stat"],
@@ -105,7 +123,7 @@
           "enum": [
             "shield", "armor", "hp", "damage",
             "extractorYield", "upkeep", "stockpileCap", "buildTime", "sprawlFreePlanets",
-            "commandPoints", "projectLimit", "techSlots",
+            "commandPoints", "techSlots",
             "research"
           ]
         },
@@ -113,7 +131,8 @@
         "amount": { "type": "integer" },
         "unitClass": { "$ref": "#/definitions/id" },
         "unit": { "$ref": "#/definitions/id" },
-        "resource": { "$ref": "#/definitions/id" }
+        "resource": { "$ref": "#/definitions/id" },
+        "field": { "description": "Narrows research to one Research field; left out, every field.", "$ref": "#/definitions/id" }
       }
     },
     "stack": {

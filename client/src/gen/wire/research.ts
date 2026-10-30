@@ -5,6 +5,7 @@
 import * as flatbuffers from 'flatbuffers';
 
 import { Project, ProjectT } from '../wire/project.js';
+import { ResearchField, ResearchFieldT } from '../wire/research-field.js';
 import { SavedProject, SavedProjectT } from '../wire/saved-project.js';
 
 
@@ -26,62 +27,58 @@ static getSizePrefixedRootAsResearch(bb:flatbuffers.ByteBuffer, obj?:Research):R
   return (obj || new Research()).__init(bb.readInt32(bb.position()) + bb.position(), bb);
 }
 
-rate():number {
+fields(index: number, obj?:ResearchField):ResearchField|null {
   const offset = this.bb!.__offset(this.bb_pos, 4);
-  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
+  return offset ? (obj || new ResearchField()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
 }
 
-projectLimit():number {
-  const offset = this.bb!.__offset(this.bb_pos, 6);
-  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+fieldsLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 4);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
 projects(index: number, obj?:Project):Project|null {
-  const offset = this.bb!.__offset(this.bb_pos, 8);
+  const offset = this.bb!.__offset(this.bb_pos, 6);
   return offset ? (obj || new Project()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
 }
 
 projectsLength():number {
-  const offset = this.bb!.__offset(this.bb_pos, 8);
-  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
-}
-
-hand(index: number):string
-hand(index: number,optionalEncoding:flatbuffers.Encoding):string|Uint8Array
-hand(index: number,optionalEncoding?:any):string|Uint8Array|null {
-  const offset = this.bb!.__offset(this.bb_pos, 10);
-  return offset ? this.bb!.__string(this.bb!.__vector(this.bb_pos + offset) + index * 4, optionalEncoding) : null;
-}
-
-handLength():number {
-  const offset = this.bb!.__offset(this.bb_pos, 10);
+  const offset = this.bb!.__offset(this.bb_pos, 6);
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
 saved(index: number, obj?:SavedProject):SavedProject|null {
-  const offset = this.bb!.__offset(this.bb_pos, 12);
+  const offset = this.bb!.__offset(this.bb_pos, 8);
   return offset ? (obj || new SavedProject()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
 }
 
 savedLength():number {
-  const offset = this.bb!.__offset(this.bb_pos, 12);
+  const offset = this.bb!.__offset(this.bb_pos, 8);
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
 static startResearch(builder:flatbuffers.Builder) {
-  builder.startObject(5);
+  builder.startObject(3);
 }
 
-static addRate(builder:flatbuffers.Builder, rate:number) {
-  builder.addFieldInt32(0, rate, 0);
+static addFields(builder:flatbuffers.Builder, fieldsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(0, fieldsOffset, 0);
 }
 
-static addProjectLimit(builder:flatbuffers.Builder, projectLimit:number) {
-  builder.addFieldInt8(1, projectLimit, 0);
+static createFieldsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startFieldsVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
 }
 
 static addProjects(builder:flatbuffers.Builder, projectsOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(2, projectsOffset, 0);
+  builder.addFieldOffset(1, projectsOffset, 0);
 }
 
 static createProjectsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
@@ -96,24 +93,8 @@ static startProjectsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
-static addHand(builder:flatbuffers.Builder, handOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(3, handOffset, 0);
-}
-
-static createHandVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
-  builder.startVector(4, data.length, 4);
-  for (let i = data.length - 1; i >= 0; i--) {
-    builder.addOffset(data[i]!);
-  }
-  return builder.endVector();
-}
-
-static startHandVector(builder:flatbuffers.Builder, numElems:number) {
-  builder.startVector(4, numElems, 4);
-}
-
 static addSaved(builder:flatbuffers.Builder, savedOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(4, savedOffset, 0);
+  builder.addFieldOffset(2, savedOffset, 0);
 }
 
 static createSavedVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
@@ -133,56 +114,46 @@ static endResearch(builder:flatbuffers.Builder):flatbuffers.Offset {
   return offset;
 }
 
-static createResearch(builder:flatbuffers.Builder, rate:number, projectLimit:number, projectsOffset:flatbuffers.Offset, handOffset:flatbuffers.Offset, savedOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createResearch(builder:flatbuffers.Builder, fieldsOffset:flatbuffers.Offset, projectsOffset:flatbuffers.Offset, savedOffset:flatbuffers.Offset):flatbuffers.Offset {
   Research.startResearch(builder);
-  Research.addRate(builder, rate);
-  Research.addProjectLimit(builder, projectLimit);
+  Research.addFields(builder, fieldsOffset);
   Research.addProjects(builder, projectsOffset);
-  Research.addHand(builder, handOffset);
   Research.addSaved(builder, savedOffset);
   return Research.endResearch(builder);
 }
 
 unpack(): ResearchT {
   return new ResearchT(
-    this.rate(),
-    this.projectLimit(),
+    this.bb!.createObjList<ResearchField, ResearchFieldT>(this.fields.bind(this), this.fieldsLength()),
     this.bb!.createObjList<Project, ProjectT>(this.projects.bind(this), this.projectsLength()),
-    this.bb!.createScalarList<string>(this.hand.bind(this), this.handLength()),
     this.bb!.createObjList<SavedProject, SavedProjectT>(this.saved.bind(this), this.savedLength())
   );
 }
 
 
 unpackTo(_o: ResearchT): void {
-  _o.rate = this.rate();
-  _o.projectLimit = this.projectLimit();
+  _o.fields = this.bb!.createObjList<ResearchField, ResearchFieldT>(this.fields.bind(this), this.fieldsLength());
   _o.projects = this.bb!.createObjList<Project, ProjectT>(this.projects.bind(this), this.projectsLength());
-  _o.hand = this.bb!.createScalarList<string>(this.hand.bind(this), this.handLength());
   _o.saved = this.bb!.createObjList<SavedProject, SavedProjectT>(this.saved.bind(this), this.savedLength());
 }
 }
 
 export class ResearchT implements flatbuffers.IGeneratedObject {
 constructor(
-  public rate: number = 0,
-  public projectLimit: number = 0,
+  public fields: (ResearchFieldT)[] = [],
   public projects: (ProjectT)[] = [],
-  public hand: (string)[] = [],
   public saved: (SavedProjectT)[] = []
 ){}
 
 
 pack(builder:flatbuffers.Builder): flatbuffers.Offset {
+  const fields = Research.createFieldsVector(builder, builder.createObjectOffsetList(this.fields));
   const projects = Research.createProjectsVector(builder, builder.createObjectOffsetList(this.projects));
-  const hand = Research.createHandVector(builder, builder.createObjectOffsetList(this.hand));
   const saved = Research.createSavedVector(builder, builder.createObjectOffsetList(this.saved));
 
   return Research.createResearch(builder,
-    this.rate,
-    this.projectLimit,
+    fields,
     projects,
-    hand,
     saved
   );
 }

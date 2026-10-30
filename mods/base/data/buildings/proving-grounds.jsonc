@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "proving-grounds",
+  "name": "Proving Grounds",
+  "faction": "unsc",
+  "cost": { "credits": 200, "materials": 50 },
+  "buildTime": 30,
+  "upkeep": { "credits": 10 },
+  "yield": {},
+  // docs/specs/tech-spec.md#research: the same on every Planet.
+  "research": { "military": 2 },
+  "commandPointBonus": 0
+}

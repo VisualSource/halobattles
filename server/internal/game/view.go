@@ -28,10 +28,9 @@ type View struct {
 // Research is the viewer's own: their Research rate, Projects, hand and
 // saved Projects.
 type Research struct {
-	Rate     int
-	Limit    int // Projects that can run at once
-	Projects []Project
-	Hand     []string
+	Rates    map[string]int // Research per second, by field
+	Projects []Project      // at most one per field
+	Hands    map[string][]string
 	Saved    []Saved
 }
 
@@ -143,8 +142,8 @@ func (s *State) View(c *cs.Content, seat int) View {
 	}
 	pl := s.Players[seat]
 	v.Research = Research{
-		Rate: s.researchRate(c, seat), Limit: s.projectLimit(c, seat), Projects: slices.Clone(pl.Projects),
-		Hand: slices.Clone(pl.Hand), Saved: slices.Clone(pl.Saved),
+		Rates: s.researchRates(c, seat), Projects: slices.Clone(pl.Projects),
+		Hands: maps.Clone(pl.Hands), Saved: slices.Clone(pl.Saved),
 	}
 	for i, card := range v.Research.Saved {
 		if card.Lost {

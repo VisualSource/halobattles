@@ -4,13 +4,14 @@
   "description": "Researched by a player and held in a Lab: it unlocks units and buildings, and gives effects, while held. See docs/specs/tech-spec.md.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "name", "rarity", "cost"],
+  "required": ["id", "name", "field", "rarity", "cost"],
   "properties": {
     "$schema": { "type": "string" },
     "replace": { "description": "Replace an existing definition with this id.", "type": "boolean" },
     "id": { "$ref": "defs.schema.json#/definitions/id" },
     "name": { "$ref": "defs.schema.json#/definitions/name" },
     "faction": { "description": "The Faction that can research it; left out, every Faction can.", "$ref": "defs.schema.json#/definitions/id" },
+    "field": { "description": "The Research field it's researched in, from the Ruleset's.", "$ref": "defs.schema.json#/definitions/id" },
     "rarity": { "$ref": "defs.schema.json#/definitions/rarity" },
     "cost": { "description": "Research, before the Ruleset's scaling.", "type": "integer", "minimum": 1 },
     "requires": {

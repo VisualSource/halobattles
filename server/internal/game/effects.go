@@ -55,6 +55,11 @@ func (e effects) resource(stat cs.EffectStat, r string) mod {
 	return e.on(stat, func(ef cs.Effect) bool { return ef.Resource == nil || string(*ef.Resource) == r })
 }
 
+// field is the sum on stat for Research field f, or for every field.
+func (e effects) field(stat cs.EffectStat, f string) mod {
+	return e.on(stat, func(ef cs.Effect) bool { return ef.Field == nil || string(*ef.Field) == f })
+}
+
 // unit is the sum on stat for one unit, by its id and Unit Class.
 func (e effects) unit(stat cs.EffectStat, id, class string) mod {
 	return e.on(stat, func(ef cs.Effect) bool {

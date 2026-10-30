@@ -3,6 +3,7 @@
   "id": "fleet-logistics",
   "name": "Fleet Logistics",
   "faction": "covenant",
+  "field": "logistics",
   "rarity": "rare",
   "cost": 1200,
   "effects": [{ "stat": "commandPoints", "amount": 10 }]

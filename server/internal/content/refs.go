@@ -18,6 +18,9 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 	case "rulesets":
 		qualifyKeys(obj, "startingResources", ns)
 		qualifyKeys(obj, "stockpileCaps", ns)
+		if tr, ok := obj["tech"].(map[string]any); ok {
+			qualifyKeys(tr, "fields", ns)
+		}
 		list, _ := obj["exchange"].([]any)
 		for _, v := range list {
 			if r, ok := v.(map[string]any); ok {
@@ -48,6 +51,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		qualifyKeys(obj, "yield", ns)
 		qualifyKeys(obj, "extracts", ns)
 		qualifyKeys(obj, "storage", ns)
+		qualifyKeys(obj, "research", ns)
 		if r, ok := obj["refines"].(map[string]any); ok {
 			qualifyKeys(r, "input", ns)
 			qualifyKeys(r, "output", ns)
@@ -60,6 +64,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		}
 	case "techs":
 		qualifyField(obj, "faction", ns)
+		qualifyField(obj, "field", ns)
 		for _, field := range []string{"requires", "unlocks"} {
 			if m, ok := obj[field].(map[string]any); ok {
 				qualifyList(m, "techs", ns)
@@ -73,6 +78,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 				qualifyField(e, "unitClass", ns)
 				qualifyField(e, "unit", ns)
 				qualifyField(e, "resource", ns)
+				qualifyField(e, "field", ns)
 			}
 		}
 	case "planetTypes":
@@ -183,6 +189,9 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		where := "rulesets " + id
 		c.resourceKeys(where+": startingResources", r.StartingResources)
 		c.resourceKeys(where+": stockpileCaps", r.StockpileCaps)
+		for _, f := range slices.Sorted(maps.Keys(r.Tech.Fields)) {
+			c.asset(where+": tech fields "+f, r.Tech.Fields[f].Icon)
+		}
 		for _, res := range slices.Sorted(maps.Keys(doc.Resources)) {
 			cap, ok := r.StockpileCaps[res]
 			switch {
@@ -252,6 +261,9 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		c.resourceKeys(where+": yield", b.Yield)
 		c.resourceKeys(where+": extracts", b.Extracts)
 		c.resourceKeys(where+": storage", b.Storage)
+		for _, f := range slices.Sorted(maps.Keys(b.Research)) {
+			c.field(where+": research", f)
+		}
 		if b.Refines != nil {
 			c.resourceKeys(where+": refines input", b.Refines.Input)
 			c.resourceKeys(where+": refines output", b.Refines.Output)
@@ -294,6 +306,7 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 // tech checks a Tech's references, that a Faction's Tech names only its
 // own Faction's units and buildings, and that each effect is well-formed.
 func (c *checker) tech(where string, t contentschema.Tech) {
+	c.field(where, string(t.Field))
 	faction := ""
 	if t.Faction != nil {
 		faction = string(*t.Faction)
@@ -347,6 +360,12 @@ func (c *checker) tech(where string, t contentschema.Tech) {
 		}
 		if e.Resource != nil {
 			c.ref(ew, "resources", string(*e.Resource))
+		}
+		if e.Field != nil {
+			if e.Stat != "research" {
+				c.fail("%s: field only narrows research, not %s", ew, e.Stat)
+			}
+			c.field(ew, string(*e.Field))
 		}
 	}
 	c.asset(where, t.Icon)
@@ -420,6 +439,16 @@ func (c *checker) ref(where, kind, id string) {
 		return
 	}
 	c.fail("%s: unknown %s %s", where, kinds[kind].label, id)
+}
+
+// field checks a Research field is one of the Ruleset's.
+func (c *checker) field(where, id string) {
+	if c.rules == nil {
+		return // base:rules is missing or broken, and already reported
+	}
+	if _, ok := c.rules.Tech.Fields[id]; !ok {
+		c.fail("%s: unknown Research field %s", where, id)
+	}
 }
 
 func (c *checker) resourceKeys(where string, m map[string]int) {

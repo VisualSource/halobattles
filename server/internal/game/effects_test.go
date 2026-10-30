@@ -80,30 +80,30 @@ func TestBuildTimeEffectsNarrowToUnits(t *testing.T) {
 }
 
 func TestCapacityAndResearchEffectsStack(t *testing.T) {
+	industry := cs.ID("base:industry")
+	narrowed := pct("research", 50)
+	narrowed.Field = &industry
 	s, c := withEffects(t,
-		[]cs.Effect{amt("commandPoints", 10), amt("projectLimit", 1), amt("techSlots", 1), pct("research", 50)},
-		[]cs.Effect{pct("research", 50)},
+		[]cs.Effect{amt("commandPoints", 10), amt("techSlots", 1), pct("research", 50)},
+		[]cs.Effect{narrowed},
 	)
 	c.Rulesets[RulesetID] = withRuleset(c, func(r *cs.Ruleset) { r.Tech.CapitalResearch = 4 })
 
 	if _, cp := s.commandPoints(c, 0); cp != 30 {
 		t.Errorf("Command Points cap %d, want the Capital's 20 + 10", cp)
 	}
-	if got := s.projectLimit(c, 0); got != 4 {
-		t.Errorf("project limit %d, want 3 + 1", got)
-	}
 	if _, slots, _ := s.labAt(c, 0, "a", 2); slots != 3 {
 		t.Errorf("Lab has %d Tech Slots, want 2 + 1", slots)
 	}
-	if got := s.researchRate(c, 0); got != 8 {
-		t.Errorf("Research %d, want 4 + 50%% + 50%%, the percentages added", got)
+	if got := s.researchRates(c, 0); got["base:industry"] != 8 || got["base:military"] != 6 {
+		t.Errorf("Research %v, want Industry 4 + 50%% + 50%%, the percentages added, and Military 4 + 50%%", got)
 	}
 
 	if err := s.SellBuilding(c, 0, "a", 2); err != nil {
 		t.Fatal(err)
 	}
-	if got := s.researchRate(c, 0); got != 4 {
-		t.Errorf("Research %d after the Lab was sold, want 4", got)
+	if got := s.researchRates(c, 0); got["base:industry"] != 4 || got["base:military"] != 4 {
+		t.Errorf("Research %v after the Lab was sold, want 4 in each field", got)
 	}
 }
 

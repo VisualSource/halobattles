@@ -78,7 +78,6 @@ const STATS: Record<Effect["stat"], [string, string]> = {
   buildTime: ["build time", "build time"],
   sprawlFreePlanets: ["Sprawl-free Planet", "Sprawl-free Planets"],
   commandPoints: ["Command Point", "Command Points"],
-  projectLimit: ["Project", "Projects"],
   techSlots: ["Tech Slot per Lab", "Tech Slots per Lab"],
   research: ["Research", "Research"],
 };
@@ -91,9 +90,11 @@ export function effectText(content: ContentLookups, e: Effect) {
   const narrow =
     (e.unit && content.units.get(e.unit)?.name) ||
     (e.unitClass && content.unitClasses.get(e.unitClass)?.name) ||
-    (e.resource && content.resources.get(e.resource)?.name);
+    (e.resource && content.resources.get(e.resource)?.name) ||
+    (e.field && content.rules.tech.fields[e.field]?.name);
   const what = e.percent === undefined && Math.abs(v) === 1 ? one : many;
-  return `${sign}${Math.abs(v)}${e.percent === undefined ? "" : "%"} ${narrow ? `${narrow} ` : ""}${what}`;
+  const every = e.stat === "research" && !e.field ? ", every field" : "";
+  return `${sign}${Math.abs(v)}${e.percent === undefined ? "" : "%"} ${narrow ? `${narrow} ` : ""}${what}${every}`;
 }
 
 /** What a Tech does, in a line: its unlocks, then its effects. */

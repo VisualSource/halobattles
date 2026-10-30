@@ -261,11 +261,13 @@ export interface BotGoalWeights {
  */
 export interface TechRules {
   /**
-   * Projects a player can run at once, before Techs raise it.
+   * The Research fields, by id. Each has its own Research rate, one Project and its own hand.
    */
-  projectLimit: number;
+  fields: {
+    [k: string]: ResearchField;
+  };
   /**
-   * Research per second a player's Capital makes.
+   * Research per second a player's Capital makes, in every field.
    */
   capitalResearch: number;
   /**
@@ -282,11 +284,29 @@ export interface TechRules {
    */
   handSize: number;
   /**
-   * Per Rarity: the Research rate it's offered from, and its draw weight.
+   * Per Rarity: the field's Research rate it's offered from, and its draw weight.
    */
   rarities: {
     [k: string]: RarityRule;
   };
+}
+export interface ResearchField {
+  /**
+   * Inline English display name.
+   */
+  name: string;
+  /**
+   * What the client tints it with.
+   */
+  colour: string;
+  /**
+   * An asset in a Mod's assets/ folder, written `__mod__/path`.
+   */
+  icon?: string;
+  /**
+   * The Bot goal its Research serves; left out, the higher of the two.
+   */
+  botGoal?: "army" | "economy";
 }
 export interface RarityRule {
   /**
@@ -659,10 +679,7 @@ export interface Building {
    * Makes it a Lab, holding this many Techs.
    */
   techSlots?: number;
-  /**
-   * Research it makes per second, the same on every Planet.
-   */
-  research?: number;
+  research?: ResearchMap;
   commandPointBonus: number;
   /**
    * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
@@ -707,6 +724,12 @@ export interface Refining {
  * Amounts keyed by Resource id.
  */
 export interface ResourceMap8 {
+  [k: string]: number;
+}
+/**
+ * Research it makes per second in each Research field named, the same on every Planet.
+ */
+export interface ResearchMap {
   [k: string]: number;
 }
 /**
@@ -1031,6 +1054,10 @@ export interface Tech {
    */
   faction?: string;
   /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  field: string;
+  /**
    * How likely a Tech is to be offered; rarer ones only above a Research rate.
    */
   rarity: "common" | "uncommon" | "rare" | "legendary";
@@ -1073,7 +1100,7 @@ export interface TechUnlocks {
   buildings?: string[];
 }
 /**
- * A Tech's modifier, by exactly one of `percent` or `amount`. `unitClass` or `unit` narrows a combat stat or buildTime; `resource` narrows extractorYield, upkeep or stockpileCap.
+ * A Tech's modifier, by exactly one of `percent` or `amount`. `unitClass` or `unit` narrows a combat stat or buildTime; `resource` narrows extractorYield, upkeep or stockpileCap; `field` narrows research.
  */
 export interface Effect {
   stat:
@@ -1087,7 +1114,6 @@ export interface Effect {
     | "buildTime"
     | "sprawlFreePlanets"
     | "commandPoints"
-    | "projectLimit"
     | "techSlots"
     | "research";
   percent?: number;
@@ -1104,4 +1130,8 @@ export interface Effect {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   resource?: string;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  field?: string;
 }

@@ -198,10 +198,9 @@ export type Project = {
 
 /** Your own research; nobody else's is ever sent. */
 export type Research = {
-  rate: number; // Research per second
-  projectLimit: number; // Projects that can run at once
-  projects: Project[];
-  hand: string[]; // Techs offered
+  rates: Map<string, number>; // Research per second, by Research field
+  projects: Project[]; // at most one per field
+  hands: Map<string, string[]>; // Techs offered, by field; only an idle field has one
   // Guaranteed cards: stopped Projects, and lost Techs at their recovery cost.
   saved: { tech: string; cost: number; done: number; lost: boolean }[];
 };

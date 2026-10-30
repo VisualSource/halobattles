@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "ministry-of-tranquility",
+  "name": "Ministry of Tranquility",
+  "faction": "covenant",
+  "cost": { "credits": 200, "materials": 50 },
+  "buildTime": 30,
+  "upkeep": { "credits": 10 },
+  "yield": {},
+  // docs/specs/tech-spec.md#research: the same on every Planet.
+  "research": { "logistics": 2 },
+  "commandPointBonus": 0
+}

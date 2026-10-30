@@ -8,6 +8,6 @@
   "upkeep": { "credits": 10 },
   "yield": {},
   // docs/specs/tech-spec.md#research: the same on every Planet.
-  "research": 2,
+  "research": { "industry": 2 },
   "commandPointBonus": 0
 }

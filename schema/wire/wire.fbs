@@ -426,11 +426,15 @@ table SavedProject {
 
 // The viewer's own research. Never sent for anyone else.
 table Research {
-  rate: uint32;            // Research per second
-  project_limit: ubyte;    // Projects that can run at once
-  projects: [Project];
-  hand: [string];          // Techs offered
+  fields: [ResearchField]; // every Research field, sorted by id
+  projects: [Project];     // at most one per field
   saved: [SavedProject];
+}
+
+table ResearchField {
+  field: string (key);
+  rate: uint32;            // Research per second
+  hand: [string];          // Techs offered while the field has no Project
 }
 
 // Sent on entering play and on every rejoin. Content is referred to by id;

@@ -29,7 +29,7 @@
     },
     "storage": { "description": "Raises its owner's Stockpile caps.", "$ref": "defs.schema.json#/definitions/resourceMap" },
     "techSlots": { "description": "Makes it a Lab, holding this many Techs.", "type": "integer", "minimum": 1 },
-    "research": { "description": "Research it makes per second, the same on every Planet.", "type": "integer", "minimum": 0 },
+    "research": { "description": "Research it makes per second in each Research field named, the same on every Planet.", "$ref": "defs.schema.json#/definitions/researchMap" },
     "commandPointBonus": { "type": "integer", "minimum": 0 },
     "trains": { "type": "array", "items": { "$ref": "defs.schema.json#/definitions/id" } },
     "padTurret": { "description": "Can be built on a build pad in Battle, lasting only that Battle. Needs a combat block.", "type": "boolean" },

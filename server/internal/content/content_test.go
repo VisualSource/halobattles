@@ -28,7 +28,7 @@ const baseRules = `{
 	"resultsSeconds": 60,
 	"botDifficulties": [{"id": "easy", "name": "Easy", "thinkSeconds": 10, "noisePercent": 30, "attackMargin": 1, "planDepth": 3,
 		"reservePercent": 10, "retreatBelowPercent": 0, "unitChoice": "fixed", "research": "first"}],
-	"tech": {"projectLimit": 3, "capitalResearch": 2, "costScalingPercent": 10, "recoveryPercent": 50, "labsPerPlanet": 3, "handSize": 3,
+	"tech": {"fields": {"military": {"name": "Military", "colour": "#e0604f"}, "industry": {"name": "Industry", "colour": "#e8b34a"}}, "capitalResearch": 2, "costScalingPercent": 10, "recoveryPercent": 50, "labsPerPlanet": 3, "handSize": 3,
 		"rarities": {"common": {"from": 0, "weight": 10}, "uncommon": {"from": 4, "weight": 6}, "rare": {"from": 8, "weight": 3}, "legendary": {"from": 14, "weight": 1}}},
 	"battlefield": {"width": 32, "height": 24, "terrainPreset": "plain", "pathClass": "infantry",
 		"controlPoints": 3, "controlPointSpacing": 6, "deployDepth": 3, "buildPads": 2},

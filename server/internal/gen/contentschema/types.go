@@ -267,8 +267,9 @@ type Building struct {
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
 
-	// Research it makes per second, the same on every Planet.
-	Research *int `json:"research,omitempty,omitzero"`
+	// Research it makes per second in each Research field named, the same on every
+	// Planet.
+	Research map[string]int `json:"research,omitempty,omitzero"`
 
 	// Raises its owner's Stockpile caps.
 	Storage map[string]int `json:"storage,omitempty,omitzero"`
@@ -401,10 +402,13 @@ type Content struct {
 
 // A Tech's modifier, by exactly one of `percent` or `amount`. `unitClass` or
 // `unit` narrows a combat stat or buildTime; `resource` narrows extractorYield,
-// upkeep or stockpileCap.
+// upkeep or stockpileCap; `field` narrows research.
 type Effect struct {
 	// Amount corresponds to the JSON schema field "amount".
 	Amount *int `json:"amount,omitempty,omitzero"`
+
+	// Narrows research to one Research field; left out, every field.
+	Field *ID `json:"field,omitempty,omitzero"`
 
 	// Percent corresponds to the JSON schema field "percent".
 	Percent *int `json:"percent,omitempty,omitzero"`
@@ -430,7 +434,6 @@ const EffectStatCommandPoints EffectStat = "commandPoints"
 const EffectStatDamage EffectStat = "damage"
 const EffectStatExtractorYield EffectStat = "extractorYield"
 const EffectStatHp EffectStat = "hp"
-const EffectStatProjectLimit EffectStat = "projectLimit"
 const EffectStatResearch EffectStat = "research"
 const EffectStatShield EffectStat = "shield"
 const EffectStatSprawlFreePlanets EffectStat = "sprawlFreePlanets"
@@ -692,6 +695,25 @@ type Refining struct {
 	Output map[string]int `json:"output"`
 }
 
+type ResearchField struct {
+	// The Bot goal its Research serves; left out, the higher of the two.
+	BotGoal *ResearchFieldBotGoal `json:"botGoal,omitempty,omitzero"`
+
+	// What the client tints it with.
+	Colour string `json:"colour"`
+
+	// Icon corresponds to the JSON schema field "icon".
+	Icon *Asset `json:"icon,omitempty,omitzero"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+}
+
+type ResearchFieldBotGoal string
+
+const ResearchFieldBotGoalArmy ResearchFieldBotGoal = "army"
+const ResearchFieldBotGoalEconomy ResearchFieldBotGoal = "economy"
+
 // A stockpiled currency players earn at Payday and spend. Command Points is not a
 // Resource.
 type Resource struct {
@@ -860,6 +882,9 @@ type Tech struct {
 	// The Faction that can research it; left out, every Faction can.
 	Faction *ID `json:"faction,omitempty,omitzero"`
 
+	// The Research field it's researched in, from the Ruleset's.
+	Field ID `json:"field"`
+
 	// Icon corresponds to the JSON schema field "icon".
 	Icon *Asset `json:"icon,omitempty,omitzero"`
 
@@ -894,11 +919,15 @@ type TechRequirements struct {
 
 // Research and Labs; see docs/specs/tech-spec.md.
 type TechRules struct {
-	// Research per second a player's Capital makes.
+	// Research per second a player's Capital makes, in every field.
 	CapitalResearch int `json:"capitalResearch"`
 
 	// Added to a Project's cost for each Tech the player holds.
 	CostScalingPercent int `json:"costScalingPercent"`
+
+	// The Research fields, by id. Each has its own Research rate, one Project and its
+	// own hand.
+	Fields map[string]ResearchField `json:"fields"`
 
 	// Cards drawn for a hand, besides guaranteed ones.
 	HandSize int `json:"handSize"`
@@ -906,10 +935,7 @@ type TechRules struct {
 	// LabsPerPlanet corresponds to the JSON schema field "labsPerPlanet".
 	LabsPerPlanet int `json:"labsPerPlanet"`
 
-	// Projects a player can run at once, before Techs raise it.
-	ProjectLimit int `json:"projectLimit"`
-
-	// Per Rarity: the Research rate it's offered from, and its draw weight.
+	// Per Rarity: the field's Research rate it's offered from, and its draw weight.
 	Rarities map[string]RarityRule `json:"rarities"`
 
 	// What a lost Tech costs to research again.

@@ -53,7 +53,11 @@ function Flask(props: { className: string }) {
 
 /** Research per Payday, the way the top bar shows it; the server counts per second. */
 const perPayday = (content: ContentLookups, view: View) =>
-  view.research.rate * content.rules.paydaySeconds;
+  rateOf(view) * content.rules.paydaySeconds;
+
+/** Every Research field's rate, combined. */
+const rateOf = (view: View) =>
+  [...view.research.rates.values()].reduce((n, r) => n + r, 0);
 
 /** The top bar's Research readout: Research per Payday; it opens the panel. */
 export function ResearchButton(props: {
@@ -71,8 +75,8 @@ export function ResearchButton(props: {
       type="button"
       aria-expanded={props.open}
       aria-controls="research"
-      aria-label={`Research: +${n} a Payday, ${research.projects.length} of ${research.projectLimit} Projects`}
-      title={`Research: +${n} a Payday (${research.rate} a second)`}
+      aria-label={`Research: +${n} a Payday, ${research.projects.length} of ${research.rates.size} fields researching`}
+      title={`Research: +${n} a Payday (${rateOf(view)} a second)`}
       onClick={props.onToggle}
       className={`flex flex-col items-center gap-0.5 rounded border-0 px-2 py-1 font-mono leading-none ${props.open ? "bg-raised shadow-[inset_0_-2px_0_var(--color-accent)]" : "bg-transparent"}`}
     >
@@ -104,8 +108,8 @@ export function ResearchPanel(props: {
   const planets = content.maps.get(view.map)?.planets ?? [];
   const planetName = (id: string) =>
     planets.find((p) => p.id === id)?.name ?? id;
-  // Running Projects, then the free slots left under the Project limit.
-  const free = Math.max(0, research.projectLimit - research.projects.length);
+  // shortcut: one free slot per idle field, offering every idle field's cards; #51 gives each field its own slot.
+  const free = Math.max(0, research.rates.size - research.projects.length);
   const slots = [
     ...research.projects.map((p) => ({ key: p.tech, p })),
     ...Array.from({ length: free }, (_, n) => ({ key: `free-${n}`, p: null })),
@@ -263,7 +267,8 @@ function TechPicker(props: {
   const pending = useStore(conn.local, (s) => isPending(s, "research"));
   const [chosen, setChosen] = useState<string | null>(null);
   const held = heldTechs(view);
-  const { hand, saved } = view.research;
+  const { saved } = view.research;
+  const hand = [...view.research.hands.values()].flat();
   const nameOf = (id: string) => content.techs.get(id)?.name ?? id;
   const offers = [
     ...hand.map((id) => ({

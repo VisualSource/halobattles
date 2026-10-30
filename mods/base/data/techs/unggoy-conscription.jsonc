@@ -3,6 +3,7 @@
   "id": "unggoy-conscription",
   "name": "Unggoy Conscription",
   "faction": "covenant",
+  "field": "military",
   "rarity": "common",
   "cost": 300,
   "effects": [{ "stat": "buildTime", "percent": -10, "unitClass": "infantry" }]

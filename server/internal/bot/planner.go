@@ -214,7 +214,7 @@ func (b *Bot) facts(t *turn, g goal) facts {
 	if len(b.cards(t)) > 0 {
 		f |= hasCard
 	}
-	if _, _, ok := b.lab(t); (ok || b.coming(t, isLab)) && len(t.v.Research.Projects) < t.v.Research.Limit {
+	if _, _, ok := b.lab(t); (ok || b.coming(t, isLab)) && len(t.v.Research.Projects) < len(t.v.Research.Rates) {
 		f |= freeLab
 	}
 	return f

@@ -49,7 +49,7 @@ func view(buildings []string, marines int) game.View {
 		Time: 10_000, Map: "base:line", You: 0, Hold: game.Hold{Seat: game.Neutral},
 		Planets:  []game.PlanetView{a, {ID: "b", Owner: game.Neutral, Buildings: []string{"", "", ""}}},
 		Economy:  game.Economy{Resources: map[string]int{"base:credits": 1000}, Caps: map[string]int{"base:credits": 3000}, CommandPointsCap: 20},
-		Research: game.Research{Limit: 3},
+		Research: game.Research{Rates: map[string]int{"base:military": 1, "base:industry": 1}},
 	}
 }
 
@@ -261,7 +261,7 @@ func decode(c Command) any {
 func TestThinkSendsFirstStepsAsCommands(t *testing.T) {
 	b := hard(t)
 	v := view([]string{"base:barracks", "base:lab", ""}, 4)
-	v.Research.Hand = []string{"base:drill"}
+	v.Research.Hands = map[string][]string{"base:industry": {"base:drill"}}
 	cmds := b.Think(v)
 
 	var order *wire.OrderArmyT

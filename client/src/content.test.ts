@@ -35,7 +35,7 @@ const rules: Ruleset = {
     },
   ],
   tech: {
-    projectLimit: 3,
+    fields: { "base:military": { name: "Military", colour: "#e0604f" } },
     capitalResearch: 2,
     costScalingPercent: 10,
     recoveryPercent: 50,

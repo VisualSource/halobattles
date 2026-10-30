@@ -41,6 +41,7 @@ export { QueueUnit, QueueUnitT } from './wire/queue-unit.js';
 export { RemoveBot, RemoveBotT } from './wire/remove-bot.js';
 export { ReorderArmy, ReorderArmyT } from './wire/reorder-army.js';
 export { Research, ResearchT } from './wire/research.js';
+export { ResearchField, ResearchFieldT } from './wire/research-field.js';
 export { Richness, RichnessT } from './wire/richness.js';
 export { SavedProject, SavedProjectT } from './wire/saved-project.js';
 export { Seat, SeatT } from './wire/seat.js';

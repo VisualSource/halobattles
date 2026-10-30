@@ -63,10 +63,11 @@ type Player struct {
 	Forfeiting   bool // eliminated on the next tick
 	// Planets seen through Armies, and the Match Time each sighting ends.
 	Sighted map[string]int64
-	// Research: running Projects, the hand of Techs offered, Projects
-	// stopped with their progress kept, and how many hands have been drawn.
+	// Research: running Projects, at most one per field; each idle field's
+	// hand of Techs offered; Projects stopped with their progress kept; and
+	// how many hands have been drawn.
 	Projects []Project
-	Hand     []string
+	Hands    map[string][]string
 	Saved    []Saved
 	Draws    uint64
 }

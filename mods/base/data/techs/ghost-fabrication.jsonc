@@ -3,6 +3,7 @@
   "id": "ghost-fabrication",
   "name": "Ghost Fabrication",
   "faction": "covenant",
+  "field": "military",
   "rarity": "common",
   "cost": 300,
   "unlocks": { "buildings": ["summoning-foundry"], "units": ["ghost"] }

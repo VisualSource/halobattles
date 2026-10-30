@@ -3,8 +3,9 @@
   "id": "forerunner-reverse-engineering",
   "name": "Forerunner Reverse-Engineering",
   "faction": "unsc",
+  "field": "logistics",
   "rarity": "legendary",
   "cost": 2400,
   "requires": { "buildings": ["forerunner-dig-site"] },
-  "effects": [{ "stat": "techSlots", "amount": 1 }, { "stat": "projectLimit", "amount": 1 }]
+  "effects": [{ "stat": "techSlots", "amount": 1 }, { "stat": "research", "percent": 20 }]
 }

@@ -3,6 +3,7 @@
   "id": "wraith-fabrication",
   "name": "Wraith Fabrication",
   "faction": "covenant",
+  "field": "military",
   "rarity": "uncommon",
   "cost": 600,
   "requires": { "techs": ["ghost-fabrication"] },
