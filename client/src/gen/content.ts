@@ -304,6 +304,10 @@ export interface ResearchField {
    */
   icon?: string;
   /**
+   * Where it's listed, lowest first; a tie goes by id.
+   */
+  order?: number;
+  /**
    * The Bot goal its Research serves; left out, the higher of the two.
    */
   botGoal?: "army" | "economy";

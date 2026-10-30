@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import type { MatchConnection } from "./connection";
+import { FieldIcon, fieldsOf } from "./fields";
 import { isPending } from "./local";
 import { type Project, projectDone, type View } from "./store";
 import { heldTechs, labs, pauseReason, techCost, techText } from "./tech";
@@ -51,45 +52,85 @@ function Flask(props: { className: string }) {
   );
 }
 
-/** Research per Payday, the way the top bar shows it; the server counts per second. */
-const perPayday = (content: ContentLookups, view: View) =>
-  rateOf(view) * content.rules.paydaySeconds;
-
-/** Every Research field's rate, combined. */
-const rateOf = (view: View) =>
+/** Every Research field's rate, combined, per second. */
+const totalRate = (view: View) =>
   [...view.research.rates.values()].reduce((n, r) => n + r, 0);
 
-/** The top bar's Research readout: Research per Payday; it opens the panel. */
+/** Research per Payday, the way the top bar shows it; the server counts per second. */
+const perPayday = (content: ContentLookups, rate: number) =>
+  rate * content.rules.paydaySeconds;
+
+/**
+ * The top bar's Research readout: every field's Research per Payday,
+ * combined. Hovering it shows each field's; clicking opens the panel.
+ */
 export function ResearchButton(props: {
   conn: MatchConnection;
   content: ContentLookups;
   open: boolean;
   onToggle: () => void;
 }) {
+  const { content } = props;
   const view = useStore(props.conn.store, (s) => s.view);
+  const [hover, setHover] = useState(false);
   if (!view) return null;
-  const { research } = view;
-  const n = perPayday(props.content, view);
+  const n = perPayday(content, totalRate(view));
   return (
-    <button
-      type="button"
-      aria-expanded={props.open}
-      aria-controls="research"
-      aria-label={`Research: +${n} a Payday, ${research.projects.length} of ${research.rates.size} fields researching`}
-      title={`Research: +${n} a Payday (${rateOf(view)} a second)`}
-      onClick={props.onToggle}
-      className={`flex flex-col items-center gap-0.5 rounded border-0 px-2 py-1 font-mono leading-none ${props.open ? "bg-raised shadow-[inset_0_-2px_0_var(--color-accent)]" : "bg-transparent"}`}
+    // biome-ignore lint/a11y/noStaticElementInteractions: hovering only shows the button's own breakdown
+    <div
+      className="relative"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
     >
-      <Flask className="text-res-research" />
-      <span className="text-ok">+{n}</span>
-    </button>
+      <button
+        type="button"
+        aria-expanded={props.open}
+        aria-controls="research"
+        aria-describedby="research-rates"
+        aria-label={`Research: +${n} a Payday, ${view.research.projects.length} of ${view.research.rates.size} fields researching`}
+        onClick={props.onToggle}
+        onFocus={() => setHover(true)}
+        onBlur={() => setHover(false)}
+        onKeyDown={(e) => e.key === "Escape" && setHover(false)}
+        className={`flex flex-col items-center gap-0.5 rounded border-0 px-2 py-1 font-mono leading-none ${props.open ? "bg-raised shadow-[inset_0_-2px_0_var(--color-accent)]" : "bg-transparent"}`}
+      >
+        <Flask className="text-res-research" />
+        <span className="text-ok">+{n}</span>
+      </button>
+      <div
+        id="research-rates"
+        role="tooltip"
+        hidden={!hover}
+        className="border-edge bg-panel absolute top-12 left-0 z-30 flex w-62 flex-col gap-2.5 rounded-lg border p-3.5 text-[13px] shadow-[0_12px_32px_#000a]"
+      >
+        <span className="font-display text-base font-semibold">
+          Research a Payday
+        </span>
+        {fieldsOf(content).map((f) => (
+          <span key={f.id} className="flex items-center gap-2">
+            <FieldIcon content={content} field={f.id} />
+            <span className="flex-1">{f.name}</span>
+            <span className="text-ok font-mono">
+              +{perPayday(content, view.research.rates.get(f.id) ?? 0)}
+            </span>
+          </span>
+        ))}
+        <span className="border-line text-ink-3 flex justify-between border-t pt-2 text-xs">
+          <span>Total</span>
+          <span className="font-mono">
+            +{n} · {totalRate(view)} a second
+          </span>
+        </span>
+      </div>
+    </div>
   );
 }
 
 /**
- * Your Projects, one card per slot of your Project limit: what each
- * researches, where, and how far along. A free slot opens a picker: a Tech
- * from the hand or back on offer, then a Lab with a free Tech Slot.
+ * Your Projects, one slot per Research field, headed by the field and its
+ * rate: what each researches, where, and how far along. A free slot opens
+ * a picker: a Tech from that field's hand or back on offer, then a Lab with
+ * a free Tech Slot. A free field with nothing on offer stays, disabled.
  */
 export function ResearchPanel(props: {
   conn: MatchConnection;
@@ -99,7 +140,7 @@ export function ResearchPanel(props: {
   const { conn, content } = props;
   const view = useStore(conn.store, (s) => s.view);
   const now = useMatchNow(conn.local);
-  const [picking, setPicking] = useState<number | null>(null);
+  const [picking, setPicking] = useState<string | null>(null);
   const pickRef = useDismiss<HTMLLIElement>(picking !== null, () =>
     setPicking(null),
   );
@@ -108,12 +149,7 @@ export function ResearchPanel(props: {
   const planets = content.maps.get(view.map)?.planets ?? [];
   const planetName = (id: string) =>
     planets.find((p) => p.id === id)?.name ?? id;
-  // shortcut: one free slot per idle field, offering every idle field's cards; #51 gives each field its own slot.
-  const free = Math.max(0, research.rates.size - research.projects.length);
-  const slots = [
-    ...research.projects.map((p) => ({ key: p.tech, p })),
-    ...Array.from({ length: free }, (_, n) => ({ key: `free-${n}`, p: null })),
-  ];
+  const fieldOf = (tech: string) => content.techs.get(tech)?.field;
 
   return (
     <section
@@ -128,7 +164,9 @@ export function ResearchPanel(props: {
         >
           Research
         </h2>
-        <span className="text-ok font-mono">+{perPayday(content, view)}</span>
+        <span className="text-ok font-mono">
+          +{perPayday(content, totalRate(view))}
+        </span>
         <button
           type="button"
           aria-label="Close Research"
@@ -139,50 +177,90 @@ export function ResearchPanel(props: {
         </button>
       </div>
       <ol className="flex flex-col gap-2.5 p-3">
-        {slots.map(({ key, p }, i) => (
-          <li
-            key={key}
-            ref={picking === i ? pickRef : undefined}
-            className="relative"
-          >
-            {p ? (
-              <ProjectCard
-                conn={conn}
-                content={content}
-                view={view}
-                project={p}
-                now={now}
-                planetName={planetName}
-              />
-            ) : (
-              <button
-                type="button"
-                aria-expanded={picking === i}
-                onClick={() => setPicking(picking === i ? null : i)}
-                className={`flex h-32 w-full items-center justify-center gap-2.5 rounded-md p-2.5 ${picking === i ? "border-accent bg-accent-wash" : "border-edge border-dashed bg-transparent"}`}
-              >
-                <span className="border-edge text-accent flex size-11 flex-none items-center justify-center rounded-md border border-dashed text-2xl">
-                  +
+        {fieldsOf(content).map((f) => {
+          const p = research.projects.find((x) => fieldOf(x.tech) === f.id);
+          const rate = research.rates.get(f.id) ?? 0;
+          const offered =
+            (research.hands.get(f.id)?.length ?? 0) > 0 ||
+            research.saved.some((v) => fieldOf(v.tech) === f.id);
+          return (
+            <li
+              key={f.id}
+              ref={picking === f.id ? pickRef : undefined}
+              className="relative flex flex-col gap-1"
+            >
+              <div className="flex items-center gap-1.5 px-0.5">
+                <FieldIcon content={content} field={f.id} />
+                <span
+                  className="font-display text-[13px] font-semibold tracking-[0.05em] uppercase"
+                  style={{ color: f.colour }}
+                >
+                  {f.name}
                 </span>
-                <span className="flex flex-col gap-0.5 text-left">
-                  <span className="font-semibold">Free Project slot</span>
-                  <span className="text-ink-3 text-xs">
-                    Choose what to research next
+                <span className="text-ink-2 ml-auto font-mono text-xs">
+                  +{perPayday(content, rate)} · {rate}/s
+                </span>
+              </div>
+              {p ? (
+                <ProjectCard
+                  conn={conn}
+                  content={content}
+                  view={view}
+                  project={p}
+                  colour={f.colour}
+                  now={now}
+                  planetName={planetName}
+                />
+              ) : offered ? (
+                <button
+                  type="button"
+                  aria-expanded={picking === f.id}
+                  onClick={() => setPicking(picking === f.id ? null : f.id)}
+                  className={`flex h-28 w-full items-center justify-center gap-2.5 rounded-md p-2.5 ${picking === f.id ? "border-accent bg-accent-wash" : "border-edge border-dashed bg-transparent"}`}
+                >
+                  <span className="border-edge text-accent flex size-11 flex-none items-center justify-center rounded-md border border-dashed text-2xl">
+                    +
                   </span>
-                </span>
-              </button>
-            )}
-            {picking === i && (
-              <TechPicker
-                conn={conn}
-                content={content}
-                view={view}
-                planetName={planetName}
-                onDone={() => setPicking(null)}
-              />
-            )}
-          </li>
-        ))}
+                  <span className="flex flex-col gap-0.5 text-left">
+                    <span className="font-semibold">Free {f.name} slot</span>
+                    <span className="text-ink-3 text-xs">
+                      Choose what to research next
+                    </span>
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="border-edge text-ink-3 flex h-28 w-full items-center justify-center gap-2.5 rounded-md border-dashed bg-transparent p-2.5"
+                >
+                  <span className="border-edge text-ink-4 flex size-11 flex-none items-center justify-center rounded-md border border-dashed text-2xl">
+                    ·
+                  </span>
+                  <span className="flex max-w-65 flex-col gap-0.5 text-left">
+                    <span className="font-semibold">
+                      Nothing to research yet
+                    </span>
+                    <span className="text-xs">
+                      More {f.name} Research, or the buildings a Tech needs,
+                      brings more.
+                    </span>
+                  </span>
+                </button>
+              )}
+              {picking === f.id && !p && (
+                <TechPicker
+                  conn={conn}
+                  content={content}
+                  view={view}
+                  field={f.id}
+                  planetName={planetName}
+                  onDone={() => setPicking(null)}
+                />
+              )}
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
@@ -193,6 +271,7 @@ function ProjectCard(props: {
   content: ContentLookups;
   view: View;
   project: Project;
+  colour: string;
   now: number;
   planetName: (id: string) => string;
 }) {
@@ -206,7 +285,10 @@ function ProjectCard(props: {
     content.buildings.get(view.planets.get(p.planet)?.buildings[p.slot] ?? "")
       ?.name ?? "Lab";
   return (
-    <div className="border-edge bg-item flex h-32 flex-col overflow-hidden rounded-md border">
+    <div
+      className="border-edge bg-item flex h-28 flex-col overflow-hidden rounded-md border border-l-3"
+      style={{ borderLeftColor: props.colour }}
+    >
       <div className="border-line bg-raised flex items-center gap-2 border-b px-2.5 py-1.5">
         <span className="font-display flex-1 truncate font-semibold">
           {name}
@@ -255,11 +337,12 @@ function ProjectCard(props: {
   );
 }
 
-/** Pick a Tech, then the Lab it goes in; picking the Lab starts it. */
+/** Pick one of field's Techs, then the Lab it goes in; picking the Lab starts it. */
 function TechPicker(props: {
   conn: MatchConnection;
   content: ContentLookups;
   view: View;
+  field: string;
   planetName: (id: string) => string;
   onDone: () => void;
 }) {
@@ -267,8 +350,11 @@ function TechPicker(props: {
   const pending = useStore(conn.local, (s) => isPending(s, "research"));
   const [chosen, setChosen] = useState<string | null>(null);
   const held = heldTechs(view);
-  const { saved } = view.research;
-  const hand = [...view.research.hands.values()].flat();
+  const hand = view.research.hands.get(props.field) ?? [];
+  const fieldName = content.rules.tech.fields[props.field]?.name ?? props.field;
+  const saved = view.research.saved.filter(
+    (v) => content.techs.get(v.tech)?.field === props.field,
+  );
   const nameOf = (id: string) => content.techs.get(id)?.name ?? id;
   const offers = [
     ...hand.map((id) => ({
@@ -291,15 +377,18 @@ function TechPicker(props: {
     <div
       role="dialog"
       aria-label={
-        chosen ? `Where to research ${nameOf(chosen)}` : "Research next"
+        chosen
+          ? `Where to research ${nameOf(chosen)}`
+          : `Research next in ${fieldName}`
       }
-      className="border-edge bg-panel absolute top-0 left-full z-30 ml-3 w-95 rounded-lg border shadow-[0_12px_32px_#000a]"
+      className="border-edge bg-panel absolute top-0 left-full z-30 ml-3 flex h-120 w-95 flex-col rounded-lg border shadow-[0_12px_32px_#000a]"
     >
       {chosen === null ? (
         <>
-          <div className="border-line flex items-baseline justify-between border-b px-3.5 py-3">
-            <h3 className="font-display text-base font-semibold">
-              Research next
+          <div className="border-line flex items-center gap-2 border-b px-3.5 py-3">
+            <FieldIcon content={content} field={props.field} />
+            <h3 className="font-display flex-1 text-base font-semibold">
+              {fieldName}: research next
             </h3>
             <span className="text-ink-3 text-xs">Picking deals a new hand</span>
           </div>
@@ -309,7 +398,7 @@ function TechPicker(props: {
               Tech needs, brings more.
             </p>
           ) : (
-            <ul className="flex max-h-105 flex-col gap-1.5 overflow-y-auto p-2">
+            <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
               {offers.map((o, i) => {
                 const t = content.techs.get(o.id);
                 const style =
@@ -406,7 +495,7 @@ function LabPicker(props: {
           You have no Lab. Build one to research.
         </p>
       ) : (
-        <ul className="flex max-h-105 flex-col overflow-y-auto p-1.5">
+        <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1.5">
           {all.map((l) => {
             const holds = [
               ...l.holds.map(nameOf),

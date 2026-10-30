@@ -93,6 +93,7 @@
         "name": { "$ref": "#/definitions/name" },
         "colour": { "description": "What the client tints it with.", "type": "string", "pattern": "^#[0-9a-f]{6}$" },
         "icon": { "$ref": "#/definitions/asset" },
+        "order": { "description": "Where it's listed, lowest first; a tie goes by id.", "type": "integer" },
         "botGoal": { "description": "The Bot goal its Research serves; left out, the higher of the two.", "enum": ["army", "economy"] }
       }
     },

@@ -140,7 +140,7 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 
 | Field | Default |
 |---|---|
-| Research fields | Military, Industry, Logistics: each a name, icon, colour and optional Bot goal |
+| Research fields | Military, Industry, Logistics, in that order: each a name, icon, colour, an optional `order` (how the UI lists them) and an optional Bot goal |
 | Capital Research | 1 per second, in every field |
 | Tech cost scaling | +10% per Tech held |
 | Lost-Tech recovery cost | 50% |

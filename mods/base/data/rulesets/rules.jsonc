@@ -37,9 +37,9 @@
   // docs/specs/tech-spec.md#ruleset-additions
   "tech": {
     "fields": {
-      "military": { "name": "Military", "colour": "#e0604f", "botGoal": "army" },
-      "industry": { "name": "Industry", "colour": "#e8b34a", "botGoal": "economy" },
-      "logistics": { "name": "Logistics", "colour": "#5aa7e0" }
+      "military": { "name": "Military", "colour": "#e0604f", "icon": "__base__/icons/military.svg", "order": 1, "botGoal": "army" },
+      "industry": { "name": "Industry", "colour": "#e8b34a", "icon": "__base__/icons/industry.svg", "order": 2, "botGoal": "economy" },
+      "logistics": { "name": "Logistics", "colour": "#a98cf0", "icon": "__base__/icons/logistics.svg", "order": 3 }
     },
     "capitalResearch": 1,
     "costScalingPercent": 10,

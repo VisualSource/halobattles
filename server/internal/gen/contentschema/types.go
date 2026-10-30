@@ -707,6 +707,9 @@ type ResearchField struct {
 
 	// Name corresponds to the JSON schema field "name".
 	Name Name `json:"name"`
+
+	// Where it's listed, lowest first; a tie goes by id.
+	Order *int `json:"order,omitempty,omitzero"`
 }
 
 type ResearchFieldBotGoal string
