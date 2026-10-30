@@ -11,6 +11,7 @@ import { useRingBackdrop } from "../backdrop";
 import type { ContentLookups } from "../content";
 import type { Faction, GalaxyMap } from "../gen/content";
 import { seatColour } from "../scene/galaxy";
+import { BotTag } from "./bot-tag";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
 import { inviteUrl } from "./phase";
@@ -76,7 +77,14 @@ export function LobbyScreen(props: {
 
         <div className="flex flex-wrap items-start gap-6">
           <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
-            <Seats lobby={lobby} content={content} map={map} userId={userId} />
+            <Seats
+              lobby={lobby}
+              content={content}
+              map={map}
+              userId={userId}
+              conn={isHost ? conn : undefined}
+              pending={isPending(local, "bot")}
+            />
             {me && (
               <section className="border-line bg-panel flex flex-col gap-4 rounded-[10px] border p-5">
                 <h2 className={sectionTitle}>YOUR FACTION</h2>
@@ -242,8 +250,10 @@ function Seats(props: {
   content: ContentLookups;
   map: GalaxyMap | undefined;
   userId: string;
+  conn?: MatchConnection; // the Host's: adds and removes Bots
+  pending: boolean;
 }) {
-  const { lobby, content } = props;
+  const { lobby, content, conn } = props;
   const open = Math.max(
     0,
     (props.map?.starts.length ?? 0) - lobby.seats.length,
@@ -273,6 +283,7 @@ function Seats(props: {
                     {s.displayName || "(no name)"}
                   </span>
                   {me && <span className="text-ink-3 text-xs">(you)</span>}
+                  {s.bot && <BotTag content={content} difficulty={s.bot} />}
                   {host && (
                     <span className="bg-host-wash text-host rounded px-2 py-0.5 text-[11px] font-semibold tracking-widest">
                       HOST
@@ -294,6 +305,16 @@ function Seats(props: {
                   {s.ready ? "Ready" : "Not ready"}
                 </span>
               )}
+              {conn && s.bot && (
+                <button
+                  type="button"
+                  disabled={props.pending}
+                  onClick={() => conn.removeBot(s.user)}
+                  className="border-edge text-ink-2 min-h-11 rounded-md border bg-transparent px-4 font-medium"
+                >
+                  Remove
+                </button>
+              )}
             </li>
           );
         })}
@@ -306,13 +327,77 @@ function Seats(props: {
               aria-hidden="true"
               className="bg-open-seat h-10 w-1.5 rounded-sm"
             />
-            <span className="text-ink-4 italic">
-              Open Seat · waiting for a player
-            </span>
+            {conn ? (
+              <AddBot
+                content={content}
+                pending={props.pending}
+                onAdd={(faction, difficulty) =>
+                  conn.addBot(faction, difficulty)
+                }
+              />
+            ) : (
+              <span className="text-ink-4 italic">
+                Open Seat · waiting for a player
+              </span>
+            )}
           </li>
         ))}
       </ol>
     </section>
+  );
+}
+
+/** The Host's open Seat: a player can still join it, or a Bot can take it. */
+function AddBot(props: {
+  content: ContentLookups;
+  pending: boolean;
+  onAdd: (faction: string, difficulty: string) => void;
+}) {
+  const factions = byId(props.content.factions);
+  const difficulties = props.content.rules.botDifficulties;
+  const [faction, setFaction] = useState(factions[0]?.[0] ?? "");
+  const [difficulty, setDifficulty] = useState(difficulties[0].id);
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        props.onAdd(faction, difficulty);
+      }}
+      className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+    >
+      <span className="text-ink-4 flex-1 italic">Open Seat</span>
+      <select
+        aria-label="Bot Faction"
+        value={faction}
+        onChange={(e) => setFaction(e.target.value)}
+        className="min-h-11"
+      >
+        {factions.map(([id, f]) => (
+          <option key={id} value={id}>
+            {f.name}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="Bot difficulty"
+        value={difficulty}
+        onChange={(e) => setDifficulty(e.target.value)}
+        className="min-h-11"
+      >
+        {difficulties.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.name}
+          </option>
+        ))}
+      </select>
+      <button
+        type="submit"
+        disabled={props.pending}
+        className="bg-raised min-h-11 rounded-md px-4 font-medium"
+      >
+        Add Bot
+      </button>
+    </form>
   );
 }
 

@@ -28,6 +28,8 @@ const (
 	OpExchange             Op = 18
 	OpStartProject         Op = 19
 	OpCancelProject        Op = 20
+	OpAddBot               Op = 21
+	OpRemoveBot            Op = 22
 	OpLobbyState           Op = 100
 	OpCommandRejected      Op = 101
 	OpViewFull             Op = 102
@@ -63,6 +65,8 @@ var EnumNamesOp = map[Op]string{
 	OpExchange:             "Exchange",
 	OpStartProject:         "StartProject",
 	OpCancelProject:        "CancelProject",
+	OpAddBot:               "AddBot",
+	OpRemoveBot:            "RemoveBot",
 	OpLobbyState:           "LobbyState",
 	OpCommandRejected:      "CommandRejected",
 	OpViewFull:             "ViewFull",
@@ -98,6 +102,8 @@ var EnumValuesOp = map[string]Op{
 	"Exchange":             OpExchange,
 	"StartProject":         OpStartProject,
 	"CancelProject":        OpCancelProject,
+	"AddBot":               OpAddBot,
+	"RemoveBot":            OpRemoveBot,
 	"LobbyState":           OpLobbyState,
 	"CommandRejected":      OpCommandRejected,
 	"ViewFull":             OpViewFull,

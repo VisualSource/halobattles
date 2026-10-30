@@ -12,7 +12,8 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 - **Vision**: a player sees the Planets they own plus their neighbours one Lane away. They also see a Planet one of their Armies is at (passing through, waiting in orbit, landed, or attacking it), and for `armyVisionSeconds` after it leaves or is destroyed; only that Planet, not its neighbours, and never from a Retreating Army. When vision of a Planet ends, its client keeps it as last seen.
 - **Winning**: hold more than a map-set share of Planets for a set time, or be the last player not eliminated. Losing your Capital eliminates you.
 - **Tech**: players research Techs that unlock units and buildings or give effects, held in Labs an enemy can destroy ([tech spec](tech-spec.md)).
-- There are no bots, no Pops and no space Battles. See [Out of scope](#out-of-scope).
+- **Bots**: the Host can fill empty Seats with Bots at Easy, Normal or Hard ([bot spec](bot-spec.md)).
+- There are no Pops and no space Battles. See [Out of scope](#out-of-scope).
 
 ## Economy
 
@@ -182,7 +183,7 @@ Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and â€
 
 ### Buildings
 
-Eleven mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundry / Forge and Depot / Reliquary are from Economy v2; the last three rows are from the [tech spec](tech-spec.md#base-mod-buildings). The Vehicle Depot, Air Pad, Turret, Foundry and Depot (and their Covenant mirrors) each need a Tech before they can be built ([Base Mod Techs](tech-spec.md#base-mod-techs)).
+Thirteen mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundry / Forge and Depot / Reliquary are from Economy v2; the last five rows are from the [tech spec](tech-spec.md#base-mod-buildings). The Vehicle Depot, Air Pad, Turret, Foundry and Depot (and their Covenant mirrors) each need a Tech before they can be built ([Base Mod Techs](tech-spec.md#base-mod-techs)).
 
 | UNSC / Covenant | Cost | Time | Upkeep | Yield | Role |
 |---|---|---|---|---|---|
@@ -194,8 +195,10 @@ Eleven mirrored buildings per Faction. Every `commandPointBonus` is 0. The Found
 | Foundry / Forge | 250C 100M | 45s | 10C | refines 40M into 20A | Alloys |
 | Depot / Reliquary | 150C | 30s | 0 | +1500C +750M +250A of Stockpile caps | storage |
 | Turret / Plasma Turret | 200C 50M 20A | 30s | 10C | none | armed Structure |
-| Research Lab / Sanctum | 250C 100M | 45s | 15C | none | a Lab: holds 2 Techs |
-| ONI Station / Seminary | 200C 50M | 30s | 10C | +2 Research | research |
+| Research Lab / Sanctum | 250C 100M | 45s | 15C | none | a Lab: holds 3 Techs |
+| Proving Grounds / Armory | 200C 50M | 30s | 10C | +2 Military Research | research |
+| ONI Station / Seminary | 200C 50M | 30s | 10C | +2 Industry Research | research |
+| Fleet Command / Ministry of Tranquility | 200C 50M | 30s | 10C | +2 Logistics Research | research |
 | Forerunner Dig Site / Relic Shrine | 400C 200M 50A | 60s | 20C | none | needed for the Faction's Legendary Tech |
 
 Both Turrets have a Damage roll of 2d4, have `advantage` against Infantry, and are `normal` against Vehicles and Aircraft.
@@ -322,7 +325,6 @@ Post-MVP, decided when the MVP was specified:
 - **Choosing the Mod set per Match.** The server's enabled Mods apply to every Match.
 - **Localised display text.** The MVP uses inline English `name` strings.
 - **Saving and resuming long-running Matches.** Match state is in memory only, kept serialisable.
-- **Bots** filling empty Seats. The MVP is PvP only.
 - **Spies and richer vision rules.** MVP vision is owned Planets plus their neighbours one Lane away.
 - **Halo-style Shield regeneration during Battles** (after a few seconds without damage). MVP Shields refill only after a Battle.
 - **Player control in Battles** beyond Retreat, and the rest of the tactical spec's [Later](tactical-battle-spec.md#later) list.

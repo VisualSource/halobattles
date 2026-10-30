@@ -61,7 +61,7 @@ func (s *State) eliminate(seat int, ev *Events) {
 // A Forfeit (surrendering, leaving, or running out the Grace Period)
 // eliminates the player first. The last player standing must be connected
 // to win; while they're away the Match waits for them to return or run out,
-// and with no one left it's abandoned.
+// and with no player left, Bots or not, it's abandoned.
 func (s *State) checkWin(c *cs.Content, now int64, ev *Events) {
 	for i, p := range s.Players {
 		if !p.Eliminated && (p.Forfeiting || p.Disconnected && p.GraceEnds <= now) {
@@ -69,13 +69,17 @@ func (s *State) checkWin(c *cs.Content, now int64, ev *Events) {
 		}
 	}
 	var alive []int
+	players := 0 // still in, not Bots
 	for _, p := range s.Players {
 		if !p.Eliminated {
 			alive = append(alive, p.Seat)
+			if p.Bot == "" {
+				players++
+			}
 		}
 	}
 	switch {
-	case len(alive) == 0:
+	case players == 0: // Bots never keep a Match going alone
 		s.end(Result{Winner: Neutral, Reason: ReasonAbandoned}, ev)
 		return
 	case len(s.Players) == 1:

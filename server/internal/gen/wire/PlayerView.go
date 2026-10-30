@@ -15,6 +15,7 @@ type PlayerViewT struct {
 	Eliminated  bool   `json:"eliminated"`
 	Connected   bool   `json:"connected"`
 	GraceEnds   int64  `json:"grace_ends"`
+	Bot         string `json:"bot"`
 }
 
 func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -33,6 +34,10 @@ func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t.Faction != "" {
 		factionOffset = builder.CreateString(t.Faction)
 	}
+	botOffset := flatbuffers.UOffsetT(0)
+	if t.Bot != "" {
+		botOffset = builder.CreateString(t.Bot)
+	}
 	PlayerViewStart(builder)
 	PlayerViewAddSeat(builder, t.Seat)
 	PlayerViewAddUser(builder, userOffset)
@@ -42,6 +47,7 @@ func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	PlayerViewAddEliminated(builder, t.Eliminated)
 	PlayerViewAddConnected(builder, t.Connected)
 	PlayerViewAddGraceEnds(builder, t.GraceEnds)
+	PlayerViewAddBot(builder, botOffset)
 	return PlayerViewEnd(builder)
 }
 
@@ -54,6 +60,7 @@ func (rcv *PlayerView) UnPackTo(t *PlayerViewT) {
 	t.Eliminated = rcv.Eliminated()
 	t.Connected = rcv.Connected()
 	t.GraceEnds = rcv.GraceEnds()
+	t.Bot = string(rcv.Bot())
 }
 
 func (rcv *PlayerView) UnPack() *PlayerViewT {
@@ -184,8 +191,16 @@ func (rcv *PlayerView) MutateGraceEnds(n int64) bool {
 	return rcv._tab.MutateInt64Slot(18, n)
 }
 
+func (rcv *PlayerView) Bot() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
 func PlayerViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(8)
+	builder.StartObject(9)
 }
 func PlayerViewAddSeat(builder *flatbuffers.Builder, seat byte) {
 	builder.PrependByteSlot(0, seat, 0)
@@ -210,6 +225,9 @@ func PlayerViewAddConnected(builder *flatbuffers.Builder, connected bool) {
 }
 func PlayerViewAddGraceEnds(builder *flatbuffers.Builder, graceEnds int64) {
 	builder.PrependInt64Slot(7, graceEnds, 0)
+}
+func PlayerViewAddBot(builder *flatbuffers.Builder, bot flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(8, flatbuffers.UOffsetT(bot), 0)
 }
 func PlayerViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

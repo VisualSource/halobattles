@@ -25,6 +25,15 @@
   "gracePeriodSeconds": 180,
   "armyVisionSeconds": 15,
   "resultsSeconds": 60,
+  // docs/specs/bot-spec.md#difficulties, in the order the lobby offers them.
+  "botDifficulties": [
+    { "id": "easy", "name": "Easy", "thinkSeconds": 10, "noisePercent": 30, "attackMargin": 1.0, "planDepth": 3,
+      "reservePercent": 10, "retreatBelowPercent": 0, "unitChoice": "fixed", "research": "first" },
+    { "id": "normal", "name": "Normal", "thinkSeconds": 5, "noisePercent": 15, "attackMargin": 1.25, "planDepth": 5,
+      "reservePercent": 15, "retreatBelowPercent": 40, "unitChoice": "advantage", "research": "goals" },
+    { "id": "hard", "name": "Hard", "thinkSeconds": 2, "noisePercent": 0, "attackMargin": 1.5, "planDepth": 8,
+      "reservePercent": 20, "retreatBelowPercent": 50, "unitChoice": "advantage", "research": "goals" }
+  ],
   // docs/specs/tech-spec.md#ruleset-additions
   "tech": {
     "projectLimit": 3,

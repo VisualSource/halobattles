@@ -55,8 +55,15 @@ lastSeq():number {
   return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
 }
 
+bot():string|null
+bot(optionalEncoding:flatbuffers.Encoding):string|Uint8Array|null
+bot(optionalEncoding?:any):string|Uint8Array|null {
+  const offset = this.bb!.__offset(this.bb_pos, 14);
+  return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
+}
+
 static startSeat(builder:flatbuffers.Builder) {
-  builder.startObject(5);
+  builder.startObject(6);
 }
 
 static addUser(builder:flatbuffers.Builder, userOffset:flatbuffers.Offset) {
@@ -79,18 +86,23 @@ static addLastSeq(builder:flatbuffers.Builder, lastSeq:number) {
   builder.addFieldInt32(4, lastSeq, 0);
 }
 
+static addBot(builder:flatbuffers.Builder, botOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(5, botOffset, 0);
+}
+
 static endSeat(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createSeat(builder:flatbuffers.Builder, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, ready:boolean, lastSeq:number):flatbuffers.Offset {
+static createSeat(builder:flatbuffers.Builder, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, ready:boolean, lastSeq:number, botOffset:flatbuffers.Offset):flatbuffers.Offset {
   Seat.startSeat(builder);
   Seat.addUser(builder, userOffset);
   Seat.addDisplayName(builder, displayNameOffset);
   Seat.addFaction(builder, factionOffset);
   Seat.addReady(builder, ready);
   Seat.addLastSeq(builder, lastSeq);
+  Seat.addBot(builder, botOffset);
   return Seat.endSeat(builder);
 }
 
@@ -100,7 +112,8 @@ unpack(): SeatT {
     this.displayName(),
     this.faction(),
     this.ready(),
-    this.lastSeq()
+    this.lastSeq(),
+    this.bot()
   );
 }
 
@@ -111,6 +124,7 @@ unpackTo(_o: SeatT): void {
   _o.faction = this.faction();
   _o.ready = this.ready();
   _o.lastSeq = this.lastSeq();
+  _o.bot = this.bot();
 }
 }
 
@@ -120,7 +134,8 @@ constructor(
   public displayName: string|Uint8Array|null = null,
   public faction: string|Uint8Array|null = null,
   public ready: boolean = false,
-  public lastSeq: number = 0
+  public lastSeq: number = 0,
+  public bot: string|Uint8Array|null = null
 ){}
 
 
@@ -128,13 +143,15 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const user = (this.user !== null ? builder.createString(this.user!) : 0);
   const displayName = (this.displayName !== null ? builder.createString(this.displayName!) : 0);
   const faction = (this.faction !== null ? builder.createString(this.faction!) : 0);
+  const bot = (this.bot !== null ? builder.createString(this.bot!) : 0);
 
   return Seat.createSeat(builder,
     user,
     displayName,
     faction,
     this.ready,
-    this.lastSeq
+    this.lastSeq,
+    bot
   );
 }
 }

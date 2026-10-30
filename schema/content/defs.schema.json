@@ -50,6 +50,40 @@
     },
     "richnessLevel": { "enum": ["none", "poor", "normal", "rich"] },
     "rarity": { "description": "How likely a Tech is to be offered; rarer ones only above a Research rate.", "enum": ["common", "uncommon", "rare", "legendary"] },
+    "botWeight": { "description": "Defaults to 1.", "type": "number", "minimum": 0, "maximum": 4 },
+    "botGoalWeights": {
+      "title": "Bot Goal Weights",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expand": { "$ref": "#/definitions/botWeight" },
+        "attack": { "$ref": "#/definitions/botWeight" },
+        "defend": { "$ref": "#/definitions/botWeight" },
+        "economy": { "$ref": "#/definitions/botWeight" },
+        "army": { "$ref": "#/definitions/botWeight" },
+        "research": { "$ref": "#/definitions/botWeight" }
+      }
+    },
+    "botDifficulty": {
+      "title": "Bot Difficulty",
+      "description": "One level a Bot can play at. See docs/specs/bot-spec.md#difficulties.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "thinkSeconds", "noisePercent", "attackMargin", "planDepth", "reservePercent", "retreatBelowPercent", "unitChoice", "research"],
+      "properties": {
+        "id": { "description": "Local to the Ruleset, e.g. easy.", "$ref": "#/definitions/localId" },
+        "name": { "$ref": "#/definitions/name" },
+        "thinkSeconds": { "description": "How often it decides.", "type": "number", "exclusiveMinimum": 0 },
+        "noisePercent": { "description": "The random ± spread on its goal scores.", "type": "integer", "minimum": 0, "maximum": 100 },
+        "attackMargin": { "description": "How many times a target's estimated strength its Army needs before it attacks.", "type": "number", "minimum": 0 },
+        "planDepth": { "description": "How many steps its plans look ahead.", "type": "integer", "minimum": 1 },
+        "reservePercent": { "description": "How much of each Stockpile cap it keeps back.", "type": "integer", "minimum": 0, "maximum": 100 },
+        "retreatBelowPercent": { "description": "It Retreats from a Battle when its strength falls below this share of the enemy's; 0 never Retreats.", "type": "integer", "minimum": 0, "maximum": 100 },
+        "unitChoice": { "description": "fixed: a set mix; advantage: by Advantage against the enemies seen.", "enum": ["fixed", "advantage"] },
+        "research": { "description": "first: the first card; goals: by its goals.", "enum": ["first", "goals"] },
+        "weights": { "description": "Its goal weights, times its Faction's.", "$ref": "#/definitions/botGoalWeights" }
+      }
+    },
     "rarityRule": {
       "title": "Rarity Rule",
       "type": "object",

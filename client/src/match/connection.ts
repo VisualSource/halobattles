@@ -1,6 +1,7 @@
 import type { MatchData, Session, Socket } from "@heroiclabs/nakama-js";
 import { Builder, ByteBuffer } from "flatbuffers";
 import {
+  AddBotT,
   AmountT,
   ArmyUnitsT,
   type ArmyViewT,
@@ -32,6 +33,7 @@ import {
   QueueBuildingT,
   type QueueItemT,
   QueueUnitT,
+  RemoveBotT,
   ReorderArmyT,
   type ResearchT,
   SellBuildingT,
@@ -102,6 +104,7 @@ function toLobby(t: LobbyStateT): Lobby {
       displayName: str(s.displayName),
       faction: str(s.faction),
       ready: s.ready,
+      bot: str(s.bot),
     })),
     winner: t.winner < 0 ? null : t.winner,
     endReason: str(t.endReason),
@@ -124,6 +127,7 @@ const toPlayer = (p: PlayerViewT): PlayerView => ({
   eliminated: p.eliminated,
   connected: p.connected,
   graceEnds: Number(p.graceEnds),
+  bot: str(p.bot),
 });
 
 const toPlanet = (p: PlanetViewT): PlanetView => ({
@@ -391,6 +395,16 @@ export class MatchConnection {
           sorted.map(([r, a]) => new AmountT(r, a)),
         ),
     );
+  }
+
+  /** Host only: a Bot of faction at difficulty takes an empty Seat. */
+  addBot(faction: string, difficulty: string) {
+    this.send(Op.AddBot, "bot", (seq) => new AddBotT(seq, faction, difficulty));
+  }
+
+  /** Host only: frees the Bot's Seat; user is its Seat's user id. */
+  removeBot(user: string) {
+    this.send(Op.RemoveBot, "bot", (seq) => new RemoveBotT(seq, user));
   }
 
   startMatch() {

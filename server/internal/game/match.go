@@ -54,6 +54,7 @@ type Player struct {
 	User        string
 	DisplayName string
 	Faction     string
+	Bot         string // a Bot's difficulty id; "" for a player
 	Resources   map[string]int
 	Eliminated  bool
 	// A disconnected player keeps their Seat until GraceEnds (Match Time).
@@ -99,6 +100,7 @@ type SeatSetup struct {
 	User        string
 	DisplayName string
 	Faction     string
+	Bot         string // a Bot's difficulty id; "" for a player
 }
 
 // StartMatch places each Seat on one of the map's starts, shuffled by seed,
@@ -178,7 +180,7 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 		}
 		p.Stacks = toStacks(c, kit.Stacks) // replaces the unused-start garrison
 		s.Players = append(s.Players, Player{
-			Seat: seat, User: setup.User, DisplayName: setup.DisplayName, Faction: setup.Faction,
+			Seat: seat, User: setup.User, DisplayName: setup.DisplayName, Faction: setup.Faction, Bot: setup.Bot,
 			Resources: maps.Clone(startingResources),
 		})
 	}

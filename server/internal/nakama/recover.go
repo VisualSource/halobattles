@@ -35,14 +35,19 @@ func safeRPC(fn rpcFunc) rpcFunc {
 // updated, so it isn't safe to keep running.
 type safeMatch struct{ m runtime.Match }
 
-func logPanic(logger runtime.Logger, handler string, r any) {
+// logPanic logs a handler's panic and stops the ending Match's Bots, whose
+// goroutines would otherwise wait forever.
+func logPanic(logger runtime.Logger, handler string, r any, state interface{}) {
 	logger.Error("%s panic, ending the Match: %v\n%s", handler, r, debug.Stack())
+	if s, ok := state.(*matchState); ok {
+		s.stopBots()
+	}
 }
 
 func (s safeMatch) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (state interface{}, rate int, label string) {
 	defer func() {
 		if r := recover(); r != nil {
-			logPanic(logger, "MatchInit", r)
+			logPanic(logger, "MatchInit", r, nil)
 			state, rate, label = nil, tickRate, ""
 		}
 	}()
@@ -52,7 +57,7 @@ func (s safeMatch) MatchInit(ctx context.Context, logger runtime.Logger, db *sql
 func (s safeMatch) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presence runtime.Presence, metadata map[string]string) (out interface{}, ok bool, reason string) {
 	defer func() {
 		if r := recover(); r != nil {
-			logPanic(logger, "MatchJoinAttempt", r)
+			logPanic(logger, "MatchJoinAttempt", r, nil) // the Match keeps running: only the join is refused
 			out, ok, reason = state, false, "internal error"
 		}
 	}()
@@ -62,7 +67,7 @@ func (s safeMatch) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, 
 func (s safeMatch) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) (out interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			logPanic(logger, "MatchJoin", r)
+			logPanic(logger, "MatchJoin", r, state)
 			out = nil
 		}
 	}()
@@ -72,7 +77,7 @@ func (s safeMatch) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql
 func (s safeMatch) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) (out interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			logPanic(logger, "MatchLeave", r)
+			logPanic(logger, "MatchLeave", r, state)
 			out = nil
 		}
 	}()
@@ -82,7 +87,7 @@ func (s safeMatch) MatchLeave(ctx context.Context, logger runtime.Logger, db *sq
 func (s safeMatch) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, messages []runtime.MatchData) (out interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			logPanic(logger, "MatchLoop", r)
+			logPanic(logger, "MatchLoop", r, state)
 			out = nil
 		}
 	}()
@@ -92,7 +97,7 @@ func (s safeMatch) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql
 func (s safeMatch) MatchTerminate(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, graceSeconds int) (out interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			logPanic(logger, "MatchTerminate", r)
+			logPanic(logger, "MatchTerminate", r, state)
 			out = nil
 		}
 	}()
@@ -102,7 +107,7 @@ func (s safeMatch) MatchTerminate(ctx context.Context, logger runtime.Logger, db
 func (s safeMatch) MatchSignal(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, data string) (out interface{}, reply string) {
 	defer func() {
 		if r := recover(); r != nil {
-			logPanic(logger, "MatchSignal", r)
+			logPanic(logger, "MatchSignal", r, state)
 			out, reply = nil, ""
 		}
 	}()

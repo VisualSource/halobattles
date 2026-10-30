@@ -10,6 +10,7 @@ export type Seat = {
   displayName: string;
   faction: string;
   ready: boolean;
+  bot: string; // a Bot's difficulty id; "" for a player
 };
 
 export type Lobby = {
@@ -164,6 +165,7 @@ export type PlayerView = {
   eliminated: boolean;
   connected: boolean;
   graceEnds: number; // Match Time a disconnected player forfeits at
+  bot: string; // a Bot's difficulty id; "" for a player
 };
 
 /** The running win-hold countdown, public to everyone. */

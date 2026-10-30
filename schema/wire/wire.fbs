@@ -27,6 +27,8 @@ enum Op : int {
   Exchange = 18,
   StartProject = 19,
   CancelProject = 20,
+  AddBot = 21,
+  RemoveBot = 22,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -58,6 +60,17 @@ table SetFaction {
 table SetReady {
   seq: uint32;
   ready: bool;
+}
+
+table AddBot {           // Host only: a Bot takes an empty Seat
+  seq: uint32;
+  faction: string;
+  difficulty: string;      // a botDifficulties id
+}
+
+table RemoveBot {        // Host only
+  seq: uint32;
+  user: string;            // the Bot's Seat user
 }
 
 table SetMap {           // Host only
@@ -190,6 +203,7 @@ table Seat {
   faction: string;
   ready: bool;
   last_seq: uint32;      // the last command seq processed from this Seat
+  bot: string;           // a Bot's difficulty id; "" for a player
 }
 
 // Sent whole to everyone on join and on every lobby change.
@@ -369,6 +383,7 @@ table PlayerView {
   eliminated: bool;
   connected: bool;
   grace_ends: long;        // Match Time a disconnected player forfeits at
+  bot: string;             // a Bot's difficulty id; "" for a player
 }
 
 // The running win-hold countdown, public to everyone.

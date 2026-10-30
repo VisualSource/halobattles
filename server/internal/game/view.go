@@ -13,13 +13,13 @@ import (
 // View is one player's picture of the Match: the only state a player is
 // ever sent.
 type View struct {
-	Time    int64
-	Map     string
-	You     int // the viewer's Seat
-	Players []PlayerView
-	Planets []PlanetView // only Planets in vision, sorted by id
-	Armies  []ArmyView   // only Armies in vision, sorted by id
-	Battles []BattleView // only the viewer's own Battles, as a side, sorted by id
+	Time     int64
+	Map      string
+	You      int // the viewer's Seat
+	Players  []PlayerView
+	Planets  []PlanetView // only Planets in vision, sorted by id
+	Armies   []ArmyView   // only Armies in vision, sorted by id
+	Battles  []BattleView // only the viewer's own Battles, as a side, sorted by id
 	Economy  Economy
 	Research Research
 	Hold     Hold // public
@@ -62,7 +62,8 @@ type PlayerView struct {
 	PlanetCount int
 	Eliminated  bool
 	Connected   bool
-	GraceEnds   int64 // Match Time; 0 while connected
+	GraceEnds   int64  // Match Time; 0 while connected
+	Bot         string // a Bot's difficulty id; "" for a player
 }
 
 // PlanetView is a Planet in vision. Other players' queues stay hidden.
@@ -158,7 +159,7 @@ func (s *State) View(c *cs.Content, seat int) View {
 	for _, p := range s.Players {
 		v.Players = append(v.Players, PlayerView{
 			Seat: p.Seat, User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: counts[p.Seat],
-			Eliminated: p.Eliminated, Connected: !p.Disconnected, GraceEnds: p.GraceEnds,
+			Eliminated: p.Eliminated, Connected: !p.Disconnected, GraceEnds: p.GraceEnds, Bot: p.Bot,
 		})
 	}
 	for _, id := range slices.Sorted(maps.Keys(visible)) {

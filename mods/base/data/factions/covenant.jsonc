@@ -4,7 +4,10 @@
   "name": "Covenant",
   // Battle AI: a little keener to fight, a little less careful. Aggression
   // is a strong lever: 1.4 had the Covenant win 80% of their attacks.
-  "ai": { "aggression": 1.05, "caution": 0.9, "cover": 0.9 },
+  "ai": {
+    "aggression": 1.05, "caution": 0.9, "cover": 0.9,
+    "bot": { "names": ["Thel 'Vadam", "Rtas 'Vadum", "Tartarus", "Jul 'Mdama"] }
+  },
   "startingKit": {
     "buildings": ["hall", "warehouse", "sanctum"],
     "stacks": [

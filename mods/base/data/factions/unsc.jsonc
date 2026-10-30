@@ -3,7 +3,10 @@
   "id": "unsc",
   "name": "UNSC",
   // Battle AI: holds cover and high ground, regroups when hurt.
-  "ai": { "aggression": 0.95, "caution": 1.1, "cover": 1.25 },
+  "ai": {
+    "aggression": 0.95, "caution": 1.1, "cover": 1.25,
+    "bot": { "names": ["Cmdr. Keyes", "Lord Hood", "Capt. Lasky", "Sarah Palmer"] }
+  },
   "startingKit": {
     "buildings": ["barracks", "supply-pad", "research-lab"],
     "stacks": [

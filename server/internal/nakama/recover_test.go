@@ -44,6 +44,20 @@ func TestPanickingMatchEndsThatMatchInsteadOfCrashing(t *testing.T) {
 	}
 }
 
+func TestACrashedMatchStopsItsBots(t *testing.T) {
+	m := safeMatch{panickingMatch{}}
+	r := &botRunner{done: make(chan struct{})}
+	state := &matchState{bots: map[string]*botRunner{"bot:1": r}}
+
+	m.MatchLoop(context.Background(), nopLogger{}, nil, nil, nil, 0, state, nil)
+
+	select {
+	case <-r.done:
+	default:
+		t.Error("the Bot's goroutine was left running after its Match ended")
+	}
+}
+
 func TestSafeRPCPassesThroughNormalReplies(t *testing.T) {
 	rpc := safeRPC(func(_ context.Context, _ runtime.Logger, _ *sql.DB, _ runtime.NakamaModule, payload string) (string, error) {
 		return "echo:" + payload, nil

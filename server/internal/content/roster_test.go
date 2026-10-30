@@ -182,6 +182,10 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 		"Techs requiring each other": {"base/data/techs/drill.jsonc",
 			strings.Replace(rosterFiles()["base/data/techs/drill.jsonc"], `"requires": {"buildings": ["lab"]}`, `"requires": {"techs": ["doctrine"]}`, 1),
 			"techs base:doctrine: requires itself through base:doctrine → base:drill → base:doctrine"},
+		"a Bot difficulty listed twice": {"base/data/rulesets/rules.jsonc",
+			strings.Replace(baseRules, `"botDifficulties": [`, `"botDifficulties": [{"id": "easy", "name": "Easy again", "thinkSeconds": 1, "noisePercent": 0, "attackMargin": 1, "planDepth": 1,
+				"reservePercent": 0, "retreatBelowPercent": 0, "unitChoice": "fixed", "research": "first"}, `, 1),
+			"rulesets base:rules: botDifficulties lists easy twice"},
 		"a Ruleset missing a Rarity": {"base/data/rulesets/rules.jsonc",
 			strings.Replace(baseRules, `"legendary": {"from": 14, "weight": 1}`, `"mythic": {"from": 20, "weight": 1}`, 1),
 			"rulesets base:rules (from base/data/rulesets/rules.jsonc): at /tech/rarities"},
@@ -274,6 +278,12 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	}
 	if r := d.Techs["base:forerunner-relic-study"]; r.Rarity != "legendary" || r.Requires.Buildings[0] != "base:relic-shrine" {
 		t.Errorf("forerunner-relic-study = %+v", r)
+	}
+	if b := d.Rulesets["base:rules"].BotDifficulties; len(b) != 3 || b[0].ID != "easy" || b[2].ThinkSeconds != 2 || b[1].AttackMargin != 1.25 {
+		t.Errorf("botDifficulties = %+v", b)
+	}
+	if n := d.Factions["base:covenant"].Ai.Bot.Names; len(n) < 2 || n[0] != "Thel 'Vadam" {
+		t.Errorf("Covenant Bot names = %v", n)
 	}
 	if st := d.Buildings["base:seminary"]; st.Research == nil || *st.Research != 2 {
 		t.Errorf("seminary = %+v", st)

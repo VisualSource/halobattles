@@ -1,9 +1,9 @@
 import type { Client, Session } from "@heroiclabs/nakama-js";
 import { describe, expect, it } from "vitest";
 import { loadContent } from "./content";
-import type { Content } from "./gen/content";
+import type { Content, Ruleset } from "./gen/content";
 
-const rules = {
+const rules: Ruleset = {
   id: "base:rules",
   name: "Rules",
   paydaySeconds: 90,
@@ -20,6 +20,20 @@ const rules = {
   gracePeriodSeconds: 180,
   armyVisionSeconds: 15,
   resultsSeconds: 60,
+  botDifficulties: [
+    {
+      id: "easy",
+      name: "Easy",
+      thinkSeconds: 10,
+      noisePercent: 30,
+      attackMargin: 1,
+      planDepth: 3,
+      reservePercent: 10,
+      retreatBelowPercent: 0,
+      unitChoice: "fixed",
+      research: "first",
+    },
+  ],
   tech: {
     projectLimit: 3,
     capitalResearch: 2,

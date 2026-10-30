@@ -41,10 +41,11 @@ type matchState struct {
 	// can join the new session before the old one's leave arrives, and that
 	// stale leave must not free the Seat.
 	presences map[string]runtime.Presence
-	lastSeq   map[string]uint32    // the last command seq processed per user
-	sent      map[string]game.View // the last View sent per user, to diff against
-	endTick   int64                // the tick the Match ended on, in results
-	joined    bool                 // someone has joined; an empty lobby after that closes
+	lastSeq   map[string]uint32     // the last command seq processed per user
+	sent      map[string]game.View  // the last View sent per user, to diff against
+	endTick   int64                 // the tick the Match ended on, in results
+	joined    bool                  // someone has joined; an empty lobby after that closes
+	bots      map[string]*botRunner // the running Bots, by Seat user
 }
 
 func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
@@ -55,6 +56,17 @@ func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		Resources:         slices.Collect(maps.Keys(doc.Resources)),
 		StartingResources: doc.Rulesets[game.RulesetID].StartingResources,
 		Caps:              doc.Rulesets[game.RulesetID].StockpileCaps,
+		BotNames:          map[string][]string{},
+	}
+	for _, d := range doc.Rulesets[game.RulesetID].BotDifficulties {
+		lc.Difficulties = append(lc.Difficulties, string(d.ID))
+	}
+	for id, f := range doc.Factions {
+		if f.Ai != nil && f.Ai.Bot != nil {
+			for _, n := range f.Ai.Bot.Names {
+				lc.BotNames[id] = append(lc.BotNames[id], string(n))
+			}
+		}
 	}
 	for id, gm := range doc.Maps {
 		lc.Maps[id] = game.LobbyMap{Starts: len(gm.Starts), MinPlayers: gm.MinPlayers}
@@ -141,12 +153,13 @@ func (m *match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.D
 
 func (m *match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, messages []runtime.MatchData) interface{} {
 	s := state.(*matchState)
-	if s.phase == wire.PhaseLobby && len(s.lobby.Seats) == 0 && (s.joined || tick > creatorGraceTicks) {
+	if s.phase == wire.PhaseLobby && s.lobby.Players() == 0 && (s.joined || tick > creatorGraceTicks) {
 		return nil // returning nil ends the Match
 	}
 	if s.phase == wire.PhaseResults {
 		resultsTicks := int64(s.content.Doc.Rulesets[game.RulesetID].ResultsSeconds) * tickRate
 		if len(s.presences) == 0 || tick >= s.endTick+resultsTicks {
+			s.stopBots()
 			return nil
 		}
 	}
@@ -154,7 +167,11 @@ func (m *match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 		s.setTime(tick)
 	}
 	wasLobby := s.play == nil
-	if s.handleCommands(logger, dispatcher, tick, messages) {
+	changed := s.handleCommands(logger, dispatcher, tick, messages)
+	if s.bots != nil && s.botCommands(tick) {
+		changed = true
+	}
+	if changed {
 		s.lobbyChanged(logger, dispatcher)
 	}
 	if wasLobby && s.play != nil {
@@ -162,6 +179,9 @@ func (m *match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB
 	}
 	if s.phase == wire.PhasePlay {
 		s.advance(logger, dispatcher, tick)
+	}
+	if s.phase == wire.PhasePlay {
+		s.showBots()
 	}
 	return s
 }
@@ -259,6 +279,7 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		t := &wire.MatchEndedT{MatchTime: s.play.Time, Winner: int8(r.Winner), Reason: r.Reason}
 		s.broadcast(logger, dispatcher, wire.OpMatchEnded, finish(t))
 		s.phase, s.endTick = wire.PhaseResults, tick
+		s.stopBots()
 		s.lobbyChanged(logger, dispatcher)
 	}
 }
@@ -271,13 +292,14 @@ func (s *matchState) setTime(tick int64) {
 func (s *matchState) start(tick int64) error {
 	var seats []game.SeatSetup
 	for _, seat := range s.lobby.Seats {
-		seats = append(seats, game.SeatSetup{User: seat.User, DisplayName: seat.DisplayName, Faction: seat.Faction})
+		seats = append(seats, game.SeatSetup{User: seat.User, DisplayName: seat.DisplayName, Faction: seat.Faction, Bot: seat.Bot})
 	}
 	g, err := game.StartMatch(&s.content.Doc, s.lobby.Map, seats, s.lobby.StartingResources, s.seed)
 	if err != nil {
 		return err
 	}
 	s.play, s.phase, s.startTick = g, wire.PhasePlay, tick
+	s.startBots()
 	return nil
 }
 
@@ -304,6 +326,7 @@ func (s *matchState) sendViews(logger runtime.Logger, dispatcher runtime.MatchDi
 }
 
 func (m *match) MatchTerminate(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, graceSeconds int) interface{} {
+	state.(*matchState).stopBots()
 	return state
 }
 
@@ -344,7 +367,7 @@ func (s *matchState) encodeLobby() []byte {
 	for _, seat := range l.Seats {
 		t.Seats = append(t.Seats, &wire.SeatT{
 			User: seat.User, DisplayName: seat.DisplayName, Faction: seat.Faction, Ready: seat.Ready,
-			LastSeq: s.lastSeq[seat.User],
+			LastSeq: s.lastSeq[seat.User], Bot: seat.Bot,
 		})
 	}
 	return finish(t)
@@ -475,7 +498,7 @@ func players(ps []game.PlayerView) []*wire.PlayerViewT {
 	for _, p := range ps {
 		out = append(out, &wire.PlayerViewT{
 			Seat: uint8(p.Seat), User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: uint16(p.PlanetCount),
-			Eliminated: p.Eliminated, Connected: p.Connected, GraceEnds: p.GraceEnds,
+			Eliminated: p.Eliminated, Connected: p.Connected, GraceEnds: p.GraceEnds, Bot: p.Bot,
 		})
 	}
 	return out

@@ -140,7 +140,7 @@ func testContent() *content.Content {
 		Rulesets: map[string]contentschema.Ruleset{"base:rules": {
 			PaydaySeconds: 90, UnitSlotsPerStack: 10, ResultsSeconds: 60, GracePeriodSeconds: 180,
 			StartingResources: map[string]int{"base:credits": 1000}, StockpileCaps: map[string]int{"base:credits": 3000},
-			Battlefield: rules.Battlefield, Battle: rules.Battle,
+			Battlefield: rules.Battlefield, Battle: rules.Battle, BotDifficulties: rules.BotDifficulties,
 		}},
 	}}
 }
