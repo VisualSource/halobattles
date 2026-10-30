@@ -29,6 +29,7 @@ type View struct {
 // saved Projects.
 type Research struct {
 	Rate     int
+	Limit    int // Projects that can run at once
 	Projects []Project
 	Hand     []string
 	Saved    []Saved
@@ -141,7 +142,7 @@ func (s *State) View(c *cs.Content, seat int) View {
 	}
 	pl := s.Players[seat]
 	v.Research = Research{
-		Rate: s.researchRate(c, seat), Projects: slices.Clone(pl.Projects),
+		Rate: s.researchRate(c, seat), Limit: s.projectLimit(c, seat), Projects: slices.Clone(pl.Projects),
 		Hand: slices.Clone(pl.Hand), Saved: slices.Clone(pl.Saved),
 	}
 	for i, card := range v.Research.Saved {

@@ -259,6 +259,7 @@ const NO_ECONOMY: Economy = {
 
 const toResearch = (r: ResearchT): Research => ({
   rate: r.rate,
+  projectLimit: r.projectLimit,
   projects: r.projects.map((p) => ({
     tech: str(p.tech),
     planet: str(p.planet),
@@ -277,7 +278,13 @@ const toResearch = (r: ResearchT): Research => ({
   })),
 });
 
-const NO_RESEARCH: Research = { rate: 0, projects: [], hand: [], saved: [] };
+const NO_RESEARCH: Research = {
+  rate: 0,
+  projectLimit: 0,
+  projects: [],
+  hand: [],
+  saved: [],
+};
 
 function toView(t: ViewFullT): View {
   return {

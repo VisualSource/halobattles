@@ -412,6 +412,7 @@ table SavedProject {
 // The viewer's own research. Never sent for anyone else.
 table Research {
   rate: uint32;            // Research per second
+  project_limit: ubyte;    // Projects that can run at once
   projects: [Project];
   hand: [string];          // Techs offered
   saved: [SavedProject];

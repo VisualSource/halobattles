@@ -31,48 +31,57 @@ rate():number {
   return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
 }
 
-projects(index: number, obj?:Project):Project|null {
+projectLimit():number {
   const offset = this.bb!.__offset(this.bb_pos, 6);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+}
+
+projects(index: number, obj?:Project):Project|null {
+  const offset = this.bb!.__offset(this.bb_pos, 8);
   return offset ? (obj || new Project()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
 }
 
 projectsLength():number {
-  const offset = this.bb!.__offset(this.bb_pos, 6);
+  const offset = this.bb!.__offset(this.bb_pos, 8);
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
 hand(index: number):string
 hand(index: number,optionalEncoding:flatbuffers.Encoding):string|Uint8Array
 hand(index: number,optionalEncoding?:any):string|Uint8Array|null {
-  const offset = this.bb!.__offset(this.bb_pos, 8);
+  const offset = this.bb!.__offset(this.bb_pos, 10);
   return offset ? this.bb!.__string(this.bb!.__vector(this.bb_pos + offset) + index * 4, optionalEncoding) : null;
 }
 
 handLength():number {
-  const offset = this.bb!.__offset(this.bb_pos, 8);
+  const offset = this.bb!.__offset(this.bb_pos, 10);
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
 saved(index: number, obj?:SavedProject):SavedProject|null {
-  const offset = this.bb!.__offset(this.bb_pos, 10);
+  const offset = this.bb!.__offset(this.bb_pos, 12);
   return offset ? (obj || new SavedProject()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
 }
 
 savedLength():number {
-  const offset = this.bb!.__offset(this.bb_pos, 10);
+  const offset = this.bb!.__offset(this.bb_pos, 12);
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
 static startResearch(builder:flatbuffers.Builder) {
-  builder.startObject(4);
+  builder.startObject(5);
 }
 
 static addRate(builder:flatbuffers.Builder, rate:number) {
   builder.addFieldInt32(0, rate, 0);
 }
 
+static addProjectLimit(builder:flatbuffers.Builder, projectLimit:number) {
+  builder.addFieldInt8(1, projectLimit, 0);
+}
+
 static addProjects(builder:flatbuffers.Builder, projectsOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(1, projectsOffset, 0);
+  builder.addFieldOffset(2, projectsOffset, 0);
 }
 
 static createProjectsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
@@ -88,7 +97,7 @@ static startProjectsVector(builder:flatbuffers.Builder, numElems:number) {
 }
 
 static addHand(builder:flatbuffers.Builder, handOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(2, handOffset, 0);
+  builder.addFieldOffset(3, handOffset, 0);
 }
 
 static createHandVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
@@ -104,7 +113,7 @@ static startHandVector(builder:flatbuffers.Builder, numElems:number) {
 }
 
 static addSaved(builder:flatbuffers.Builder, savedOffset:flatbuffers.Offset) {
-  builder.addFieldOffset(3, savedOffset, 0);
+  builder.addFieldOffset(4, savedOffset, 0);
 }
 
 static createSavedVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
@@ -124,9 +133,10 @@ static endResearch(builder:flatbuffers.Builder):flatbuffers.Offset {
   return offset;
 }
 
-static createResearch(builder:flatbuffers.Builder, rate:number, projectsOffset:flatbuffers.Offset, handOffset:flatbuffers.Offset, savedOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createResearch(builder:flatbuffers.Builder, rate:number, projectLimit:number, projectsOffset:flatbuffers.Offset, handOffset:flatbuffers.Offset, savedOffset:flatbuffers.Offset):flatbuffers.Offset {
   Research.startResearch(builder);
   Research.addRate(builder, rate);
+  Research.addProjectLimit(builder, projectLimit);
   Research.addProjects(builder, projectsOffset);
   Research.addHand(builder, handOffset);
   Research.addSaved(builder, savedOffset);
@@ -136,6 +146,7 @@ static createResearch(builder:flatbuffers.Builder, rate:number, projectsOffset:f
 unpack(): ResearchT {
   return new ResearchT(
     this.rate(),
+    this.projectLimit(),
     this.bb!.createObjList<Project, ProjectT>(this.projects.bind(this), this.projectsLength()),
     this.bb!.createScalarList<string>(this.hand.bind(this), this.handLength()),
     this.bb!.createObjList<SavedProject, SavedProjectT>(this.saved.bind(this), this.savedLength())
@@ -145,6 +156,7 @@ unpack(): ResearchT {
 
 unpackTo(_o: ResearchT): void {
   _o.rate = this.rate();
+  _o.projectLimit = this.projectLimit();
   _o.projects = this.bb!.createObjList<Project, ProjectT>(this.projects.bind(this), this.projectsLength());
   _o.hand = this.bb!.createScalarList<string>(this.hand.bind(this), this.handLength());
   _o.saved = this.bb!.createObjList<SavedProject, SavedProjectT>(this.saved.bind(this), this.savedLength());
@@ -154,6 +166,7 @@ unpackTo(_o: ResearchT): void {
 export class ResearchT implements flatbuffers.IGeneratedObject {
 constructor(
   public rate: number = 0,
+  public projectLimit: number = 0,
   public projects: (ProjectT)[] = [],
   public hand: (string)[] = [],
   public saved: (SavedProjectT)[] = []
@@ -167,6 +180,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
 
   return Research.createResearch(builder,
     this.rate,
+    this.projectLimit,
     projects,
     hand,
     saved

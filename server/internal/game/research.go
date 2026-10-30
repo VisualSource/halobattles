@@ -70,7 +70,12 @@ func (s *State) researchRate(c *cs.Content, seat int) int {
 			}
 		}
 	}
-	return rate
+	return s.effects(c, seat).all("research").of(rate)
+}
+
+// projectLimit is how many Projects seat can run at once.
+func (s *State) projectLimit(c *cs.Content, seat int) int {
+	return s.effects(c, seat).all("projectLimit").of(c.Rulesets[RulesetID].Tech.ProjectLimit)
 }
 
 // techCost is what a new Project for tech costs seat: its base cost, plus
@@ -172,7 +177,7 @@ func (s *State) labAt(c *cs.Content, seat int, planet string, slot int) (*Planet
 	if n == nil {
 		return nil, 0, false
 	}
-	return p, *n, true
+	return p, s.effects(c, seat).all("techSlots").of(*n), true
 }
 
 // StartProject starts researching tech, a card from seat's hand or a
@@ -203,8 +208,8 @@ func (s *State) StartProject(c *cs.Content, seat int, tech, planet string, slot 
 		return fmt.Errorf("you have no Lab in Building Slot %d of %s", slot+1, planet)
 	case len(s.Planets[planet].Techs[slot])+reserved >= slots:
 		return errors.New("that Lab has no free Tech Slot")
-	case len(pl.Projects) >= c.Rulesets[RulesetID].Tech.ProjectLimit:
-		return fmt.Errorf("you can run at most %d Projects", c.Rulesets[RulesetID].Tech.ProjectLimit)
+	case len(pl.Projects) >= s.projectLimit(c, seat):
+		return fmt.Errorf("you can run at most %d Projects", s.projectLimit(c, seat))
 	}
 	p := Project{Tech: tech, Planet: planet, Slot: slot, Since: s.Time}
 	if saved >= 0 {

@@ -36,7 +36,18 @@ type Slot struct {
 type Force struct {
 	Formations [][]Slot
 	Buildings  []string
+	// Boosts are the side's Tech effects, by unit or building id, fixed for
+	// the Battle; pad turrets built later get them too.
+	Boosts map[string]Boost
 }
+
+// Boost is what Tech effects add to a unit's or building's combat stats.
+type Boost struct{ Shield, Armor, HP, Damage Mod }
+
+// Mod is a percentage and a flat amount, the percentage applied first.
+type Mod struct{ Percent, Amount int }
+
+func (m Mod) apply(v float64) float64 { return v*float64(100+m.Percent)/100 + float64(m.Amount) }
 
 // Squad is a Unit Slot or a building in a Battle: one token in one cell.
 type Squad struct {
@@ -58,6 +69,7 @@ type Squad struct {
 	air                    bool
 	weapon                 Multipliers
 	dice                   Dice
+	boost                  Boost
 	tiers                  map[string]string
 	speed, reach, minRange float64
 	sight                  float64
@@ -126,8 +138,9 @@ type Sim struct {
 	Pads   []Pad
 	// Funds is what a side without an economy, a neutral garrison, has to
 	// spend on pad turrets; nil for a player, who pays from their Resources.
-	Funds [2]map[string]int
-	Edge  int // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
+	Funds  [2]map[string]int
+	boosts [2]map[string]Boost // each side's Force.Boosts
+	Edge   int                 // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
 	Tick  int
 	Hold  int // ticks the attacker has held enough points
 	// HoldPaused: the attacker holds enough points, but a defender stands on
@@ -183,6 +196,7 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 		Field: f, content: c, rules: rules.Battle, toHit: rules.ToHit, pathClass: string(rules.Battlefield.PathClass), deployDepth: rules.Battlefield.DeployDepth,
 		rng: rand.New(rand.NewPCG(seed, 4)), ground: make([]int, f.W*f.H), air: make([]int, f.W*f.H),
 		costCache: map[string]costs{}, reach: map[string][]bool{},
+		boosts: [2]map[string]Boost{attack.Boosts, defend.Boosts},
 	}
 	foot := s.costsFor(s.pathClass)
 	s.main = f.largestRegion(func(i int) bool { return foot[i] > 0 })
@@ -239,7 +253,7 @@ func (s *Sim) addUnit(side Side, formation int, sl Slot, want Cell) {
 	s.stats(sq, &cb)
 	sq.Members = make([]Layers, sl.Count)
 	for i := range sq.Members {
-		sq.Members[i] = Layers{float64(cb.Shield), float64(cb.Armor), float64(cb.Hp)}
+		sq.Members[i] = sq.layers(&cb)
 	}
 	s.place(sq, want)
 }
@@ -255,8 +269,14 @@ func (s *Sim) addBuilding(slot int, id string, want Cell) {
 	}
 	s.stats(sq, cb)
 	sq.speed = 0
-	sq.Members = []Layers{{float64(cb.Shield), float64(cb.Armor), float64(cb.Hp)}}
+	sq.Members = []Layers{sq.layers(cb)}
 	s.place(sq, want)
+}
+
+// layers is a fresh member's Shield, Armor and HP, with its side's Boost.
+func (sq *Squad) layers(cb *cs.Combat) Layers {
+	b := sq.boost
+	return Layers{b.Shield.apply(float64(cb.Shield)), b.Armor.apply(float64(cb.Armor)), b.HP.apply(float64(cb.Hp))}
 }
 
 // stats reads a squad's combat block, filling what it leaves out from its
@@ -274,6 +294,7 @@ func (s *Sim) stats(sq *Squad, cb *cs.Combat) {
 	sq.air = s.content.UnitClasses[sq.class].Air != nil && *s.content.UnitClasses[sq.class].Air
 	sq.weapon = Multipliers{w.Shield, w.Armor, w.Hp}
 	sq.dice = parseDice(string(cb.Damage))
+	sq.boost = s.boosts[sq.Side][sq.Unit]
 	sq.tiers = map[string]string{}
 	for class, t := range cb.Tiers {
 		sq.tiers[class] = string(t)
@@ -748,7 +769,9 @@ func (s *Sim) fire() []Volley {
 				continue
 			}
 			v.Hits++
-			d := hit(sq.weapon, &t.Members[0], rollWith(tier, func() int { return sq.dice.roll(s.rng) }))
+			roll := rollWith(tier, func() int { return sq.dice.roll(s.rng) })
+			roll = int(math.Round(sq.boost.Damage.apply(float64(roll))))
+			d := hit(sq.weapon, &t.Members[0], roll)
 			v.ShieldDmg, v.ArmorDmg, v.HPDmg = v.ShieldDmg+d.Shield, v.ArmorDmg+d.Armor, v.HPDmg+d.HP
 			if t.Members[0].HP <= 0 {
 				t.Members = t.Members[1:]
@@ -881,7 +904,7 @@ func (s *Sim) raiseTurrets() {
 		sq := &Squad{Side: p.Owner, Unit: p.Building, Building: true, Armed: true, Slot: -1, OnPad: i + 1}
 		s.stats(sq, cb)
 		sq.speed = 0
-		sq.Members = []Layers{{float64(cb.Shield), float64(cb.Armor), float64(cb.Hp)}}
+		sq.Members = []Layers{sq.layers(cb)}
 		s.place(sq, p.Cell)
 		p.Turret, p.Building, p.ReadyAt = sq.ID, "", 0
 		s.see() // a new squad: the visibility tables grow with it

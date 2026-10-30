@@ -380,7 +380,7 @@ func research(r *game.Research) *wire.ResearchT {
 	if r == nil {
 		return nil
 	}
-	out := &wire.ResearchT{Rate: uint32(r.Rate), Hand: r.Hand}
+	out := &wire.ResearchT{Rate: uint32(r.Rate), ProjectLimit: uint8(r.Limit), Hand: r.Hand}
 	for _, p := range r.Projects {
 		out.Projects = append(out.Projects, &wire.ProjectT{
 			Tech: p.Tech, Planet: p.Planet, Slot: uint8(p.Slot), Cost: uint32(p.Cost), Done: p.Done, Since: p.Since, Rate: p.Rate,

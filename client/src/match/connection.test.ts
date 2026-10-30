@@ -290,7 +290,7 @@ describe("MatchConnection", () => {
         ],
       ]),
       battles: new Map(),
-      research: { rate: 0, projects: [], hand: [], saved: [] },
+      research: { rate: 0, projectLimit: 0, projects: [], hand: [], saved: [] },
       winHold: { seat: null, ends: 0 },
     });
   });
@@ -405,6 +405,7 @@ describe("MatchConnection", () => {
           null,
           new ResearchT(
             4,
+            5,
             [new ProjectT("base:radar", "a", 2, 100, 20, 1000n, 2)],
             ["base:optics"],
             [new SavedProjectT("base:geology", 120, 30, true)],
@@ -420,6 +421,7 @@ describe("MatchConnection", () => {
     const research = view?.research;
     expect(research).toEqual({
       rate: 4,
+      projectLimit: 5,
       projects: [
         {
           tech: "base:radar",

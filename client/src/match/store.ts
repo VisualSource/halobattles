@@ -197,6 +197,7 @@ export type Project = {
 /** Your own research; nobody else's is ever sent. */
 export type Research = {
   rate: number; // Research per second
+  projectLimit: number; // Projects that can run at once
   projects: Project[];
   hand: string[]; // Techs offered
   // Guaranteed cards: stopped Projects, and lost Techs at their recovery cost.

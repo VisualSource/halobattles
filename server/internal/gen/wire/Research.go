@@ -7,10 +7,11 @@ import (
 )
 
 type ResearchT struct {
-	Rate     uint32           `json:"rate"`
-	Projects []*ProjectT      `json:"projects"`
-	Hand     []string         `json:"hand"`
-	Saved    []*SavedProjectT `json:"saved"`
+	Rate         uint32           `json:"rate"`
+	ProjectLimit byte             `json:"project_limit"`
+	Projects     []*ProjectT      `json:"projects"`
+	Hand         []string         `json:"hand"`
+	Saved        []*SavedProjectT `json:"saved"`
 }
 
 func (t *ResearchT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -58,6 +59,7 @@ func (t *ResearchT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	}
 	ResearchStart(builder)
 	ResearchAddRate(builder, t.Rate)
+	ResearchAddProjectLimit(builder, t.ProjectLimit)
 	ResearchAddProjects(builder, projectsOffset)
 	ResearchAddHand(builder, handOffset)
 	ResearchAddSaved(builder, savedOffset)
@@ -66,6 +68,7 @@ func (t *ResearchT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 
 func (rcv *Research) UnPackTo(t *ResearchT) {
 	t.Rate = rcv.Rate()
+	t.ProjectLimit = rcv.ProjectLimit()
 	projectsLength := rcv.ProjectsLength()
 	t.Projects = make([]*ProjectT, projectsLength)
 	for j := 0; j < projectsLength; j++ {
@@ -143,8 +146,20 @@ func (rcv *Research) MutateRate(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(4, n)
 }
 
-func (rcv *Research) Projects(obj *Project, j int) bool {
+func (rcv *Research) ProjectLimit() byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
+	if o != 0 {
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Research) MutateProjectLimit(n byte) bool {
+	return rcv._tab.MutateByteSlot(6, n)
+}
+
+func (rcv *Research) Projects(obj *Project, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
 		x := rcv._tab.Vector(o)
 		x += flatbuffers.UOffsetT(j) * 4
@@ -156,7 +171,7 @@ func (rcv *Research) Projects(obj *Project, j int) bool {
 }
 
 func (rcv *Research) ProjectsLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -164,7 +179,7 @@ func (rcv *Research) ProjectsLength() int {
 }
 
 func (rcv *Research) Hand(j int) []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
 		return rcv._tab.ByteVector(a + flatbuffers.UOffsetT(j*4))
@@ -173,7 +188,7 @@ func (rcv *Research) Hand(j int) []byte {
 }
 
 func (rcv *Research) HandLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -181,7 +196,7 @@ func (rcv *Research) HandLength() int {
 }
 
 func (rcv *Research) Saved(obj *SavedProject, j int) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		x := rcv._tab.Vector(o)
 		x += flatbuffers.UOffsetT(j) * 4
@@ -193,7 +208,7 @@ func (rcv *Research) Saved(obj *SavedProject, j int) bool {
 }
 
 func (rcv *Research) SavedLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -201,25 +216,28 @@ func (rcv *Research) SavedLength() int {
 }
 
 func ResearchStart(builder *flatbuffers.Builder) {
-	builder.StartObject(4)
+	builder.StartObject(5)
 }
 func ResearchAddRate(builder *flatbuffers.Builder, rate uint32) {
 	builder.PrependUint32Slot(0, rate, 0)
 }
+func ResearchAddProjectLimit(builder *flatbuffers.Builder, projectLimit byte) {
+	builder.PrependByteSlot(1, projectLimit, 0)
+}
 func ResearchAddProjects(builder *flatbuffers.Builder, projects flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(1, flatbuffers.UOffsetT(projects), 0)
+	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(projects), 0)
 }
 func ResearchStartProjectsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func ResearchAddHand(builder *flatbuffers.Builder, hand flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(hand), 0)
+	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(hand), 0)
 }
 func ResearchStartHandVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func ResearchAddSaved(builder *flatbuffers.Builder, saved flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(saved), 0)
+	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(saved), 0)
 }
 func ResearchStartSavedVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)

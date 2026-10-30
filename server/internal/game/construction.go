@@ -73,7 +73,8 @@ func (s *State) QueueBuilding(c *cs.Content, seat int, planet string, slot int, 
 		pl.Resources[r] -= a
 	}
 	s.LastID++
-	p.Queue = append(p.Queue, QueueItem{ID: s.LastID, Slot: slot, Building: building, Remaining: int64(b.BuildTime) * 1000, Paid: cost})
+	ms := buildMs(b.BuildTime, s.effects(c, seat).building("buildTime"))
+	p.Queue = append(p.Queue, QueueItem{ID: s.LastID, Slot: slot, Building: building, Remaining: ms, Paid: cost})
 	return nil
 }
 
@@ -81,6 +82,7 @@ func (s *State) QueueBuilding(c *cs.Content, seat int, planet string, slot int, 
 // Ruleset's free ones adds its percent, rounded to the nearest whole amount.
 func (s *State) sprawled(c *cs.Content, seat int, cost map[string]int) map[string]int {
 	sp := c.Rulesets[RulesetID].Sprawl
+	sp.FreePlanets = s.effects(c, seat).all("sprawlFreePlanets").of(sp.FreePlanets)
 	owned := 0
 	for _, p := range s.Planets {
 		if p.Owner == seat {

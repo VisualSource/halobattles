@@ -91,6 +91,7 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 		defend.Formations = append(defend.Formations, f)
 	}
 	defend.Buildings = slices.Clone(p.Buildings)
+	attack.Boosts, defend.Boosts = s.boosts(c, b.Attacker), s.boosts(c, b.Defender)
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
 	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID), attack, defend, s.Seed+uint64(b.ID))
 	b.Sim.Controllers = [2]battle.Controller{battle.NewAI(s.aiWeights(c, b.Attacker)), battle.NewAI(s.aiWeights(c, b.Defender))}
