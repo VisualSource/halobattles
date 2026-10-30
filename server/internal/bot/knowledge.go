@@ -89,17 +89,7 @@ func planetStrength(c *cs.Content, p game.PlanetView) float64 {
 // estimate is a Planet's strength as the Bot believes it: live in view,
 // as last seen otherwise, or, never seen, the map's neutral garrison for it.
 func (b *Bot) estimate(v game.View, id string) float64 {
-	if s, ok := b.seen[id]; ok {
-		return planetStrength(b.c, s.planet)
-	}
-	sum := 0.0
-	for _, st := range b.c.Maps[v.Map].Garrisons[id] {
-		for _, e := range st {
-			cb := b.c.Units[string(e.Unit)].Combat
-			sum += strengthOf(&cb) * float64(e.Count)
-		}
-	}
-	return sum
+	return against(b.defenders(v, id), nil)
 }
 
 // threat is the enemy strength near a Planet: Armies headed for it, and
@@ -124,6 +114,23 @@ func (b *Bot) threat(v game.View, id string) float64 {
 		}
 	}
 	return threat
+}
+
+// enemyForce is the strongest enemy force the Bot knows of: an Army in
+// view, or a Planet as last seen, counting less the older the sighting.
+func (b *Bot) enemyForce(v game.View) float64 {
+	enemy := 0.0
+	for _, a := range v.Armies {
+		if a.Owner != v.You {
+			enemy = max(enemy, unitsStrength(b.c, a.Units))
+		}
+	}
+	for _, s := range b.seen {
+		if s.planet.Owner != v.You && s.planet.Owner != game.Neutral {
+			enemy = max(enemy, planetStrength(b.c, s.planet)*freshness(s, v.Time))
+		}
+	}
+	return enemy
 }
 
 // hops is each Planet's Lane jumps from the nearest Planet the Bot owns.

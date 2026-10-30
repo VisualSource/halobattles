@@ -44,7 +44,7 @@ Each think, a **Commander** scores goals, and a planner works out the first step
 | **Defend** | reinforce a threatened Planet of its own: the enemy strength seen near it against its garrison |
 | **Economy** | extractors, refining, storage and research buildings, more while its income is low for its Planets |
 | **Army** | production buildings and units, more while its strength is low against enemies seen |
-| **Research** | a free Project slot, a card worth having |
+| **Research** | an idle Research field with a card worth having, more once no Lab has a free Tech Slot |
 
 - Each goal's score is multiplied by its **weight**: the difficulty profile's, times the Faction's `bot` weight for it. Easy and Normal add **score noise**, a random ± spread.
 - A current goal scores a quarter more, so near-ties don't flip it.
@@ -69,7 +69,10 @@ The Match's win conditions add to goal scores. Each condition has its own rules,
 ## Armies
 
 - Each Planet keeps a **home guard**, sized by the enemy strength seen near it and the Defend weight; the Capital's is larger.
-- Expand and Attack gather spare units at a **staging Planet**, the Bot's own Planet nearest the target, and order the Army once its strength reaches the target's estimate × the difficulty's **attack margin**.
+- Expand and Attack gather spare units at a **staging Planet**, the Bot's own Planet nearest the target, and order the Army once its strength reaches the target's estimate × the difficulty's **attack margin**, each side's counted with its Advantage tiers against the other's Unit Classes. Units still on their way count toward it, and the Army waits for them. A staging Planet keeps what it has: units gather there only from Planets that aren't staging.
+- One attack at a time on a Planet: no Army goes while one is headed there or fighting there, since it would wait in orbit and fight alone once that Battle ended.
+- **Failed attacks:** each attack that ends without taking the Planet (lost, or Retreated from) asks half as much again of the next Army there. Taking the Planet clears them.
+- **Out of reach:** at its Command Point cap, Expand or Attack on a Planet its whole force couldn't take, counted as an attack would be, scores a tenth. It can't grow toward it, and chasing it would keep units staged that other goals could use.
 - Trained units join the Rally Stack (Stack 1). A Bot doesn't rearrange Stacks beyond picking units for Armies.
 - **Retreat:** in a Battle, the Bot orders a Retreat once its side's strength falls below its difficulty's share of the enemy's.
 
@@ -77,11 +80,15 @@ The Match's win conditions add to goal scores. Each condition has its own rules,
 
 - **Placement:** extractors where Richness is highest, production buildings on the Planets nearest the front, Labs spread one per Planet before any Planet has two, research buildings on the safest Planets.
 - **Units:** Normal and Hard score each trainable unit by its Advantage tiers against the enemy units they've seen, per cost. Easy trains a fixed mix.
+- **Better armies:** Normal and Hard build production for a unit a fifth better than any they train now, and count a Resource three times while the best unit they could have needs it and nothing earns it (Alloys for vehicles), so their economy builds toward that army.
+- **Prices:** a Bot weighs Resources at their Exchange rate into the Resource the most rates sell into (Credits in the base Mod): an Alloy is worth 2, a Material half.
 - **Money:** a Bot plans against its projected Payday, never queues into debt, and keeps a **reserve** of its caps. When one Resource is short and another near its cap, it uses the Exchange.
 
 ## Research
 
-- Normal and Hard score each card by how much it serves their top goals: an unlock their unit choice needs, the economy Techs while Economy weighs heavily. Recover and Resume cards get a bonus. Easy picks the first card.
+- Every Research field idle is its whole rate wasted, so a Bot keeps each one running.
+- Normal and Hard score each card in an idle field's hand by how much it serves their top goals: an unlock their unit choice needs, the economy Techs while Economy weighs heavily. Recover and Resume cards get a bonus. Easy picks the first card.
+- A research building is worth its field's Research, weighted by the goal that field serves: Military by Army, Industry by Economy, Logistics by the higher of the two.
 - The Lab is the one with the most free Tech Slots on the safest Planet.
 
 ## Difficulties
@@ -105,7 +112,7 @@ A Faction's `ai` block gains a `bot` sub-block of goal weights (`expand`, `attac
 ## Testing
 
 - Headless Bot-vs-Bot Matches from seeds, with no humans and no Nakama, calling `Think` directly.
-- Hard beats Easy in at least 80% of seeded Matches on the base map.
+- Hard beats Easy in at least 80% of seeded Matches on the base map. Not met yet: `TestHardBeatsEasy` has Hard winning 9 of its 20 seeds, about chance. Tuning waits for playtests. `HALO_BOT_SWEEP=1 go test ./internal/bot -run TestHardBeatsEasy -v` plays the sweep with each Bot's stats; it fails on a Match that doesn't end or a Bot left idle, and logs the win rate.
 - Every Bot Match ends within a Match-Time cap, and no Bot sits idle with Resources to spend and nothing queued.
 
 ## Later

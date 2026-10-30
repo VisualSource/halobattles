@@ -17,6 +17,46 @@ import (
 // richness is the server's extractor multiplier per Richness level (game/economy.go).
 var richness = map[string]float64{"none": 0, "poor": 0.5, "normal": 1, "rich": 1.5}
 
+// prices is each Resource's worth in the one the most Exchange rates sell
+// into (Credits in the base Mod), at those rates.
+func prices(c *cs.Content) map[string]float64 {
+	rates := c.Rulesets[game.RulesetID].Exchange
+	into := map[string]int{}
+	for _, x := range rates {
+		into[string(x.Get)]++
+	}
+	ref, most := "", 0
+	for _, r := range slices.Sorted(maps.Keys(into)) {
+		if into[r] > most {
+			ref, most = r, into[r]
+		}
+	}
+	out := map[string]float64{}
+	for _, x := range rates {
+		if string(x.Get) == ref {
+			out[string(x.Give)] = float64(x.GetAmount) / float64(x.GiveAmount)
+		}
+	}
+	return out
+}
+
+// priceOf is a Resource's price; 1 for one with no rate.
+func (b *Bot) priceOf(r string) float64 {
+	if v, ok := b.prices[r]; ok {
+		return v
+	}
+	return 1
+}
+
+// price is what amounts of Resources are worth, by their prices.
+func (b *Bot) price(m map[string]int) float64 {
+	v := 0.0
+	for r, a := range m {
+		v += float64(a) * b.priceOf(r)
+	}
+	return v
+}
+
 // researchWorth is a point of Research against one of a Resource.
 const researchWorth = 0.5
 
@@ -126,15 +166,41 @@ func (t *turn) place(score func(game.PlanetView) float64) (planet game.PlanetVie
 	return planet, slot, best
 }
 
+// wanted is the Resources that the best unit a Bot choosing by Advantage
+// could have (unlocked, from any of its Faction's production) costs, and
+// that nothing earns it yet: what to build an economy toward.
+func (b *Bot) wanted(t *turn) map[string]bool {
+	out := map[string]bool{}
+	if b.Difficulty.UnitChoice != cs.BotDifficultyUnitChoiceAdvantage {
+		return out
+	}
+	best, unit := 0.0, ""
+	for _, id := range slices.Sorted(maps.Keys(b.c.Buildings)) {
+		x := b.c.Buildings[id]
+		if string(x.Faction) != b.faction {
+			continue
+		}
+		for _, u := range x.Trains {
+			if v := b.unitScore(t, string(u)); v > best && unlocked(b.c, t.held, string(u), true) {
+				best, unit = v, string(u)
+			}
+		}
+	}
+	for r := range b.c.Units[unit].Cost {
+		if t.net[r] <= 0 {
+			out[r] = true
+		}
+	}
+	return out
+}
+
 // trainerToBuild is the production building whose units score best, on
 // the own Planet nearest the front.
 func (b *Bot) trainerToBuild(t *turn) build {
 	best, out := 0.0, build{}
 	for _, id := range b.buildable(t, func(x cs.Building) bool { return len(x.Trains) > 0 }) {
-		for _, u := range b.c.Buildings[id].Trains {
-			if v := b.unitScore(t, string(u)); v > best && unlocked(b.c, t.held, string(u), true) {
-				best, out.id = v, id
-			}
+		if v := b.bestOf(t, b.c.Buildings[id].Trains); v > best {
+			best, out.id = v, id
 		}
 	}
 	if out.id == "" {
@@ -148,19 +214,25 @@ func (b *Bot) trainerToBuild(t *turn) build {
 
 // economyToBuild is the economy building worth most a Payday for its cost,
 // and where: extractors by Richness, the rest on the safest Planet. A
-// Resource counts for more the further it is below its cap.
+// Resource counts for more the further it is below its cap, and three times
+// as much while its best unit needs it and nothing earns it.
 func (b *Bot) economyToBuild(t *turn) build {
 	e := t.v.Economy
+	wanted := b.wanted(t)
 	need := func(r string) float64 {
-		if e.Caps[r] == 0 {
-			return 1
+		n := 1.0
+		if e.Caps[r] > 0 {
+			n = max(0.5, 1.5-float64(e.Resources[r])/float64(e.Caps[r]))
 		}
-		return max(0.5, 1.5-float64(e.Resources[r])/float64(e.Caps[r]))
+		if wanted[r] {
+			n *= 3
+		}
+		return n
 	}
 	worth := func(m map[string]int) float64 {
 		v := 0.0
 		for r, a := range m {
-			v += float64(a) * need(r)
+			v += float64(a) * b.priceOf(r) * need(r)
 		}
 		return v
 	}
@@ -187,14 +259,14 @@ func (b *Bot) economyToBuild(t *turn) build {
 		p, s, v := t.place(func(p game.PlanetView) float64 {
 			v := base
 			for r, a := range x.Extracts {
-				v += float64(a) * richness[p.Richness[r]] * need(r)
+				v += float64(a) * richness[p.Richness[r]] * b.priceOf(r) * need(r)
 			}
 			if v <= 0 {
 				return math.Inf(-1)
 			}
 			return v + float64(t.dist(p.ID))/1000 // a tie goes to the safer
 		})
-		if v /= float64(max(1, sum(x.Cost))); s >= 0 && v > best {
+		if v /= max(1, b.price(x.Cost)); s >= 0 && v > best {
 			best, out = v, build{p, s, id}
 		}
 	}
@@ -263,23 +335,43 @@ var tierWorth = map[cs.CombatTiersValue]float64{"": 1, "normal": 1, "advantage":
 
 // matchup is what a combatant's tiers make it worth against these
 // numbers of each Unit Class: 1 against none.
-func matchup(cb *cs.Combat, classes map[string]int) float64 {
-	f, n := 0.0, 0
+func matchup(cb *cs.Combat, classes map[string]float64) float64 {
+	f, n := 0.0, 0.0
 	for class, k := range classes {
-		f += tierWorth[cb.Tiers[class]] * float64(k)
+		f += tierWorth[cb.Tiers[class]] * k
 		n += k
 	}
 	if n == 0 {
 		return 1
 	}
-	return f / float64(n)
+	return f / n
 }
 
 // unitScore is a unit's strength per cost, by its tiers against the enemy
 // units seen.
 func (b *Bot) unitScore(t *turn, id string) float64 {
 	u := b.c.Units[id]
-	return strengthOf(&u.Combat) * matchup(&u.Combat, t.foes) / float64(max(1, sum(u.Cost)))
+	return strengthOf(&u.Combat) * matchup(&u.Combat, t.foes) / max(1, b.price(u.Cost))
+}
+
+// bestOf is the best score among these units the Bot has unlocked.
+func (b *Bot) bestOf(t *turn, units []cs.ID) float64 {
+	best := 0.0
+	for _, u := range units {
+		if unlocked(b.c, t.held, string(u), true) {
+			best = max(best, b.unitScore(t, string(u)))
+		}
+	}
+	return best
+}
+
+// bestTrainable is the best score of a unit the Bot can train now.
+func (b *Bot) bestTrainable(t *turn) float64 {
+	best := 0.0
+	for _, o := range b.trainers(t) {
+		best = max(best, b.unitScore(t, o.unit))
+	}
+	return best
 }
 
 // trainAt is a unit an own production building can train now.
@@ -316,7 +408,7 @@ func (t *turn) room(u cs.Unit, id string) int {
 func (b *Bot) train(t *turn, _ goal) *Command {
 	opts := slices.DeleteFunc(b.trainers(t), func(o trainAt) bool {
 		u := b.c.Units[o.unit]
-		return t.room(u, o.unit) <= 0 || !t.affords(u.Cost, u.Upkeep, 1)
+		return t.room(u, o.unit) <= 0 || t.cp < u.CommandPoints || !t.affords(u.Cost, u.Upkeep, 1)
 	})
 	if len(opts) == 0 {
 		return nil

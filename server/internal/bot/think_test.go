@@ -163,6 +163,24 @@ func TestTheCommanderPrefersNearWeakPlanetsAndDefendsWhenThreatened(t *testing.T
 	}
 }
 
+// At the Command Point cap, a Planet its whole force can't beat scores a
+// tenth: it can't grow toward it, and chasing it would hoard its units.
+func TestTheCommanderDropsAttacksOutOfReach(t *testing.T) {
+	b := hard(t)
+	v := view([]string{"base:barracks", "", ""}, 4) // 100 against c's 250
+	b.remember(v)
+	open, _ := find(b.goals(v), "expand:c")
+	emptyOpen, _ := find(b.goals(v), "expand:b")
+	v.Economy.CommandPointsUsed = v.Economy.CommandPointsCap
+	capped, _ := find(b.goals(v), "expand:c")
+	if math.Abs(capped.score-open.score/10) > 1e-9 {
+		t.Errorf("expand:c at the cap %v, %v below it; want a tenth", capped.score, open.score)
+	}
+	if empty, _ := find(b.goals(v), "expand:b"); empty.score != emptyOpen.score {
+		t.Errorf("expand:b, empty and in reach, %v at the cap, %v below it; want the same", empty.score, emptyOpen.score)
+	}
+}
+
 func keys(gs []goal) []string {
 	var out []string
 	for _, g := range gs {

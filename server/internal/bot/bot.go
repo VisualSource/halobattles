@@ -38,13 +38,14 @@ type Bot struct {
 	mix        int                 // a fixed unit mix's next unit
 	attacking  map[uint32]string   // the Battles it was attacking in at its last think, to their Planet
 	failed     map[string]int      // attacks that failed, by Planet, until it takes it
+	prices     map[string]float64  // each Resource's worth, by the Exchange
 }
 
 // New makes the Bot for seat, playing faction at difficulty. Its random
 // choices draw from its own stream of the Match seed; its first think is
 // offset ms in, so Bots don't all think on one tick.
 func New(c *cs.Content, seat int, faction, difficulty string, seed uint64, offset int64) *Bot {
-	b := &Bot{Seat: seat, c: c, faction: faction, rng: rand.New(rand.NewPCG(seed, uint64(seat)+1000)), next: offset, failed: map[string]int{}}
+	b := &Bot{Seat: seat, c: c, faction: faction, rng: rand.New(rand.NewPCG(seed, uint64(seat)+1000)), next: offset, failed: map[string]int{}, prices: prices(c)}
 	for _, d := range c.Rulesets[game.RulesetID].BotDifficulties {
 		if string(d.ID) == difficulty {
 			b.Difficulty = d

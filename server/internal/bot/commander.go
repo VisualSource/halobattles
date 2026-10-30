@@ -36,7 +36,7 @@ func (g goal) key() string { return goalNames[g.kind] + ":" + g.target }
 func (b *Bot) goals(v game.View) []goal {
 	m := b.c.Maps[v.Map]
 	hops := b.hops(v)
-	own, enemy := 0.0, 0.0 // the Bot's whole strength, and the strongest enemy force it knows of
+	own, enemy := 0.0, b.enemyForce(v) // the Bot's whole strength, and the strongest enemy force it knows of
 	owned := 0
 	var slots, empty int // Building Slots on its Planets, and those with nothing built or building
 	var mine []game.PlanetView
@@ -58,13 +58,6 @@ func (b *Bot) goals(v game.View) []goal {
 	for _, a := range v.Armies {
 		if a.Owner == v.You {
 			own += unitsStrength(b.c, a.Units)
-		} else {
-			enemy = max(enemy, unitsStrength(b.c, a.Units))
-		}
-	}
-	for _, s := range b.seen {
-		if s.planet.Owner != v.You && s.planet.Owner != game.Neutral {
-			enemy = max(enemy, planetStrength(b.c, s.planet)*freshness(s, v.Time))
 		}
 	}
 
@@ -77,6 +70,18 @@ func (b *Bot) goals(v game.View) []goal {
 
 	// Expand and Attack: every Planet not the Bot's, by its worth, nearness,
 	// how fresh the Bot's knowledge is, and how strong it's thought to be.
+	capped := v.Economy.CommandPointsUsed >= v.Economy.CommandPointsCap
+	var all []fighter // every unit it has
+	for _, p := range mine {
+		for _, st := range p.Stacks {
+			all = append(all, b.fighters(st)...)
+		}
+	}
+	for _, a := range v.Armies {
+		if a.Owner == v.You {
+			all = append(all, b.fighters(a.Units)...)
+		}
+	}
 	for _, mp := range m.Planets {
 		id := string(mp.ID)
 		s, seen := b.seen[id]
@@ -90,7 +95,17 @@ func (b *Bot) goals(v game.View) []goal {
 		}
 		pt := b.c.PlanetTypes[string(mp.Type)]
 		worth := 1 + float64(sum(pt.Income))/300 + float64(pt.BuildingSlots)/4
-		value := worth * fresh / float64(1+d) / (1 + b.estimate(v, id)/max(own, 1))
+		est := b.estimate(v, id)
+		value := worth * fresh / float64(1+d) / (1 + est/max(own, 1))
+		// Out of reach: more than its whole force could beat, tiers and
+		// failed attacks counted as an attack would, with no Command Points
+		// to grow it. Chasing it would hoard units nothing else can use.
+		if capped {
+			theirs := b.defenders(v, id)
+			if against(all, theirs) < against(theirs, all)*b.Difficulty.AttackMargin*(1+0.5*float64(b.failed[id])) {
+				value /= 10
+			}
+		}
 		if owner == game.Neutral {
 			add(expand, id, value)
 		} else {

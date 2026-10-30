@@ -101,20 +101,20 @@ type turn struct {
 	sprawl    int            // the percent every cost is charged at
 	reserve   int            // the percent of each cap kept back
 	held      map[string]bool
-	mine      []game.PlanetView // own Planets, by id
-	queued    map[string]string // "planet/slot" taken by this think's builds, to the building
-	cp        int               // Command Points left
-	front     map[string]int    // Lane jumps from each Planet to the nearest one not the Bot's
-	foes      map[string]int    // enemy units seen, by Unit Class
-	units     map[string]int    // own units, from queue to death, by id
-	gathering map[string]bool   // Planets this think gathered units at
+	mine      []game.PlanetView  // own Planets, by id
+	queued    map[string]string  // "planet/slot" taken by this think's builds, to the building
+	cp        int                // Command Points left
+	front     map[string]int     // Lane jumps from each Planet to the nearest one not the Bot's
+	foes      map[string]float64 // enemy units seen, by Unit Class
+	units     map[string]int     // own units, from queue to death, by id
+	gathering map[string]bool    // Planets this think gathered units at
 	top       [len(goalNames)]float64
 }
 
 func (b *Bot) newTurn(v game.View) *turn {
 	e := v.Economy
 	t := &turn{v: v, budget: map[string]int{}, net: map[string]int{}, held: held(v), queued: map[string]string{},
-		cp: e.CommandPointsCap - e.CommandPointsUsed, foes: map[string]int{}, units: map[string]int{}, gathering: map[string]bool{}, reserve: b.Difficulty.ReservePercent}
+		cp: e.CommandPointsCap - e.CommandPointsUsed, foes: map[string]float64{}, units: map[string]int{}, gathering: map[string]bool{}, reserve: b.Difficulty.ReservePercent}
 	maps.Copy(t.net, e.Projected)
 	for r, a := range e.Resources {
 		t.budget[r] = a - e.Caps[r]*t.reserve/100 + min(0, t.net[r])
@@ -145,7 +145,7 @@ func (b *Bot) newTurn(v game.View) *turn {
 			if a.Owner == v.You {
 				t.units[u.Unit] += u.Count
 			} else {
-				t.foes[string(b.c.Units[u.Unit].Combat.UnitClass)] += u.Count
+				t.foes[string(b.c.Units[u.Unit].Combat.UnitClass)] += float64(u.Count)
 			}
 		}
 	}
@@ -155,7 +155,7 @@ func (b *Bot) newTurn(v game.View) *turn {
 		}
 		for _, st := range s.planet.Stacks {
 			for _, u := range st {
-				t.foes[string(b.c.Units[u.Unit].Combat.UnitClass)] += u.Count
+				t.foes[string(b.c.Units[u.Unit].Combat.UnitClass)] += float64(u.Count)
 			}
 		}
 	}
@@ -182,11 +182,16 @@ func (b *Bot) facts(t *turn, g goal) facts {
 	var f facts
 	trains := func(x cs.Building) bool { return len(x.Trains) > 0 }
 	isLab := func(x cs.Building) bool { return x.TechSlots != nil }
-	if len(b.trainers(t)) > 0 || b.coming(t, trains) {
-		f |= hasProduction // one being built counts: train waits for it rather than another being queued
-	}
-	if b.trainerToBuild(t).id != "" {
+	x := b.trainerToBuild(t)
+	if x.id != "" {
 		f |= canBuildTrainer
+	}
+	// Choosing by Advantage, it builds production for a unit a fifth better
+	// than any it trains now, before training more of what it has.
+	upgrade := b.Difficulty.UnitChoice == cs.BotDifficultyUnitChoiceAdvantage && x.id != "" && !b.coming(t, trains) &&
+		b.bestOf(t, b.c.Buildings[x.id].Trains) > 1.2*b.bestTrainable(t)
+	if (len(b.trainers(t)) > 0 || b.coming(t, trains)) && !upgrade {
+		f |= hasProduction // one being built counts: train waits for it rather than another being queued
 	}
 	if b.economyToBuild(t).id != "" {
 		f |= canBuildEconomy

@@ -43,6 +43,18 @@ func TestTheBudgetKeepsTheReserveTheNextPaydayAndSprawl(t *testing.T) {
 	}
 }
 
+func TestPricesComeFromTheExchange(t *testing.T) {
+	// Base rates: 2 Materials sell for 1 Credit, 1 Alloy for 2.
+	p := prices(baseContent())
+	if p["base:materials"] != 0.5 || p["base:alloys"] != 2 || p["base:credits"] != 0 {
+		t.Errorf("prices %v; want Materials 0.5, Alloys 2, and Credits left to priceOf's 1", p)
+	}
+	b := New(baseContent(), 0, "base:unsc", "hard", 1, 0)
+	if got := b.price(map[string]int{"base:credits": 150, "base:materials": 50, "base:alloys": 15}); got != 205 {
+		t.Errorf("a Warthog costs %v; want 150 + 25 + 30", got)
+	}
+}
+
 func TestTheExchangeTradesFromNearTheCapIntoAShortResource(t *testing.T) {
 	b := hard(t)
 	rules(b.c, func(r *cs.Ruleset) {
@@ -115,6 +127,27 @@ func TestUnitChoice(t *testing.T) {
 	easy := New(c, 0, "base:unsc", "easy", 1, 0)
 	if a, b := unit(easy, v), unit(easy, v); a != "base:hog" || b != "base:marine" {
 		t.Errorf("a fixed mix trained %s then %s; want each in turn", a, b)
+	}
+}
+
+// With 1 Command Point left, a fixed mix whose turn is a 2-Point unit
+// trains the 1-Point one rather than nothing: the mix only moves on when it
+// trains, so it would wait on that turn for good.
+func TestTrainingSkipsUnitsOverTheCommandPointsLeft(t *testing.T) {
+	c := lineContent()
+	c.Units["base:hog"] = cs.Unit{Cost: credits(150), CommandPoints: 2, Combat: cs.Combat{Hp: 30, Damage: "1d4"}}
+	bk := c.Buildings["base:barracks"]
+	bk.Trains = []cs.ID{"base:marine", "base:hog"}
+	c.Buildings["base:barracks"] = bk
+	rules(c, func(r *cs.Ruleset) {
+		r.BotDifficulties = append(r.BotDifficulties, cs.BotDifficulty{ID: "easy", PlanDepth: 3, UnitChoice: "fixed"})
+	})
+	b := New(c, 0, "base:unsc", "easy", 1, 0) // its turn: base:hog, first by id
+	v := view([]string{"base:barracks", "", ""}, 0)
+	v.Economy.CommandPointsUsed = v.Economy.CommandPointsCap - 1
+	cmd := b.train(b.newTurn(v), goal{})
+	if cmd == nil || decode(*cmd).(*wire.QueueUnitT).Unit != "base:marine" {
+		t.Errorf("trained %v with 1 Command Point left; want a Marine", cmd)
 	}
 }
 

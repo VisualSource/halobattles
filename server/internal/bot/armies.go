@@ -69,14 +69,14 @@ func (b *Bot) inbound(t *turn, planet string) bool {
 // fighter is a number of one combatant, for a matchup.
 type fighter struct {
 	cb *cs.Combat
-	n  int
+	n  float64
 }
 
 func (b *Bot) fighters(units []game.UnitSlot) []fighter {
 	var out []fighter
 	for _, u := range units {
 		cb := b.c.Units[u.Unit].Combat
-		out = append(out, fighter{&cb, u.Count})
+		out = append(out, fighter{&cb, float64(u.Count)})
 	}
 	return out
 }
@@ -85,7 +85,8 @@ func (b *Bot) fighters(units []game.UnitSlot) []fighter {
 // never seen, the map's neutral garrison for it.
 func (b *Bot) defenders(v game.View, id string) []fighter {
 	var out []fighter
-	if s, ok := b.seen[id]; ok {
+	s, ok := b.seen[id]
+	if ok {
 		for _, st := range s.planet.Stacks {
 			out = append(out, b.fighters(st)...)
 		}
@@ -94,12 +95,12 @@ func (b *Bot) defenders(v game.View, id string) []fighter {
 				out = append(out, fighter{cb, 1})
 			}
 		}
-		return out
-	}
-	for _, st := range b.c.Maps[v.Map].Garrisons[id] {
-		for _, e := range st {
-			cb := b.c.Units[string(e.Unit)].Combat
-			out = append(out, fighter{&cb, e.Count})
+	} else {
+		for _, st := range b.c.Maps[v.Map].Garrisons[id] {
+			for _, e := range st {
+				cb := b.c.Units[string(e.Unit)].Combat
+				out = append(out, fighter{&cb, float64(e.Count)})
+			}
 		}
 	}
 	return out
@@ -108,13 +109,13 @@ func (b *Bot) defenders(v game.View, id string) []fighter {
 // against is fs's strength against foes: each one's score times what its
 // Advantage tiers make it worth against foes' Unit Classes.
 func against(fs, foes []fighter) float64 {
-	classes := map[string]int{}
+	classes := map[string]float64{}
 	for _, f := range foes {
 		classes[string(f.cb.UnitClass)] += f.n
 	}
 	sum := 0.0
 	for _, f := range fs {
-		sum += strengthOf(f.cb) * float64(f.n) * matchup(f.cb, classes)
+		sum += strengthOf(f.cb) * f.n * matchup(f.cb, classes)
 	}
 	return sum
 }
@@ -127,7 +128,7 @@ func (b *Bot) strongEnough(t *turn, g goal, st *game.PlanetView, withInbound boo
 	var ours []fighter
 	for _, u := range units {
 		cb := b.c.Units[u.Unit].Combat
-		ours = append(ours, fighter{&cb, int(u.Count)})
+		ours = append(ours, fighter{&cb, float64(u.Count)})
 	}
 	if withInbound {
 		for _, a := range t.v.Armies {
