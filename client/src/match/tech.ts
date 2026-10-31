@@ -180,6 +180,33 @@ export const offered = (content: ContentLookups, view: View, field: string) =>
   (view.research.hands.get(field)?.length ?? 0) > 0 ||
   view.research.saved.some((v) => content.techs.get(v.tech)?.field === field);
 
+/**
+ * Your Faction's buildings that raise field's Research, when its Research is
+ * what keeps all its remaining Techs from being offered; otherwise none. It
+ * names them without saying how much is needed: the thresholds stay hidden.
+ */
+export function researchBuildings(
+  content: ContentLookups,
+  view: View,
+  field: string,
+): string[] {
+  const rate = view.research.rates.get(field) ?? 0;
+  const faction = view.players[view.you]?.faction;
+  const held = heldTechs(view);
+  const left = [...content.techs.entries()].filter(
+    ([id, t]) =>
+      t.field === field &&
+      (!t.faction || t.faction === faction) &&
+      !held.has(id),
+  );
+  const opened = (t: Tech) =>
+    (content.rules.tech.rarities[t.rarity]?.from ?? 0) <= rate;
+  if (left.length === 0 || left.some(([, t]) => opened(t))) return [];
+  return [...content.buildings.values()]
+    .filter((b) => b.faction === faction && (b.research?.[field] ?? 0) > 0)
+    .map((b) => b.name);
+}
+
 /** Fields with no Project and something to pick: the idle ones worth a nudge. */
 export const idleFields = (content: ContentLookups, view: View) =>
   fieldsOf(content).filter(

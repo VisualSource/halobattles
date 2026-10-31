@@ -133,6 +133,7 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 
 - The top bar shows Research per Payday like a Resource: every field's combined (`+810` for 9 a second). Hovering it shows a small popover with each field's rate, by its icon and colour; clicking it opens the **Research panel**, docked over the map's left edge.
 - The panel is a column of Project slots, one per field. Each slot has a header with the field's icon, name and Research rate. A running one shows its Tech, what it does, its Lab, and a progress bar with Research done and cost, or why it's paused. A free slot opens a popover: pick a card from that field's hand or back on offer (Resume, Recover), each tinted by its Rarity's colour, then a Lab with a free Tech Slot.
+- A slot with nothing on offer because its field's Research opens none of its remaining Techs names the Faction's buildings that raise that field's Research, without saying how many are needed: the thresholds stay hidden.
 - The Planet window shows its Labs' Tech Slots, other players' in Vision too. Selling a Lab that holds Techs asks first, naming them.
 - Locked units and buildings show disabled, naming their Tech (see [Locked content](#locked-content)).
 

@@ -13,6 +13,7 @@ import {
   labs,
   offered,
   pauseReason,
+  researchBuildings,
   techCost,
   techText,
 } from "./tech";
@@ -248,6 +249,7 @@ export function ResearchPanel(props: {
         {fieldsOf(content).map((f) => {
           const p = research.projects.find((x) => fieldOf(x.tech) === f.id);
           const rate = research.rates.get(f.id) ?? 0;
+          const builds = researchBuildings(content, view, f.id);
           return (
             <li
               key={f.id}
@@ -303,12 +305,20 @@ export function ResearchPanel(props: {
                     ·
                   </span>
                   <span className="flex max-w-65 flex-col gap-0.5 text-left">
-                    <span className="font-semibold">
-                      Nothing to research yet
+                    <span
+                      className={cn(
+                        "font-semibold",
+                        builds.length && "text-ink",
+                      )}
+                    >
+                      {builds.length
+                        ? `${f.name} Techs need more Research`
+                        : "Nothing to research yet"}
                     </span>
                     <span className="text-xs">
-                      More {f.name} Research, or the buildings a Tech needs,
-                      brings more.
+                      {builds.length
+                        ? `${builds.join(" or ")} raises ${f.name} Research. Build enough to open its Techs.`
+                        : `More ${f.name} Research, or the buildings a Tech needs, brings more.`}
                     </span>
                   </span>
                 </button>

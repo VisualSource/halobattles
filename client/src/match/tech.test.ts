@@ -10,6 +10,7 @@ import {
   labs,
   needsTech,
   pauseReason,
+  researchBuildings,
   techCost,
   techText,
 } from "./tech";
@@ -126,6 +127,53 @@ describe("Research alerts", () => {
     expect(finishedProjects(was, done).map((p) => p.tech)).toEqual(["plating"]);
     expect(finishedProjects(was, cancelled)).toEqual([]);
     expect(finishedProjects(was, was)).toEqual([]);
+  });
+});
+
+describe("Research buildings hint", () => {
+  // Logistics has only Rare Techs (from 5): one shared, one Covenant's.
+  const c = {
+    techs: new Map([
+      ["supply", tech({ id: "supply", field: "logistics", rarity: "rare" })],
+      [
+        "fleet",
+        tech({
+          id: "fleet",
+          field: "logistics",
+          rarity: "rare",
+          faction: "covenant",
+        }),
+      ],
+    ]),
+    buildings: new Map([
+      [
+        "command",
+        { name: "Fleet Command", faction: "unsc", research: { logistics: 2 } },
+      ],
+      [
+        "ministry",
+        { name: "Ministry", faction: "covenant", research: { logistics: 2 } },
+      ],
+      ["lab", { name: "Research Lab", faction: "unsc" }],
+    ]),
+    rules: { tech: { rarities: { common: { from: 0 }, rare: { from: 5 } } } },
+  } as unknown as ContentLookups;
+  const at = (rate: number, planets: PlanetView[] = []) => {
+    const v = view(planets);
+    v.research.rates.set("logistics", rate);
+    (v as { players: unknown }).players = [{ faction: "unsc" }];
+    return v;
+  };
+
+  it("names your Faction's buildings while Research opens none of the field's Techs", () => {
+    expect(researchBuildings(c, at(1), "logistics")).toEqual(["Fleet Command"]);
+    expect(researchBuildings(c, at(3), "logistics")).toEqual(["Fleet Command"]);
+  });
+
+  it("names none once a Tech is open, or none are left", () => {
+    expect(researchBuildings(c, at(5), "logistics")).toEqual([]);
+    const held = at(1, [planet("a", 0, ["lab"], [[0, ["supply"]]])]);
+    expect(researchBuildings(c, held, "logistics")).toEqual([]);
   });
 });
 
