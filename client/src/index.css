@@ -48,6 +48,18 @@
   --color-rarity-uncommon: #7fdca0;
   --color-rarity-rare: #8fb8f5;
   --color-rarity-legendary: #f0a93b;
+
+  /* The music player's bars while a track plays */
+  --animate-eq: eq 0.9s ease-in-out infinite;
+  @keyframes eq {
+    0%,
+    100% {
+      transform: scaleY(0.3);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
 }
 
 /* react-toastify's dark theme, in the app's colours; toasts clear the play HUD. */

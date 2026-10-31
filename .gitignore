@@ -8,3 +8,6 @@ dist/
 
 client/tsconfig.tsbuildinfo
 .claude
+# Local-only Soundtrack Mod: "all rights reserved" music, never committed.
+mods/voidreckon/
+deploy/runtime.local.env

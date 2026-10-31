@@ -7,3 +7,5 @@ server/build/
 .git/
 .claude/
 docs/
+# Local-only Mods (git-ignored, e.g. music someone else owns) stay out of images.
+mods/voidreckon/

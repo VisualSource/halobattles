@@ -7,6 +7,7 @@ import {
 import { createContext, useContext, useEffect } from "react";
 import { useStore } from "zustand";
 import type { MatchConnection } from "./connection";
+import { MusicPlayer } from "./music";
 import { phaseRedirect } from "./phase";
 import { LostConnection } from "./status";
 import { Toasts } from "./toasts";
@@ -36,7 +37,12 @@ export function MatchScreen(props: { conn: MatchConnection; matchId: string }) {
     select: (st) => st.resolvedLocation?.pathname ?? "",
   });
   const navigate = useNavigate();
-  const { rules } = useRouteContext({ from: "__root__" }).content;
+  const { content } = useRouteContext({ from: "__root__" });
+  const { rules } = content;
+  // One player for the whole Match, so a Battle or the Results screen doesn't restart it.
+  const music = (phase === "play" || phase === "results") && (
+    <MusicPlayer content={content} />
+  );
 
   // The server's phase drives navigation: a phase change moves to the
   // matching screen, and a URL for another phase is sent back.
@@ -45,19 +51,22 @@ export function MatchScreen(props: { conn: MatchConnection; matchId: string }) {
     if (to) void navigate({ to, params: { matchId }, replace: true });
   }, [phase, pathname, matchId, navigate]);
 
-  if (disconnected) {
-    return (
-      <LostConnection
-        phase={phase}
-        local={conn.local}
-        graceMs={rules.gracePeriodSeconds * 1000}
-      />
-    );
-  }
   return (
-    <MatchContext.Provider value={props}>
-      <Toasts events={conn.events} />
-      <Outlet />
-    </MatchContext.Provider>
+    <>
+      {disconnected ? (
+        <LostConnection
+          phase={phase}
+          local={conn.local}
+          graceMs={rules.gracePeriodSeconds * 1000}
+        />
+      ) : (
+        <MatchContext.Provider value={props}>
+          <Toasts events={conn.events} />
+          <Outlet />
+        </MatchContext.Provider>
+      )}
+      {/* After the branch, so a reconnect doesn't remount it and restart the album. */}
+      {music}
+    </>
   );
 }

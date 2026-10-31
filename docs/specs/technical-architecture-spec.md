@@ -69,6 +69,9 @@ mymod/
 
 Kind folders let VS Code attach the right schema by glob. Assets use the `__mod__/` form so they can't be confused with `mod:id`.
 
+- A **Soundtrack** (`data/soundtracks/`) lists an album's tracks as audio assets, with its artist and an optional link. Its track files must exist, like any asset. Music someone else owns is kept in a git-ignored local Mod and enabled through the optional, git-ignored `deploy/runtime.local.env` (for example `HALO_MODS=base,voidreckon`).
+- The client bundles the enabled Mods' assets at build time: those in `HALO_MODS` from the environment, else the committed `runtime.env`. Only the dev server also reads `runtime.local.env`, so a local-only Mod never reaches a build. Local-only Mods are also kept out of the server image by `.dockerignore`.
+
 ### Schemas and validation
 
 - Hand-written JSON Schema, kept to a draft-7 subset with `additionalProperties: false`, is the source of truth.

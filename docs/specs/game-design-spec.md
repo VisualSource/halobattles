@@ -295,6 +295,12 @@ A Match moves through the phases `lobby` → `play` → `results`.
 - After the Match ends, it stays in `results` for 60 s, or until everyone leaves, showing the winner, the reason and "Back to menu".
 - There is no rematch; players create a new Match.
 
+### Music
+
+- With a Soundtrack enabled, a small player sits in the bottom-right from the start of play until the player leaves the Match, carrying on through Battles and Results. It plays every Soundtrack's tracks in order and loops, starting on its own at 30% volume.
+- It shows the track, the artist and the album (linked when the Soundtrack has a link), with previous, play/pause, next, mute and volume controls. It folds down to a single button. Volume, mute and folding are remembered on the device.
+- Without a Soundtrack it doesn't show.
+
 ## Ruleset defaults
 
 The single `base:rules` definition.

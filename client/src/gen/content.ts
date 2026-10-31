@@ -51,6 +51,9 @@ export interface Content {
   techs: {
     [k: string]: Tech;
   };
+  soundtracks: {
+    [k: string]: Soundtrack;
+  };
 }
 /**
  * A stockpiled currency players earn at Payday and spend. Command Points is not a Resource.
@@ -1170,4 +1173,43 @@ export interface Effect {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   field?: string;
+}
+/**
+ * An album of music a Mod brings, played in order during a Match, with its artist credited.
+ */
+export interface Soundtrack {
+  $schema?: string;
+  /**
+   * Replace an existing definition with this id.
+   */
+  replace?: boolean;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  id: string;
+  /**
+   * Inline English display name.
+   */
+  name: string;
+  /**
+   * Who made it, credited in the player.
+   */
+  artist: string;
+  /**
+   * Where the album can be found, linked from the player.
+   */
+  url?: string;
+  /**
+   * In play order.
+   *
+   * @minItems 1
+   */
+  tracks: [Track, ...Track[]];
+}
+export interface Track {
+  title: string;
+  /**
+   * An asset in a Mod's assets/ folder, written `__mod__/path`.
+   */
+  file: string;
 }

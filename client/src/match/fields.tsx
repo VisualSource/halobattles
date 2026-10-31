@@ -1,19 +1,6 @@
 import { cn } from "cn";
+import { assetUrl } from "../assets";
 import type { ContentLookups } from "../content";
-
-// shortcut: only the base Mod's assets are bundled, so another Mod's field icon shows as a dot; load Mod assets from the server when a second Mod ships some.
-const BASE = "../../../mods/base/assets/";
-const baseAssets = import.meta.glob("../../../mods/base/assets/**/*", {
-  query: "?url",
-  import: "default",
-  eager: true,
-}) as Record<string, string>;
-
-/** The URL of an asset reference, `__base__/icons/x.svg`, if it's bundled. */
-const assetUrl = (ref?: string) =>
-  ref?.startsWith("__base__/")
-    ? baseAssets[BASE + ref.slice("__base__/".length)]
-    : undefined;
 
 /** The Ruleset's Research fields, by their order, then by id. */
 export const fieldsOf = (content: Pick<ContentLookups, "rules">) =>

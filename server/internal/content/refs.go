@@ -302,6 +302,11 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		c.tech("techs "+id, doc.Techs[id])
 	}
 	c.techCycles(doc.Techs)
+	for _, id := range slices.Sorted(maps.Keys(doc.Soundtracks)) {
+		for i, t := range doc.Soundtracks[id].Tracks {
+			c.asset(fmt.Sprintf("soundtracks %s: track %d", id, i+1), &t.File)
+		}
+	}
 }
 
 // tech checks a Tech's references, that a Faction's Tech names only its

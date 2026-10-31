@@ -95,6 +95,7 @@ function doc(creditsName: string): Content {
     terrains: {},
     terrainPresets: {},
     techs: {},
+    soundtracks: {},
   };
 }
 

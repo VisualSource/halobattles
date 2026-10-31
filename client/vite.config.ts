@@ -1,9 +1,58 @@
+/// <reference types="node" />
+
+import { existsSync, readFileSync } from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 
-export default defineConfig(({ mode }) => {
+/**
+ * The Mods whose assets the client bundles: HALO_MODS if set, else the
+ * server's deploy env. A build reads only the committed runtime.env, so a
+ * git-ignored local Mod (runtime.local.env) never reaches dist/.
+ */
+function enabledMods(command: "build" | "serve"): string[] {
+  let list = process.env.HALO_MODS;
+  const files = [
+    "runtime.env",
+    ...(command === "serve" ? ["runtime.local.env"] : []),
+  ];
+  for (const f of list ? [] : files) {
+    const path = new URL(`../deploy/${f}`, import.meta.url);
+    if (!existsSync(path)) continue;
+    list = readFileSync(path, "utf8").match(/^HALO_MODS=(.*)$/m)?.[1] ?? list;
+  }
+  const mods = (list ?? "base")
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+  for (const m of mods)
+    if (!/^[a-z0-9_-]+$/.test(m))
+      throw new Error(`HALO_MODS: bad Mod name ${m}`);
+  return mods;
+}
+
+/** Narrows src/assets.ts's glob of every Mod to the enabled ones, before Vite expands it. */
+function enabledModAssets(mods: string[]): Plugin {
+  const all = '"../../mods/*/assets/**/*"';
+  return {
+    name: "enabled-mod-assets",
+    enforce: "pre",
+    transform(code, id) {
+      if (!id.endsWith("/src/assets.ts")) return;
+      if (!code.includes(all))
+        throw new Error(
+          `src/assets.ts no longer globs ${all}; update vite.config.ts`,
+        );
+      return code.replace(
+        all,
+        JSON.stringify(mods.map((m) => `../../mods/${m}/assets/**/*`)),
+      );
+    },
+  };
+}
+
+export default defineConfig(({ mode, command }) => {
   // TUNNEL_HOST: the public hostname of a tunnel (say Cloudflare) that sends
   // everything to this dev server. Vite then accepts that host, proxies
   // Nakama's API and socket, and runs HMR over the tunnel's port 443.
@@ -11,7 +60,12 @@ export default defineConfig(({ mode }) => {
   const nakama = "http://localhost:7350";
   return {
     // The router plugin generates src/routeTree.gen.ts from src/routes; it must come before react().
-    plugins: [tanstackRouter({ target: "react" }), react(), tailwindcss()],
+    plugins: [
+      enabledModAssets(enabledMods(command)),
+      tanstackRouter({ target: "react" }),
+      react(),
+      tailwindcss(),
+    ],
     server: {
       // The base Mod's assets, such as Research field icons, are bundled from ../mods.
       fs: { allow: [".", "../mods"] },

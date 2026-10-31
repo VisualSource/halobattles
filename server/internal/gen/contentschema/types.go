@@ -400,6 +400,9 @@ type Content struct {
 	// Rulesets corresponds to the JSON schema field "rulesets".
 	Rulesets map[string]Ruleset `json:"rulesets"`
 
+	// Soundtracks corresponds to the JSON schema field "soundtracks".
+	Soundtracks map[string]Soundtrack `json:"soundtracks"`
+
 	// Techs corresponds to the JSON schema field "techs".
 	Techs map[string]Tech `json:"techs"`
 
@@ -844,6 +847,31 @@ type Ruleset struct {
 
 type Seconds int
 
+// An album of music a Mod brings, played in order during a Match, with its artist
+// credited.
+type Soundtrack struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// Who made it, credited in the player.
+	Artist string `json:"artist"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name Name `json:"name"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// In play order.
+	Tracks []Track `json:"tracks"`
+
+	// Where the album can be found, linked from the player.
+	Url *string `json:"url,omitempty,omitzero"`
+}
+
 // Each Planet a player owns beyond freePlanets adds percent to the cost of
 // everything they queue, rounded to the nearest whole amount.
 type Sprawl struct {
@@ -1033,6 +1061,14 @@ type TerrainPreset struct {
 
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
+}
+
+type Track struct {
+	// An audio file the browser can play, such as MP3.
+	File Asset `json:"file"`
+
+	// Title corresponds to the JSON schema field "title".
+	Title string `json:"title"`
 }
 
 type Unit struct {

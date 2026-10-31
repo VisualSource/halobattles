@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Soundtrack",
+  "description": "An album of music a Mod brings, played in order during a Match, with its artist credited.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "artist", "tracks"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "replace": { "description": "Replace an existing definition with this id.", "type": "boolean" },
+    "id": { "$ref": "defs.schema.json#/definitions/id" },
+    "name": { "$ref": "defs.schema.json#/definitions/name" },
+    "artist": { "description": "Who made it, credited in the player.", "type": "string", "minLength": 1 },
+    "url": { "description": "Where the album can be found, linked from the player.", "type": "string", "format": "uri" },
+    "tracks": {
+      "description": "In play order.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "title": "Track",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "file"],
+        "properties": {
+          "title": { "type": "string", "minLength": 1 },
+          "file": { "description": "An audio file the browser can play, such as MP3.", "$ref": "defs.schema.json#/definitions/asset" }
+        }
+      }
+    }
+  }
+}

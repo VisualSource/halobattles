@@ -249,6 +249,20 @@ func TestCrossReferencesAreChecked(t *testing.T) {
 	mustLoad(t, writeMods(t, files, "base"))
 }
 
+func TestASoundtracksTracksMustExist(t *testing.T) {
+	files := with(baseFiles(), map[string]string{
+		"base/data/soundtracks/album.jsonc": `{"id": "album", "name": "Album", "artist": "Someone",
+			"tracks": [{"title": "One", "file": "__base__/music/1.mp3"}, {"title": "Two", "file": "__base__/music/2.mp3"}]}`,
+		"base/assets/music/1.mp3": "mp3",
+	})
+	wantErr(t, writeMods(t, files, "base"), "soundtracks base:album: track 2: asset __base__/music/2.mp3 not found")
+
+	files["base/assets/music/2.mp3"] = "mp3"
+	if got := mustLoad(t, writeMods(t, files, "base")).Doc.Soundtracks["base:album"].Tracks; len(got) != 2 {
+		t.Errorf("tracks %v, want both", got)
+	}
+}
+
 func TestLoadsBaseModWithNamespacedIDs(t *testing.T) {
 	dirs := writeMods(t, baseFiles(), "base")
 

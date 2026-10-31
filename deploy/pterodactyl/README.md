@@ -47,7 +47,7 @@ No rebuild needed. The image looks for Mods on `HALO_MODS_DIR`, `/nakama/mods:/h
 2. Add it to the **Mods** variable, after `base`: `base,my-mod`.
 3. Restart. Every Match starts over, as on any restart.
 
-The image's own Mods are found first, so an upload can't replace `base`. If a Mod is in no folder, or its content is broken, the server doesn't start and its log says why; check Mods with `halo-mod check` before uploading. Content reaches the client through the server, so a content-only Mod needs nothing more. A Mod with assets also needs them on the client's static host, under `/mods/<name>/`.
+The image's own Mods are found first, so an upload can't replace `base`. If a Mod is in no folder, or its content is broken, the server doesn't start and its log says why; check Mods with `halo-mod check` before uploading. Content reaches the client through the server, so a content-only Mod needs nothing more. A Mod with assets also needs a client built with them: the build bundles the assets of the Mods in `HALO_MODS` (from the environment, else `deploy/runtime.env`).
 
 ## Caddy and the client
 
@@ -72,7 +72,7 @@ Build the client for that domain and copy `client/dist/` to the `root`:
 VITE_NAKAMA_HOST=battles.example.com VITE_NAKAMA_PORT=443 VITE_NAKAMA_SSL=true VITE_NAKAMA_SERVER_KEY=<the egg's SERVER_KEY> pnpm -C client build
 ```
 
-These are fixed at build time, so changing the domain or the server key means rebuilding the client. The client's Mod assets (`/mods/…`, copied into `dist/` by the build) must match the Mods in the image.
+These are fixed at build time, so changing the domain or the server key means rebuilding the client. The client bundles the assets of the Mods in `HALO_MODS` (from the environment, else the committed `deploy/runtime.env`, never `runtime.local.env`), and they must match the Mods in the image.
 
 To reach the admin console, give the server a second allocation, set `CONSOLE_PORT` to it, and add another site, e.g. `console.battles.example.com { reverse_proxy <node-ip>:<console-port> }`.
 

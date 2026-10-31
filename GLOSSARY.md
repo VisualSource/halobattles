@@ -172,6 +172,10 @@ _Avoid_: Server time, game clock
 A package of content (units, buildings, planets, maps) loaded by the game; the base game is itself a Mod.
 _Avoid_: Plugin (reserved for sandboxed logic extensions), addon, pack
 
+**Soundtrack**:
+An album of music a Mod brings, played in order during a Match, with its artist credited.
+_Avoid_: Playlist, music pack, OST
+
 **Plugin**:
 Sandboxed custom logic shipped inside a Mod.
 _Avoid_: Script, mod
