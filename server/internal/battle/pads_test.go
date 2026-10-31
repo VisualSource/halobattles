@@ -136,3 +136,83 @@ func TestANeutralGarrisonBuildsWithinItsFunds(t *testing.T) {
 		t.Errorf("a player's AI built %+v", orders)
 	}
 }
+
+func TestAShooterIsSeenByTheSideItFiresOnUntilItsFlashFades(t *testing.T) {
+	s, pad := padSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
+	s.Command(Defender, Order{Kind: Build, Target: 0, Building: "base:turret"})
+	for pad.Turret == 0 {
+		s.Step()
+	}
+	tur, a := s.squad(pad.Turret), s.Squads[0]
+	s.Squads[1].Members = nil    // just the turret
+	freeAt(t, s, a, tur.Cell, 7) // in a turret's range (8), out of a Marine's (5)
+	a.sight = 2                  // and it can't see the turret
+	s.see()
+	if s.visible[Attacker][tur.ID] {
+		t.Fatal("the Marines see the turret before it fires")
+	}
+	var shot []Volley
+	for range 3 * TicksPerSecond {
+		if vs := s.VolleysFor(Attacker, s.Step()); len(vs) > 0 {
+			shot = vs
+			break
+		}
+	}
+	if len(shot) == 0 || shot[0].Actor != tur.ID {
+		t.Fatalf("volleys %+v; want the turret's, its shooter known", shot)
+	}
+	if !s.visible[Attacker][tur.ID] || a.hitBy != tur.ID {
+		t.Errorf("visible %v, hit by %d; want the turret seen and known as the shooter", s.visible[Attacker][tur.ID], a.hitBy)
+	}
+	tur.cooldown = 1 << 30 // it stops firing
+	for range ticks(flashSeconds) + 1 {
+		s.Step()
+	}
+	if s.visible[Attacker][tur.ID] {
+		t.Errorf("the turret is still seen after its flash faded: tick %d, flash %d, marine at %v sight %v, turret %v", s.Tick, tur.flashUntil, a.Cell, s.sightOf(a), tur.Cell)
+	}
+}
+
+func TestASquadShotByATurretItCantSeeGoesAfterIt(t *testing.T) {
+	s, pad := padSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
+	s.Command(Defender, Order{Kind: Build, Target: 0, Building: "base:turret"})
+	for pad.Turret == 0 {
+		s.Step()
+	}
+	tur, a := s.squad(pad.Turret), s.Squads[0]
+	s.Squads[1].Members = nil
+	freeAt(t, s, a, tur.Cell, 7) // in the turret's range, out of its own
+	a.sight = 2
+	s.Controllers[Attacker] = NewAI(WeightsOf(nil))
+	for range 20 * TicksPerSecond {
+		for _, v := range s.Step() {
+			if v.Actor == a.ID && v.Target == tur.ID {
+				return // it fired back
+			}
+		}
+		if !a.alive() {
+			break
+		}
+	}
+	t.Errorf("the Marines never fired on the turret shooting them (alive %v, at %v, turret at %v)", a.alive(), a.Cell, tur.Cell)
+}
+
+func TestASquadShotByATurretItCantHurtGetsOutOfRange(t *testing.T) {
+	s, pad := padSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
+	s.Command(Defender, Order{Kind: Build, Target: 0, Building: "base:turret"})
+	for pad.Turret == 0 {
+		s.Step()
+	}
+	tur, a := s.squad(pad.Turret), s.Squads[0]
+	s.Squads[1].Members = nil
+	freeAt(t, s, a, tur.Cell, 7)
+	a.tiers = map[string]string{tur.class: None} // it can't hurt a structure
+	s.Controllers[Attacker] = NewAI(WeightsOf(nil))
+	for range 10 * TicksPerSecond {
+		s.Step()
+		if a.hitBy == tur.ID && a.alive() && dist(a.Cell, tur.Cell) > tur.reach {
+			return // fired on, and it got clear
+		}
+	}
+	t.Errorf("the Marines stayed in the turret's range: at %v, turret at %v (reach %v), alive %v", a.Cell, tur.Cell, tur.reach, a.alive())
+}

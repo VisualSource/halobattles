@@ -26,6 +26,7 @@ func withBattles(c *cs.Content) *cs.Content {
 	r := c.Rulesets[RulesetID]
 	rules := base.Rulesets[RulesetID]
 	r.Battlefield, r.Battle = rules.Battlefield, rules.Battle
+	r.Battle.StartDelay = 30 // the tests' timings count on it, whatever the base Mod uses
 	c.Rulesets[RulesetID] = r
 	return c
 }

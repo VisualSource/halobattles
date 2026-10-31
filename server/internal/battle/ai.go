@@ -186,10 +186,16 @@ const (
 	beatPause = 3
 	// leash is how far from its point, in cells, a guarding squad chases an
 	// enemy, times its aggression weight.
-	leash        = 6
-	nearRadius   = 3 // cells: a friendly this close is near
-	threatRadius = 6 // cells: enemies this close to a goal threaten it
-	distScale    = 12.0
+	leash = 6
+	// underFire is how long after an enemy fires on a squad that the squad
+	// still answers it: going after it, or getting clear of it.
+	underFire = 3 * TicksPerSecond
+	// buildingThreat is what an armed building adds to the threat near a
+	// goal, counted like an enemy squad's members.
+	buildingThreat = 5
+	nearRadius     = 3 // cells: a friendly this close is near
+	threatRadius   = 6 // cells: enemies this close to a goal threaten it
+	distScale      = 12.0
 )
 
 func (ai *AI) Orders(v View) []Order {
@@ -228,14 +234,18 @@ func (ai *AI) Orders(v View) []Order {
 				p.goal.cell = t.Cell
 			}
 		}
-		if p.goal.kind == defend {
-			if e := ai.intruder(v, sq, p, enemies); e != nil {
+		if e := ai.foe(v, sq, p, enemies); e != nil {
+			if s.tier(sq, e) == None {
+				out = append(out, ai.evade(v, sq, p, e)...)
+			} else {
 				out = append(out, ai.engage(v, sq, p, e)...)
-				continue
 			}
-			if p.engaged != 0 { // it's dead or gone: back to the point
-				p.engaged, p.steps, p.sent = 0, nil, false
-			}
+			continue
+		}
+		if p.engaged != 0 { // it's dead or gone: back to the plan
+			p.engaged, p.steps, p.sent = 0, nil, false
+		}
+		if p.goal.kind == defend {
 			if v.Tick() < p.beatUntil {
 				continue // walking its beat, or pausing at a stop
 			}
@@ -348,12 +358,18 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		return
 	}
 
-	// Threat counts enemies seen lately, not only those in view now.
+	// Threat counts enemies seen lately, not only those in view now, and
+	// armed buildings seen, out to their reach: a turret outranges infantry.
 	threat := make([]float64, len(goals))
 	for i, g := range goals {
 		for _, id := range slices.Sorted(maps.Keys(ai.sighted)) {
 			if sg := ai.sighted[id]; id != g.target && dist(sg.cell, g.cell) <= threatRadius {
 				threat[i] += float64(sg.members)
+			}
+		}
+		for _, id := range slices.Sorted(maps.Keys(ai.seen)) {
+			if b := s.squad(id); id != g.target && b != nil && b.alive() && b.Armed && dist(ai.seen[id], g.cell) <= max(threatRadius, b.reach) {
+				threat[i] += buildingThreat
 			}
 		}
 	}
@@ -497,6 +513,74 @@ func (s *Sim) postScore(sq *Squad, point, c Cell, cover float64) float64 {
 	return 2*float64(s.height(c)) - cover*float64(s.coverAt(c)) + 0.5*facing
 }
 
+// shooter is the enemy that fired on sq lately, if the side can see it:
+// its muzzle flash shows it for a while.
+func (ai *AI) shooter(v View, sq *Squad) *Squad {
+	if sq.hitBy == 0 || v.Tick()-sq.hitAt > underFire {
+		return nil
+	}
+	if e := v.sim.squad(sq.hitBy); e != nil && e.alive() && v.sim.visible[v.Side][e.ID] {
+		return e
+	}
+	return nil
+}
+
+// foe is the enemy a squad should break off its plan for. A guard takes on
+// an intruder on its leash, or a shooter it can hurt there, so it never
+// leaves its point far behind. Any other squad takes on an armed building
+// firing on it, such as a turret that outranges it, and keeps at it till
+// it's dead or gone; enemy squads that fire on it are the Commander's call:
+// chasing every shooter won Starting Kit attackers 70% of Battles, not 50%.
+// A squad falling back runs rather than fights.
+func (ai *AI) foe(v View, sq *Squad, p *plan, enemies []*Squad) *Squad {
+	s := v.sim
+	e := ai.shooter(v, sq)
+	switch p.goal.kind {
+	case fallback:
+		return nil
+	case defend:
+		if e != nil && s.tier(sq, e) != None && dist(e.Cell, p.goal.cell) <= leash*ai.weightsOf(sq).Aggression {
+			return e
+		}
+		return ai.intruder(v, sq, p, enemies)
+	}
+	if e != nil && e.Building {
+		return e
+	}
+	if e := s.squad(p.engaged); e != nil && e.Building && e.alive() && s.visible[v.Side][e.ID] && s.tier(sq, e) != None {
+		return e // keep at it till it's dead or gone
+	}
+	return nil
+}
+
+// evade moves a squad clear of a shooter it can't hurt: to the nearest
+// cell it can stand on past the shooter's reach.
+func (ai *AI) evade(v View, sq *Squad, p *plan, e *Squad) []Order {
+	s := v.sim
+	if p.engaged == e.ID && len(sq.path) > 0 {
+		return nil // on its way
+	}
+	p.engaged = e.ID
+	best, found := Cell{}, false
+	r := int(e.reach) + 3
+	for y := sq.Cell.Y - r; y <= sq.Cell.Y+r; y++ {
+		for x := sq.Cell.X - r; x <= sq.Cell.X+r; x++ {
+			c := Cell{x, y}
+			if dist(c, e.Cell) <= e.reach || !s.standable(sq, c) {
+				continue
+			}
+			if !found || dist2(sq.Cell, c) < dist2(sq.Cell, best) {
+				best, found = c, true
+			}
+		}
+	}
+	if !found {
+		return nil
+	}
+	p.moveTo, p.sent = best, false
+	return []Order{{Kind: Move, Squad: sq.ID, Cell: best}}
+}
+
 // intruder is the enemy a guarding squad should leave its point to fight:
 // the one it's already fighting while that's still on the leash, or else,
 // among those it can see and hurt within the leash of the point, the best
@@ -505,7 +589,7 @@ func (ai *AI) intruder(v View, sq *Squad, p *plan, enemies []*Squad) *Squad {
 	s := v.sim
 	reach := leash * ai.weightsOf(sq).Aggression
 	onLeash := func(e *Squad) bool {
-		return e.alive() && !e.Building && s.visible[v.Side][e.ID] && s.tier(sq, e) != None &&
+		return e.alive() && e.Armed && s.visible[v.Side][e.ID] && s.tier(sq, e) != None &&
 			dist(e.Cell, p.goal.cell) <= reach
 	}
 	if e := s.squad(p.engaged); e != nil && onLeash(e) {

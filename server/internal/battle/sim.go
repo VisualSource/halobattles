@@ -83,7 +83,13 @@ type Squad struct {
 	retreating             bool
 	roles                  []string // the unit's AI role hints: "scout", "skirmisher"
 	exit                   int      // the edge it Retreats off: 0 top, 1 right, 2 bottom, 3 left
+	flashUntil             int      // the tick its muzzle flash fades: till then the enemy sees it
+	hitBy, hitAt           int      // the last squad to fire on it, and the tick it did
 }
+
+// flashSeconds is how long a squad that fires stays visible to the side it
+// fired on, wherever it stands: its muzzle flash gives it away.
+const flashSeconds = 3
 
 // alive is whether it's still on the field: it has members and hasn't
 // Retreated off it.
@@ -668,7 +674,7 @@ func (s *Sim) see() {
 			if !e.alive() {
 				continue
 			}
-			if e.Side == Side(side) {
+			if e.Side == Side(side) || e.flashUntil > s.Tick {
 				vis[e.ID] = true
 				continue
 			}
@@ -760,6 +766,9 @@ func (s *Sim) fire() []Volley {
 		}
 		tier, mod := s.tier(sq, t), s.toHitMod(sq, t)
 		v := Volley{Actor: sq.ID, Target: t.ID}
+		sq.flashUntil = s.Tick + ticks(flashSeconds)
+		s.visible[t.Side][sq.ID] = true // seen from this volley on, so it's no unknown shooter
+		t.hitBy, t.hitAt = sq.ID, s.Tick
 		for range sq.Members {
 			if !t.alive() {
 				break
