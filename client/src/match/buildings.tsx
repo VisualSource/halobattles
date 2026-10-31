@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import type { ContentLookups } from "../content";
 import type { Building } from "../gen/content";
 
@@ -201,45 +201,7 @@ export function factsOf(
   return facts;
 }
 
-/**
- * The info popover for one building at a time: hover or focus a trigger to
- * open it beside the trigger, Escape or leaving closes it. Fixed, so a
- * scrolling list can't clip it.
- */
-export function useBuildingInfo() {
-  const [open, setOpen] = useState<{
-    id: string;
-    x: number;
-    top: number;
-    bottom: number;
-  }>();
-  const show = (id: string) => (e: { currentTarget: Element }) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    setOpen({ id, x: r.left, top: r.top, bottom: r.bottom });
-  };
-  const hide = () => setOpen(undefined);
-  // Fixed to where its trigger was: any scroll moves the trigger out from
-  // under it, so close it. Capture catches every scrolling list.
-  useEffect(() => {
-    if (!open) return;
-    const close = () => setOpen(undefined);
-    window.addEventListener("scroll", close, { capture: true, passive: true });
-    return () => window.removeEventListener("scroll", close, { capture: true });
-  }, [open]);
-  return {
-    open,
-    hide,
-    trigger: (id: string) => ({
-      onMouseEnter: show(id),
-      onFocus: show(id),
-      onMouseLeave: hide,
-      onBlur: hide,
-      onKeyDown: (e: { key: string }) => e.key === "Escape" && hide(),
-      "aria-describedby": open?.id === id ? "building-info" : undefined,
-    }),
-  };
-}
-
+/** A building's details, for its info popover. */
 export function BuildingInfo(props: {
   content: ContentLookups;
   building: Building;
@@ -247,8 +209,6 @@ export function BuildingInfo(props: {
   /** What it costs you to queue now. */
   cost: Record<string, number>;
   needs: string[];
-  /** The trigger's left edge, top and bottom. */
-  at: { x: number; top: number; bottom: number };
 }) {
   const { content, building: b } = props;
   const role = roleOf(b);
@@ -256,18 +216,7 @@ export function BuildingInfo(props: {
   const row =
     "contents [&>dt]:text-ink-4 [&>dt]:font-mono [&>dt]:text-[11px] [&>dt]:uppercase [&>dt]:tracking-[0.06em] [&>dt]:pt-px";
   return (
-    <div
-      id="building-info"
-      role="tooltip"
-      className="border-edge bg-panel pointer-events-none fixed z-40 flex w-75 flex-col gap-2 rounded-lg border p-3 text-[13px] shadow-[0_14px_36px_#000c]"
-      style={{
-        left: Math.max(8, Math.min(props.at.x, window.innerWidth - 308)),
-        // Below the trigger, or above it when that would run off the screen.
-        ...(props.at.bottom + 300 > window.innerHeight
-          ? { bottom: window.innerHeight - props.at.top + 6 }
-          : { top: props.at.bottom + 6 }),
-      }}
-    >
+    <div className="flex w-72 flex-col gap-2">
       <div className="flex items-center gap-2">
         <RoleIcon role={role} />
         <span className="flex flex-col leading-tight">

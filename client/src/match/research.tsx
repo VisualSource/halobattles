@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
+import { Tooltip } from "../ui/tooltip";
 import type { MatchConnection } from "./connection";
 import { FieldIcon, fieldsOf } from "./fields";
 import { isPending } from "./local";
@@ -81,60 +82,50 @@ export function ResearchButton(props: {
 }) {
   const { content } = props;
   const view = useStore(props.conn.store, (s) => s.view);
-  const [hover, setHover] = useState(false);
   if (!view) return null;
   const n = perPayday(content, totalRate(view));
   // Hidden while the panel is open: it shows the free slots itself.
   const idle = props.open ? [] : idleFields(content, view);
   return (
     <div className="relative">
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: hovering only shows the button's own breakdown */}
-      <div
-        className="relative"
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
+      <Tooltip
+        side="bottom"
+        className="flex w-62 flex-col gap-2.5 p-3.5"
+        content={
+          <>
+            <span className="font-display text-base font-semibold">
+              Research a Payday
+            </span>
+            {fieldsOf(content).map((f) => (
+              <span key={f.id} className="flex items-center gap-2">
+                <FieldIcon content={content} field={f.id} />
+                <span className="flex-1">{f.name}</span>
+                <span className="text-ok font-mono">
+                  +{perPayday(content, view.research.rates.get(f.id) ?? 0)}
+                </span>
+              </span>
+            ))}
+            <span className="border-line text-ink-3 flex justify-between border-t pt-2 text-xs">
+              <span>Total</span>
+              <span className="font-mono">
+                +{n} · {totalRate(view)} a second
+              </span>
+            </span>
+          </>
+        }
       >
         <button
           type="button"
           aria-expanded={props.open}
           aria-controls="research"
-          aria-describedby="research-rates"
           aria-label={`Research: +${n} a Payday, ${view.research.projects.length} of ${view.research.rates.size} fields researching`}
           onClick={props.onToggle}
-          onFocus={() => setHover(true)}
-          onBlur={() => setHover(false)}
-          onKeyDown={(e) => e.key === "Escape" && setHover(false)}
           className={`flex flex-col items-center gap-0.5 rounded border-0 px-2 py-1 font-mono leading-none ${props.open ? "bg-raised shadow-[inset_0_-2px_0_var(--color-accent)]" : "bg-transparent"}`}
         >
           <Flask className="text-res-research" />
           <span className="text-ok">+{n}</span>
         </button>
-        <div
-          id="research-rates"
-          role="tooltip"
-          hidden={!hover}
-          className="border-edge bg-panel absolute top-12 left-0 z-30 flex w-62 flex-col gap-2.5 rounded-lg border p-3.5 text-[13px] shadow-[0_12px_32px_#000a]"
-        >
-          <span className="font-display text-base font-semibold">
-            Research a Payday
-          </span>
-          {fieldsOf(content).map((f) => (
-            <span key={f.id} className="flex items-center gap-2">
-              <FieldIcon content={content} field={f.id} />
-              <span className="flex-1">{f.name}</span>
-              <span className="text-ok font-mono">
-                +{perPayday(content, view.research.rates.get(f.id) ?? 0)}
-              </span>
-            </span>
-          ))}
-          <span className="border-line text-ink-3 flex justify-between border-t pt-2 text-xs">
-            <span>Total</span>
-            <span className="font-mono">
-              +{n} · {totalRate(view)} a second
-            </span>
-          </span>
-        </div>
-      </div>
+      </Tooltip>
       {idle.length > 0 && (
         <IdleAlerts content={content} fields={idle} onPick={props.onPick} />
       )}
@@ -159,7 +150,7 @@ function IdleAlerts(props: {
       <span aria-hidden="true" className="bg-edge h-2.5 w-px" />
       <ul aria-label="Idle Research fields" className="flex gap-2.5">
         {props.fields.map((f, i) => (
-          <li key={f.id} className="group relative flex flex-col items-center">
+          <li key={f.id} className="relative flex flex-col items-center">
             <span
               aria-hidden="true"
               className={`bg-edge absolute top-0 h-px ${i === 0 ? "left-1/2" : "-left-1.25"} ${i === last ? "right-1/2" : "-right-1.25"}`}
@@ -169,24 +160,30 @@ function IdleAlerts(props: {
               className="h-3.5 w-px opacity-80"
               style={{ backgroundColor: f.colour }}
             />
-            <button
-              type="button"
-              aria-label={`${f.name} research is idle`}
-              onClick={() => props.onPick(f.id)}
-              className="bg-panel flex size-11 items-center justify-center rounded-[7px] border-[1.5px] p-0 shadow-[0_0_0_3px_#0008]"
-              style={{ borderColor: f.colour }}
+            <Tooltip
+              content={
+                <>
+                  <span className="font-semibold" style={{ color: f.colour }}>
+                    {f.name}
+                  </span>{" "}
+                  research is idle
+                </>
+              }
             >
-              <FieldIcon content={props.content} field={f.id} size="size-5.5" />
-            </button>
-            <span
-              role="tooltip"
-              className="border-edge bg-panel absolute top-full mt-2 hidden rounded-lg border px-2.5 py-2 text-[13px] whitespace-nowrap shadow-[0_12px_32px_#000a] group-focus-within:block group-hover:block"
-            >
-              <span className="font-semibold" style={{ color: f.colour }}>
-                {f.name}
-              </span>{" "}
-              research is idle
-            </span>
+              <button
+                type="button"
+                aria-label={`${f.name} research is idle`}
+                onClick={() => props.onPick(f.id)}
+                className="bg-panel flex size-11 items-center justify-center rounded-[7px] border-[1.5px] p-0 shadow-[0_0_0_3px_#0008]"
+                style={{ borderColor: f.colour }}
+              >
+                <FieldIcon
+                  content={props.content}
+                  field={f.id}
+                  size="size-5.5"
+                />
+              </button>
+            </Tooltip>
           </li>
         ))}
       </ul>

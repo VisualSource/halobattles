@@ -71,6 +71,11 @@
   body {
     @apply bg-ground font-sans text-ink;
   }
+  /* Base UI's popups portal to the body: a stacking context here keeps the
+     app's z-indexes inside it, so every popup sits above all of them. */
+  #root {
+    isolation: isolate;
+  }
 
   /* shortcut: keeps the screens without a UI pass usable under preflight; drop it once they all have one. */
   button,

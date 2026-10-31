@@ -4,7 +4,6 @@ import {
   Fragment,
   type ReactNode,
   useEffect,
-  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -13,6 +12,7 @@ import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import type { Building } from "../gen/content";
 import { progress, seatColour } from "../scene/galaxy";
+import { Tooltip } from "../ui/tooltip";
 import {
   amounts,
   BuildingInfo,
@@ -22,7 +22,6 @@ import {
   type Role,
   RoleIcon,
   roleOf,
-  useBuildingInfo,
 } from "./buildings";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
@@ -647,12 +646,12 @@ function Strength(props: {
     buildings: [],
   });
   const c = props.colour;
-  const id = useId();
+  const text = `${THREAT_LEVELS[level]} strength${top ? `: mostly its ${top.count} ${top.name}${top.count > 1 ? "s" : ""}` : ""}`;
   return (
-    <span className="group relative">
+    <Tooltip content={text} side="bottom">
       <button
         type="button"
-        aria-describedby={id}
+        aria-label={text}
         className={`flex cursor-default items-center gap-1.5 rounded-[5px] border px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap uppercase ${c ? "" : (THREAT_LOOK[level] ?? THREAT_LOOK[0])}`}
         style={
           c
@@ -671,16 +670,7 @@ function Strength(props: {
         </span>
         {THREAT_LEVELS[level]}
       </button>
-      <span
-        id={id}
-        role="tooltip"
-        className="border-edge bg-panel text-ink-2 absolute top-full right-0 z-30 mt-1.5 hidden rounded-lg border px-2.5 py-2 text-xs whitespace-nowrap shadow-[0_12px_32px_#000a] group-focus-within:block group-hover:block"
-      >
-        {THREAT_LEVELS[level]} strength
-        {top &&
-          `: mostly its ${top.count} ${top.name}${top.count > 1 ? "s" : ""}`}
-      </span>
-    </span>
+    </Tooltip>
   );
 }
 
@@ -712,17 +702,14 @@ function BuildingsTab(props: {
     selling === null ? [] : (planet.labs.get(selling) ?? [])
   ).map((t) => content.techs.get(t)?.name ?? t);
 
-  const info = useBuildingInfo();
   const held = view ? heldTechs(view) : new Set<string>();
-  const about = info.open && content.buildings.get(info.open.id);
-  const popover = about && info.open && (
+  const details = (b: Building) => (
     <BuildingInfo
       content={content}
-      building={about}
+      building={b}
       richness={planet.richness}
-      cost={sprawled(content, view, about.cost)}
-      needs={needsTech(content, held, "buildings", about.id)}
-      at={info.open}
+      cost={sprawled(content, view, b.cost)}
+      needs={needsTech(content, held, "buildings", b.id)}
     />
   );
 
@@ -759,68 +746,65 @@ function BuildingsTab(props: {
                 const needs = needsTech(content, held, "buildings", b.id);
                 const blocked = needs.length > 0 || isPending(local, "build");
                 return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    // Not disabled, so it still takes focus and shows its popover.
-                    aria-disabled={blocked}
-                    {...info.trigger(b.id)}
-                    onClick={() => {
-                      if (blocked) return;
-                      // The row goes with the picker, so it never sees the mouse leave.
-                      info.hide();
-                      conn.queueBuilding(planet.id, picking, b.id);
-                      setPicking(null);
-                    }}
-                    className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-2.5 rounded-md border border-l-3 py-1.5 pr-2.5 pl-2 text-left ${needs.length ? "border-edge border-dashed bg-transparent" : "border-line bg-item"} ${blocked ? "cursor-default" : ""}`}
-                    style={{
-                      borderLeftColor: ROLES[role].colour,
-                      borderLeftStyle: "solid",
-                    }}
-                  >
-                    <span className={blocked ? "opacity-55" : ""}>
-                      <RoleIcon role={role} />
-                    </span>
-                    <span className="flex min-w-0 flex-col">
-                      <span
-                        className={`font-semibold ${blocked ? "opacity-55" : ""}`}
-                      >
-                        {b.name}
-                      </span>
-                      {needs.length > 0 ? (
-                        <span className="text-accent text-[11px]">
-                          Needs {needs.join(" or ")}
-                        </span>
-                      ) : (
-                        <span className="text-ink-2 truncate text-xs">
-                          {factsOf(content, b, planet.richness)
-                            .map((f) => f.line)
-                            .join(" · ")}
-                        </span>
-                      )}
-                      <span
-                        className={`text-ink-3 truncate font-mono text-[11px] ${blocked ? "opacity-55" : ""}`}
-                      >
-                        {amounts(content, sprawled(content, view, b.cost))}
-                      </span>
-                    </span>
-                    <span
-                      className={`flex flex-col items-end font-mono text-[11px] whitespace-nowrap ${blocked ? "opacity-55" : ""}`}
+                  <Tooltip key={b.id} side="right" content={details(b)}>
+                    <button
+                      type="button"
+                      // Not disabled, so it still takes focus and shows its popover.
+                      aria-disabled={blocked}
+                      onClick={() => {
+                        if (blocked) return;
+                        conn.queueBuilding(planet.id, picking, b.id);
+                        setPicking(null);
+                      }}
+                      className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-2.5 rounded-md border border-l-3 py-1.5 pr-2.5 pl-2 text-left ${needs.length ? "border-edge border-dashed bg-transparent" : "border-line bg-item"} ${blocked ? "cursor-default" : ""}`}
+                      style={{
+                        borderLeftColor: ROLES[role].colour,
+                        borderLeftStyle: "solid",
+                      }}
                     >
-                      <span className="text-ink-3">{b.buildTime} s</span>
-                      {amounts(content, b.upkeep) && (
-                        <span className="text-danger">
-                          −{amounts(content, b.upkeep)}
+                      <span className={blocked ? "opacity-55" : ""}>
+                        <RoleIcon role={role} />
+                      </span>
+                      <span className="flex min-w-0 flex-col">
+                        <span
+                          className={`font-semibold ${blocked ? "opacity-55" : ""}`}
+                        >
+                          {b.name}
                         </span>
-                      )}
-                    </span>
-                  </button>
+                        {needs.length > 0 ? (
+                          <span className="text-accent text-[11px]">
+                            Needs {needs.join(" or ")}
+                          </span>
+                        ) : (
+                          <span className="text-ink-2 truncate text-xs">
+                            {factsOf(content, b, planet.richness)
+                              .map((f) => f.line)
+                              .join(" · ")}
+                          </span>
+                        )}
+                        <span
+                          className={`text-ink-3 truncate font-mono text-[11px] ${blocked ? "opacity-55" : ""}`}
+                        >
+                          {amounts(content, sprawled(content, view, b.cost))}
+                        </span>
+                      </span>
+                      <span
+                        className={`flex flex-col items-end font-mono text-[11px] whitespace-nowrap ${blocked ? "opacity-55" : ""}`}
+                      >
+                        <span className="text-ink-3">{b.buildTime} s</span>
+                        {amounts(content, b.upkeep) && (
+                          <span className="text-danger">
+                            −{amounts(content, b.upkeep)}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  </Tooltip>
                 );
               })}
             </Fragment>
           ))}
         </div>
-        {popover}
       </>
     );
   }
@@ -863,28 +847,32 @@ function BuildingsTab(props: {
                   richness={planet.richness}
                   actions={
                     <>
-                      <button
-                        type="button"
-                        aria-label={`About ${b.name}`}
-                        {...info.trigger(b.id)}
-                        className="border-edge text-ink-3 flex size-5.5 flex-none cursor-help items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic"
-                      >
-                        i
-                      </button>
-                      {editable && (
+                      <Tooltip content={details(b)}>
                         <button
                           type="button"
-                          disabled={isPending(local, "sell")}
-                          onClick={() =>
-                            planet.labs.get(i)?.length
-                              ? setSelling(i)
-                              : conn.sellBuilding(planet.id, i)
-                          }
-                          title={`Refunds ${amounts(content, b.cost, refund)}`}
-                          className={smallButton}
+                          aria-label={`About ${b.name}`}
+                          className="border-edge text-ink-3 flex size-5.5 flex-none cursor-help items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic"
                         >
-                          Sell
+                          i
                         </button>
+                      </Tooltip>
+                      {editable && (
+                        <Tooltip
+                          content={`Refunds ${amounts(content, b.cost, refund)}`}
+                        >
+                          <button
+                            type="button"
+                            disabled={isPending(local, "sell")}
+                            onClick={() =>
+                              planet.labs.get(i)?.length
+                                ? setSelling(i)
+                                : conn.sellBuilding(planet.id, i)
+                            }
+                            className={smallButton}
+                          >
+                            Sell
+                          </button>
+                        </Tooltip>
                       )}
                     </>
                   }
@@ -969,15 +957,18 @@ function BuildingsTab(props: {
                     offset={local.clockOffset}
                   />
                   {editable && (
-                    <button
-                      type="button"
-                      disabled={isPending(local, "cancel")}
-                      onClick={() => conn.cancelQueueItem(building.id)}
-                      title={`Refunds ${amounts(content, sprawled(content, view, def?.cost ?? {}), back)}`}
-                      className={`${smallButton} self-center`}
+                    <Tooltip
+                      content={`Refunds ${amounts(content, sprawled(content, view, def?.cost ?? {}), back)}`}
                     >
-                      Cancel
-                    </button>
+                      <button
+                        type="button"
+                        disabled={isPending(local, "cancel")}
+                        onClick={() => conn.cancelQueueItem(building.id)}
+                        className={`${smallButton} self-center`}
+                      >
+                        Cancel
+                      </button>
+                    </Tooltip>
                   )}
                 </div>
               </div>
@@ -1003,7 +994,6 @@ function BuildingsTab(props: {
           );
         })}
       </div>
-      {popover}
     </>
   );
 }
