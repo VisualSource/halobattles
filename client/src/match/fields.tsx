@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import type { ContentLookups } from "../content";
 
 // shortcut: only the base Mod's assets are bundled, so another Mod's field icon shows as a dot; load Mod assets from the server when a second Mod ships some.
@@ -34,7 +35,10 @@ export function FieldIcon(props: {
   return (
     <span
       aria-hidden="true"
-      className={`inline-block flex-none ${url ? (props.size ?? "size-4.5") : "size-2 rounded-full"}`}
+      className={cn(
+        "inline-block flex-none",
+        url ? (props.size ?? "size-4.5") : "size-2 rounded-full",
+      )}
       style={{
         backgroundColor: f?.colour ?? "var(--color-ink-3)",
         // Quoted: an inlined SVG's data URL has quotes, which break an unquoted url().

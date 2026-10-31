@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
+import { cn } from "cn";
 import {
   type ReactNode,
   startTransition,
@@ -335,7 +336,7 @@ function Hud(props: {
         title="Command Points in use, of your cap"
         className="flex flex-col items-center gap-0.5 font-mono leading-none"
       >
-        <span className={`${label} flex h-4.5 items-center`}>CP</span>
+        <span className={cn(label, "flex h-4.5 items-center")}>CP</span>
         <span
           className={
             economy.commandPointsUsed >= economy.commandPointsCap
@@ -453,7 +454,10 @@ function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
       </button>
       {pop.open && (
         <div
-          className={`${popover} top-11 right-0 flex w-75 flex-col gap-2.5 p-3.5 text-sm`}
+          className={cn(
+            popover,
+            "top-11 right-0 flex w-75 flex-col gap-2.5 p-3.5 text-sm",
+          )}
         >
           <h2 className="font-display text-base font-semibold">{mode}</h2>
           <p className="text-ink-2">Win either way:</p>
@@ -643,7 +647,10 @@ function Stockpile(props: { conn: MatchConnection; content: ContentLookups }) {
       {pop.open && money && (
         <section
           aria-label="Exchange"
-          className={`${popover} top-full left-0 mt-2 flex w-150 flex-col text-sm`}
+          className={cn(
+            popover,
+            "top-full left-0 mt-2 flex w-150 flex-col text-sm",
+          )}
         >
           <header className="border-line flex items-center gap-3 border-b px-3.5 py-2.5">
             <h2 className="font-display flex-1 text-base font-semibold">
@@ -797,7 +804,7 @@ function Notifications() {
         )}
       </button>
       {pop.open && (
-        <div className={`${popover} top-11 right-0 flex w-90 flex-col`}>
+        <div className={cn(popover, "top-11 right-0 flex w-90 flex-col")}>
           <div className="border-line flex items-center gap-1 border-b px-3.5 py-2.5">
             <h2 className="font-display flex-1 text-base font-semibold">
               Notifications
@@ -828,7 +835,10 @@ function Notifications() {
                 >
                   <span
                     aria-hidden="true"
-                    className={`mt-1.5 size-1.5 flex-none rounded-full ${n.read ? "" : "bg-accent"}`}
+                    className={cn(
+                      "mt-1.5 size-1.5 flex-none rounded-full",
+                      !n.read && "bg-accent",
+                    )}
                   />
                   <div className="min-w-0 flex-1">
                     {typeof n.content === "function" ? null : n.content}
@@ -877,12 +887,19 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
       </button>
       {pop.open && (
         <ul
-          className={`${popover} bottom-11 left-0 flex w-75 flex-col gap-1 p-3`}
+          className={cn(
+            popover,
+            "bottom-11 left-0 flex w-75 flex-col gap-1 p-3",
+          )}
         >
           {view.players.map((p) => (
             <li
               key={p.seat}
-              className={`flex items-center gap-2 rounded px-1.5 py-1 ${p.seat === view.you ? "bg-highlight" : ""} ${p.eliminated ? "opacity-50" : ""}`}
+              className={cn(
+                "flex items-center gap-2 rounded px-1.5 py-1",
+                p.seat === view.you && "bg-highlight",
+                p.eliminated && "opacity-50",
+              )}
             >
               <span
                 aria-hidden="true"

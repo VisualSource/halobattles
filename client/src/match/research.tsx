@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { useState } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
@@ -471,7 +472,10 @@ function TechPicker(props: {
                   <li key={o.id}>
                     {i === hand.length && (
                       <div
-                        className={`${label} border-line mt-0.5 border-t px-1 pt-2 pb-1.5`}
+                        className={cn(
+                          label,
+                          "border-line mt-0.5 border-t px-1 pt-2 pb-1.5",
+                        )}
                       >
                         Back on offer
                       </div>
@@ -479,20 +483,29 @@ function TechPicker(props: {
                     <button
                       type="button"
                       onClick={() => setChosen(o.id)}
-                      className={`flex w-full items-center gap-2.5 rounded-md border px-2.5 py-2 text-left ${style?.card}`}
+                      className={cn(
+                        "flex w-full items-center gap-2.5 rounded-md border px-2.5 py-2 text-left",
+                        style?.card,
+                      )}
                     >
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="flex items-center gap-2">
                           <span
                             aria-hidden="true"
-                            className={`size-2 flex-none rounded-full ${style?.dot}`}
+                            className={cn(
+                              "size-2 flex-none rounded-full",
+                              style?.dot,
+                            )}
                           />
                           <span className="font-semibold">
                             {t?.name ?? o.id}
                           </span>
                           {o.tag && (
                             <span
-                              className={`${label} ${o.tag === "Recover" ? "text-danger" : "text-ok"}`}
+                              className={cn(
+                                label,
+                                o.tag === "Recover" ? "text-danger" : "text-ok",
+                              )}
                             >
                               {o.tag}
                             </span>

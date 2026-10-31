@@ -1,4 +1,5 @@
 import { Link, useRouter } from "@tanstack/react-router";
+import { cn } from "cn";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useRingBackdrop } from "../backdrop";
 import type { LocalStore } from "./local";
@@ -122,7 +123,10 @@ export function AlertCard(props: {
         <div className="flex items-center gap-4">
           <span
             aria-hidden="true"
-            className={`flex size-14 flex-none items-center justify-center rounded-lg ${props.iconBg}`}
+            className={cn(
+              "flex size-14 flex-none items-center justify-center rounded-lg",
+              props.iconBg,
+            )}
           >
             {props.icon}
           </span>

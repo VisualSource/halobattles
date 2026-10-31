@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
@@ -319,7 +320,7 @@ export function BattlePanel(props: {
           .map(({ v, n }) => (
             <span
               key={`${battle.tick}-${n}`}
-              className={`truncate ${n === fire.length - 1 ? "" : "text-ink-3"}`}
+              className={cn("truncate", n !== fire.length - 1 && "text-ink-3")}
             >
               {v.actor ? name(unitOf.get(v.actor)) : "Unseen fire"} on{" "}
               {name(unitOf.get(v.target))} ·{" "}
@@ -501,7 +502,7 @@ function BattlefieldView(props: {
   return (
     <div
       ref={ref}
-      className={`bg-void relative overflow-hidden ${props.className}`}
+      className={cn("bg-void relative overflow-hidden", props.className)}
     >
       {!ready && (
         <p className="text-ink-3 flex h-full items-center justify-center text-sm">
@@ -774,9 +775,9 @@ function UnitGrid(props: {
               <div className="truncate">
                 {props.name(unit)}{" "}
                 {acting && (
-                  <span className={`${label} text-[#5fb4f0]`}>firing</span>
+                  <span className={cn(label, "text-[#5fb4f0]")}>firing</span>
                 )}
-                {hit && <span className={`${label} text-danger`}>hit</span>}
+                {hit && <span className={cn(label, "text-danger")}>hit</span>}
               </div>
               <div className="text-ink-3 font-mono text-xs">
                 {left} of {started} left
@@ -809,7 +810,7 @@ function Bar(props: {
       className="bg-well h-1.5 overflow-hidden rounded-sm"
     >
       <div
-        className={`h-full ${props.color}`}
+        className={cn("h-full", props.color)}
         style={{ width: `${(props.value / props.max) * 100}%` }}
       />
     </div>

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { cn } from "cn";
 import {
   type FormEvent,
   type ReactNode,
@@ -260,7 +261,7 @@ function Seats(props: {
   );
   return (
     <section className="border-line bg-panel overflow-hidden rounded-[10px] border">
-      <h2 className={`${sectionTitle} border-line border-b px-5 py-4`}>
+      <h2 className={cn(sectionTitle, "border-line border-b px-5 py-4")}>
         SEATS
       </h2>
       <ol>
@@ -270,7 +271,10 @@ function Seats(props: {
           return (
             <li
               key={s.user}
-              className={`border-divider flex min-h-18 items-center gap-4 border-b px-5 ${me ? "bg-highlight" : ""}`}
+              className={cn(
+                "border-divider flex min-h-18 items-center gap-4 border-b px-5",
+                me && "bg-highlight",
+              )}
             >
               <span
                 aria-hidden="true"
@@ -420,7 +424,7 @@ function Dialog(props: {
       ref={ref}
       onClose={props.onClose}
       aria-labelledby={props.label}
-      className={`backdrop:bg-scrim/70 p-0 ${props.className}`}
+      className={cn("backdrop:bg-scrim/70 p-0", props.className)}
     >
       {props.open && props.children}
     </dialog>
@@ -573,7 +577,10 @@ function Emblem(props: { faction: Faction | undefined; className: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`bg-raised font-display flex flex-none items-center justify-center rounded-md font-bold ${props.className}`}
+      className={cn(
+        "bg-raised font-display flex flex-none items-center justify-center rounded-md font-bold",
+        props.className,
+      )}
     >
       {props.faction?.name.slice(0, 1) ?? "?"}
     </span>
@@ -652,7 +659,7 @@ function FactionPicker(props: {
               {[...units].map(([id, count]) => (
                 <li
                   key={id}
-                  className={`flex justify-between gap-3 ${listItem}`}
+                  className={cn(listItem, "flex justify-between gap-3")}
                 >
                   <span>{content.units.get(id)?.name ?? id}</span>
                   <span className="text-ink-2 font-mono">×{count}</span>

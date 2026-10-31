@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { type ReactNode, useEffect } from "react";
 import { ToastContainer, toast } from "react-toastify";
 
@@ -28,7 +29,10 @@ export function Note(props: {
   return (
     <div className="flex flex-col gap-1">
       <span
-        className={`font-mono text-[11px] tracking-[0.08em] uppercase ${k.colour}`}
+        className={cn(
+          "font-mono text-[11px] tracking-[0.08em] uppercase",
+          k.colour,
+        )}
       >
         {k.label}
       </span>

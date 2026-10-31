@@ -1,6 +1,7 @@
 import type { Client, Session } from "@heroiclabs/nakama-js";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { cn } from "cn";
 import { type FormEvent, useState } from "react";
 import { setDisplayName } from "./auth";
 import { useRingBackdrop } from "./backdrop";
@@ -77,13 +78,13 @@ export function Menu(props: {
       </h1>
 
       <section
-        className={`flex w-full max-w-115 flex-col gap-3.5 p-6 ${glass}`}
+        className={cn(glass, "flex w-full max-w-115 flex-col gap-3.5 p-6")}
       >
         <button
           type="button"
           onClick={() => create.mutate()}
           disabled={create.isPending}
-          className={`min-h-15 text-xl ${primary}`}
+          className={cn(primary, "min-h-15 text-xl")}
         >
           CREATE MATCH
         </button>
@@ -238,7 +239,7 @@ export function DisplayNamePrompt(props: {
     <div className="bg-scrim/55 flex flex-1 items-center justify-center p-8">
       <form
         onSubmit={submit}
-        className={`flex w-full max-w-110 flex-col gap-5 p-8 ${glass}`}
+        className={cn(glass, "flex w-full max-w-110 flex-col gap-5 p-8")}
       >
         <div className="flex flex-col gap-1.5">
           <p className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
@@ -259,7 +260,7 @@ export function DisplayNamePrompt(props: {
             required
             maxLength={32}
             placeholder="Up to 32 characters"
-            className={`${field} min-h-12 text-base`}
+            className={cn(field, "min-h-12 text-base")}
           />
         </label>
         {/* A line kept for the error, so the form doesn't grow. */}
@@ -269,7 +270,7 @@ export function DisplayNamePrompt(props: {
         <button
           type="submit"
           disabled={!name.trim() || save.isPending}
-          className={`min-h-13 text-lg ${primary}`}
+          className={cn(primary, "min-h-13 text-lg")}
         >
           CONTINUE
         </button>

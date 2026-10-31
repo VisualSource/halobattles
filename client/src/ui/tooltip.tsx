@@ -1,4 +1,5 @@
 import { Tooltip as Base } from "@base-ui/react/tooltip";
+import { cn } from "cn";
 import type { ReactElement, ReactNode } from "react";
 import { popupClass } from "./popup";
 
@@ -19,7 +20,7 @@ export function Tooltip(props: {
       <Base.Trigger delay={300} render={props.children} />
       <Base.Portal>
         <Base.Positioner side={props.side ?? "bottom"} sideOffset={8}>
-          <Base.Popup className={`${popupClass} ${props.className ?? ""}`}>
+          <Base.Popup className={cn(popupClass, props.className)}>
             {props.content}
           </Base.Popup>
         </Base.Positioner>

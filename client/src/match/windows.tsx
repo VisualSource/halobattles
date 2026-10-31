@@ -1,5 +1,6 @@
 import { Feedback } from "@dnd-kit/dom";
 import { DragDropProvider, useDraggable, useDroppable } from "@dnd-kit/react";
+import { cn } from "cn";
 import {
   Fragment,
   type ReactNode,
@@ -175,7 +176,10 @@ export function Floating(props: {
       id={props.id}
       aria-label={props.label}
       style={pos ? { left: pos.x, top: pos.y } : { visibility: "hidden" }}
-      className={`border-edge bg-panel/95 absolute z-10 flex max-h-[calc(100%-32px)] flex-col rounded-lg border shadow-[0_12px_32px_#000a] ${props.className ?? ""}`}
+      className={cn(
+        "border-edge bg-panel/95 absolute z-10 flex max-h-[calc(100%-32px)] flex-col rounded-lg border shadow-[0_12px_32px_#000a]",
+        props.className,
+      )}
     >
       <div
         onPointerDown={(e) => {
@@ -223,7 +227,7 @@ export const windowTitle = "font-display font-semibold text-lg";
 
 export function Tag(props: { className: string; children: ReactNode }) {
   return (
-    <span className={`rounded px-1.5 py-px text-[11px] ${props.className}`}>
+    <span className={cn("rounded px-1.5 py-px text-[11px]", props.className)}>
       {props.children}
     </span>
   );
@@ -322,7 +326,10 @@ export function PlanetWindow(props: {
           {/* A fixed height: switching tabs or opening the build list never resizes the window. */}
           <div className="flex h-86 min-h-0">
             <section
-              className={`flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto p-3.5 ${sel.last ? "opacity-60" : ""}`}
+              className={cn(
+                "flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto p-3.5",
+                sel.last && "opacity-60",
+              )}
             >
               {tab === "units" && mine ? (
                 <UnitsTab
@@ -494,9 +501,12 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
         <div className="grid w-90 grid-cols-2 gap-2">
           {/* With no upkeep it slides over into the Upkeep box's place: one column plus the gap. */}
           <div
-            className={`border-ok-edge bg-ok-wash rounded-md border px-2.5 py-2 transition-transform duration-300 ${amounts(content, upkeep) ? "" : "translate-x-[calc(100%+0.5rem)]"}`}
+            className={cn(
+              "border-ok-edge bg-ok-wash rounded-md border px-2.5 py-2 transition-transform duration-300",
+              !amounts(content, upkeep) && "translate-x-[calc(100%+0.5rem)]",
+            )}
           >
-            <div className={`${label} text-ok`}>Produces / Payday</div>
+            <div className={cn(label, "text-ok")}>Produces / Payday</div>
             {/* One line each, cut short: wrapping as buildings come and go resized the window. */}
             <div
               title={amounts(content, produces)}
@@ -513,7 +523,7 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
           </div>
           {amounts(content, upkeep) && (
             <div className="border-danger/40 bg-danger-wash rounded-md border px-2.5 py-2">
-              <div className={`${label} text-danger`}>Upkeep / Payday</div>
+              <div className={cn(label, "text-danger")}>Upkeep / Payday</div>
               <div
                 title={amounts(content, upkeep)}
                 className="mt-1 truncate font-mono text-sm"
@@ -607,7 +617,10 @@ function Threat(props: {
   return (
     <div
       title={`Defence score ${Math.round(score)}${level ? `: ${THREAT_LEVELS[level]} starts at ${bands[level - 1]}` : ""}`}
-      className={`flex w-48 flex-col gap-1 rounded-md border px-2.5 py-2 ${look}`}
+      className={cn(
+        "flex w-48 flex-col gap-1 rounded-md border px-2.5 py-2",
+        look,
+      )}
     >
       <span className="font-mono text-[11px] tracking-[0.08em] uppercase">
         Threat{props.last && " · as last seen"}
@@ -652,7 +665,10 @@ function Strength(props: {
       <button
         type="button"
         aria-label={text}
-        className={`flex cursor-default items-center gap-1.5 rounded-[5px] border px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap uppercase ${c ? "" : (THREAT_LOOK[level] ?? THREAT_LOOK[0])}`}
+        className={cn(
+          "flex cursor-default items-center gap-1.5 rounded-[5px] border px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap uppercase",
+          !c && (THREAT_LOOK[level] ?? THREAT_LOOK[0]),
+        )}
         style={
           c
             ? { color: c, borderColor: `${c}66`, backgroundColor: `${c}1a` }
@@ -756,7 +772,13 @@ function BuildingsTab(props: {
                         conn.queueBuilding(planet.id, picking, b.id);
                         setPicking(null);
                       }}
-                      className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-2.5 rounded-md border border-l-3 py-1.5 pr-2.5 pl-2 text-left ${needs.length ? "border-edge border-dashed bg-transparent" : "border-line bg-item"} ${blocked ? "cursor-default" : ""}`}
+                      className={cn(
+                        "grid w-full grid-cols-[auto_1fr_auto] items-center gap-2.5 rounded-md border border-l-3 py-1.5 pr-2.5 pl-2 text-left",
+                        needs.length
+                          ? "border-edge border-dashed bg-transparent"
+                          : "border-line bg-item",
+                        blocked && "cursor-default",
+                      )}
                       style={{
                         borderLeftColor: ROLES[role].colour,
                         borderLeftStyle: "solid",
@@ -767,7 +789,10 @@ function BuildingsTab(props: {
                       </span>
                       <span className="flex min-w-0 flex-col">
                         <span
-                          className={`font-semibold ${blocked ? "opacity-55" : ""}`}
+                          className={cn(
+                            "font-semibold",
+                            blocked && "opacity-55",
+                          )}
                         >
                           {b.name}
                         </span>
@@ -783,13 +808,19 @@ function BuildingsTab(props: {
                           </span>
                         )}
                         <span
-                          className={`text-ink-3 truncate font-mono text-[11px] ${blocked ? "opacity-55" : ""}`}
+                          className={cn(
+                            "text-ink-3 truncate font-mono text-[11px]",
+                            blocked && "opacity-55",
+                          )}
                         >
                           {amounts(content, sprawled(content, view, b.cost))}
                         </span>
                       </span>
                       <span
-                        className={`flex flex-col items-end font-mono text-[11px] whitespace-nowrap ${blocked ? "opacity-55" : ""}`}
+                        className={cn(
+                          "flex flex-col items-end font-mono text-[11px] whitespace-nowrap",
+                          blocked && "opacity-55",
+                        )}
                       >
                         <span className="text-ink-3">{b.buildTime} s</span>
                         {amounts(content, b.upkeep) && (
@@ -838,7 +869,7 @@ function BuildingsTab(props: {
             return (
               <div
                 key={key}
-                className={`${card} border-line bg-item`}
+                className={cn(card, "border-line bg-item")}
                 style={{ borderLeftColor: ROLES[role].colour }}
               >
                 <BuildingFace
@@ -916,7 +947,10 @@ function BuildingsTab(props: {
             return (
               <div
                 key={key}
-                className={`${card} border-line bg-item relative overflow-hidden`}
+                className={cn(
+                  card,
+                  "border-line bg-item relative overflow-hidden",
+                )}
                 style={{ borderLeftColor: ROLES[role].colour }}
               >
                 {/* What it'll be once built, dimmed under its progress. */}
@@ -964,7 +998,7 @@ function BuildingsTab(props: {
                         type="button"
                         disabled={isPending(local, "cancel")}
                         onClick={() => conn.cancelQueueItem(building.id)}
-                        className={`${smallButton} self-center`}
+                        className={cn(smallButton, "self-center")}
                       >
                         Cancel
                       </button>
@@ -987,7 +1021,7 @@ function BuildingsTab(props: {
           ) : (
             <div
               key={key}
-              className={`${card} border-edge text-ink-3 border-dashed`}
+              className={cn(card, "border-edge text-ink-3 border-dashed")}
             >
               Empty
             </div>
@@ -1150,8 +1184,8 @@ function UnitsTab(props: {
         // The least busy of this kind of building takes the order.
         const queued = (slot: number) =>
           planet.unitQueue.filter((q) => q.slot === slot).length;
-        // Built here, so at least one slot holds it.
-        const slot = slots.sort((x, y) => queued(x) - queued(y))[0]!;
+        const slot = slots.sort((x, y) => queued(x) - queued(y))[0];
+        if (slot === undefined) return null;
         return (
           <section key={b.id} className="flex flex-col gap-2">
             <span className="text-ink-2 text-xs">{b.name}</span>
@@ -1424,7 +1458,7 @@ export function StacksWindow(props: {
         }}
       >
         <div
-          className={`flex flex-col gap-2.5 p-3 ${sel.last ? "opacity-60" : ""}`}
+          className={cn("flex flex-col gap-2.5 p-3", sel.last && "opacity-60")}
         >
           {shown.map((stack, i) => {
             const rally = sel.mine && planet.rallyStack === i;
@@ -1448,7 +1482,7 @@ export function StacksWindow(props: {
                       type="button"
                       disabled={isPending(local, "rally")}
                       onClick={() => conn.setRallyStack(planet.id, i)}
-                      className={`${smallButton} text-ink-3`}
+                      className={cn(smallButton, "text-ink-3")}
                     >
                       Make Rally
                     </button>
@@ -1538,7 +1572,11 @@ function GridCell(props: {
   return (
     <li
       ref={ref}
-      className={`h-12 rounded ${props.children ? "" : "border-line border border-dashed"} ${isDropTarget ? "outline-accent outline-2" : ""}`}
+      className={cn(
+        "h-12 rounded",
+        !props.children && "border-line border border-dashed",
+        isDropTarget && "outline-accent outline-2",
+      )}
     >
       {props.children}
     </li>
@@ -1673,7 +1711,11 @@ function UnitSlotTile({
       ref={ref}
       title={`${props.name} × ${slot.count}`}
       onContextMenu={props.onContextMenu}
-      className={`border-edge bg-tile flex h-12 flex-col justify-between rounded border px-1.5 py-1 leading-tight ${props.draggable ? "cursor-grab" : ""} ${props.dragging ? "ring-accent opacity-60 ring-2" : ""}`}
+      className={cn(
+        "border-edge bg-tile flex h-12 flex-col justify-between rounded border px-1.5 py-1 leading-tight",
+        props.draggable && "cursor-grab",
+        props.dragging && "ring-accent opacity-60 ring-2",
+      )}
     >
       <span className="text-ink-3 font-mono text-[11px]">
         {abbr(props.name)}
@@ -1872,7 +1914,7 @@ function RouteStop(props: {
     }
   }, [props.next]);
   return (
-    <li ref={ref} className={`flex gap-2.5 ${props.done ? "text-ink-3" : ""}`}>
+    <li ref={ref} className={cn("flex gap-2.5", props.done && "text-ink-3")}>
       <div className="flex w-2.5 flex-none flex-col items-center">
         <span
           aria-hidden="true"
@@ -1913,7 +1955,11 @@ export function Tile(props: { name: string; size: string; dashed?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className={`text-ink-3 flex flex-none items-center justify-center rounded border font-mono text-[11px] ${props.size} ${props.dashed ? "border-edge border-dashed" : "border-edge bg-tile"}`}
+      className={cn(
+        "text-ink-3 flex flex-none items-center justify-center rounded border font-mono text-[11px]",
+        props.size,
+        props.dashed ? "border-edge border-dashed" : "border-edge bg-tile",
+      )}
     >
       {abbr(props.name)}
     </span>

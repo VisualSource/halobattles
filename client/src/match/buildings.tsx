@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import type { ReactNode } from "react";
 import type { ContentLookups } from "../content";
 import type { Building } from "../gen/content";
@@ -108,7 +109,7 @@ export function RoleIcon(props: { role: Role }) {
       <svg
         viewBox="0 0 18 18"
         aria-hidden="true"
-        className={`size-4.5 ${ICON}`}
+        className={cn(ICON, "size-4.5")}
       >
         {r.icon}
       </svg>
