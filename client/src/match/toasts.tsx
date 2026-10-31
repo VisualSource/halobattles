@@ -1,13 +1,19 @@
 import { type ReactNode, useEffect } from "react";
 import { ToastContainer, toast } from "react-toastify";
 
-export type NoteKind = "battle" | "captured" | "player" | "rejected";
+export type NoteKind =
+  | "battle"
+  | "captured"
+  | "player"
+  | "rejected"
+  | "research";
 
 const KINDS: Record<NoteKind, { label: string; colour: string }> = {
   battle: { label: "Battle", colour: "text-accent" },
   captured: { label: "Captured", colour: "text-ok" },
   player: { label: "Player", colour: "text-danger" },
   rejected: { label: "Rejected", colour: "text-danger" },
+  research: { label: "Research", colour: "text-res-research" },
 };
 
 export type NoteAction = { label: string; onClick: () => void };

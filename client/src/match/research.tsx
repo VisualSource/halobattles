@@ -5,7 +5,15 @@ import type { MatchConnection } from "./connection";
 import { FieldIcon, fieldsOf } from "./fields";
 import { isPending } from "./local";
 import { type Project, projectDone, type View } from "./store";
-import { heldTechs, labs, pauseReason, techCost, techText } from "./tech";
+import {
+  heldTechs,
+  idleFields,
+  labs,
+  offered,
+  pauseReason,
+  techCost,
+  techText,
+} from "./tech";
 import { useMatchNow } from "./time";
 import { useDismiss } from "./windows";
 
@@ -69,59 +77,118 @@ export function ResearchButton(props: {
   content: ContentLookups;
   open: boolean;
   onToggle: () => void;
+  onPick: (field: string) => void;
 }) {
   const { content } = props;
   const view = useStore(props.conn.store, (s) => s.view);
   const [hover, setHover] = useState(false);
   if (!view) return null;
   const n = perPayday(content, totalRate(view));
+  // Hidden while the panel is open: it shows the free slots itself.
+  const idle = props.open ? [] : idleFields(content, view);
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: hovering only shows the button's own breakdown
-    <div
-      className="relative"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
-      <button
-        type="button"
-        aria-expanded={props.open}
-        aria-controls="research"
-        aria-describedby="research-rates"
-        aria-label={`Research: +${n} a Payday, ${view.research.projects.length} of ${view.research.rates.size} fields researching`}
-        onClick={props.onToggle}
-        onFocus={() => setHover(true)}
-        onBlur={() => setHover(false)}
-        onKeyDown={(e) => e.key === "Escape" && setHover(false)}
-        className={`flex flex-col items-center gap-0.5 rounded border-0 px-2 py-1 font-mono leading-none ${props.open ? "bg-raised shadow-[inset_0_-2px_0_var(--color-accent)]" : "bg-transparent"}`}
-      >
-        <Flask className="text-res-research" />
-        <span className="text-ok">+{n}</span>
-      </button>
+    <div className="relative">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: hovering only shows the button's own breakdown */}
       <div
-        id="research-rates"
-        role="tooltip"
-        hidden={!hover}
-        className="border-edge bg-panel absolute top-12 left-0 z-30 flex w-62 flex-col gap-2.5 rounded-lg border p-3.5 text-[13px] shadow-[0_12px_32px_#000a]"
+        className="relative"
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
       >
-        <span className="font-display text-base font-semibold">
-          Research a Payday
-        </span>
-        {fieldsOf(content).map((f) => (
-          <span key={f.id} className="flex items-center gap-2">
-            <FieldIcon content={content} field={f.id} />
-            <span className="flex-1">{f.name}</span>
-            <span className="text-ok font-mono">
-              +{perPayday(content, view.research.rates.get(f.id) ?? 0)}
+        <button
+          type="button"
+          aria-expanded={props.open}
+          aria-controls="research"
+          aria-describedby="research-rates"
+          aria-label={`Research: +${n} a Payday, ${view.research.projects.length} of ${view.research.rates.size} fields researching`}
+          onClick={props.onToggle}
+          onFocus={() => setHover(true)}
+          onBlur={() => setHover(false)}
+          onKeyDown={(e) => e.key === "Escape" && setHover(false)}
+          className={`flex flex-col items-center gap-0.5 rounded border-0 px-2 py-1 font-mono leading-none ${props.open ? "bg-raised shadow-[inset_0_-2px_0_var(--color-accent)]" : "bg-transparent"}`}
+        >
+          <Flask className="text-res-research" />
+          <span className="text-ok">+{n}</span>
+        </button>
+        <div
+          id="research-rates"
+          role="tooltip"
+          hidden={!hover}
+          className="border-edge bg-panel absolute top-12 left-0 z-30 flex w-62 flex-col gap-2.5 rounded-lg border p-3.5 text-[13px] shadow-[0_12px_32px_#000a]"
+        >
+          <span className="font-display text-base font-semibold">
+            Research a Payday
+          </span>
+          {fieldsOf(content).map((f) => (
+            <span key={f.id} className="flex items-center gap-2">
+              <FieldIcon content={content} field={f.id} />
+              <span className="flex-1">{f.name}</span>
+              <span className="text-ok font-mono">
+                +{perPayday(content, view.research.rates.get(f.id) ?? 0)}
+              </span>
+            </span>
+          ))}
+          <span className="border-line text-ink-3 flex justify-between border-t pt-2 text-xs">
+            <span>Total</span>
+            <span className="font-mono">
+              +{n} · {totalRate(view)} a second
             </span>
           </span>
-        ))}
-        <span className="border-line text-ink-3 flex justify-between border-t pt-2 text-xs">
-          <span>Total</span>
-          <span className="font-mono">
-            +{n} · {totalRate(view)} a second
-          </span>
-        </span>
+        </div>
       </div>
+      {idle.length > 0 && (
+        <IdleAlerts content={content} fields={idle} onPick={props.onPick} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * An alert for each idle field, hanging on a rail below the Research
+ * button: the field's icon, framed in its colour. Clicking one opens the
+ * panel at that field's Tech picker.
+ */
+function IdleAlerts(props: {
+  content: ContentLookups;
+  fields: ReturnType<typeof idleFields>;
+  onPick: (field: string) => void;
+}) {
+  const last = props.fields.length - 1;
+  return (
+    <div className="absolute top-full left-1/2 z-20 flex -translate-x-1/2 flex-col items-center">
+      <span aria-hidden="true" className="bg-edge h-2.5 w-px" />
+      <ul aria-label="Idle Research fields" className="flex gap-2.5">
+        {props.fields.map((f, i) => (
+          <li key={f.id} className="group relative flex flex-col items-center">
+            <span
+              aria-hidden="true"
+              className={`bg-edge absolute top-0 h-px ${i === 0 ? "left-1/2" : "-left-1.25"} ${i === last ? "right-1/2" : "-right-1.25"}`}
+            />
+            <span
+              aria-hidden="true"
+              className="h-3.5 w-px opacity-80"
+              style={{ backgroundColor: f.colour }}
+            />
+            <button
+              type="button"
+              aria-label={`${f.name} research is idle`}
+              onClick={() => props.onPick(f.id)}
+              className="bg-panel flex size-11 items-center justify-center rounded-[7px] border-[1.5px] p-0 shadow-[0_0_0_3px_#0008]"
+              style={{ borderColor: f.colour }}
+            >
+              <FieldIcon content={props.content} field={f.id} size="size-5.5" />
+            </button>
+            <span
+              role="tooltip"
+              className="border-edge bg-panel absolute top-full mt-2 hidden rounded-lg border px-2.5 py-2 text-[13px] whitespace-nowrap shadow-[0_12px_32px_#000a] group-focus-within:block group-hover:block"
+            >
+              <span className="font-semibold" style={{ color: f.colour }}>
+                {f.name}
+              </span>{" "}
+              research is idle
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -135,12 +202,14 @@ export function ResearchButton(props: {
 export function ResearchPanel(props: {
   conn: MatchConnection;
   content: ContentLookups;
+  /** The field whose Tech picker opens first. */
+  pick?: string;
   onClose: () => void;
 }) {
   const { conn, content } = props;
   const view = useStore(conn.store, (s) => s.view);
   const now = useMatchNow(conn.local);
-  const [picking, setPicking] = useState<string | null>(null);
+  const [picking, setPicking] = useState<string | null>(props.pick ?? null);
   const pickRef = useDismiss<HTMLLIElement>(picking !== null, () =>
     setPicking(null),
   );
@@ -180,9 +249,6 @@ export function ResearchPanel(props: {
         {fieldsOf(content).map((f) => {
           const p = research.projects.find((x) => fieldOf(x.tech) === f.id);
           const rate = research.rates.get(f.id) ?? 0;
-          const offered =
-            (research.hands.get(f.id)?.length ?? 0) > 0 ||
-            research.saved.some((v) => fieldOf(v.tech) === f.id);
           return (
             <li
               key={f.id}
@@ -211,7 +277,7 @@ export function ResearchPanel(props: {
                   now={now}
                   planetName={planetName}
                 />
-              ) : offered ? (
+              ) : offered(content, view, f.id) ? (
                 <button
                   type="button"
                   aria-expanded={picking === f.id}

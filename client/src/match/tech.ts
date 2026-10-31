@@ -1,5 +1,6 @@
 import type { ContentLookups } from "../content";
 import type { Effect, Tech } from "../gen/content";
+import { fieldsOf } from "./fields";
 import type { Project, View } from "./store";
 
 // Techs as the client shows them; docs/specs/tech-spec.md. The server
@@ -172,4 +173,33 @@ export function pauseReason(
   if (missing)
     return `Paused: needs a ${content.buildings.get(missing)?.name ?? missing}`;
   return "Starting…";
+}
+
+/** Whether a field has something to pick: a Tech in its hand, or a saved one. */
+export const offered = (content: ContentLookups, view: View, field: string) =>
+  (view.research.hands.get(field)?.length ?? 0) > 0 ||
+  view.research.saved.some((v) => content.techs.get(v.tech)?.field === field);
+
+/** Fields with no Project and something to pick: the idle ones worth a nudge. */
+export const idleFields = (content: ContentLookups, view: View) =>
+  fieldsOf(content).filter(
+    (f) =>
+      !view.research.projects.some(
+        (p) => content.techs.get(p.tech)?.field === f.id,
+      ) && offered(content, view, f.id),
+  );
+
+/**
+ * The Projects in was that finished by now: gone from the list, their Tech
+ * newly held. A cancelled one, or one whose Lab was lost, isn't held.
+ */
+export function finishedProjects(was: View, now: View): Project[] {
+  const held = heldTechs(now);
+  const heldBefore = heldTechs(was);
+  return was.research.projects.filter(
+    (p) =>
+      held.has(p.tech) &&
+      !heldBefore.has(p.tech) &&
+      !now.research.projects.some((q) => q.tech === p.tech),
+  );
 }

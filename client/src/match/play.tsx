@@ -24,6 +24,7 @@ import { ResearchButton, ResearchPanel } from "./research";
 import { laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import { ConfirmDialog } from "./status";
+import { finishedProjects } from "./tech";
 import { formatAge, useMatchNow, useWallNow } from "./time";
 import { notify } from "./toasts";
 import {
@@ -63,7 +64,8 @@ export function PlayScreen(props: {
   const map = mapId ? content.maps.get(mapId) : undefined;
   const container = useRef<HTMLDivElement>(null);
   const [stacksOpen, setStacksOpen] = useState(true);
-  const [researchOpen, setResearchOpen] = useState(false);
+  // Open, and the field whose Tech picker to open with, if any.
+  const [research, setResearch] = useState<{ pick?: string } | null>(null);
 
   useEffect(() => {
     if (!map || !container.current) return;
@@ -100,18 +102,21 @@ export function PlayScreen(props: {
       <Hud
         conn={conn}
         content={content}
-        researchOpen={researchOpen}
-        onResearch={() => setResearchOpen(!researchOpen)}
+        researchOpen={research !== null}
+        onResearch={() => setResearch(research ? null : {})}
+        onPickResearch={(field) => setResearch({ pick: field })}
       />
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div ref={container} className="size-full" />
         <Players conn={conn} content={content} />
         <PlanetList conn={conn} content={content} />
-        {researchOpen && (
+        {research && (
           <ResearchPanel
+            key={research.pick}
+            pick={research.pick}
             conn={conn}
             content={content}
-            onClose={() => setResearchOpen(false)}
+            onClose={() => setResearch(null)}
           />
         )}
         <PlanetWindow
@@ -297,6 +302,7 @@ function Hud(props: {
   content: ContentLookups;
   researchOpen: boolean;
   onResearch: () => void;
+  onPickResearch: (field: string) => void;
 }) {
   const { conn, content } = props;
   const view = useStore(conn.store, (s) => s.view);
@@ -323,6 +329,7 @@ function Hud(props: {
         content={content}
         open={props.researchOpen}
         onToggle={props.onResearch}
+        onPick={props.onPickResearch}
       />
       <span
         title="Command Points in use, of your cap"
@@ -910,7 +917,7 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
   );
 }
 
-/** Toasts for what happens in play: captures, Battles, eliminations. */
+/** Toasts for what happens in play: captures, Battles, eliminations, finished Techs. */
 function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
   useEffect(() => {
     const view = () => conn.store.getState().view;
@@ -928,6 +935,19 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
       onClick: () => conn.local.setState({ selected: id }),
     });
     const detail = <T,>(e: Event) => (e as CustomEvent<T>).detail;
+
+    const unsubscribe = conn.store.subscribe(({ view: now }, { view: was }) => {
+      if (!now || !was || now === was) return;
+      for (const p of finishedProjects(was, now)) {
+        const tech = content.techs.get(p.tech);
+        const field = content.rules.tech.fields[tech?.field ?? ""]?.name;
+        notify(
+          "research",
+          `Researched ${tech?.name ?? p.tech}${field ? ` (${field})` : ""} at ${planet(p.planet)}`,
+          show(p.planet),
+        );
+      }
+    });
     /** A Battle you're a side of: it has a report, running or over. */
     const mine = (battle: number) =>
       conn.local.getState().reports.has(battle) ||
@@ -1010,6 +1030,7 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
       conn.events.addEventListener(type, fn);
     }
     return () => {
+      unsubscribe();
       for (const [type, fn] of Object.entries(handlers)) {
         conn.events.removeEventListener(type, fn);
       }

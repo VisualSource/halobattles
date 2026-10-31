@@ -4,7 +4,9 @@ import type { Tech } from "../gen/content";
 import type { PlanetView, View } from "./store";
 import {
   effectText,
+  finishedProjects,
   heldTechs,
+  idleFields,
   labs,
   needsTech,
   pauseReason,
@@ -95,6 +97,37 @@ function view(
     },
   } as unknown as View;
 }
+
+const project = (tech: string, planet = "a") =>
+  ({ tech, planet, slot: 0 }) as View["research"]["projects"][number];
+
+describe("Research alerts", () => {
+  const ids = (v: View) => idleFields(content, v).map((f) => f.id);
+
+  it("flags a field with no Project and something to pick", () => {
+    const v = view([]);
+    expect(ids(v)).toEqual([]); // nothing on offer: no nudge
+    v.research.hands.set("industry", ["plating"]);
+    expect(ids(v)).toEqual(["industry"]);
+    v.research.projects.push(project("motor-pool"));
+    expect(ids(v)).toEqual([]);
+  });
+
+  it("counts a saved Tech as something to pick", () => {
+    const v = view([]);
+    v.research.saved.push({ tech: "relic", cost: 300, done: 50, lost: false });
+    expect(ids(v)).toEqual(["industry"]);
+  });
+
+  it("finds a Project finished only once its Tech is newly held", () => {
+    const was = view([planet("a", 0, ["lab"])], [project("plating")]);
+    const done = view([planet("a", 0, ["lab"], [[0, ["plating"]]])]);
+    const cancelled = view([planet("a", 0, ["lab"])]);
+    expect(finishedProjects(was, done).map((p) => p.tech)).toEqual(["plating"]);
+    expect(finishedProjects(was, cancelled)).toEqual([]);
+    expect(finishedProjects(was, was)).toEqual([]);
+  });
+});
 
 describe("Techs", () => {
   it("holds only what your own Labs hold", () => {
