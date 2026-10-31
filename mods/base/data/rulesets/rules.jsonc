@@ -66,7 +66,7 @@
   },
   "battle": {
     // Seconds to open the Battle before the fighting starts.
-    "startDelay": 30,
+    "startDelay": 15,
     "timeCap": 180,
     "padBuildSeconds": 10,
     // A neutral garrison's budget for pad turrets, having no economy: two

@@ -124,7 +124,7 @@ The win conditions (Control Points, elimination, the time cap and Retreat) are i
 
 ### Pacing and watching
 
-- The server runs the Battle live on the match tick, after a 30 s start delay that lets players open it. The delay plus the time cap (3 min) bound the Lock to 3.5 minutes. The fighting itself should take 1–3 minutes.
+- The server runs the Battle live on the match tick, after a 15 s start delay that lets players open it. The delay plus the time cap (3 min) bound the Lock to 3.25 minutes. The fighting itself should take 1–3 minutes.
 - **The two sides** watch it live in the Battle window, which can go full-screen ([Watching](tactical-battle-spec.md#watching)).
 - **Other players with vision** see only that a Battle is in progress, and its outcome.
 - The roster's pacing target: two forces of similar size should fight for about 1–3 minutes.

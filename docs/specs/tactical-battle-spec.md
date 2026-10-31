@@ -79,7 +79,7 @@ Base-Mod Terrains:
 
 ## Time and movement
 
-- **Start delay:** when an Army arrives, the Planet Locks and both sides deploy at once, but the first sim tick waits `battle.startDelay` (30 s). That gives players time to open the Battle and see the layout. The window counts down meanwhile. A Battle decided on arrival (one side has nothing that can fight) ends at once.
+- **Start delay:** when an Army arrives, the Planet Locks and both sides deploy at once, but the first sim tick waits `battle.startDelay` (15 s). That gives players time to open the Battle and see the layout. The window counts down meanwhile. A Battle decided on arrival (one side has nothing that can fight) ends at once.
 - The sim **steps once per match tick (5 Hz, 200 ms)**. Every duration in seconds is converted to whole ticks, rounded to the nearest one.
 - Within a tick, the order is fixed:
   1. apply orders;
@@ -361,7 +361,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battlefield.controlPoints` | 3 |
 | `battlefield.controlPointSpacing` | 10 cells |
 | `battlefield.deployDepth` | 4 cells |
-| `battle.startDelay` | 30 s |
+| `battle.startDelay` | 15 s |
 | `battle.timeCap` | 180 s |
 | `battle.captureRadius` | 2 cells |
 | `battle.captureSeconds` | 5 |
