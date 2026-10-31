@@ -145,7 +145,10 @@
         "controlPoints": { "type": "integer", "minimum": 1, "maximum": 8 },
         "controlPointSpacing": { "description": "The fewest cells between two Control Points, where the map has room.", "type": "integer", "minimum": 0 },
         "deployDepth": { "description": "Depth in cells of the strip along each edge an attacker can deploy in.", "type": "integer", "minimum": 1 },
-        "buildPads": { "description": "Build pads the generator places: spots a side can capture and build a turret on.", "type": "integer", "minimum": 0, "maximum": 16 }
+        "buildPads": { "description": "Build pads the generator places: spots a side can capture and build a turret on.", "type": "integer", "minimum": 0, "maximum": 16 },
+        "attackerStarts": { "description": "Places on the map's edges an attacker can deploy around; each Battle's seed picks one. Defaults to 3.", "type": "integer", "minimum": 1, "maximum": 8 },
+        "laneWidth": { "description": "Width in cells of the lanes the generator clears between the Control Points and from each attacker start. Defaults to 2.", "type": "integer", "minimum": 1, "maximum": 6 },
+        "pointArea": { "description": "Radius in cells of the clear ground the generator makes round each Control Point. Defaults to 3.", "type": "integer", "minimum": 0, "maximum": 8 }
       }
     },
     "battle": {

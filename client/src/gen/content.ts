@@ -353,6 +353,18 @@ export interface BattlefieldRules {
    * Build pads the generator places: spots a side can capture and build a turret on.
    */
   buildPads: number;
+  /**
+   * Places on the map's edges an attacker can deploy around; each Battle's seed picks one. Defaults to 3.
+   */
+  attackerStarts?: number;
+  /**
+   * Width in cells of the lanes the generator clears between the Control Points and from each attacker start. Defaults to 2.
+   */
+  laneWidth?: number;
+  /**
+   * Radius in cells of the clear ground the generator makes round each Control Point. Defaults to 3.
+   */
+  pointArea?: number;
 }
 /**
  * How a Battle runs on its Battlefield.
@@ -1006,6 +1018,10 @@ export interface TerrainPreset {
    * @minItems 1
    */
   bands: [Band, ...Band[]];
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  pointCover?: string;
   clear: Clear;
 }
 export interface Noise {

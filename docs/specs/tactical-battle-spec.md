@@ -32,7 +32,14 @@ Generation follows [Red Blob Games: terrain from noise](https://www.redblobgames
 4. Moisture splits each band into Terrains, driest first. For example, lowland comes out as rough, open or forest.
 5. A **Terrain Preset** supplies the noise parameters, the bands, and the Terrains in each. A desert Planet comes out mostly sand and rough; an ice Planet turns its lakes into ice you can walk on. A Planet names its preset in `battlefield.terrainPreset`; otherwise the Ruleset's `battlefield.terrainPreset` applies.
 6. **Connectivity:** the largest region the Ruleset's `pathClass` (Infantry) can walk is the main region. Any edge's deployment strip that doesn't touch it gets the fewest blocked cells along a path cleared to the preset's `clear` Terrain. That's a ford through a lake, or a pass through peaks.
-7. **Control Points** are placed in the main region (see [Control Points](#control-points)). Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
+7. **Control Points** are placed in the main region (see [Control Points](#control-points)).
+8. **Layout round the points** (#64). It keeps the noise terrain and shapes it round the points:
+   - **Attacker starts:** `battlefield.attackerStarts` (3) cells on the map's edges, each at least 9 cells from a corner. The first is random; each later one is as far as it can be from those before. Each gets a zone 19 cells wide and `deployDepth` (4) deep, turned to the preset's `clear` Terrain.
+   - **Point areas:** every cell within `battlefield.pointArea` (3) of a point becomes `clear` Terrain, level with the point. Over a band from 1.5 cells inside that edge to 1.5 outside it, about a third of the cells become the preset's `pointCover` Terrain (`rough` in the base presets), so guards inside the capture radius have cover. With the cover only outside the clear ground, guards had none on their points, and Starting Kit attackers won 61% / 60% instead of 54% / 54%.
+   - **Main lanes**, `battlefield.laneWidth` (2) cells wide: the shortest links that join every point (a spanning tree), then a ring round the points (each to the next by angle round their middle), so guards can go round them; then each start to its nearest point. A lane is the cheapest 4-way path, preferring ground every ground Unit Class crosses and existing lanes. A link between two points keeps off the others' ground. Anything on a lane a ground Unit Class can't cross becomes `clear` Terrain, so vehicles and infantry reach every point and start.
+   - **Building sites:** 2 per point, dealt round the points in turn, from just outside a point's clear ground to 9 cells out. They prefer high ground, then ground vehicles can't reach (a dead end), then ground away from the starts. Each gets a 1-cell **side lane** from the nearest main lane that clears only what the path class (Infantry) can't cross, so it may be infantry's alone.
+   - **Build pads:** see [Build pads](#build-pads).
+9. Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
 
 ### Terrain
 
@@ -73,8 +80,8 @@ Base-Mod Terrains:
 
 ### Deployment
 
-- **Defender:** each of the Planet's three Stacks deploys on one Control Point (Stack 1 at point A, and so on). Buildings stand 3 cells behind the points, away from the attacker's edge, taking Building Slots round the points in turn.
-- **Attacker:** deploys in a strip 4 cells deep along one map edge, which the Battle seed picks.
+- **Defender:** each of the Planet's three Stacks deploys on one Control Point (Stack 1 at point A, and so on). Building Slot *n* stands on the Battlefield's building site *n*. With more slots than sites, the rest stand 3 cells behind the points, away from the attacker's edge.
+- **Attacker:** deploys round one of the Battlefield's attacker starts, which the Battle seed picks, 4 cells deep in from that edge. A player choosing their start is for later.
 - **Formations:** a Stack deploys in the shape of its 3 × 5 slot grid. The front row faces the enemy, and empty slots leave gaps. An attacking Army's slots are laid out the same way, 15 slots per formation, in slot order. A slot that lands on a blocked cell moves to the nearest free passable cell (breadth-first, ties to the lowest cell index).
 
 ## Time and movement
@@ -173,8 +180,8 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 Spots on the Battlefield where a side that holds one can build a turret, as on Empire at War's ground maps.
 
-- **Placement:** the generator places `battlefield.buildPads` (4) pads in the main region, away from the map edges, at least 6 cells from the Control Points and from each other.
-- **Owners at the start:** pads within 10 cells of a Control Point start as the defender's; the rest start with no owner. The attacker starts with none.
+- **Placement:** the generator places `battlefield.buildPads` (4) pads, dealt round the Control Points in turn. Each is beside a main lane: 2 cells off it, with a clear cell between it and any lane, so a turret never narrows one. It sits from just outside the point's clear ground to 8 cells out, on ground every ground Unit Class can reach, as far from the attacker starts as it can be, and at least 3 cells from other pads and sites. Where its point has no room, it goes by the next point that does.
+- **Owners at the start:** pads within 10 cells of a Control Point start as the defender's; the rest start with no owner. The attacker starts with none. Every pad is by a point now, so the defender holds them all; #68 makes them start unowned and lets the defender take them during the start delay.
 - **Capture:** like a Control Point, using the same radius and time: one side's ground squads alone near it for `captureSeconds` take it. A pad with a turret on it can't be captured; the enemy has to destroy the turret first. A pad being built on can be captured, which cancels the build without a refund.
 - **Building:** the side holding an empty pad can build one turret on it. A turret is a Building with `padTurret: true` and a `combat` block, of the side's own Faction. It costs that Building's `cost`, paid at once from the player's Resources, the same pool as the galaxy. It's built after `battle.padBuildSeconds` (10 s), and it exists only for this Battle. The base Mod's pad turrets are the Turret and the Plasma Turret.
 - **Who decides:** a player builds with the Battle window's button; the AI never spends a player's money. A **neutral garrison** has no economy, so it gets `battle.neutralFunds` (400 Credits, 100 Materials and 40 Alloys, two turrets' worth) for the Battle, and its AI builds turrets on the pads it holds, the cheapest it can afford first.
@@ -369,7 +376,7 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
 
 - Two evenly matched forces should fight for about **1–3 minutes**.
 - The two Starting Kits should stay roughly even, with a lean to the defender allowed: either one attacking wins 40–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights. A heavy lean to the defender is as much a problem as one to the attacker.
-- A Go test checks both over 100 seeds per matchup. When last tuned (kiting, #63): about 80 s per Battle; UNSC attacking wins 54%, Covenant attacking 44%. Three Stacks a side, still skipped under #40: 53% / 51%.
+- A Go test checks both over 100 seeds per matchup. When last tuned (Battlefield layout, #64): about 77 s per Battle; UNSC attacking wins 54%, Covenant attacking 54%. Three Stacks a side, still skipped under #40: 50% / 54%.
 - The test covers **big Battles** too (three Starting Kit Stacks a side), skipped under #40 until the map generation rework (#64) settles; the current figures are in the line above. They were 73% / 67% before roles, the paused hold timer, guard posts, and cover for any positive weight, and 64% / 54% before focus fire.
 - Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 
@@ -385,6 +392,9 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battlefield.controlPoints` | 3 |
 | `battlefield.controlPointSpacing` | 10 cells |
 | `battlefield.deployDepth` | 4 cells |
+| `battlefield.attackerStarts` | 3 |
+| `battlefield.laneWidth` | 2 cells |
+| `battlefield.pointArea` | 3 cells |
 | `battle.startDelay` | 15 s |
 | `battle.timeCap` | 180 s |
 | `battle.captureRadius` | 2 cells |
@@ -405,6 +415,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 - **`terrains`** kind: `cover`, `colour`, and `movement` (a cost per Unit Class).
 - **`terrainPresets`** kind:
   - `noise`: frequency, octaves and persistence;
+  - `pointCover`: an optional Terrain scattered round each Control Point's clear ground as cover;
   - `bands`: each with `upTo`, `height`, and its `terrains` by moisture `upTo`;
   - `clear`: the Terrain and height used to cut a path.
 

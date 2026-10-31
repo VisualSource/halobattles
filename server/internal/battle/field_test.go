@@ -1,6 +1,9 @@
 package battle
 
 import (
+	"cmp"
+	"fmt"
+	"math"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -138,28 +141,140 @@ func TestCarvingJoinsAMostlyBlockedMap(t *testing.T) {
 	}
 }
 
-func TestPadsAreSpacedAwayFromPointsAndEdges(t *testing.T) {
+// eachField runs fn on every base preset over 20 seeds.
+func eachField(t *testing.T, fn func(name string, f *Field)) {
 	c := baseContent(t)
-	r := rules(c)
-	for seed := range uint64(20) {
-		f := Generate(c, r, nil, seed)
-		if len(f.Pads) != r.BuildPads {
-			t.Fatalf("seed %d: %d pads, want %d\n%s", seed, len(f.Pads), r.BuildPads, f)
+	for _, preset := range []cs.ID{"base:temperate", "base:desert", "base:ice"} {
+		for seed := range uint64(20) {
+			fn(fmt.Sprintf("%s seed %d", preset, seed), Generate(c, rules(c), &cs.PlanetBattlefield{TerrainPreset: &preset}, seed))
 		}
-		seen := reachable(c, f, string(r.PathClass), f.Points[0])
-		for i, p := range f.Pads {
-			if !seen[f.index(p)] {
-				t.Errorf("seed %d: pad %v can't be walked to", seed, p)
-			}
-			m := r.DeployDepth + 2
-			if p.X < m || p.Y < m || p.X >= f.W-m || p.Y >= f.H-m {
-				t.Errorf("seed %d: pad %v by an edge", seed, p)
-			}
-			for _, q := range append(slices.Clone(f.Points), f.Pads[:i]...) {
-				if dist2(p, q) < padSpacing*padSpacing {
-					t.Errorf("seed %d: pad %v within %d of %v", seed, p, padSpacing, q)
+	}
+}
+
+func TestEveryGroundClassCanReachEveryPointAndStart(t *testing.T) {
+	c := baseContent(t)
+	eachField(t, func(name string, f *Field) {
+		for _, class := range []string{"base:infantry", "base:vehicle"} {
+			seen := reachable(c, f, class, f.Points[0])
+			for _, at := range append(slices.Clone(f.Points), f.Starts...) {
+				if !seen[f.index(at)] {
+					t.Errorf("%s: %s can't reach %v\n%s", name, class, at, f)
 				}
 			}
 		}
+	})
+}
+
+func TestStartsAreOnTheEdgesAndApart(t *testing.T) {
+	c := baseContent(t)
+	want := *rules(c).AttackerStarts
+	eachField(t, func(name string, f *Field) {
+		if len(f.Starts) != want {
+			t.Fatalf("%s: %d starts, want %d", name, len(f.Starts), want)
+		}
+		for i, s := range f.Starts {
+			if s.X != 0 && s.Y != 0 && s.X != f.W-1 && s.Y != f.H-1 {
+				t.Errorf("%s: start %v isn't on an edge", name, s)
+			}
+			for _, o := range f.Starts[:i] {
+				if dist(s, o) < 20 {
+					t.Errorf("%s: starts %v and %v only %.0f cells apart", name, s, o, dist(s, o))
+				}
+			}
+		}
+	})
+}
+
+func TestSitesStandByTheirPointsOnGroundInfantryCanReach(t *testing.T) {
+	c := baseContent(t)
+	eachField(t, func(name string, f *Field) {
+		if len(f.Sites) != sitesPerPoint*len(f.Points) {
+			t.Errorf("%s: %d sites, want %d", name, len(f.Sites), sitesPerPoint*len(f.Points))
+		}
+		seen := reachable(c, f, "base:infantry", f.Points[0])
+		for k, s := range f.Sites {
+			if p := f.Points[k%len(f.Points)]; dist(s, p) > siteReach {
+				t.Errorf("%s: site %v is %.0f cells from its point %v", name, s, dist(s, p), p)
+			}
+			if !seen[f.index(s)] {
+				t.Errorf("%s: site %v can't be walked to", name, s)
+			}
+		}
+	})
+}
+
+func TestPadsSitBesideALaneByAPointAwayFromTheStarts(t *testing.T) {
+	c := baseContent(t)
+	r := rules(c)
+	away, total := 0, 0
+	eachField(t, func(name string, f *Field) {
+		if len(f.Pads) != r.BuildPads {
+			t.Errorf("%s: %d pads, want %d", name, len(f.Pads), r.BuildPads)
+		}
+		vehicles := reachable(c, f, "base:vehicle", f.Points[0])
+		for _, pad := range f.Pads {
+			p := slices.MinFunc(f.Points, func(a, b Cell) int { return cmp.Compare(dist2(pad, a), dist2(pad, b)) })
+			if dist(pad, p) > padReach {
+				t.Errorf("%s: pad %v is %.0f cells from the nearest point %v", name, pad, dist(pad, p), p)
+			}
+			beside := false
+			for i, on := range f.lane {
+				beside = beside || on && dist(f.cell(i), pad) <= 2*math.Sqrt2
+			}
+			if !beside {
+				t.Errorf("%s: pad %v isn't beside a lane", name, pad)
+			}
+			for y := pad.Y - 1; y <= pad.Y+1; y++ {
+				for x := pad.X - 1; x <= pad.X+1; x++ {
+					if c := (Cell{x, y}); c.X >= 0 && c.Y >= 0 && c.X < f.W && c.Y < f.H && (f.lane[f.index(c)] || f.side[f.index(c)]) {
+						t.Errorf("%s: pad %v on or touching a lane at %v", name, pad, c)
+					}
+				}
+			}
+			if !vehicles[f.index(pad)] {
+				t.Errorf("%s: pad %v isn't on ground vehicles reach", name, pad)
+			}
+			total++
+			if fromStarts(pad, f.Starts) > fromStarts(p, f.Starts) {
+				away++
+			}
+		}
+	})
+	if away*4 < total*3 {
+		t.Errorf("%d of %d pads are further from the attacker starts than their point; want most", away, total)
 	}
+}
+
+func TestThePointsAreJoinedInARingOfLanes(t *testing.T) {
+	c := baseContent(t)
+	area := float64(*rules(c).PointArea)
+	eachField(t, func(name string, f *Field) {
+		// With three points, a ring joins every pair directly: along lanes,
+		// round the third point's clear ground rather than through it.
+		for a := range f.Points {
+			for b := a + 1; b < len(f.Points); b++ {
+				avoid := func(i int) bool {
+					return slices.ContainsFunc(f.Points, func(p Cell) bool {
+						return p != f.Points[a] && p != f.Points[b] && dist(f.cell(i), p) <= area
+					})
+				}
+				seen := make([]bool, f.W*f.H)
+				queue := []int{f.index(f.Points[a])}
+				seen[queue[0]] = true
+				for len(queue) > 0 {
+					i := queue[0]
+					queue = queue[1:]
+					f.neighbours4(i, func(n int) {
+						if !seen[n] && (f.lane[n] || dist(f.cell(n), f.Points[a]) <= area || dist(f.cell(n), f.Points[b]) <= area) && !avoid(n) {
+							seen[n] = true
+							queue = append(queue, n)
+						}
+					})
+				}
+				if !seen[f.index(f.Points[b])] {
+					t.Errorf("%s: no lane from point %v to %v that keeps off the others", name, f.Points[a], f.Points[b])
+				}
+			}
+		}
+	})
 }

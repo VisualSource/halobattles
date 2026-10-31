@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"maps"
 	"math"
 	"slices"
 
@@ -83,9 +84,15 @@ func (b *Bot) fighters(units []game.UnitSlot) []fighter {
 
 // defenders is what holds a Planet, as the Bot believes: as last seen, or,
 // never seen, the map's neutral garrison for it.
-func (b *Bot) defenders(v game.View, id string) []fighter {
-	var out []fighter
+func (b *Bot) defenders(v game.View, id string) (out []fighter) {
 	s, ok := b.seen[id]
+	defer func() {
+		// A neutral garrison that fights buys pad turrets with its Battle
+		// budget, which the Ruleset makes known.
+		if len(out) > 0 && (!ok || s.planet.Owner == game.Neutral) {
+			out = append(out, b.garrisonTurrets()...)
+		}
+	}()
 	if ok {
 		for _, st := range s.planet.Stacks {
 			out = append(out, b.fighters(st)...)
@@ -100,6 +107,30 @@ func (b *Bot) defenders(v game.View, id string) []fighter {
 			for _, e := range st {
 				cb := b.c.Units[string(e.Unit)].Combat
 				out = append(out, fighter{&cb, float64(e.Count)})
+			}
+		}
+	}
+	return out
+}
+
+// turretShare is how much of a pad turret's strength the Bot counts: it
+// stands still, covering only the ground by its pad.
+const turretShare = 0.5
+
+// garrisonTurrets is what a neutral garrison's Battle budget buys: a pad
+// turret per build pad, the cheapest it can still afford, as its AI buys.
+func (b *Bot) garrisonTurrets() []fighter {
+	r := b.c.Rulesets[game.RulesetID]
+	left := maps.Clone(r.Battle.NeutralFunds)
+	var out []fighter
+	for range r.Battlefield.BuildPads {
+		for _, id := range battle.PadTurrets(b.c) {
+			if cost := b.c.Buildings[id].Cost; battle.Affords(left, cost) {
+				for res, n := range cost {
+					left[res] -= n
+				}
+				out = append(out, fighter{b.c.Buildings[id].Combat, turretShare})
+				break
 			}
 		}
 	}

@@ -27,5 +27,6 @@
     },
     { "upTo": 1, "height": 2, "terrains": [{ "upTo": 1, "terrain": "peak" }] }
   ],
+  "pointCover": "rough",
   "clear": { "terrain": "open", "height": 0 }
 }

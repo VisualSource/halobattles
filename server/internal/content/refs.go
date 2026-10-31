@@ -98,6 +98,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 				}
 			}
 		}
+		qualifyField(obj, "pointCover", ns)
 		if c, ok := obj["clear"].(map[string]any); ok {
 			qualifyField(c, "terrain", ns)
 		}
@@ -408,6 +409,9 @@ func (c *checker) techCycles(techs map[string]contentschema.Tech) {
 // splits inside each, rise to 1 so every cell gets a Terrain.
 func (c *checker) terrainPreset(where string, p contentschema.TerrainPreset) {
 	c.ref(where+": clear", "terrains", string(p.Clear.Terrain))
+	if p.PointCover != nil {
+		c.ref(where+": pointCover", "terrains", string(*p.PointCover))
+	}
 	rising := func(where string, upTos []float64) {
 		for i, u := range upTos {
 			if i > 0 && u <= upTos[i-1] {

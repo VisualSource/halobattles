@@ -55,16 +55,8 @@ func TestATaskForceGathersThenGoesInBehindItsVehiclesAtTheSlowestPace(t *testing
 	}
 
 	// The Warthog gets ahead: the Marines follow, at their own pace.
-	for _, o := range ai.Orders(v) {
-		s.apply(Attacker, o)
-	}
 	ahead := func() float64 { return dist(marines.Cell, tf.goal.cell) - dist(warthog.Cell, tf.goal.cell) }
-	for range 20 * TicksPerSecond {
-		if ahead() > followDist+1 {
-			break
-		}
-		s.move()
-	}
+	freeAt(t, s, warthog, tf.goal.cell, int(dist(marines.Cell, tf.goal.cell))-followDist-2)
 	s.Tick++
 	sent = moves(ai.Orders(v))
 	if o, ok := sent[marines.ID]; !ok || o.Pace != marines.speed {

@@ -28,7 +28,7 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 ## What a Bot knows
 
 - **Memory:** what its Views have shown, Planets out of Vision as last seen, each with its Match Time. An older sighting counts for less.
-- **Strength:** a unit or armed building scores (Shield + Armor + HP) × its Damage roll's average, the threat score Planets already show, summed over a force. A Planet never seen is guessed from the map's neutral garrison for it.
+- **Strength:** a unit or armed building scores (Shield + Armor + HP) × its Damage roll's average, the threat score Planets already show, summed over a force. A Planet never seen is guessed from the map's neutral garrison for it. A neutral garrison that has anything to fight with also counts the pad turrets its Battle budget (`battle.neutralFunds`) buys, one per build pad, cheapest first, as its AI buys them. Each is counted at half strength, since it stands still and covers only the ground by its pad. At full strength Bots never attacked the weak garrisons; not counting the turrets at all, they lost attacks to them once the generator put every pad by a point (#64).
 - **Economy:** its Resources, caps and projected Payday, as its View has them.
 
 ## Deciding

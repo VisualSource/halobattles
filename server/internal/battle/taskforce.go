@@ -173,17 +173,17 @@ func (ai *AI) placeStage(v View, tf *taskForce) {
 	dx, dy = dx*math.Cos(turn)-dy*math.Sin(turn), dx*math.Sin(turn)+dy*math.Cos(turn)
 	want := Cell{tf.goal.cell.X + int(math.Round(dx*stageDist)), tf.goal.cell.Y + int(math.Round(dy*stageDist))}
 
-	// The nearest cell to that every member could stand on.
-	best, found := Cell{}, false
-	for r := 0; r <= 4 && !found; r++ {
-		for yy := want.Y - r; yy <= want.Y+r; yy++ {
-			for xx := want.X - r; xx <= want.X+r; xx++ {
-				c := Cell{xx, yy}
-				if (found && dist2(c, want) >= dist2(best, want)) ||
-					slices.ContainsFunc(tf.members, func(sq *Squad) bool { return !s.standable(sq, c) && c != sq.Cell }) {
-					continue
-				}
-				best, found = c, true
+	// A cell every member could stand on, up to 4 each way from that, kept near
+	// stageDist from the goal: off a lake's far shore, not on its near one.
+	best, bestScore, found := Cell{}, math.Inf(1), false
+	for yy := want.Y - 4; yy <= want.Y+4; yy++ {
+		for xx := want.X - 4; xx <= want.X+4; xx++ {
+			c := Cell{xx, yy}
+			if slices.ContainsFunc(tf.members, func(sq *Squad) bool { return !s.standable(sq, c) && c != sq.Cell }) {
+				continue
+			}
+			if score := dist(c, want) + 2*math.Abs(dist(c, tf.goal.cell)-stageDist); score < bestScore { // ties keep the first found
+				best, bestScore, found = c, score, true
 			}
 		}
 	}

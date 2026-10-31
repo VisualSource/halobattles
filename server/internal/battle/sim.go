@@ -218,9 +218,17 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 		}
 		s.Pads = append(s.Pads, Pad{Cell: c, Owner: owner, Taker: owner})
 	}
-	s.Edge = s.rng.IntN(4)
+	// The attacker deploys round one of the Field's starts, which the seed
+	// picks; a Field without any, round the middle of an edge.
+	var origin Cell
+	if len(f.Starts) > 0 {
+		origin = f.Starts[s.rng.IntN(len(f.Starts))]
+		s.Edge = edgeOf(f, origin)
+	} else {
+		s.Edge = s.rng.IntN(4)
+		origin = [4]Cell{{f.W / 2, 0}, {f.W - 1, f.H / 2}, {f.W / 2, f.H - 1}, {0, f.H / 2}}[s.Edge]
+	}
 	in, side := inward[s.Edge], along[s.Edge]
-	origin := [4]Cell{{f.W / 2, 0}, {f.W - 1, f.H / 2}, {f.W / 2, f.H - 1}, {0, f.H / 2}}[s.Edge]
 
 	for k, form := range attack.Formations {
 		centre := (2*k - (len(attack.Formations) - 1)) * 3 // formations 6 cells apart, centred on the edge
@@ -242,10 +250,13 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 		}
 	}
 	for slot, id := range defend.Buildings {
-		if id == "" || len(f.Points) == 0 {
-			continue
+		switch {
+		case id == "" || len(f.Points) == 0:
+		case slot < len(f.Sites):
+			s.addBuilding(slot, id, f.Sites[slot])
+		default: // more Building Slots than sites: behind the points, away from the attacker
+			s.addBuilding(slot, id, f.Points[slot%len(f.Points)].add(in.scale(3)))
 		}
-		s.addBuilding(slot, id, f.Points[slot%len(f.Points)].add(in.scale(3)))
 	}
 	s.see()
 	s.end() // nobody on one side: decided before it starts

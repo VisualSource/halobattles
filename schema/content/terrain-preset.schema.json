@@ -51,6 +51,10 @@
         }
       }
     },
+    "pointCover": {
+      "description": "The Terrain the generator scatters round the edge of each Control Point's clear ground, as cover for its guards. Every ground Unit Class should be able to cross it. None if left out.",
+      "$ref": "defs.schema.json#/definitions/id"
+    },
     "clear": {
       "title": "Clear",
       "description": "What the generator turns blocked cells into when it cuts a path to connect the map.",

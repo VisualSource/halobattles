@@ -53,7 +53,10 @@ func TestDeploymentPlacesEverySquadOnItsOwnCell(t *testing.T) {
 	}
 	for _, sq := range s.Squads {
 		near := slices.ContainsFunc(s.Field.Points, func(p Cell) bool { return dist(p, sq.Cell) <= 6 })
-		if sq.Side == Defender && !near {
+		switch {
+		case sq.Side == Defender && sq.Building && !slices.ContainsFunc(s.Field.Sites, func(c Cell) bool { return dist(c, sq.Cell) <= 2 }):
+			t.Errorf("building %d at %v, off every site %v", sq.ID, sq.Cell, s.Field.Sites)
+		case sq.Side == Defender && !sq.Building && !near:
 			t.Errorf("defender %d at %v, far from every point %v", sq.ID, sq.Cell, s.Field.Points)
 		}
 	}

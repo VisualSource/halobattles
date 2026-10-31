@@ -104,6 +104,10 @@ type BattleRules struct {
 
 // How Battlefields are generated. A map's Planet can override the size and preset.
 type BattlefieldRules struct {
+	// Places on the map's edges an attacker can deploy around; each Battle's seed
+	// picks one. Defaults to 3.
+	AttackerStarts *int `json:"attackerStarts,omitempty,omitzero"`
+
 	// Build pads the generator places: spots a side can capture and build a turret
 	// on.
 	BuildPads int `json:"buildPads"`
@@ -120,9 +124,17 @@ type BattlefieldRules struct {
 	// Height corresponds to the JSON schema field "height".
 	Height int `json:"height"`
 
+	// Width in cells of the lanes the generator clears between the Control Points and
+	// from each attacker start. Defaults to 2.
+	LaneWidth *int `json:"laneWidth,omitempty,omitzero"`
+
 	// The Unit Class whose movement decides which ground must connect: every Control
 	// Point and every edge's deployment strip.
 	PathClass ID `json:"pathClass"`
+
+	// Radius in cells of the clear ground the generator makes round each Control
+	// Point. Defaults to 3.
+	PointArea *int `json:"pointArea,omitempty,omitzero"`
 
 	// The Terrain Preset a Planet uses unless it names its own.
 	TerrainPreset ID `json:"terrainPreset"`
@@ -1013,6 +1025,11 @@ type TerrainPreset struct {
 
 	// Noise corresponds to the JSON schema field "noise".
 	Noise Noise `json:"noise"`
+
+	// The Terrain the generator scatters round the edge of each Control Point's clear
+	// ground, as cover for its guards. Every ground Unit Class should be able to
+	// cross it. None if left out.
+	PointCover *ID `json:"pointCover,omitempty,omitzero"`
 
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`

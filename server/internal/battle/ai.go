@@ -685,6 +685,37 @@ func (ai *AI) engage(v View, sq *Squad, p *plan, e *Squad) []Order {
 	return []Order{{Kind: Move, Squad: sq.ID, Cell: to}}
 }
 
+// PadTurrets lists the Buildings that can go on a build pad, cheapest first
+// (by their costs added up, ties by id): the order a garrison's AI buys
+// them in.
+func PadTurrets(c *cs.Content) []string {
+	var turrets []string
+	for _, id := range slices.Sorted(maps.Keys(c.Buildings)) {
+		if b := c.Buildings[id]; b.PadTurret != nil && *b.PadTurret && b.Combat != nil {
+			turrets = append(turrets, id)
+		}
+	}
+	total := func(id string) int {
+		n := 0
+		for _, v := range c.Buildings[id].Cost {
+			n += v
+		}
+		return n
+	}
+	slices.SortStableFunc(turrets, func(a, b string) int { return cmp.Compare(total(a), total(b)) })
+	return turrets
+}
+
+// Affords is whether funds cover cost.
+func Affords(funds, cost map[string]int) bool {
+	for r, n := range cost {
+		if funds[r] < n {
+			return false
+		}
+	}
+	return true
+}
+
 // build spends a side's own funds, which only a neutral garrison has, on
 // a turret for each empty pad it holds: the cheapest it can afford. A
 // player's money is theirs to spend, so their side never builds on its own.
@@ -693,29 +724,9 @@ func (ai *AI) build(v View) []Order {
 	if s.Funds[v.Side] == nil {
 		return nil
 	}
-	var turrets []string
-	for _, id := range slices.Sorted(maps.Keys(s.content.Buildings)) {
-		if b := s.content.Buildings[id]; b.PadTurret != nil && *b.PadTurret && b.Combat != nil {
-			turrets = append(turrets, id)
-		}
-	}
-	total := func(id string) int {
-		n := 0
-		for _, c := range s.content.Buildings[id].Cost {
-			n += c
-		}
-		return n
-	}
-	slices.SortStableFunc(turrets, func(a, b string) int { return cmp.Compare(total(a), total(b)) })
+	turrets := PadTurrets(s.content)
 	left := maps.Clone(s.Funds[v.Side]) // spent pad by pad this tick
-	affords := func(id string) bool {
-		for r, n := range s.content.Buildings[id].Cost {
-			if left[r] < n {
-				return false
-			}
-		}
-		return true
-	}
+	affords := func(id string) bool { return Affords(left, s.content.Buildings[id].Cost) }
 	var out []Order
 	for i := range s.Pads {
 		for _, id := range turrets {

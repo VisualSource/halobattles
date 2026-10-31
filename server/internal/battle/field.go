@@ -15,7 +15,7 @@ import (
 type Cell struct{ X, Y int }
 
 // Field is a Battlefield: a grid of Terrains and height levels, row by row,
-// and its Control Points.
+// its Control Points, and what the generator laid out round them.
 type Field struct {
 	W, H     int
 	Terrains []string // Terrain ids, sorted; a cell holds an index into this
@@ -23,6 +23,10 @@ type Field struct {
 	Height   []uint8
 	Points   []Cell
 	Pads     []Cell // build pads
+	Starts   []Cell // attacker starts, on the edges; each Battle's seed picks one
+	Sites    []Cell // building sites, dealt round the points in turn
+	lane     []bool // main lane cells, for tests
+	side     []bool // side lane cells, for tests
 }
 
 func (f *Field) index(c Cell) int { return c.Y*f.W + c.X }
@@ -43,6 +47,9 @@ func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlef
 	f := &Field{W: w, H: h, Terrain: make([]uint8, w*h), Height: make([]uint8, w*h)}
 
 	ids := []string{string(preset.Clear.Terrain)}
+	if preset.PointCover != nil {
+		ids = append(ids, string(*preset.PointCover))
+	}
 	for _, b := range preset.Bands {
 		for _, t := range b.Terrains {
 			ids = append(ids, string(t.Terrain))
@@ -78,40 +85,30 @@ func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlef
 		}
 	}
 	f.Points = f.placePoints(main, rules.ControlPoints, rules.ControlPointSpacing, rand.New(rand.NewPCG(seed, 3)))
-	f.Pads = f.placePads(main, rules.BuildPads, rules.DeployDepth, rand.New(rand.NewPCG(seed, 5)))
+
+	cover := -1
+	if preset.PointCover != nil {
+		cover = int(terrain(*preset.PointCover))
+	}
+	l := newLayout(c, f, string(rules.PathClass), terrain(preset.Clear.Terrain), uint8(preset.Clear.Height), cover)
+	area, width := 3, 2
+	if rules.PointArea != nil {
+		area = *rules.PointArea
+	}
+	if rules.LaneWidth != nil {
+		width = *rules.LaneWidth
+	}
+	starts := 3
+	if rules.AttackerStarts != nil {
+		starts = *rules.AttackerStarts
+	}
+	f.Starts = l.placeStarts(starts, rules.DeployDepth, rand.New(rand.NewPCG(seed, 6)))
+	l.shapePoints(area, rand.New(rand.NewPCG(seed, 7)))
+	l.mainLanes(f.Starts, area, width)
+	f.Sites = l.placeSites(f.Starts, area, width)
+	f.Pads = l.placePads(rules.BuildPads, area, f.Starts, f.Sites)
+	f.lane, f.side = l.lane, l.side
 	return f
-}
-
-// padSpacing is the fewest cells between a build pad and a Control Point or
-// another pad.
-const padSpacing = 6
-
-// placePads picks build pads in the main region, clear of the edges (where
-// attackers deploy) and spaced from the Control Points and each other. Where
-// they don't all fit, it places what it can.
-func (f *Field) placePads(main []bool, n, edge int, rng *rand.Rand) []Cell {
-	margin := edge + 2
-	var candidates []Cell
-	for i, m := range main {
-		c := f.cell(i)
-		if m && c.X >= margin && c.Y >= margin && c.X < f.W-margin && c.Y < f.H-margin {
-			candidates = append(candidates, c)
-		}
-	}
-	rng.Shuffle(len(candidates), func(i, j int) { candidates[i], candidates[j] = candidates[j], candidates[i] })
-	var pads []Cell
-	far := func(c Cell, from []Cell) bool {
-		return !slices.ContainsFunc(from, func(p Cell) bool { return dist2(p, c) < padSpacing*padSpacing })
-	}
-	for _, c := range candidates {
-		if len(pads) == n {
-			break
-		}
-		if far(c, f.Points) && far(c, pads) {
-			pads = append(pads, c)
-		}
-	}
-	return pads
 }
 
 func deref(p *int) int {

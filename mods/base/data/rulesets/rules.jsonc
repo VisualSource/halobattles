@@ -62,7 +62,10 @@
     "controlPoints": 3,
     "controlPointSpacing": 10,
     "deployDepth": 4,
-    "buildPads": 4
+    "buildPads": 4,
+    "attackerStarts": 3,
+    "laneWidth": 2,
+    "pointArea": 3
   },
   "battle": {
     // Seconds to open the Battle before the fighting starts.

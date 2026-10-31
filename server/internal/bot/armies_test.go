@@ -172,3 +172,41 @@ func TestItRetreatsFromALostBattle(t *testing.T) {
 		t.Error("Easy Retreated")
 	}
 }
+
+func TestANeutralGarrisonCountsTheTurretsItsBudgetBuys(t *testing.T) {
+	b := hard(t)
+	yes := true
+	b.c.Buildings = map[string]cs.Building{
+		"base:cheap": {PadTurret: &yes, Cost: map[string]int{"base:credits": 100}, Combat: &cs.Combat{Hp: 40, Damage: "1d4"}},
+		"base:dear":  {PadTurret: &yes, Cost: map[string]int{"base:credits": 300}, Combat: &cs.Combat{Hp: 90, Damage: "1d8"}},
+	}
+	r := b.c.Rulesets[game.RulesetID]
+	r.Battle.NeutralFunds = map[string]int{"base:credits": 250} // two cheap ones, not a dear one
+	r.Battlefield.BuildPads = 4
+	b.c.Rulesets[game.RulesetID] = r
+	v := view(nil, 0)
+	turrets := func(fs []fighter) (n int) {
+		for _, f := range fs {
+			if f.cb == b.c.Buildings["base:cheap"].Combat {
+				if f.n != turretShare {
+					t.Errorf("a turret counted at %v; want %v", f.n, turretShare)
+				}
+				n++
+			}
+		}
+		return
+	}
+
+	b.seen = map[string]sighting{"b": {game.PlanetView{ID: "b", Owner: game.Neutral, Stacks: marines(3)}, v.Time}}
+	if got := b.defenders(v, "b"); len(got) != 3 || turrets(got) != 2 {
+		t.Errorf("a neutral garrison of Marines: %d fighters, %d turrets; want its Marines and 2 cheap turrets", len(got), turrets(got))
+	}
+	b.seen["b"] = sighting{game.PlanetView{ID: "b", Owner: 1, Stacks: marines(3)}, v.Time}
+	if got := b.defenders(v, "b"); turrets(got) != 0 {
+		t.Errorf("a player's Planet: %d turrets; want none, as players buy their own", turrets(got))
+	}
+	b.seen["b"] = sighting{game.PlanetView{ID: "b", Owner: game.Neutral}, v.Time}
+	if got := b.defenders(v, "b"); len(got) != 0 {
+		t.Errorf("an empty neutral Planet: %d fighters; want none, as there's no Battle to buy turrets for", len(got))
+	}
+}
