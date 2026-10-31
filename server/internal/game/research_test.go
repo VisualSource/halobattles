@@ -87,17 +87,31 @@ func TestEachIdleFieldIsDealtAHandOfItsOwnOpenTechs(t *testing.T) {
 	s.Planets["b"].Buildings[0] = "base:station" // Industry 4 opens its Uncommons, not Military's
 	s.Planets["b"].Buildings[1] = "base:mine"
 	s.Advance(c, 1000)
-	if got := s.View(c, 0).Research.Hands; !maps.EqualFunc(got, hands, slices.Equal) {
-		t.Errorf("hands changed to %v without a pick; they stay until one", got)
-	}
-	s.Players[0].Hands = nil
-	s.Advance(c, 2000)
 	got := s.View(c, 0).Research.Hands
-	if ind := slices.Sorted(slices.Values(got["base:industry"])); !slices.Equal(ind, []string{"base:drill", "base:geology", "base:optics"}) {
-		t.Errorf("redrawn Industry hand %v; want Drill, Geology and Optics", ind)
+	if ind := got["base:industry"]; len(ind) != 3 || ind[0] != "base:drill" ||
+		!slices.Equal(slices.Sorted(slices.Values(ind)), []string{"base:drill", "base:geology", "base:optics"}) {
+		t.Errorf("Industry hand %v; want Drill kept, topped up with Geology and Optics", ind)
 	}
 	if mil := got["base:military"]; !slices.Equal(mil, []string{"base:radar"}) {
-		t.Errorf("redrawn Military hand %v; want only Radar, since Military is still at 2", mil)
+		t.Errorf("Military hand %v; want only Radar, since Military is still at 2", mil)
+	}
+
+	s.Planets["b"].Buildings[2] = "base:station" // more Research, but the hands are full
+	s.Advance(c, 2000)
+	if again := s.View(c, 0).Research.Hands; !maps.EqualFunc(again, got, slices.Equal) {
+		t.Errorf("hands changed to %v without a pick; a full hand stays until one", again)
+	}
+}
+
+func TestAShortHandWaitingOnAnEmptyPoolUsesNoDraws(t *testing.T) {
+	s, c := fixedMatch(t), researchContent()
+	s.Advance(c, 0) // Military holds only Radar; Sonar isn't open at 2
+	draws := s.Players[0].Draws
+	for ms := int64(1000); ms <= 5000; ms += 1000 {
+		s.Advance(c, ms)
+	}
+	if got := s.Players[0].Draws; got != draws {
+		t.Errorf("Draws went %d → %d over ticks with nothing to draw; later hands would depend on tick timing", draws, got)
 	}
 }
 

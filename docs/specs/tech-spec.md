@@ -69,7 +69,8 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
   - has its requirements met;
   - is of a Rarity that field's Research rate has opened.
 - **Draw weights by Rarity:** Common 10, Uncommon 6, Rare 3, Legendary 1. With fewer than 3 Techs in the pool, the hand is smaller; with none, the field sits idle.
-- **Picking** a card and a Lab with a free Tech Slot starts its Project. The hand stays until the player picks; there are no rerolls. When the field is free again, its next hand is drawn. Unpicked cards go back to the pool.
+- **A short hand tops up:** while it holds fewer than 3 cards, it draws from the pool as Techs open there (a requirement met, or a Rarity opened), keeping the cards it has.
+- **Picking** a card and a Lab with a free Tech Slot starts its Project. The hand's cards stay until the player picks; there are no rerolls. When the field is free again, its next hand is drawn. Unpicked cards go back to the pool.
 - Draws use the Match seed, so a Match replays the same.
 
 ### Rarity

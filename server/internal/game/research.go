@@ -122,8 +122,9 @@ func (s *State) requirementsMet(c *cs.Content, seat int, tech string, held map[s
 }
 
 // pool is every Tech of field seat could be offered: its Faction's or
-// shared, not held, running or saved, with its requirements met, of a
-// Rarity the field's Research rate has opened. Sorted, so draws replay.
+// shared, not held, running, saved or already in hand, with its
+// requirements met, of a Rarity the field's Research rate has opened.
+// Sorted, so draws replay.
 func (s *State) pool(c *cs.Content, seat int, field string, rate int) []string {
 	pl := s.Players[seat]
 	held := s.heldTechs(c, seat)
@@ -137,6 +138,7 @@ func (s *State) pool(c *cs.Content, seat int, field string, rate int) []string {
 			held[id],
 			slices.ContainsFunc(pl.Projects, func(p Project) bool { return p.Tech == id }),
 			slices.ContainsFunc(pl.Saved, func(v Saved) bool { return v.Tech == id }),
+			slices.Contains(pl.Hands[field], id),
 			rate < rarities[string(t.Rarity)].From,
 			!s.requirementsMet(c, seat, id, held):
 			continue
@@ -146,16 +148,20 @@ func (s *State) pool(c *cs.Content, seat int, field string, rate int) []string {
 	return out
 }
 
-// drawHand deals seat a new hand for field from its pool, weighted by
-// Rarity and without repeats, from seat's own stream of the Match seed. An
-// empty pool deals nothing, so the next tick tries again.
+// drawHand tops seat's hand for field up to the hand size from its pool,
+// weighted by Rarity and without repeats, from seat's own stream of the
+// Match seed. Cards already in hand stay. An empty pool deals nothing, so
+// the next tick tries again.
 func (s *State) drawHand(c *cs.Content, seat int, field string, rate int) {
 	pl := &s.Players[seat]
 	rules := c.Rulesets[RulesetID].Tech
+	pool := s.pool(c, seat, field, rate)
+	if len(pool) == 0 {
+		return // no draw, so a short hand waiting each tick doesn't use up the stream
+	}
 	rng := rand.New(rand.NewPCG(s.Seed, uint64(seat)<<32|pl.Draws))
 	pl.Draws++
-	pool := s.pool(c, seat, field, rate)
-	var hand []string
+	hand := slices.Clone(pl.Hands[field])
 	for len(hand) < rules.HandSize && len(pool) > 0 {
 		total := 0
 		for _, id := range pool {
@@ -278,7 +284,7 @@ func (p Project) done(now int64) float64 { return p.Done + p.Rate*float64(now-p.
 // Project pauses, leaving its field idle, while its Lab's Planet is Locked
 // or a building it requires is missing. A Project
 // whose Lab is gone stops and is saved. A finished one is held in its Lab.
-// Each field with no Project and no hand is dealt one.
+// Each field with no Project and a short hand is topped up from its pool.
 func (s *State) research(c *cs.Content, now int64) {
 	for seat := range s.Players {
 		pl := &s.Players[seat]
@@ -312,9 +318,9 @@ func (s *State) research(c *cs.Content, now int64) {
 			}
 		}
 		for _, f := range slices.Sorted(maps.Keys(rates)) {
-			_, dealt := pl.Hands[f]
+			short := len(pl.Hands[f]) < c.Rulesets[RulesetID].Tech.HandSize
 			busy := slices.ContainsFunc(pl.Projects, func(p Project) bool { return string(c.Techs[p.Tech].Field) == f })
-			if !dealt && !busy {
+			if short && !busy {
 				s.drawHand(c, seat, f, rates[f])
 			}
 		}
