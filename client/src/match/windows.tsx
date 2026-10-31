@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
+import type { Building } from "../gen/content";
 import { progress, seatColour } from "../scene/galaxy";
 import {
   amounts,
@@ -497,20 +498,33 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
             className={`border-ok-edge bg-ok-wash rounded-md border px-2.5 py-2 transition-transform duration-300 ${amounts(content, upkeep) ? "" : "translate-x-[calc(100%+0.5rem)]"}`}
           >
             <div className={`${label} text-ok`}>Produces / Payday</div>
-            <div className="mt-1 font-mono text-sm">
+            {/* One line each, cut short: wrapping as buildings come and go resized the window. */}
+            <div
+              title={amounts(content, produces)}
+              className="mt-1 truncate font-mono text-sm"
+            >
               {amounts(content, produces) || "Nothing"}
             </div>
-            <div className="text-ink-2 mt-0.5 text-[11px]">
+            <div
+              title={madeBy.join(" · ")}
+              className="text-ink-2 mt-0.5 truncate text-[11px]"
+            >
               {madeBy.join(" · ")}
             </div>
           </div>
           {amounts(content, upkeep) && (
             <div className="border-danger/40 bg-danger-wash rounded-md border px-2.5 py-2">
               <div className={`${label} text-danger`}>Upkeep / Payday</div>
-              <div className="mt-1 font-mono text-sm">
+              <div
+                title={amounts(content, upkeep)}
+                className="mt-1 truncate font-mono text-sm"
+              >
                 {amounts(content, upkeep)}
               </div>
-              <div className="text-ink-2 mt-0.5 text-[11px]">
+              <div
+                title={paidBy.join(" · ")}
+                className="text-ink-2 mt-0.5 truncate text-[11px]"
+              >
                 {paidBy.join(" · ")}
               </div>
             </div>
@@ -691,7 +705,7 @@ function BuildingsTab(props: {
     setPick(slot === null ? null : { planet: planet.id, slot });
   const refund = content.rules.sellRefundPercent / 100;
   // A fixed height, so the grid doesn't shift as buildings come and go.
-  const card = "flex h-38 flex-col gap-2 rounded-md border border-l-3 p-2";
+  const card = "flex h-40 flex-col gap-2 rounded-md border border-l-3 p-2";
   // The Lab slot whose sale is being confirmed: it holds Techs.
   const [selling, setSelling] = useState<number | null>(null);
   const sellingTechs = (
@@ -843,126 +857,129 @@ function BuildingsTab(props: {
                 className={`${card} border-line bg-item`}
                 style={{ borderLeftColor: ROLES[role].colour }}
               >
-                <div className="flex items-center gap-2">
-                  <RoleIcon role={role} />
-                  <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                    <span className="truncate font-semibold">{b.name}</span>
-                    <span
-                      className="font-mono text-[10px] tracking-[0.08em] uppercase"
-                      style={{ color: ROLES[role].colour }}
-                    >
-                      {ROLES[role].name}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={`About ${b.name}`}
-                    {...info.trigger(b.id)}
-                    className="border-edge text-ink-3 flex size-5.5 flex-none cursor-help items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic"
-                  >
-                    i
-                  </button>
-                  {editable && (
-                    <button
-                      type="button"
-                      disabled={isPending(local, "sell")}
-                      onClick={() =>
-                        planet.labs.get(i)?.length
-                          ? setSelling(i)
-                          : conn.sellBuilding(planet.id, i)
-                      }
-                      title={`Refunds ${amounts(content, b.cost, refund)}`}
-                      className={smallButton}
-                    >
-                      Sell
-                    </button>
-                  )}
-                </div>
-                {b.techSlots ? (
-                  <LabSlots
-                    content={content}
-                    holds={planet.labs.get(i) ?? []}
-                    researching={
-                      planet.owner === view?.you
-                        ? (view?.research.projects ?? [])
-                            .filter(
-                              (p) => p.planet === planet.id && p.slot === i,
-                            )
-                            .map((p) => p.tech)
-                        : []
-                    }
-                    slots={b.techSlots}
-                  />
-                ) : (
-                  <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto text-[13px]">
-                    {factsOf(content, b, planet.richness).map((f) => (
-                      <span key={f.line} className="flex flex-col">
-                        {f.line}
-                        {f.sub && (
-                          <span className="text-ink-3 text-[11.5px]">
-                            {f.sub}
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="border-line border-t pt-1 font-mono text-[11px]">
-                  {amounts(content, b.upkeep) ? (
-                    <span className="text-danger">
-                      Upkeep {amounts(content, b.upkeep)} / Payday
-                    </span>
-                  ) : (
-                    <span className="text-ink-4">No upkeep</span>
-                  )}
-                </div>
+                <BuildingFace
+                  content={content}
+                  building={b}
+                  richness={planet.richness}
+                  actions={
+                    <>
+                      <button
+                        type="button"
+                        aria-label={`About ${b.name}`}
+                        {...info.trigger(b.id)}
+                        className="border-edge text-ink-3 flex size-5.5 flex-none cursor-help items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic"
+                      >
+                        i
+                      </button>
+                      {editable && (
+                        <button
+                          type="button"
+                          disabled={isPending(local, "sell")}
+                          onClick={() =>
+                            planet.labs.get(i)?.length
+                              ? setSelling(i)
+                              : conn.sellBuilding(planet.id, i)
+                          }
+                          title={`Refunds ${amounts(content, b.cost, refund)}`}
+                          className={smallButton}
+                        >
+                          Sell
+                        </button>
+                      )}
+                    </>
+                  }
+                  body={
+                    b.techSlots ? (
+                      <LabSlots
+                        content={content}
+                        holds={planet.labs.get(i) ?? []}
+                        researching={
+                          planet.owner === view?.you
+                            ? (view?.research.projects ?? [])
+                                .filter(
+                                  (p) => p.planet === planet.id && p.slot === i,
+                                )
+                                .map((p) => p.tech)
+                            : []
+                        }
+                        slots={b.techSlots}
+                      />
+                    ) : undefined
+                  }
+                />
               </div>
             );
           }
           if (building) {
             const def = content.buildings.get(building.building);
             const role = def ? roleOf(def) : "special";
+            const label = building.paused
+              ? "Paused"
+              : building.started
+                ? "Building"
+                : "Queued";
+            const left = building.endsAt
+              ? building.endsAt - now
+              : building.remaining;
+            // shortcut: the refund is worked out from today's Sprawl, not what was paid (the View doesn't carry it); send QueueItem.Paid if they drift apart in play.
+            const back = building.started
+              ? content.rules.cancelRefundPercent / 100
+              : 1;
             return (
               <div
                 key={key}
-                className={`${card} border-edge border-dashed`}
-                style={{
-                  borderLeftColor: ROLES[role].colour,
-                  borderLeftStyle: "solid",
-                }}
+                className={`${card} border-line bg-item relative overflow-hidden`}
+                style={{ borderLeftColor: ROLES[role].colour }}
               >
-                <div className="flex items-center gap-2">
-                  <RoleIcon role={role} />
-                  <span className="flex-1 font-semibold">
-                    {def?.name ?? building.building}{" "}
-                    <span className="text-ink-3 font-normal">· building</span>
-                  </span>
+                {/* What it'll be once built, dimmed under its progress. */}
+                <div
+                  aria-hidden="true"
+                  className="flex min-h-0 flex-1 flex-col gap-2 opacity-30 saturate-60"
+                >
+                  {def && (
+                    <BuildingFace
+                      content={content}
+                      building={def}
+                      richness={planet.richness}
+                    />
+                  )}
+                </div>
+                <div className="from-ground/70 to-ground/90 absolute inset-0 flex flex-col justify-center gap-2 bg-linear-to-b px-3.5 py-3">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span
+                      className="font-mono text-[13px] font-semibold tracking-[0.14em] uppercase"
+                      style={{
+                        color: building.paused
+                          ? "var(--color-danger)"
+                          : ROLES[role].colour,
+                      }}
+                    >
+                      {label}
+                      <span className="sr-only"> {def?.name}</span>
+                    </span>
+                    {building.started && (
+                      <span className="text-ink-2 font-mono text-xs">
+                        {Math.max(0, Math.ceil(left / 1000))} s left
+                      </span>
+                    )}
+                  </div>
+                  <Progress
+                    item={building}
+                    total={(def?.buildTime ?? 0) * 1000}
+                    offset={local.clockOffset}
+                  />
                   {editable && (
                     <button
                       type="button"
                       disabled={isPending(local, "cancel")}
                       onClick={() => conn.cancelQueueItem(building.id)}
-                      className={smallButton}
+                      title={`Refunds ${amounts(content, sprawled(content, view, def?.cost ?? {}), back)}`}
+                      className={`${smallButton} self-center`}
                     >
                       Cancel
                     </button>
                   )}
                 </div>
-                <div className="flex items-end justify-between">
-                  <span className="text-ink-3 text-[13px]">
-                    {def && factsOf(content, def, planet.richness)[0]?.line}
-                  </span>
-                  <span
-                    className={`font-mono text-xs ${building.paused ? "text-danger" : "text-ink-3"}`}
-                  >
-                    {queueStatus(building, now)}
-                  </span>
-                </div>
-                <Progress
-                  item={building}
-                  total={(def?.buildTime ?? 0) * 1000}
-                  offset={local.clockOffset}
-                />
               </div>
             );
           }
@@ -971,7 +988,7 @@ function BuildingsTab(props: {
               key={key}
               type="button"
               onClick={() => setPicking(i)}
-              className="border-edge text-ink-2 flex h-38 flex-col items-center justify-center gap-1 rounded-md border-dashed bg-transparent"
+              className="border-edge text-ink-2 flex h-40 flex-col items-center justify-center gap-1 rounded-md border-dashed bg-transparent"
             >
               <span className="text-accent text-2xl">+</span>
               Build
@@ -992,6 +1009,60 @@ function BuildingsTab(props: {
 }
 
 /**
+ * A building's card as it is when built: its role, name and any actions,
+ * what it does on this Planet (or another body, such as a Lab's slots),
+ * and its upkeep.
+ */
+function BuildingFace(props: {
+  content: ContentLookups;
+  building: Building;
+  richness: Map<string, string>;
+  actions?: ReactNode;
+  body?: ReactNode;
+}) {
+  const { content, building: b } = props;
+  const role = roleOf(b);
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <RoleIcon role={role} />
+        <span className="flex min-w-0 flex-1 flex-col leading-tight">
+          <span className="truncate font-semibold">{b.name}</span>
+          <span
+            className="font-mono text-[10px] tracking-[0.08em] uppercase"
+            style={{ color: ROLES[role].colour }}
+          >
+            {ROLES[role].name}
+          </span>
+        </span>
+        {props.actions}
+      </div>
+      {props.body ?? (
+        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto text-[13px]">
+          {factsOf(content, b, props.richness).map((f) => (
+            <span key={f.line} className="flex flex-col">
+              {f.line}
+              {f.sub && (
+                <span className="text-ink-3 text-[11.5px]">{f.sub}</span>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="border-line border-t pt-1 font-mono text-[11px]">
+        {amounts(content, b.upkeep) ? (
+          <span className="text-danger">
+            Upkeep {amounts(content, b.upkeep)} / Payday
+          </span>
+        ) : (
+          <span className="text-ink-4">No upkeep</span>
+        )}
+      </div>
+    </>
+  );
+}
+
+/**
  * A Lab's Tech Slots: the Techs it holds, the Projects reserving one, then
  * the free ones. Other players see what it holds too.
  */
@@ -1007,11 +1078,12 @@ function LabSlots(props: {
     props.slots - props.holds.length - props.researching.length,
   );
   return (
-    <ul className="flex min-h-14 flex-col gap-1">
+    // Scrolls inside the card past what fits, rather than squashing each slot.
+    <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
       {props.holds.map((t) => (
         <li
           key={t}
-          className="border-edge bg-tile truncate rounded border px-2 py-0.5 text-xs"
+          className="border-edge bg-tile flex-none truncate rounded border px-2 py-0.5 text-xs"
         >
           {name(t)}
         </li>
@@ -1019,7 +1091,7 @@ function LabSlots(props: {
       {props.researching.map((t) => (
         <li
           key={t}
-          className="border-accent text-accent truncate rounded border px-2 py-0.5 text-xs"
+          className="border-accent text-accent flex-none truncate rounded border px-2 py-0.5 text-xs"
         >
           {name(t)} · researching
         </li>
@@ -1027,7 +1099,7 @@ function LabSlots(props: {
       {Array.from({ length: free }, (_, n) => `free-${n}`).map((key) => (
         <li
           key={key}
-          className="border-edge text-ink-4 rounded border border-dashed px-2 py-0.5 text-xs"
+          className="border-edge text-ink-4 flex-none rounded border border-dashed px-2 py-0.5 text-xs"
         >
           Free Tech Slot
         </li>
