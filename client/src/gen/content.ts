@@ -769,6 +769,10 @@ export interface UnitClass {
    * Flies: ignores cover and high ground both ways, and shares a cell with one ground unit.
    */
   air?: boolean;
+  /**
+   * Its part in a Battle AI Task Force: lead (goes in first, ahead of the rest), follow (keeps behind the leaders) or hunt (goes for enemies it fights at a better tier than the rest of the force). Defaults to follow.
+   */
+  taskForceRole?: "lead" | "follow" | "hunt";
 }
 /**
  * A kind of damage, with a multiplier for each layer it hits.

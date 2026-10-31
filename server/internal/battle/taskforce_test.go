@@ -16,7 +16,7 @@ func moves(orders []Order) map[int]Order {
 	return out
 }
 
-func TestATaskForceGathersThenGoesInTogetherAtTheSlowestPace(t *testing.T) {
+func TestATaskForceGathersThenGoesInBehindItsVehiclesAtTheSlowestPace(t *testing.T) {
 	s := aiSim(t, Force{Formations: [][]Slot{{{"base:marine", 5, 0}, {"base:warthog", 1, 1}}}},
 		Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
 	marines, warthog := s.Squads[0], s.Squads[1]
@@ -47,10 +47,29 @@ func TestATaskForceGathersThenGoesInTogetherAtTheSlowestPace(t *testing.T) {
 	if !tf.going {
 		t.Fatal("gathered, yet it didn't go in")
 	}
-	for _, sq := range []*Squad{marines, warthog} {
-		if o, ok := sent[sq.ID]; !ok || o.Pace != marines.speed {
-			t.Errorf("%s: order %+v; want a move at the Marines' pace %v", sq.Unit, o, marines.speed)
+	if o, ok := sent[warthog.ID]; !ok || o.Pace != marines.speed {
+		t.Errorf("the Warthog: order %+v; want it leading at the Marines' pace %v", o, marines.speed)
+	}
+	if o, ok := sent[marines.ID]; ok {
+		t.Errorf("the Marines: order %+v; want them waiting till the Warthog is ahead", o)
+	}
+
+	// The Warthog gets ahead: the Marines follow, at their own pace.
+	for _, o := range ai.Orders(v) {
+		s.apply(Attacker, o)
+	}
+	ahead := func() float64 { return dist(marines.Cell, tf.goal.cell) - dist(warthog.Cell, tf.goal.cell) }
+	for range 20 * TicksPerSecond {
+		if ahead() > followDist+1 {
+			break
 		}
+		s.move()
+	}
+	s.Tick++
+	sent = moves(ai.Orders(v))
+	if o, ok := sent[marines.ID]; !ok || o.Pace != marines.speed {
+		t.Errorf("the Warthog %.0f cells nearer the goal: the Marines' order %+v; want them following at pace %v",
+			ahead(), o, marines.speed)
 	}
 }
 
@@ -187,5 +206,153 @@ func TestAGuardLeavesAQuietPointForOneUnderThreat(t *testing.T) {
 	ai.command(v, v.Own(), nil)
 	if p := ai.plans[a.ID]; p == nil || p.goal.kind != defend || p.goal.cell != hot {
 		t.Errorf("plan %+v; want the guard sent to hold the threatened point %v", p, hot)
+	}
+}
+
+// targetSim has a Task Force of two Marine squads with two Grunt squads in
+// range: one nearer and smaller, one further off.
+func targetSim(t *testing.T) (s *Sim, ai *AI, tf *taskForce, near, far *Squad) {
+	t.Helper()
+	s = aiSim(t, Force{Formations: marines(2)}, Force{Formations: [][]Slot{{{"base:grunt", 3, 0}, {"base:grunt", 5, 1}}}})
+	a, b := s.Squads[0], s.Squads[1]
+	near, far = s.Squads[2], s.Squads[3]
+	freeAt(t, s, a, s.Points[0].Cell, 0)
+	freeAt(t, s, b, a.Cell, 1)
+	freeAt(t, s, near, a.Cell, 3)
+	freeAt(t, s, far, a.Cell, 5)
+	s.see()
+	ai = NewAI(WeightsOf(nil))
+	v := View{s, Attacker}
+	ai.form(v, []goal{{kind: capture, cell: s.Points[1].Cell}}, [][]*Squad{{a, b}})
+	tf = ai.forceOf[a.ID]
+	tf.going = true
+	for _, sq := range tf.members {
+		ai.plans[sq.ID] = &plan{goal: tf.goal}
+	}
+	return
+}
+
+func TestATaskForcesSquadsAllFireOnOneTarget(t *testing.T) {
+	s, ai, tf, near, _ := targetSim(t)
+	v := View{s, Attacker}
+	ai.pickTarget(v, tf, v.Enemies())
+	if tf.target != near.ID {
+		t.Fatalf("target %d; want the nearer, smaller squad %d", tf.target, near.ID)
+	}
+	s.Tick = 1 // between the Commander's passes
+	attacks := map[int]int{}
+	for _, o := range ai.Orders(v) {
+		if o.Kind == Attack {
+			attacks[o.Squad] = o.Target
+		}
+	}
+	for _, sq := range tf.members {
+		if attacks[sq.ID] != near.ID {
+			t.Errorf("squad %d attacks %d; want the force's target %d", sq.ID, attacks[sq.ID], near.ID)
+		}
+	}
+}
+
+func TestATaskForceTurnsOnWhateverShootsOneOfItsSquads(t *testing.T) {
+	s, ai, tf, _, far := targetSim(t)
+	v := View{s, Attacker}
+	s.Tick = 10
+	tf.members[1].hitBy, tf.members[1].hitAt = far.ID, s.Tick-1
+	ai.pickTarget(v, tf, v.Enemies())
+	if tf.target != far.ID {
+		t.Errorf("target %d; want %d, which just fired on one of its squads", tf.target, far.ID)
+	}
+}
+
+func TestATaskForcesAircraftHuntWhatTheRestFightBadly(t *testing.T) {
+	s := aiSim(t, Force{Formations: [][]Slot{{{"base:marine", 5, 0}, {"base:hornet", 1, 1}}}},
+		Force{Formations: [][]Slot{{{"base:grunt", 1, 0}, {"base:ghost", 1, 1}}}})
+	marines, hornet, grunts, ghost := s.Squads[0], s.Squads[1], s.Squads[2], s.Squads[3]
+	freeAt(t, s, marines, s.Points[0].Cell, 0)
+	freeAt(t, s, hornet, marines.Cell, 1)
+	freeAt(t, s, grunts, marines.Cell, 3)
+	freeAt(t, s, ghost, marines.Cell, 4)
+	s.see()
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Attacker}
+	ai.form(v, []goal{{kind: capture, cell: s.Points[1].Cell}}, [][]*Squad{{marines, hornet}})
+	tf := ai.forceOf[marines.ID]
+	ai.pickTarget(v, tf, v.Enemies())
+	if tf.target != grunts.ID || tf.huntTarget != ghost.ID {
+		t.Errorf("target %d, hunt %d; want the Grunts %d for the force and the Ghost %d, which Marines fight at Disadvantage, for the Hornet",
+			tf.target, tf.huntTarget, grunts.ID, ghost.ID)
+	}
+	if o := ai.aim(v, hornet, tf); len(o) != 1 || o[0].Target != ghost.ID {
+		t.Errorf("the Hornet's orders %+v; want an attack on the Ghost", o)
+	}
+}
+
+func TestAGuardShotFromJustOffItsLeashAnswers(t *testing.T) {
+	s := aiSim(t, Force{Formations: [][]Slot{{{"base:warthog", 1, 0}}}}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
+	a, d := s.Squads[0], s.Squads[1]
+	point := s.Points[0].Cell
+	ai := NewAI(WeightsOf(nil))
+	p := &plan{goal: goal{kind: defend, cell: point}}
+	ai.plans[d.ID] = p
+	freeAt(t, s, d, point, 0)
+	freeAt(t, s, a, point, leash+1) // off the leash, in a Warthog's range (7) of the guard
+	s.see()
+	if !s.visible[Defender][a.ID] {
+		t.Skip("the Warthog isn't in sight from here on this Battlefield")
+	}
+	v := View{s, Defender}
+	s.Tick = 1 // between the Commander's runs
+	ai.Orders(v)
+	if p.engaged != 0 {
+		t.Fatalf("engaged %d with no shot fired; want the guard on its point", p.engaged)
+	}
+	s.Tick = 2
+	d.hitBy, d.hitAt = a.ID, s.Tick-1
+	ai.Orders(v)
+	if p.engaged != a.ID {
+		t.Errorf("engaged %d; want the guard answering the Warthog that shot it from off its leash", p.engaged)
+	}
+}
+
+func TestASquadThatLeavesItsTaskForceDropsTheForcesTarget(t *testing.T) {
+	s, ai, tf, near, _ := targetSim(t)
+	v := View{s, Attacker}
+	ai.pickTarget(v, tf, v.Enemies())
+	sq := tf.members[0]
+	for _, o := range ai.aim(v, sq, tf) {
+		s.apply(Attacker, o)
+	}
+	if sq.target != near.ID {
+		t.Fatalf("target %d; want the force's %d", sq.target, near.ID)
+	}
+	for _, o := range ai.aim(v, sq, nil) { // it's left the force, say to guard a point
+		s.apply(Attacker, o)
+	}
+	if sq.target != 0 {
+		t.Errorf("target %d after leaving its Task Force; want it back to the sim's own pick", sq.target)
+	}
+}
+
+func TestFollowersComeOnOnceTheirLeadersStall(t *testing.T) {
+	s := aiSim(t, Force{Formations: [][]Slot{{{"base:marine", 5, 0}, {"base:warthog", 1, 1}}}},
+		Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
+	marines, warthog := s.Squads[0], s.Squads[1]
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Attacker}
+	ai.form(v, []goal{{kind: capture, cell: s.Points[0].Cell}}, [][]*Squad{{marines, warthog}})
+	tf := ai.forceOf[marines.ID]
+	tf.going = true
+	freeAt(t, s, warthog, s.Points[0].Cell, 12)
+	freeAt(t, s, marines, warthog.Cell, 1) // level with it: it should wait
+	if dist(marines.Cell, tf.goal.cell) >= dist(warthog.Cell, tf.goal.cell)+followDist {
+		t.Skip("the Marines landed well behind the Warthog on this Battlefield")
+	}
+	p := &plan{goal: tf.goal}
+	if _, waits := ai.follow(v, marines, p, tf); !waits {
+		t.Fatal("the Warthog just set off: want the Marines waiting behind it")
+	}
+	s.Tick += stallTicks + 1 // the Warthog gets no nearer: stuck, or fighting
+	if _, waits := ai.follow(v, marines, p, tf); waits {
+		t.Error("the Warthog has stalled: want the Marines coming on")
 	}
 }

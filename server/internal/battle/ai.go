@@ -99,10 +99,11 @@ type plan struct {
 	members   int  // its count when planned: a loss replans
 	moveTo    Cell // where the current step sent it
 	sent      bool
-	engaged   int // guarding a point: the enemy it has left the point to fight, or 0
-	beat      int // a guard's place on its beat round its point
-	beatAt    int // the tick it last set out on its beat
-	beatUntil int // the tick it's back from its beat
+	engaged   int  // guarding a point: the enemy it has left the point to fight, or 0
+	beat      int  // a guard's place on its beat round its point
+	beatAt    int  // the tick it last set out on its beat
+	beatUntil int  // the tick it's back from its beat
+	waiting   bool // a Task Force follower holding back behind its leaders
 }
 
 // AI drives a side: a Commander that hands each squad a goal, and a
@@ -237,6 +238,8 @@ func (ai *AI) Orders(v View) []Order {
 				p.goal.cell = t.Cell
 			}
 		}
+		tf := ai.forceOf[sq.ID]
+		out = append(out, ai.aim(v, sq, tf)...)
 		if e := ai.foe(v, sq, p, enemies); e != nil {
 			if s.tier(sq, e) == None {
 				out = append(out, ai.evade(v, sq, p, e)...)
@@ -248,10 +251,15 @@ func (ai *AI) Orders(v View) []Order {
 		if p.engaged != 0 { // it's dead or gone: back to the plan
 			p.engaged, p.steps, p.sent, p.moveTo = 0, nil, false, Cell{}
 		}
-		tf := ai.forceOf[sq.ID]
 		if tf != nil && !tf.going {
 			out = append(out, ai.gather(v, sq, p, tf)...)
 			continue
+		}
+		if tf != nil {
+			if o, ok := ai.follow(v, sq, p, tf); ok {
+				out = append(out, o...)
+				continue
+			}
 		}
 		if p.goal.kind == defend {
 			if v.Tick() < p.beatUntil {
@@ -446,6 +454,9 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		ai.plans[sq.ID] = &plan{goal: goals[best]}
 	}
 	ai.form(v, goals, on)
+	for _, tf := range ai.forces {
+		ai.pickTarget(v, tf, enemies)
+	}
 }
 
 // walkBeat sends an idle guard to the next stop on its beat round its point,
@@ -572,7 +583,9 @@ func (ai *AI) foe(v View, sq *Squad, p *plan, enemies []*Squad) *Squad {
 	case fallback:
 		return nil
 	case defend:
-		if e != nil && s.tier(sq, e) != None && dist(e.Cell, p.goal.cell) <= leash*ai.weightsOf(sq).Aggression {
+		// A shooter it can reach a firing position on from its leash: one
+		// that outranges it from just off the leash isn't left unanswered.
+		if e != nil && s.tier(sq, e) != None && dist(e.Cell, p.goal.cell) <= leash*ai.weightsOf(sq).Aggression+sq.reach {
 			return e
 		}
 		return ai.intruder(v, sq, p, enemies)

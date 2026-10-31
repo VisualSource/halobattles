@@ -13,6 +13,10 @@
     "air": {
       "description": "Flies: ignores cover and high ground both ways, and shares a cell with one ground unit.",
       "type": "boolean"
+    },
+    "taskForceRole": {
+      "description": "Its part in a Battle AI Task Force: lead (goes in first, ahead of the rest), follow (keeps behind the leaders) or hunt (goes for enemies it fights at a better tier than the rest of the force). Defaults to follow.",
+      "enum": ["lead", "follow", "hunt"]
     }
   }
 }

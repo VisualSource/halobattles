@@ -1083,7 +1083,18 @@ type UnitClass struct {
 
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Its part in a Battle AI Task Force: lead (goes in first, ahead of the rest),
+	// follow (keeps behind the leaders) or hunt (goes for enemies it fights at a
+	// better tier than the rest of the force). Defaults to follow.
+	TaskForceRole *UnitClassTaskForceRole `json:"taskForceRole,omitempty,omitzero"`
 }
+
+type UnitClassTaskForceRole string
+
+const UnitClassTaskForceRoleFollow UnitClassTaskForceRole = "follow"
+const UnitClassTaskForceRoleHunt UnitClassTaskForceRole = "hunt"
+const UnitClassTaskForceRoleLead UnitClassTaskForceRole = "lead"
 
 type UnitRolesElem string
 

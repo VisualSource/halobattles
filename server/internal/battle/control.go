@@ -7,7 +7,7 @@ type OrderKind int
 
 const (
 	Move   OrderKind = iota // go to Cell
-	Attack                  // fire at Target whenever it can
+	Attack                  // fire at Target whenever it can; Target 0 clears it
 	Hold                    // stop, and fire at whatever's in range
 	// Retreat starts the side's Retreat countdown; Squad is ignored. When it
 	// runs out, every squad that can move heads off the field.

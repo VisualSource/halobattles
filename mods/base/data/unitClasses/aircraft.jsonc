@@ -2,5 +2,6 @@
   "$schema": "../../../../schema/content/unit-class.schema.json",
   "id": "aircraft",
   "name": "Aircraft",
-  "air": true
+  "air": true,
+  "taskForceRole": "hunt"
 }

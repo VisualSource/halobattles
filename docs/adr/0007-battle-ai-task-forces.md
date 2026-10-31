@@ -7,8 +7,8 @@ Under ADR 0005, the Commander scores goals and gives each Squad the one it score
 We add a layer between the Commander and the Squads: the **Task Force**, a few of a side's Squads that the Commander gives one goal.
 
 - The Commander forms Task Forces and sizes each one against the threat it has seen at the goal: enough strength to beat it, by a margin that is a Faction weight. It doesn't send one Squad per goal. A Task Force has at most 4 Squads, so a big side splits into several, which come in from different bearings. The Squads it needs on its points still guard them.
-- A Task Force moves as one. It goes at its slowest member's speed, gathers at a staging cell out of the goal's threat, and goes in when its Squads are there (#62). It names one target, and its Squads attack it with `attack` orders, on top of the sim's focus fire (#60). When one member is shot at, the others nearby answer.
-- Within a Task Force, roles come from Unit Class: vehicles lead, infantry follows a few cells behind, and aircraft go for what the ground can't hurt. Kiting (#63) is a vehicle's way to fight infantry.
+- A Task Force moves as one. It goes at its slowest member's speed, gathers at a staging cell out of the goal's threat, and goes in when its Squads are there (#62). It names one target, and its Squads attack it with `attack` orders, on top of the sim's focus fire (#60). When one member is shot at, the shooter becomes the target. Members fire on it from where their plan takes them; they don't break off to chase it, which won attackers far too many Battles.
+- Within a Task Force, roles come from Unit Class content (`taskForceRole`): vehicles lead, infantry follows a few cells behind, and aircraft go for what they fight better than the rest of the force. Kiting (#63) is a vehicle's way to fight infantry.
 - Retreat (#61) becomes a Task Force decision, or the side's when every Task Force is losing.
 - Each Squad's GOAP planner stays, and still decides how that Squad gets into position: cover, high ground, regrouping. Scouts and skirmishers stay single Squads.
 

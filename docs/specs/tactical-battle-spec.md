@@ -234,7 +234,7 @@ The AI Controller has a Commander and a planner per Squad ([ADR 0005](../adr/000
 - Any positive `cover` weight makes a side want cover and covered posts. A cutoff of 1 had left the Covenant (0.9) out in the open while UNSC attackers took covered, high firing positions.
 - **Sentry beats:** a guard settled on its point walks a short beat every 8 s, but only while its side knows of no enemy: to a covered cell within 2 cells of the point, or else a spot that far out each way. It pauses there 3 s, then returns. Staying inside the capture radius keeps the point contested. Walking out to 4 cells and to nearby pads got guards caught away from their points: attacker wins rose from 54% to 59%. This version costs about 2 points.
 - **Under fire:** a squad an armed building fired on in the last 3 s breaks off its plan for it. If it can hurt the building, it goes after it (stopping to fire once in range) until the building is dead or out of sight. If it can't hurt it, it moves to the nearest cell outside the building's reach. Enemy squads that fire on it are left to the Commander, which sees them by their muzzle flash: breaking off for every shooter won Starting Kit attackers 70% of Battles instead of 50%.
-- **Leash:** a squad guarding a point goes after the enemy it can see and hurt, best matchup first and then nearest, that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. Armed buildings count as enemies here, and a shooter it can hurt within the leash comes first. At 8 cells, guards left their points open often enough to tip balance toward the attacker.
+- **Leash:** a squad guarding a point goes after the enemy it can see and hurt, best matchup first and then nearest, that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. Armed buildings count as enemies here, and a shooter it can hurt comes first, out to the leash plus its own range: a Warthog (range 7) firing on a guard from just off its leash isn't left unanswered. At 8 cells, guards left their points open often enough to tip balance toward the attacker. Without answering shooters past the leash, Task Force attackers won 71% / 75% of Starting Kit Battles and 86–88% of big ones.
 - While the attacker's hold timer runs, the defender values retaking a point at 5 instead of 3.
 - **Goals:**
   - `capturePoint(p)`
@@ -251,6 +251,13 @@ The AI Controller has a Commander and a planner per Squad ([ADR 0005](../adr/000
 - **Going in:** the Task Forces on a goal go in together once all have gathered, or once one has waited 20 s. A member counts as gathered within 3 cells of the stage, or once it has got as near as it can. One stopped by a fight on the way is sent on to the stage after it.
 - No gathering for a Task Force already within 11 cells of its goal, after a moving target (kill), or retaking a point for the defender while the attacker's hold timer runs.
 - **Moving together:** once going, every Move a member's plan sends carries the Task Force's **pace**, its slowest member's speed, so faster units don't arrive alone.
+- **One target:** once a second, each Task Force names a target among the enemies in contact with it: ones that fired on a member in the last 3 s, or that a member that can hurt them has within its range + 2 cells. It picks one that fired on a member first, then the one it already has, then the one most of its members can hurt, then the fewest members left, then the nearest. Each member gets an `attack` order on it and fires on it whenever it's in range, while it goes on with its plan. With the sim's focus fire, a Task Force finishes one squad at a time. Measured with three Stacks a side, attacker wins went from 64% / 60% to 61% / 57%; with Starting Kits they were unchanged at 53% / 51%.
+- **Roles by Unit Class:** each Unit Class has a `taskForceRole`, which defaults to `follow`:
+  - `lead` (base Vehicles) goes in first, at the force's pace;
+  - `follow` (base Infantry) keeps 3 cells further from the goal than the nearest leader while the leaders get nearer, and comes on once they reach the goal or have got no nearer for 2 s (fighting, or stuck);
+  - `hunt` (base Aircraft) fires on its own target, an enemy in contact that it fights at a better tier than any of the force's other members, if there is one. Otherwise it uses the force's target.
+- **Not breaking off:** a member doesn't leave its plan to fight the target. Every way of doing so that was tried (anything in Sight, anything nearly in range, only shooters) won Starting Kit attackers 72–84% of Battles: they took firing positions with high ground and cover that guards, tied to their points, couldn't answer. With guards answering shooters off the leash, letting only the leaders break off still won big Battles 77–82%.
+- **Measured** with roles and guards answering: Starting Kit attackers win 51% / 51%, and with three Stacks a side, 52% / 55%.
 - A member under fire still answers as it would alone (see **Under fire** above). Scouts, skirmishers and guards on their points aren't in Task Forces.
 - **Measured:** with gathering but no threatened-point value, Starting Kit attackers won 71% / 73%; without gathering, 60% / 57%. Retakes that gathered while the hold timer ran cost the defender about 10 points.
 
@@ -359,7 +366,7 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
 
 - Two evenly matched forces should fight for about **1–3 minutes**.
 - The two Starting Kits should stay roughly even, with a lean to the defender allowed: either one attacking wins 40–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights. A heavy lean to the defender is as much a problem as one to the attacker.
-- A Go test checks both over 100 seeds per matchup. When last tuned (Task Forces, #65): about 86 s per Battle; UNSC attacking wins 52%, Covenant attacking 52%.
+- A Go test checks both over 100 seeds per matchup. When last tuned (Task Forces, #65): about 82 s per Battle; UNSC attacking wins 51%, Covenant attacking 51%. Three Stacks a side, still skipped under #40: 52% / 55%.
 - The test covers **big Battles** too (three Starting Kit Stacks a side): UNSC attacking wins 56%, Covenant attacking 60%, right at the allowance. They were 73% / 67% before roles, the paused hold timer, guard posts, and cover for any positive weight.
 - Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 
@@ -402,6 +409,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 - **Planet** (in a map): an optional `battlefield {terrainPreset, width, height}`.
 - **Faction:** an optional `ai` weight block.
 - **Building:** an optional `padTurret` flag: it can be built on a build pad in Battle (it needs a `combat` block).
+- **Unit Class:** an optional `taskForceRole`, `lead`, `follow` or `hunt`: its part in a Battle AI Task Force (see [Task Forces](#task-forces)). The base Vehicles lead and Aircraft hunt.
 - **Unit:** an optional `roles` list, `scout` and/or `skirmisher`: hints for which units the Battle AI picks for those jobs first.
 - **`combat` block:** see [Stats](#stats).
 

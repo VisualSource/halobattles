@@ -67,6 +67,7 @@ type Squad struct {
 
 	class                  string
 	air                    bool
+	tfRole                 cs.UnitClassTaskForceRole // its Unit Class's part in a Task Force
 	weapon                 Multipliers
 	dice                   Dice
 	boost                  Boost
@@ -299,6 +300,10 @@ func (s *Sim) stats(sq *Squad, cb *cs.Combat) {
 	w := s.content.WeaponTypes[string(cb.WeaponType)]
 	sq.class = string(cb.UnitClass)
 	sq.air = s.content.UnitClasses[sq.class].Air != nil && *s.content.UnitClasses[sq.class].Air
+	sq.tfRole = cs.UnitClassTaskForceRoleFollow
+	if r := s.content.UnitClasses[sq.class].TaskForceRole; r != nil {
+		sq.tfRole = *r
+	}
 	sq.weapon = Multipliers{w.Shield, w.Armor, w.Hp}
 	sq.dice = parseDice(string(cb.Damage))
 	sq.boost = s.boosts[sq.Side][sq.Unit]
@@ -478,7 +483,9 @@ func (s *Sim) apply(side Side, o Order) {
 		sq.goal, sq.blocked, sq.pace = o.Cell, 0, o.Pace
 		sq.path = s.Field.path(s.costsFor(sq.class), sq.Cell, o.Cell, nil)
 	case Attack:
-		if t := s.squad(o.Target); t != nil && t.Side != side {
+		if o.Target == 0 {
+			sq.target = 0 // back to the sim's own pick
+		} else if t := s.squad(o.Target); t != nil && t.Side != side {
 			sq.target = t.ID
 		}
 	case Hold:
