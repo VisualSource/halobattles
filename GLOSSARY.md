@@ -56,6 +56,10 @@ _Avoid_: Fleet, transfer, stack (when in transit)
 A place on a Planet that holds one building; a Planet has a fixed number of them.
 _Avoid_: District, tile
 
+**Production building**:
+A building that trains units, each with its own unit queue; a Planet can train a unit only while a finished one that trains it stands there.
+_Avoid_: Factory, trainer
+
 **Command Points**:
 A player's cap on the total size of their living and queued units; not spent, only occupied.
 _Avoid_: Supply, population, pop cap

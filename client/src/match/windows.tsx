@@ -1115,7 +1115,8 @@ function UnitsTab(props: {
   const nameOf = (m: "unitClasses" | "weaponTypes", id: string) =>
     content[m].get(id)?.name ?? id;
 
-  if (!trainers.some((b) => planet.buildings.includes(b.id))) {
+  const built = trainers.filter((b) => planet.buildings.includes(b.id));
+  if (!built.length) {
     const names = trainers.map((b) => b.name);
     const list =
       names.length > 1
@@ -1142,25 +1143,19 @@ function UnitsTab(props: {
           Click to train · Shift-click for 5
         </span>
       </div>
-      {trainers.map((b) => {
+      {built.map((b) => {
         const slots = planet.buildings.flatMap((id, i) =>
           id === b.id ? [i] : [],
         );
         // The least busy of this kind of building takes the order.
         const queued = (slot: number) =>
           planet.unitQueue.filter((q) => q.slot === slot).length;
-        const slot = slots.sort((x, y) => queued(x) - queued(y))[0];
+        // Built here, so at least one slot holds it.
+        const slot = slots.sort((x, y) => queued(x) - queued(y))[0]!;
         return (
           <section key={b.id} className="flex flex-col gap-2">
-            <span
-              className={`text-xs ${slot === undefined ? "text-ink-3" : "text-ink-2"}`}
-            >
-              {b.name}
-              {slot === undefined && " · not built here"}
-            </span>
-            <div
-              className={`grid grid-cols-2 gap-2 ${slot === undefined ? "opacity-45" : ""}`}
-            >
+            <span className="text-ink-2 text-xs">{b.name}</span>
+            <div className="grid grid-cols-2 gap-2">
               {(b.trains ?? []).map((id) => {
                 const u = content.units.get(id);
                 if (!u) return null;
@@ -1174,12 +1169,11 @@ function UnitsTab(props: {
                     title={
                       needs.length ? `Needs ${needs.join(" or ")}` : undefined
                     }
-                    disabled={slot === undefined || busy || needs.length > 0}
+                    disabled={busy || needs.length > 0}
                     onClick={(e) =>
-                      slot !== undefined &&
                       conn.queueUnit(planet.id, slot, id, e.shiftKey ? 5 : 1)
                     }
-                    className={`flex items-center gap-2.5 rounded-md p-2 text-left ${slot === undefined ? "border-dashed bg-transparent" : "bg-item"}`}
+                    className="bg-item flex items-center gap-2.5 rounded-md p-2 text-left"
                   >
                     <Tile name={u.name} size="size-12" />
                     <span className="flex flex-col gap-0.5">
