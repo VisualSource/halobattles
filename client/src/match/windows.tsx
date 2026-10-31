@@ -4,6 +4,7 @@ import {
   Fragment,
   type ReactNode,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -629,6 +630,57 @@ function Threat(props: {
   );
 }
 
+/**
+ * A Stack's or an Army's strength, on Threat's scale so it compares with a
+ * target's: in its owner's colour if it's yours, else Threat's by level.
+ */
+function Strength(props: {
+  content: ContentLookups;
+  units: UnitSlot[];
+  colour?: string;
+}) {
+  const { level, top } = threat(props.content, {
+    stacks: [props.units],
+    buildings: [],
+  });
+  const c = props.colour;
+  const id = useId();
+  return (
+    <span className="group relative">
+      <button
+        type="button"
+        aria-describedby={id}
+        className={`flex cursor-default items-center gap-1.5 rounded-[5px] border px-1.5 py-0.5 font-mono text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap uppercase ${c ? "" : (THREAT_LOOK[level] ?? THREAT_LOOK[0])}`}
+        style={
+          c
+            ? { color: c, borderColor: `${c}66`, backgroundColor: `${c}1a` }
+            : {}
+        }
+      >
+        <span aria-hidden="true" className="flex items-end gap-0.5">
+          {THREAT_LEVELS.map((l, i) => (
+            <span
+              key={l}
+              className={`w-1.25 rounded-[1px] ${i <= level ? "bg-current" : "bg-line"}`}
+              style={{ height: 5 + 2 * i }}
+            />
+          ))}
+        </span>
+        {THREAT_LEVELS[level]}
+      </button>
+      <span
+        id={id}
+        role="tooltip"
+        className="border-edge bg-panel text-ink-2 absolute top-full right-0 z-30 mt-1.5 hidden rounded-lg border px-2.5 py-2 text-xs whitespace-nowrap shadow-[0_12px_32px_#000a] group-focus-within:block group-hover:block"
+      >
+        {THREAT_LEVELS[level]} strength
+        {top &&
+          `: mostly its ${top.count} ${top.name}${top.count > 1 ? "s" : ""}`}
+      </span>
+    </span>
+  );
+}
+
 /** One card per Building Slot; an empty one of yours opens the build list. */
 function BuildingsTab(props: {
   conn: MatchConnection;
@@ -1185,9 +1237,6 @@ export function StacksWindow(props: {
   if (!sel?.planet) return null;
   const { planet, editable } = sel;
   const shown = moved ?? planet.stacks;
-  const targets = (content.maps.get(sel.view.map)?.planets ?? []).filter(
-    (p) => p.id !== planet.id,
-  );
   const unitName = (id: string) => content.units.get(id)?.name ?? id;
   const limitOf = (id: string) => content.units.get(id)?.slotLimit ?? 0;
 
@@ -1262,24 +1311,14 @@ export function StacksWindow(props: {
                       Make Rally
                     </button>
                   )}
-                  {editable && (
-                    // Shown even when empty, so emptying a Stack doesn't shift the window.
-                    <select
-                      aria-label={`Send Stack ${i + 1} to`}
-                      value=""
-                      disabled={!stack.length || isPending(local, "order")}
-                      onChange={(e) =>
-                        sendStack(conn, planet.id, i, e.target.value)
+                  {stack.length > 0 && (
+                    <Strength
+                      content={content}
+                      units={stack}
+                      colour={
+                        sel.mine ? seatColour(sel.view.you ?? 0) : undefined
                       }
-                      className="min-h-7 max-w-24 text-xs"
-                    >
-                      <option value="">Send…</option>
-                      {targets.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   )}
                 </div>
                 <ul className="grid grid-cols-5 gap-1.25">
@@ -1602,7 +1641,14 @@ export function ArmyWindow(props: {
       }
     >
       <div className="flex flex-col gap-2.5 p-3">
-        <span className={label}>{army.waiting ? "In orbit" : "Route"}</span>
+        <div className="flex items-center justify-between">
+          <span className={label}>{army.waiting ? "In orbit" : "Route"}</span>
+          <Strength
+            content={content}
+            units={army.units}
+            colour={mine ? seatColour(army.owner) : undefined}
+          />
+        </div>
         {/* About five stops tall, scrolling past that: the window keeps its size. */}
         <ol className="flex max-h-40 flex-col overflow-y-auto">
           {!army.waiting && (

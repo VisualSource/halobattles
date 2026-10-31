@@ -154,7 +154,8 @@ function IdleAlerts(props: {
 }) {
   const last = props.fields.length - 1;
   return (
-    <div className="absolute top-full left-1/2 z-20 flex -translate-x-1/2 flex-col items-center">
+    // z-10, like the windows: they come later in the page, so one dragged up here covers the alerts.
+    <div className="absolute top-full left-1/2 z-10 flex -translate-x-1/2 flex-col items-center">
       <span aria-hidden="true" className="bg-edge h-2.5 w-px" />
       <ul aria-label="Idle Research fields" className="flex gap-2.5">
         {props.fields.map((f, i) => (
