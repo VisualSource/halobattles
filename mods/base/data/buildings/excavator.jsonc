@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "excavator",
   "name": "Excavator",
+  "description": "Digs Materials from this Planet's deposit at each Payday. A richer deposit pays more; a Planet with none pays nothing.",
   "faction": "covenant",
   "cost": { "credits": 200 },
   "buildTime": 30,

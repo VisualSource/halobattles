@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "research-lab",
   "name": "Research Lab",
+  "description": "Holds Techs. Every Project needs a free Tech Slot in a Lab, and a Lab's Techs are lost with it.",
   "faction": "unsc",
   "cost": { "credits": 250, "materials": 100 },
   "buildTime": 45,

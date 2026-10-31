@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "foundry",
   "name": "Foundry",
+  "description": "Turns Materials into Alloys at each Payday, after Upkeep. Short of Materials, it converts what there is.",
   "faction": "unsc",
   "cost": { "credits": 250, "materials": 100 },
   "buildTime": 45,

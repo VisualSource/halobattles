@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "hall",
   "name": "Hall",
+  "description": "Musters Covenant infantry. Each Hall has its own unit queue, so two train twice as fast.",
   "faction": "covenant",
   "cost": { "credits": 150 },
   "buildTime": 30,

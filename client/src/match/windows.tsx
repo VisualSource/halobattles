@@ -12,6 +12,17 @@ import {
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import { progress, seatColour } from "../scene/galaxy";
+import {
+  amounts,
+  BuildingInfo,
+  factsOf,
+  RICHNESS,
+  ROLES,
+  type Role,
+  RoleIcon,
+  roleOf,
+  useBuildingInfo,
+} from "./buildings";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
 import { laneTimes } from "./route";
@@ -37,30 +48,8 @@ export const abbr = (name: string) =>
     .slice(0, 3)
     .toUpperCase();
 
-type Amounts = Record<string, number> | Map<string, number>;
-
-/** "300 Credits · 100 Materials", leaving out zeros. */
-export function amounts(content: ContentLookups, a: Amounts, scale = 1) {
-  const entries = a instanceof Map ? [...a] : Object.entries(a);
-  return entries
-    .filter(([, n]) => n !== 0)
-    .map(
-      ([r, n]) =>
-        `${Math.floor(n * scale)} ${content.resources.get(r)?.name ?? r}`,
-    )
-    .join(" · ");
-}
-
 const addInto = (into: Map<string, number>, a: Record<string, number>) => {
   for (const [r, n] of Object.entries(a)) into.set(r, (into.get(r) ?? 0) + n);
-};
-
-/** Richness multiplies what a Planet's extractor buildings draw from it. */
-const RICHNESS: Record<string, number> = {
-  none: 0,
-  poor: 0.5,
-  normal: 1,
-  rich: 1.5,
 };
 
 type Producer = {
@@ -701,17 +690,35 @@ function BuildingsTab(props: {
   const setPicking = (slot: number | null) =>
     setPick(slot === null ? null : { planet: planet.id, slot });
   const refund = content.rules.sellRefundPercent / 100;
-  const card = "flex flex-col gap-2 rounded-md border p-2";
+  // A fixed height, so the grid doesn't shift as buildings come and go.
+  const card = "flex h-38 flex-col gap-2 rounded-md border border-l-3 p-2";
   // The Lab slot whose sale is being confirmed: it holds Techs.
   const [selling, setSelling] = useState<number | null>(null);
   const sellingTechs = (
     selling === null ? [] : (planet.labs.get(selling) ?? [])
   ).map((t) => content.techs.get(t)?.name ?? t);
 
+  const info = useBuildingInfo();
+  const held = view ? heldTechs(view) : new Set<string>();
+  const about = info.open && content.buildings.get(info.open.id);
+  const popover = about && info.open && (
+    <BuildingInfo
+      content={content}
+      building={about}
+      richness={planet.richness}
+      cost={sprawled(content, view, about.cost)}
+      needs={needsTech(content, held, "buildings", about.id)}
+      at={info.open}
+    />
+  );
+
   if (picking !== null && editable) {
     const buildable = [...content.buildings.values()].filter(
       (b) => b.faction === props.faction,
     );
+    const groups = (Object.keys(ROLES) as Role[])
+      .map((r) => ({ role: r, list: buildable.filter((b) => roleOf(b) === r) }))
+      .filter((g) => g.list.length > 0);
     return (
       <>
         <div className="flex items-center justify-between">
@@ -724,48 +731,82 @@ function BuildingsTab(props: {
             Back
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {buildable.map((b) => {
-            const needs = view
-              ? needsTech(content, heldTechs(view), "buildings", b.id)
-              : [];
-            return (
-              <button
-                key={b.id}
-                type="button"
-                disabled={isPending(local, "build") || needs.length > 0}
-                onClick={() => {
-                  conn.queueBuilding(planet.id, picking, b.id);
-                  setPicking(null);
-                }}
-                className={`border-edge flex items-center gap-2.5 rounded-md p-2 text-left ${needs.length ? "border-dashed bg-transparent opacity-60" : "bg-item"}`}
+        {/* A fixed height that scrolls, so the window keeps its size. */}
+        <div className="flex h-105 flex-col gap-1 overflow-y-auto pr-1">
+          {groups.map(({ role, list }) => (
+            <Fragment key={role}>
+              <span
+                className="after:bg-line mt-2 flex items-center gap-2 font-mono text-[11px] tracking-[0.08em] uppercase after:h-px after:flex-1 first:mt-0"
+                style={{ color: ROLES[role].colour }}
               >
-                <Tile name={b.name} size="size-12" />
-                <span className="flex flex-col gap-0.5">
-                  <span className="font-semibold">{b.name}</span>
-                  {needs.length > 0 && (
-                    <span className="text-accent text-[11px]">
-                      Needs {needs.join(" or ")}
+                {ROLES[role].name}
+              </span>
+              {list.map((b) => {
+                const needs = needsTech(content, held, "buildings", b.id);
+                const blocked = needs.length > 0 || isPending(local, "build");
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    // Not disabled, so it still takes focus and shows its popover.
+                    aria-disabled={blocked}
+                    {...info.trigger(b.id)}
+                    onClick={() => {
+                      if (blocked) return;
+                      // The row goes with the picker, so it never sees the mouse leave.
+                      info.hide();
+                      conn.queueBuilding(planet.id, picking, b.id);
+                      setPicking(null);
+                    }}
+                    className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-2.5 rounded-md border border-l-3 py-1.5 pr-2.5 pl-2 text-left ${needs.length ? "border-edge border-dashed bg-transparent" : "border-line bg-item"} ${blocked ? "cursor-default" : ""}`}
+                    style={{
+                      borderLeftColor: ROLES[role].colour,
+                      borderLeftStyle: "solid",
+                    }}
+                  >
+                    <span className={blocked ? "opacity-55" : ""}>
+                      <RoleIcon role={role} />
                     </span>
-                  )}
-                  <span className="text-ink-3 text-[11px]">
-                    {b.trains?.length
-                      ? `Trains ${b.trains.map((u) => content.units.get(u)?.name ?? u).join(", ")}`
-                      : outputText(content, b, planet.richness)
-                        ? `${outputText(content, b, planet.richness)}${b.extracts ? " here" : ""}`
-                        : b.combat
-                          ? "Armed: fights in Battles"
-                          : ""}
-                  </span>
-                  <span className="font-mono text-[11px]">
-                    {amounts(content, sprawled(content, view, b.cost))} ·{" "}
-                    {b.buildTime} s
-                  </span>
-                </span>
-              </button>
-            );
-          })}
+                    <span className="flex min-w-0 flex-col">
+                      <span
+                        className={`font-semibold ${blocked ? "opacity-55" : ""}`}
+                      >
+                        {b.name}
+                      </span>
+                      {needs.length > 0 ? (
+                        <span className="text-accent text-[11px]">
+                          Needs {needs.join(" or ")}
+                        </span>
+                      ) : (
+                        <span className="text-ink-2 truncate text-xs">
+                          {factsOf(content, b, planet.richness)
+                            .map((f) => f.line)
+                            .join(" · ")}
+                        </span>
+                      )}
+                      <span
+                        className={`text-ink-3 truncate font-mono text-[11px] ${blocked ? "opacity-55" : ""}`}
+                      >
+                        {amounts(content, sprawled(content, view, b.cost))}
+                      </span>
+                    </span>
+                    <span
+                      className={`flex flex-col items-end font-mono text-[11px] whitespace-nowrap ${blocked ? "opacity-55" : ""}`}
+                    >
+                      <span className="text-ink-3">{b.buildTime} s</span>
+                      {amounts(content, b.upkeep) && (
+                        <span className="text-danger">
+                          −{amounts(content, b.upkeep)}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </Fragment>
+          ))}
         </div>
+        {popover}
       </>
     );
   }
@@ -795,10 +836,32 @@ function BuildingsTab(props: {
           const building = planet.queue.find((q) => q.slot === i);
           const key = `${i}-${id}`;
           if (b) {
+            const role = roleOf(b);
             return (
-              <div key={key} className={`${card} border-line bg-item`}>
-                <div className="flex items-center gap-1.5">
-                  <span className="flex-1 font-semibold">{b.name}</span>
+              <div
+                key={key}
+                className={`${card} border-line bg-item`}
+                style={{ borderLeftColor: ROLES[role].colour }}
+              >
+                <div className="flex items-center gap-2">
+                  <RoleIcon role={role} />
+                  <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                    <span className="truncate font-semibold">{b.name}</span>
+                    <span
+                      className="font-mono text-[10px] tracking-[0.08em] uppercase"
+                      style={{ color: ROLES[role].colour }}
+                    >
+                      {ROLES[role].name}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`About ${b.name}`}
+                    {...info.trigger(b.id)}
+                    className="border-edge text-ink-3 flex size-5.5 flex-none cursor-help items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic"
+                  >
+                    i
+                  </button>
                   {editable && (
                     <button
                       type="button"
@@ -831,25 +894,45 @@ function BuildingsTab(props: {
                     slots={b.techSlots}
                   />
                 ) : (
-                  <Tile name={b.name} size="size-14" />
+                  <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto text-[13px]">
+                    {factsOf(content, b, planet.richness).map((f) => (
+                      <span key={f.line} className="flex flex-col">
+                        {f.line}
+                        {f.sub && (
+                          <span className="text-ink-3 text-[11.5px]">
+                            {f.sub}
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
                 )}
-                <div className="text-ink-3 font-mono text-[11px]">
-                  {[
-                    outputText(content, b, planet.richness),
-                    amounts(content, b.upkeep) &&
-                      `upkeep ${amounts(content, b.upkeep)}`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                <div className="border-line border-t pt-1 font-mono text-[11px]">
+                  {amounts(content, b.upkeep) ? (
+                    <span className="text-danger">
+                      Upkeep {amounts(content, b.upkeep)} / Payday
+                    </span>
+                  ) : (
+                    <span className="text-ink-4">No upkeep</span>
+                  )}
                 </div>
               </div>
             );
           }
           if (building) {
             const def = content.buildings.get(building.building);
+            const role = def ? roleOf(def) : "special";
             return (
-              <div key={key} className={`${card} border-edge border-dashed`}>
-                <div className="flex items-center gap-1.5">
+              <div
+                key={key}
+                className={`${card} border-edge border-dashed`}
+                style={{
+                  borderLeftColor: ROLES[role].colour,
+                  borderLeftStyle: "solid",
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <RoleIcon role={role} />
                   <span className="flex-1 font-semibold">
                     {def?.name ?? building.building}{" "}
                     <span className="text-ink-3 font-normal">· building</span>
@@ -866,7 +949,9 @@ function BuildingsTab(props: {
                   )}
                 </div>
                 <div className="flex items-end justify-between">
-                  <Tile name={def?.name ?? "?"} size="size-14" dashed />
+                  <span className="text-ink-3 text-[13px]">
+                    {def && factsOf(content, def, planet.richness)[0]?.line}
+                  </span>
                   <span
                     className={`font-mono text-xs ${building.paused ? "text-danger" : "text-ink-3"}`}
                   >
@@ -886,7 +971,7 @@ function BuildingsTab(props: {
               key={key}
               type="button"
               onClick={() => setPicking(i)}
-              className="border-edge text-ink-2 flex min-h-30 flex-col items-center justify-center gap-1 rounded-md border-dashed bg-transparent"
+              className="border-edge text-ink-2 flex h-38 flex-col items-center justify-center gap-1 rounded-md border-dashed bg-transparent"
             >
               <span className="text-accent text-2xl">+</span>
               Build
@@ -901,6 +986,7 @@ function BuildingsTab(props: {
           );
         })}
       </div>
+      {popover}
     </>
   );
 }

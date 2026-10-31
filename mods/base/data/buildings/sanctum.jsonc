@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "sanctum",
   "name": "Sanctum",
+  "description": "Holds Techs. Every Project needs a free Tech Slot in a Sanctum, and a Sanctum's Techs are lost with it.",
   "faction": "covenant",
   "cost": { "credits": 250, "materials": 100 },
   "buildTime": 45,

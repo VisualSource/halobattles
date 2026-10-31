@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "plasma-turret",
   "name": "Plasma Turret",
+  "description": "An armed Structure that fights in every Battle on this Planet, strongest against Infantry. It can also be built on a Battle's build pads.",
   "faction": "covenant",
   "cost": { "credits": 200, "materials": 50, "alloys": 20 },
   "buildTime": 30,

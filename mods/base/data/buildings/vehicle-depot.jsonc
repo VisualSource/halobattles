@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "vehicle-depot",
   "name": "Vehicle Depot",
+  "description": "Builds UNSC ground vehicles. Each Vehicle Depot has its own unit queue.",
   "faction": "unsc",
   "cost": { "credits": 300, "materials": 100 },
   "buildTime": 45,

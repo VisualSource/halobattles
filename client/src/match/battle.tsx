@@ -3,6 +3,7 @@ import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import { BattlefieldScene, POINT_NAMES } from "../scene/battlefield";
 import { seatColour } from "../scene/galaxy";
+import { amounts } from "./buildings";
 import type { MatchConnection } from "./connection";
 import {
   BATTLE_TICKS,
@@ -14,7 +15,7 @@ import {
   type Volley,
 } from "./store";
 import { formatAge, useMatchNow } from "./time";
-import { amounts, Floating, label, Tag, Tile, windowTitle } from "./windows";
+import { Floating, label, Tag, Tile, windowTitle } from "./windows";
 
 type TickEvent = { battle: number; tick: number; volleys: Volley[] };
 

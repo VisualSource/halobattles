@@ -1,8 +1,18 @@
-Fix:
-    [] make movemenet speed faster
-    [] remove captured planet count in player list
-    [] update battle window to show a battle report
-    [] remove payday toast
-    [] drag copy in game sence does not matching mouse cursor
-    [] restore the ring modal for in game
-    [] switch battle system to use dnd style 1d4 for attack roll
+Battle Fix:
+    [] defenders tend to sit around while a near by feadly it attacked
+    [] squard tactics
+    [] unit captured a point and never left it, 
+    [] allow for renforements
+    [] pick starting location
+
+Problem:
+    [] 
+
+
+    [] allow to see own army threat level
+    [] research notifications
+    [] text description for buildings
+    [] better troop manigment
+    [] hide non researched builds/units
+    [] hide non buildable units where the building is not on rather then graying out with missing building tech
+    [] teams

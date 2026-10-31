@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "reliquary",
   "name": "Reliquary",
+  "description": "Raises how much of each Resource you can stockpile. Anything over a cap is lost at Payday.",
   "faction": "covenant",
   "cost": { "credits": 150 },
   "buildTime": 30,

@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "armory",
   "name": "Armory",
+  "description": "Adds Military Research. It counts wherever it's built.",
   "faction": "covenant",
   "cost": { "credits": 200, "materials": 50 },
   "buildTime": 30,

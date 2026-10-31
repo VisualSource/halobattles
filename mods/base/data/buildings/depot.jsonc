@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "depot",
   "name": "Depot",
+  "description": "Raises how much of each Resource you can stockpile. Anything over a cap is lost at Payday.",
   "faction": "unsc",
   "cost": { "credits": 150 },
   "buildTime": 30,

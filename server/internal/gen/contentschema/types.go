@@ -240,6 +240,9 @@ type Building struct {
 	// Cost corresponds to the JSON schema field "cost".
 	Cost map[string]int `json:"cost"`
 
+	// A sentence or two on what it's for, shown in its info popover.
+	Description *string `json:"description,omitempty,omitzero"`
+
 	// Paid at each Payday, times its Planet's Richness for each Resource, rounded
 	// down.
 	Extracts map[string]int `json:"extracts,omitempty,omitzero"`

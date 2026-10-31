@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "relic-shrine",
   "name": "Relic Shrine",
+  "description": "A shrine to a Forerunner relic. It makes nothing by itself, but a Tech can only be researched while you have one.",
   "faction": "covenant",
   "cost": { "credits": 400, "materials": 200, "alloys": 50 },
   "buildTime": 60,

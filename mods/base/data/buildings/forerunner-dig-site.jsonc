@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "forerunner-dig-site",
   "name": "Forerunner Dig Site",
+  "description": "An excavation of Forerunner ruins. It makes nothing by itself, but a Tech can only be researched while you have one.",
   "faction": "unsc",
   "cost": { "credits": 400, "materials": 200, "alloys": 50 },
   "buildTime": 60,

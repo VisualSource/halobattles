@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "oni-station",
   "name": "ONI Station",
+  "description": "Adds Industry Research. It counts wherever it's built.",
   "faction": "unsc",
   "cost": { "credits": 200, "materials": 50 },
   "buildTime": 30,

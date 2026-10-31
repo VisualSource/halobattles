@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "summit",
   "name": "Summit",
+  "description": "Where Covenant pilots train to fly aircraft. Each Summit has its own unit queue.",
   "faction": "covenant",
   "cost": { "credits": 300, "materials": 150 },
   "buildTime": 60,

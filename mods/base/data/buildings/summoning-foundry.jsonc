@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "summoning-foundry",
   "name": "Summoning Foundry",
+  "description": "Builds Covenant ground vehicles. Each Summoning Foundry has its own unit queue.",
   "faction": "covenant",
   "cost": { "credits": 300, "materials": 100 },
   "buildTime": 45,

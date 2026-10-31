@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "proving-grounds",
   "name": "Proving Grounds",
+  "description": "Adds Military Research. It counts wherever it's built.",
   "faction": "unsc",
   "cost": { "credits": 200, "materials": 50 },
   "buildTime": 30,

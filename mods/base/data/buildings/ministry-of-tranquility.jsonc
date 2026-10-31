@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "ministry-of-tranquility",
   "name": "Ministry of Tranquility",
+  "description": "Adds Logistics Research. It counts wherever it's built.",
   "faction": "covenant",
   "cost": { "credits": 200, "materials": 50 },
   "buildTime": 30,

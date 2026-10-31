@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "air-pad",
   "name": "Air Pad",
+  "description": "Builds and launches UNSC aircraft. Each Air Pad has its own unit queue.",
   "faction": "unsc",
   "cost": { "credits": 300, "materials": 150 },
   "buildTime": 60,

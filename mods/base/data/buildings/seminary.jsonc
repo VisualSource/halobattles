@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/building.schema.json",
   "id": "seminary",
   "name": "Seminary",
+  "description": "Adds Industry Research. It counts wherever it's built.",
   "faction": "covenant",
   "cost": { "credits": 200, "materials": 50 },
   "buildTime": 30,
