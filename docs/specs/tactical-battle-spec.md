@@ -135,6 +135,7 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 - Each unit has a `sight` radius, plus its height bonus. A **side sees the union** of its Squads' and buildings' Sight.
 - **Always visible to both sides:** the terrain, every Control Point with its owner and capture progress, and the hold timer.
 - **Visible only within Sight:** enemy Squads.
+- **Muzzle flash:** a Squad that fires is seen by the side it fired on for 3 s after each volley, wherever it stands. A turret that outranges the Sight of what it shoots still gives itself away, and the side being hit always knows its shooter.
 - **Buildings:** the defender always sees its own. An attacker sees an enemy building once it comes into Sight, and the client keeps a **last-seen marker** for it after that.
 - **The server filters each side's data** (see [On the wire](#on-the-wire)). Hidden enemies are never sent, so fog can't be cheated.
 - Line of sight is not modelled: Sight is a plain radius.
@@ -225,12 +226,14 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
   - the strength already assigned to it, so all Squads don't pile onto one point.
 - **Matchups:** a kill or raid goal's score is scaled by the squad's tier against the target: ×1.15 for Advantage, ×0.9 for Disadvantage. Kept mild: at ×1.5 and ×0.6 the attacker, free to pick its fights while the defender is tied to its points, won 75% of Starting Kit Battles.
 - Caution's threat penalty applies to every goal except holding a point: a threatened point is the one to hold.
+- An **armed building** the side has seen adds threat to goals within its reach, counted like a 5-member squad. A turret outranges infantry, so its threat goes as far as it can shoot.
 - Threat counts enemy squads the side has **seen lately**, not only those in view: each is remembered where it was last seen for 10 s, or until that spot is back in Sight without it. Without this, a squad that sighted the enemy, turned away, and lost sight of it turned straight back, over and over.
 - A squad's current goal scores a quarter more (**stickiness**), so near-ties don't flip it back and forth.
 - **Guard posts:** a guard settled on its point moves to the best ground within capture radius of it, so it still holds the point. Where there's cover there, it picks among covered cells only. Then it prefers high ground, then more cover by its `cover` weight, then the side facing the attacker's edge. It moves only if the post is clearly better than where it stands. Leaving cover for open high ground cost the defender: Covenant attacks on UNSC rose from 53% to 62% wins.
 - Any positive `cover` weight makes a side want cover and covered posts. A cutoff of 1 had left the Covenant (0.9) out in the open while UNSC attackers took covered, high firing positions.
 - **Sentry beats:** a guard settled on its point walks a short beat every 8 s, but only while its side knows of no enemy: to a covered cell within 2 cells of the point, or else a spot that far out each way. It pauses there 3 s, then returns. Staying inside the capture radius keeps the point contested. Walking out to 4 cells and to nearby pads got guards caught away from their points: attacker wins rose from 54% to 59%. This version costs about 2 points.
-- **Leash:** a squad guarding a point goes after the enemy it can see and hurt, best matchup first and then nearest, that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. At 8 cells, guards left their points open often enough to tip balance toward the attacker.
+- **Under fire:** a squad an armed building fired on in the last 3 s breaks off its plan for it. If it can hurt the building, it goes after it (stopping to fire once in range) until the building is dead or out of sight. If it can't hurt it, it moves to the nearest cell outside the building's reach. Enemy squads that fire on it are left to the Commander, which sees them by their muzzle flash: breaking off for every shooter won Starting Kit attackers 70% of Battles instead of 50%.
+- **Leash:** a squad guarding a point goes after the enemy it can see and hurt, best matchup first and then nearest, that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. Armed buildings count as enemies here, and a shooter it can hurt within the leash comes first. At 8 cells, guards left their points open often enough to tip balance toward the attacker.
 - While the attacker's hold timer runs, the defender values retaking a point at 5 instead of 3.
 - **Goals:**
   - `capturePoint(p)`
@@ -290,7 +293,7 @@ On top of the usual goals, the Commander gives some squads a job:
   - It's diffed and upserted in `ViewDelta` like any other entity, so it changes every tick while anything moves. Fog is enforced where the server builds it, in the sim's `Snapshot(side)`.
   - **The Battlefield** goes only in `ViewFull` and `BattleStarted`: width, height, the Terrain id table, then one Terrain index and one height level per cell. Deltas leave it out, and the client keeps it.
 - **`BattleStarted`**: the two sides, the Planet, the start time and the Battlefield.
-- **`BattleTick`**: one tick's volleys, `{actor, target, shots, hits, kills, shieldDmg, armorDmg, hpDmg}`. It's sent to a side only on ticks with fire that side may know about: fire at its own squads, or by or at squads it can see. A shooter it can't see is sent as `actor` 0.
+- **`BattleTick`**: one tick's volleys, `{actor, target, shots, hits, kills, shieldDmg, armorDmg, hpDmg}`. It's sent to a side only on ticks with fire that side may know about: fire at its own squads, or by or at squads it can see. Its muzzle flash makes every shooter visible to the side it hits, so `actor` is 0 only for fire between Squads a side can't see, and that fire isn't sent at all.
 - **Commands:** `BattleRetreat {planet}` and `BattleCancelRetreat {planet}`. A Battle is keyed by its Planet on the wire, as the other Battle messages are.
 - A side that reconnects gets the Battle's current filtered state in its `ViewFull`. It doesn't get a replay.
 - Other players with Vision see only the Locked flag and `BattleEnded`, as before.
