@@ -81,16 +81,18 @@ const (
 	inRange
 	inCover
 	nearFriendly
+	atStandoff // in range of its target, out of the target's reach
 )
 
 // action is one step of a squad's plan.
 type action int
 
 const (
-	goTo      action = iota // to the goal
-	approach                // to a firing position on the target, preferring high ground and cover
-	takeCover               // to a covered cell near where it is
-	regroup                 // to the nearest friendly squad
+	goTo         action = iota // to the goal
+	approach                   // to a firing position on the target, preferring high ground and cover
+	takeCover                  // to a covered cell near where it is
+	regroup                    // to the nearest friendly squad
+	keepDistance               // to a firing position out of a target's reach, against one it kites
 )
 
 type plan struct {
@@ -659,7 +661,8 @@ func (ai *AI) engage(v View, sq *Squad, p *plan, e *Squad) []Order {
 	s := v.sim
 	fresh := p.engaged != e.ID
 	p.engaged = e.ID
-	if s.canHit(sq, e) {
+	standoff := s.standoff(sq, e)
+	if s.canHit(sq, e) && dist(sq.Cell, e.Cell) > standoff {
 		if len(sq.path) > 0 {
 			return []Order{{Kind: Hold, Squad: sq.ID}}
 		}
@@ -668,8 +671,14 @@ func (ai *AI) engage(v View, sq *Squad, p *plan, e *Squad) []Order {
 	if !fresh && len(sq.path) > 0 && (v.Tick()+sq.ID)%TicksPerSecond != 0 {
 		return nil
 	}
-	to, ok := s.firingPosition(sq, e.Cell, ai.weightsOf(sq).Cover)
-	if !ok || (!fresh && len(sq.path) > 0 && dist(p.moveTo, to) <= 2) {
+	to, ok := s.firingPosition(sq, e.Cell, ai.weightsOf(sq).Cover, standoff)
+	if s.canHit(sq, e) && (!ok || to == sq.Cell || dist(to, e.Cell) <= standoff) {
+		if len(sq.path) > 0 {
+			return []Order{{Kind: Hold, Squad: sq.ID}} // no room to back off: it holds and fires where it is
+		}
+		return nil
+	}
+	if !ok || to == sq.Cell || (!fresh && len(sq.path) > 0 && dist(p.moveTo, to) <= 2) {
 		return nil
 	}
 	p.moveTo, p.sent = to, false // sent is for its plan's steps; this isn't one
@@ -1022,6 +1031,9 @@ func (ai *AI) state(v View, sq *Squad, g goal) facts {
 	}
 	if t := s.squad(g.target); t != nil && s.canHit(sq, t) {
 		f |= inRange
+		if dist(sq.Cell, t.Cell) > s.standoff(sq, t) {
+			f |= atStandoff
+		}
 	}
 	if s.coverAt(sq.Cell) < 0 && !sq.air {
 		f |= inCover
@@ -1046,10 +1058,14 @@ func (ai *AI) want(v View, sq *Squad, g goal) facts {
 	w := ai.weightsOf(sq)
 	switch g.kind {
 	case kill, raid:
-		if len(sq.Members)*2 < sq.Start && w.Caution >= 1 {
-			return inRange | nearFriendly
+		want := inRange
+		if t := v.sim.squad(g.target); t != nil && v.sim.standoff(sq, t) > 0 {
+			want |= atStandoff // it kites this one
 		}
-		return inRange
+		if len(sq.Members)*2 < sq.Start && w.Caution >= 1 {
+			return want | nearFriendly
+		}
+		return want
 	case defend:
 		if w.Cover > 0 && !sq.air {
 			if _, ok := v.sim.coverNear(sq, g.cell, v.sim.rules.CaptureRadius); ok {
@@ -1087,7 +1103,7 @@ func (ai *AI) replan(v View, sq *Squad, p *plan) {
 		if len(n.steps) == 4 {
 			continue
 		}
-		for _, a := range []action{goTo, approach, takeCover, regroup} {
+		for _, a := range []action{goTo, approach, takeCover, regroup, keepDistance} {
 			f, cost, ok := n.f, 0.0, true
 			switch a {
 			case goTo:
@@ -1100,6 +1116,10 @@ func (ai *AI) replan(v View, sq *Squad, p *plan) {
 				f, cost = f|inCover, 2/max(w.Cover, 0.1)
 			case regroup:
 				f, cost = (f|nearFriendly)&^(inCover|atGoal), 3/max(w.Caution, 0.1)
+			case keepDistance:
+				t := v.sim.squad(p.goal.target)
+				ok = t != nil && v.sim.standoff(sq, t) > 0
+				f, cost = (f|inRange|atStandoff)&^inCover, 1+max(0, dist(sq.Cell, p.goal.cell)-sq.reach)/speed
 			}
 			if !ok || f == n.f {
 				continue
@@ -1128,7 +1148,7 @@ func (ai *AI) replan(v View, sq *Squad, p *plan) {
 // left to do it stops and fires at what's in range.
 func (ai *AI) execute(v View, sq *Squad, p *plan) []Order {
 	now := ai.state(v, sq, p.goal)
-	effect := map[action]facts{goTo: atGoal, approach: inRange, takeCover: inCover, regroup: nearFriendly}
+	effect := map[action]facts{goTo: atGoal, approach: inRange, takeCover: inCover, regroup: nearFriendly, keepDistance: atStandoff}
 	for len(p.steps) > 0 && now&effect[p.steps[0]] != 0 {
 		p.steps, p.sent = p.steps[1:], false
 	}
@@ -1156,7 +1176,13 @@ func (ai *AI) cellFor(v View, sq *Squad, p *plan) (Cell, bool) {
 	s := v.sim
 	switch p.steps[0] {
 	case approach:
-		return s.firingPosition(sq, p.goal.cell, ai.weightsOf(sq).Cover)
+		return s.firingPosition(sq, p.goal.cell, ai.weightsOf(sq).Cover, 0)
+	case keepDistance:
+		standoff := 0.0
+		if t := s.squad(p.goal.target); t != nil {
+			standoff = s.standoff(sq, t)
+		}
+		return s.firingPosition(sq, p.goal.cell, ai.weightsOf(sq).Cover, standoff)
 	case takeCover:
 		return s.coverNear(sq, sq.Cell, nearRadius)
 	case regroup:
@@ -1211,8 +1237,15 @@ func (s *Sim) coverNear(sq *Squad, around Cell, radius float64) (Cell, bool) {
 
 // firingPosition is a cell in range of target that the squad can stand on,
 // trading the walk there against high ground and cover by the cover weight.
-func (s *Sim) firingPosition(sq *Squad, target Cell, cover float64) (Cell, bool) {
-	best, bestScore, found := Cell{}, math.Inf(1), false
+// With a standoff, a cell further than that from the target comes first, if
+// there is one: room to back off from one it kites.
+func (s *Sim) firingPosition(sq *Squad, target Cell, cover, standoff float64) (Cell, bool) {
+	type pick struct {
+		c     Cell
+		score float64
+		found bool
+	}
+	anywhere, past := pick{score: math.Inf(1)}, pick{score: math.Inf(1)} // past: beyond the standoff
 	r := int(sq.reach)
 	for y := target.Y - r; y <= target.Y+r; y++ {
 		for x := target.X - r; x <= target.X+r; x++ {
@@ -1225,10 +1258,26 @@ func (s *Sim) firingPosition(sq *Squad, target Cell, cover float64) (Cell, bool)
 			if !sq.air {
 				score -= cover * (2*float64(s.height(c)-s.height(target)) - float64(s.coverAt(c)))
 			}
-			if score < bestScore {
-				best, bestScore, found = c, score, true
+			if score < anywhere.score {
+				anywhere = pick{c, score, true}
+			}
+			if standoff > 0 && d > standoff && score < past.score {
+				past = pick{c, score, true}
 			}
 		}
 	}
-	return best, found
+	if past.found {
+		return past.c, true
+	}
+	return anywhere.c, anywhere.found
+}
+
+// standoff is how far from e, in cells, sq should fire from: beyond e's
+// reach, against an armed enemy that can hurt it and that it outranges and
+// outruns, so it can fire and back off as e closes. 0: it doesn't kite e.
+func (s *Sim) standoff(sq, e *Squad) float64 {
+	if e.Armed && e.speed > 0 && sq.speed > e.speed && sq.reach > e.reach && s.tier(e, sq) != None {
+		return e.reach
+	}
+	return 0
 }

@@ -279,15 +279,18 @@ On top of the usual goals, the Commander gives some squads a job:
   - `inRange`: its target can be hit from where it stands
   - `inCover`: on a Terrain with cover
   - `nearFriendly`: another of its side's squads within 3 cells
+  - `atStandoff`: in range of its target, and further from it than the target's own range
 - **What a goal wants:**
   - capture and scout: `atGoal`;
   - defend: `atGoal`, and `inCover` too when the Faction's `cover` weight is above 0 and there's cover by the point;
-  - kill and raid: `inRange`, and `nearFriendly` too when the squad is under half strength and the Faction's `caution` weight is 1 or more.
+  - kill and raid: `inRange`, `atStandoff` too against a target it kites (below), and `nearFriendly` too when the squad is under half strength and the Faction's `caution` weight is 1 or more.
 - **Actions**, each with a cost in seconds of walking, or a flat cost scaled by a weight:
   - `goTo` the goal;
   - `approach`: a firing position in range of the target, trading the walk against high ground and cover by the `cover` weight (this covers the spec's `takeHighGround`);
   - `takeCover`: the nearest covered cell within 3;
-  - `regroup`: to the nearest friendly squad.
+  - `regroup`: to the nearest friendly squad;
+  - `keepDistance`: against a target it kites, a firing position further from the target than the target's range, chosen like `approach`.
+- **Kiting:** a squad kites an armed enemy that can hurt it, that's slower, and that's shorter-ranged: in the base Mod, vehicles and aircraft against infantry. It fires from beyond the enemy's range. When the enemy comes within its own range, a squad fighting it (a guard on its leash, or one answering fire) moves back out to such a cell rather than standing. With no room to back off, it holds and fires where it is. Kiting changes only where a squad fights from, never whether: the leash and **Under fire** rules still decide that. Measured over 100 seeds, a 3-Warthog squad against 10 Grunts kept 2.59 Warthogs on average when attacking (2.38 before) and 2.71 when defending (2.14). Win rates barely moved. With Task Forces, Starting Kit attackers won 54% / 44%, and with three Stacks a side, 53% / 51%.
 - **Budget:** plans are at most 4 actions deep.
 - **When it replans:** a Control Point changes hands, it loses a member, or otherwise once a second, staggered by Squad id. A replan whose next step hasn't changed keeps the destination it already sent, since every new destination costs a path.
 - **Code and data:** goals, actions and facts are Go code. Their **weights** are content: a Faction's optional `ai` block of `aggression`, `caution`, `cover`, `raid`, `scout` and `mass` (how much strength over the threat a Task Force wants), each defaulting to 1. The base Covenant lean keener (aggression 1.05, caution 0.9, cover 0.9); the UNSC lean careful (aggression 0.95, caution 1.1, cover 1.25). Keep them close to 1: aggression especially is a strong lever, and at 1.4 the Covenant won 80% of their attacks. The planner looks up weights **per Squad** even though v1 only has Faction weights, so per-unit weights can be added later (see [Later](#later)). A neutral garrison plays the defaults.
@@ -366,8 +369,8 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
 
 - Two evenly matched forces should fight for about **1–3 minutes**.
 - The two Starting Kits should stay roughly even, with a lean to the defender allowed: either one attacking wins 40–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights. A heavy lean to the defender is as much a problem as one to the attacker.
-- A Go test checks both over 100 seeds per matchup. When last tuned (Task Forces, #65): about 82 s per Battle; UNSC attacking wins 51%, Covenant attacking 51%. Three Stacks a side, still skipped under #40: 52% / 55%.
-- The test covers **big Battles** too (three Starting Kit Stacks a side): UNSC attacking wins 56%, Covenant attacking 60%, right at the allowance. They were 73% / 67% before roles, the paused hold timer, guard posts, and cover for any positive weight.
+- A Go test checks both over 100 seeds per matchup. When last tuned (kiting, #63): about 80 s per Battle; UNSC attacking wins 54%, Covenant attacking 44%. Three Stacks a side, still skipped under #40: 53% / 51%.
+- The test covers **big Battles** too (three Starting Kit Stacks a side), skipped under #40 until the map generation rework (#64) settles; the current figures are in the line above. They were 73% / 67% before roles, the paused hold timer, guard posts, and cover for any positive weight, and 64% / 54% before focus fire.
 - Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 
 ## Ruleset additions
@@ -418,7 +421,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 Not in v1, but kept in mind:
 
 - **Player control** of Squads, beyond Retreat; and AI that chooses to Retreat.
-- **Per-unit AI behaviour:** a unit's own `ai` weights layered on its Faction's, plus a few extra GOAP facts and actions such as `atStandoff` and `keepDistance`. For example, artillery (long `range`, `minRange`) would weigh `takeHighGround` and `keepDistance` heavily and hang back behind friendly Squads instead of moving to the front, while a Ghost would weigh `raid`.
+- **Per-unit AI behaviour:** a unit's own `ai` weights layered on its Faction's. For example, artillery (long `range`, `minRange`) would weigh `takeHighGround` and `keepDistance` heavily and hang back behind friendly Squads instead of moving to the front, while a Ghost would weigh `raid`.
 - **Line-of-sight** blocking.
 - **Capital-world variant:** a defender HQ the attacker must reach and hold or destroy.
 - **Building sites:** fixed spots on each Planet's Battlefield, with the player choosing what goes where.
