@@ -73,6 +73,10 @@ export interface Resource {
    * An asset in a Mod's assets/ folder, written `__mod__/path`.
    */
   icon?: string;
+  /**
+   * Where it's listed, lowest first; a tie goes by id.
+   */
+  order?: number;
 }
 /**
  * Game-wide tuning values. There is exactly one, `base:rules`, which later Mods Patch.

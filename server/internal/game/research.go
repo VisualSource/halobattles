@@ -275,8 +275,8 @@ func (pl *Player) stop(i int, now int64) {
 func (p Project) done(now int64) float64 { return p.Done + p.Rate*float64(now-p.Since)/1000 }
 
 // research runs every player's Projects, each at its field's whole rate. A
-// Project pauses, leaving its field idle, while its owner is in debt, its
-// Lab's Planet is Locked, or a building it requires is missing. A Project
+// Project pauses, leaving its field idle, while its Lab's Planet is Locked
+// or a building it requires is missing. A Project
 // whose Lab is gone stops and is saved. A finished one is held in its Lab.
 // Each field with no Project and no hand is dealt one.
 func (s *State) research(c *cs.Content, now int64) {
@@ -295,7 +295,7 @@ func (s *State) research(c *cs.Content, now int64) {
 			p := &pl.Projects[i]
 			r := c.Techs[p.Tech].Requires
 			rate := 0.0
-			if !pl.inDebt() && !s.Planets[p.Planet].Locked &&
+			if !s.Planets[p.Planet].Locked &&
 				(r == nil || !slices.ContainsFunc(r.Buildings, func(b cs.ID) bool { return !s.hasBuilding(seat, b) })) {
 				rate = float64(rates[string(c.Techs[p.Tech].Field)])
 			}

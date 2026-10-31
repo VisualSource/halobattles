@@ -20,7 +20,7 @@ There are still no Pops (see the game-design spec's [Out of scope](game-design-s
   - **Materials**, like Minerals: mined from deposits.
   - **Alloys**: refined from Materials. Only heavy units and Turrets need them.
 - **Command Points** are unchanged: a cap from Planets, not a Resource.
-- **Debt** is unchanged: while any Resource is below zero, the player can't queue anything and every queue pauses. Unit Upkeep can push a player into debt. Harsher deficit penalties (supply failure, desertion) are a possible follow-up, not part of v2.
+- **Debt:** while a Resource is below zero, the player can't queue anything that costs it. Everything else keeps running: queues already paid for, research, and queuing what costs only other Resources. Unit Upkeep can push a player into debt. Harsher deficit penalties (supply failure, desertion) are a possible follow-up, not part of v2.
 - **Starting resources** stay a lobby setting, now one amount per each of the three Resources. They must fit under the caps.
 
 ## Deposits

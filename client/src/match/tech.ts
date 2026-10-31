@@ -159,8 +159,6 @@ export function pauseReason(
   planetName: (id: string) => string,
 ) {
   if (p.rate > 0) return null;
-  if ([...view.economy.resources.values()].some((a) => a < 0))
-    return "Paused: in debt";
   if (view.planets.get(p.planet)?.locked)
     return `Paused: ${planetName(p.planet)} is Locked`;
   const owned = new Set(

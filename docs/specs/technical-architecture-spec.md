@@ -183,7 +183,7 @@ These one-off messages travel on a side channel, alongside the View:
 
 - Payday, queue completions, Lane arrivals and Grace Period expiries are scheduled on **Match Time** (ms since the Match started). Each fires on the first tick after it's due.
 - Every message carries the current Match Time, and the client keeps a clock offset from it.
-- Lane hops, queue items and the next Payday are sent as start/end Match Time pairs, and the client interpolates between them. A paused queue (debt or Locked) carries `paused` plus the progress remaining instead of an end time.
+- Lane hops, queue items and the next Payday are sent as start/end Match Time pairs, and the client interpolates between them. A paused queue (Locked) carries `paused` plus the progress remaining instead of an end time.
 
 ### Commands
 
@@ -216,7 +216,7 @@ Every command carries a client-assigned `seq`.
 ### Trust boundary
 
 - There is **no client prediction**. A command shows as pending until the View changes or a `CommandRejected` arrives.
-- The server validates each command on the tick that processes it, against authoritative state: schema, size (< 4096 B), phase, ownership or Host role, Lock, debt, cost, Command Point cap, free slot, and route existence. Lobby validation adds the Seat cap on `SetMap` and, on `SetStartingResources`, a whole number from 0 to that Resource's Stockpile cap for every Resource.
+- The server validates each command on the tick that processes it, against authoritative state: schema, size (< 4096 B), phase, ownership or Host role, Lock, cost (a Resource in debt pays for nothing), Command Point cap, free slot, and route existence. Lobby validation adds the Seat cap on `SetMap` and, on `SetStartingResources`, a whole number from 0 to that Resource's Stockpile cap for every Resource.
 - Each player is capped at **20 commands per tick**, and anything past that is rejected, so nobody can flood the 128-message input queue.
 
 ### Vision

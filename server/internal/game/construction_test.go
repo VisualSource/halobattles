@@ -57,7 +57,7 @@ func TestQueueBuildingRejections(t *testing.T) {
 		{"slot already queued", func(s *State) { _ = s.QueueBuilding(lineContent(), 0, "a", 2, "base:barracks") }, "a", 2, "base:barracks", "taken"},
 		{"no such slot", nil, "a", 4, "base:barracks", "no Building Slot 5"},
 		{"another Faction's building", nil, "a", 2, "base:hall", "can't build"},
-		{"in debt", func(s *State) { s.Players[0].Resources["base:materials"] = -1 }, "a", 2, "base:barracks", "debt"},
+		{"in debt in what it costs", func(s *State) { s.Players[0].Resources["base:credits"] = -1 }, "a", 2, "base:barracks", "not enough Credits"},
 		{"can't afford", func(s *State) { s.Players[0].Resources["base:credits"] = 100 }, "a", 2, "base:barracks", "not enough Credits"},
 		{"Locked", func(s *State) { s.Planets["a"].Locked = true }, "a", 2, "base:barracks", "Locked"},
 	}
@@ -130,26 +130,21 @@ func TestSellRefundsHalfAndStopsUpkeepAtOnce(t *testing.T) {
 	}
 }
 
-func TestQueuesPauseInDebtAndResumeAfter(t *testing.T) {
+func TestDebtStopsOnlyQueuingWhatCostsIt(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	_ = s.QueueBuilding(c, 0, "a", 2, "base:barracks")
 	s.Advance(c, 0) // runs until 30 s
 
 	s.Players[0].Resources["base:materials"] = -5
 	s.Advance(c, 10_000)
-	q := s.Planets["a"].Queue[0]
-	if q.EndsAt != 0 || q.Remaining != 20_000 {
-		t.Fatalf("in debt: %+v, want paused with 20 s left", q)
+	if q := s.Planets["a"].Queue[0]; q.EndsAt != 30_000 {
+		t.Errorf("in debt: %+v, want it still running to 30 s", q)
 	}
-	if v := s.View(c, 0); len(v.Planets[0].Queue) != 1 {
-		t.Errorf("own queue missing from the View: %+v", v.Planets[0])
+	if err := s.QueueBuilding(c, 0, "a", 3, "base:air-pad"); err == nil || err.Error() != "not enough Materials" {
+		t.Errorf("an Air Pad, which costs Materials, in Materials debt: err = %v", err)
 	}
-
-	s.Advance(c, 50_000) // still in debt: no progress
-	s.Players[0].Resources["base:materials"] = 0
-	s.Advance(c, 60_000)
-	if q := s.Planets["a"].Queue[0]; q.EndsAt != 80_000 {
-		t.Errorf("out of debt: %+v, want it to resume and end at 80 s", q)
+	if err := s.QueueBuilding(c, 0, "a", 3, "base:barracks"); err != nil {
+		t.Errorf("a Barracks costs only Credits, so Materials debt doesn't stop it: %v", err)
 	}
 }
 

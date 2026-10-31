@@ -495,7 +495,7 @@ function LabPicker(props: {
           You have no Lab. Build one to research.
         </p>
       ) : (
-        <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1.5">
+        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
           {all.map((l) => {
             const holds = [
               ...l.holds.map(nameOf),
@@ -510,7 +510,7 @@ function LabPicker(props: {
                     props.conn.startProject(props.tech, l.planet, l.slot);
                     props.onDone();
                   }}
-                  className="flex w-full items-center gap-2.5 rounded border-0 bg-transparent p-2 text-left disabled:opacity-50"
+                  className="border-edge bg-item flex w-full items-center gap-2.5 rounded-md border px-2.5 py-2 text-left disabled:opacity-50"
                 >
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className="font-semibold">

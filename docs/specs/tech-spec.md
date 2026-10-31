@@ -48,7 +48,6 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 - Each field runs **one Project** at a time, and its whole Research rate goes into it.
 - **Progress** is continuous, in Match Time.
 - **A Project pauses:**
-  - while the player is in debt (every Project pauses);
   - while its Lab's Planet is Locked;
   - while a required building is missing.
   - A paused Project's field sits idle: its Research doesn't go to another field.

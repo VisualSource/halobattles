@@ -32,7 +32,11 @@ export function FieldIcon(props: { content: ContentLookups; field: string }) {
       className={`inline-block flex-none ${url ? "size-4.5" : "size-2 rounded-full"}`}
       style={{
         backgroundColor: f?.colour ?? "var(--color-ink-3)",
-        ...(url && { mask: `url(${url}) center / contain no-repeat` }),
+        // Quoted: an inlined SVG's data URL has quotes, which break an unquoted url().
+        ...(url && {
+          mask: `url("${url}") center / contain no-repeat`,
+          WebkitMask: `url("${url}") center / contain no-repeat`,
+        }),
       }}
     />
   );

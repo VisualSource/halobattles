@@ -23,7 +23,7 @@ The full rules and numbers are in the [economy spec](economy-spec.md) (Economy v
 - **Payday** comes every 90 s and pays, as one lump sum, each owned Planet's base income plus its extractor buildings' yields (scaled by the Planet's **Richness**), minus building and unit **Upkeep**.
 - **Sprawl:** each Planet beyond a player's first 4 makes new units and buildings cost more.
 - An **exchange** trades Resources for Credits and back at poor fixed rates.
-- **Debt is allowed.** While any Resource is below zero, the player can't queue anything and all of their queues pause. They get out by selling buildings, trading, or waiting for income.
+- **Debt is allowed.** While a Resource is below zero, the player can't queue anything that costs it; queues, research and everything else keep running. They get out by trading on the Exchange, selling buildings, or waiting for income.
 - **Command Points** are a cap, not a Resource:
   - A unit occupies its Command Points from the moment it is queued until it dies.
   - Queuing is blocked if it would go over the cap.
@@ -40,7 +40,7 @@ The full rules and numbers are in the [economy spec](economy-spec.md) (Economy v
 - **Cancelling** refunds 100% if the item hasn't started, or 50% if it has.
 - **Selling** a finished building refunds 50%, and its Upkeep stops at once.
 - A unit or building a Tech unlocks can be queued only while the player holds that Tech ([tech spec](tech-spec.md#locked-content)). A Planet holds at most 3 Labs; there are no other build limits.
-- Queues pause while the player is in debt or the Planet is Locked, and resume afterwards.
+- Queues pause while the Planet is Locked, and resume afterwards.
 
 ## Stacks, Unit Slots and Armies
 

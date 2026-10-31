@@ -303,7 +303,7 @@ func TestUnitsInABattlePayUpkeepOnlyWhileAlive(t *testing.T) {
 	}
 }
 
-func TestUnitUpkeepCanPushAPlayerIntoDebtWhichFreezesQueues(t *testing.T) {
+func TestUnitUpkeepCanPushAPlayerIntoDebtInOneResource(t *testing.T) {
 	s, c := fixedMatch(t), upkeepContent()
 	s.Players[0].Resources = map[string]int{"base:credits": 0, "base:alloys": 1}
 
@@ -316,8 +316,11 @@ func TestUnitUpkeepCanPushAPlayerIntoDebtWhichFreezesQueues(t *testing.T) {
 	if got := s.Players[0].Resources["base:alloys"]; got != -1 {
 		t.Errorf("Alloys = %d, want -1", got)
 	}
-	if err := s.QueueUnit(c, 0, "a", 0, "base:marine", 1); err != errInDebt {
-		t.Errorf("queue in debt: %v, want %v", err, errInDebt)
+	if err := s.QueueUnit(c, 0, "a", 0, "base:spartan", 1); err == nil || err.Error() != "not enough Alloys" {
+		t.Errorf("Spartans, which cost Alloys, in Alloy debt: err = %v", err)
+	}
+	if err := s.QueueUnit(c, 0, "a", 0, "base:marine", 1); err != nil {
+		t.Errorf("Marines cost only Credits, so Alloy debt doesn't stop them: %v", err)
 	}
 }
 

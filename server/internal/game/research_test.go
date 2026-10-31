@@ -146,8 +146,8 @@ func TestAPausedProjectLeavesItsFieldIdle(t *testing.T) {
 	}
 	s.Players[0].Resources["base:credits"] = -1
 	s.Advance(c, 10_000)
-	if r := s.Players[0].Projects[0]; r.Rate != 0 || r.Done != 20 {
-		t.Errorf("in debt: Drill %+v, want paused with 20 done", r)
+	if r := s.Players[0].Projects[0]; r.Rate != 2 {
+		t.Errorf("in debt: Drill %+v, want it still running; debt doesn't pause research", r)
 	}
 }
 

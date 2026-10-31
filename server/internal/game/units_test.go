@@ -61,7 +61,7 @@ func TestQueueUnitRejections(t *testing.T) {
 		{"empty slot", nil, 2, "base:marine", 1, "no building"},
 		{"unit it doesn't train", nil, 0, "base:grunt", 1, "can't train"},
 		{"no count", nil, 0, "base:marine", 0, "at least one"},
-		{"in debt", func(s *State) { s.Players[0].Resources["base:materials"] = -1 }, 0, "base:marine", 1, "debt"},
+		{"in debt in what it costs", func(s *State) { s.Players[0].Resources["base:credits"] = -1 }, 0, "base:marine", 1, "not enough Credits"},
 		{"can't afford all", func(s *State) { s.Players[0].Resources["base:credits"] = 120 }, 0, "base:marine", 3, "not enough Credits"},
 		{"Locked", func(s *State) { s.Planets["a"].Locked = true }, 0, "base:marine", 1, "Locked"},
 	}

@@ -534,7 +534,7 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
   );
 }
 
-/** A Battle here, or your own debt, both of which pause this Planet. */
+/** A Battle here, which pauses this Planet, or your own debt. */
 function Alerts(props: {
   conn: MatchConnection;
   content: ContentLookups;
@@ -577,8 +577,8 @@ function Alerts(props: {
               .join(", ")}
             .
           </strong>{" "}
-          Every queue is paused and you can't queue anything. Sell a building or
-          wait for Payday.
+          You can't queue anything that costs it until it's paid off. Trade for
+          it on the Exchange, or wait for Payday.
         </div>
       )}
     </>

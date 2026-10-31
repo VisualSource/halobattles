@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../schema/content/resource.schema.json",
   "id": "credits",
-  "name": "Credits"
+  "name": "Credits",
+  "order": 1
 }

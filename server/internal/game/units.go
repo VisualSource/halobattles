@@ -26,8 +26,6 @@ func (s *State) QueueUnit(c *cs.Content, seat int, planet string, slot int, unit
 		return fmt.Errorf("that building can't train %s", unit)
 	case count < 1:
 		return errors.New("queue at least one unit")
-	case pl.inDebt():
-		return errInDebt
 	}
 	if err := s.mustUnlock(c, seat, unit, true); err != nil {
 		return err

@@ -578,51 +578,61 @@ function Stockpile(props: { conn: MatchConnection; content: ContentLookups }) {
 
   return (
     <div ref={popRef} className="relative flex items-center gap-1">
-      {[...have].map(([id, amount]) => {
-        const cap = economy.caps.get(id);
-        const net = economy.projected.get(id) ?? 0;
-        const full = cap !== undefined && amount >= cap;
-        const lost = cap === undefined ? 0 : Math.max(0, amount + net - cap);
-        const tip = [
-          `${name(id)}: ${amount}${cap === undefined ? "" : ` of ${cap}`}`,
-          `Next Payday: ${net < 0 ? net : `+${net}`}`,
-          amount < 0 &&
-            "In debt: you can't queue anything until it's paid off.",
-          lost > 0 && `${lost} over the cap will be lost.`,
-        ]
-          .filter(Boolean)
-          .join("\n");
-        return (
-          <button
-            key={id}
-            type="button"
-            title={tip}
-            aria-label={`${tip} Open the Exchange.`}
-            aria-expanded={pop.open && other === id}
-            disabled={!money}
-            onClick={() => openOn(id)}
-            className={`flex flex-col items-center gap-0.5 rounded border-0 px-2 py-1 font-mono leading-none whitespace-nowrap ${pop.open && other === id ? "bg-raised" : "bg-transparent"}`}
-          >
-            <ResourceIcon id={id} name={name(id)} />
-            <span className="flex items-baseline gap-1">
-              <span
-                className={
-                  amount < 0 ? "text-danger" : full ? "text-accent" : "text-ink"
-                }
-              >
-                {compact.format(amount)}
-              </span>
-              {net !== 0 && (
+      {[...have]
+        .sort(
+          ([a], [b]) =>
+            (content.resources.get(a)?.order ?? 0) -
+              (content.resources.get(b)?.order ?? 0) || a.localeCompare(b),
+        )
+        .map(([id, amount]) => {
+          const cap = economy.caps.get(id);
+          const net = economy.projected.get(id) ?? 0;
+          const full = cap !== undefined && amount >= cap;
+          const lost = cap === undefined ? 0 : Math.max(0, amount + net - cap);
+          const tip = [
+            `${name(id)}: ${amount}${cap === undefined ? "" : ` of ${cap}`}`,
+            `Next Payday: ${net < 0 ? net : `+${net}`}`,
+            amount < 0 &&
+              "In debt: you can't queue anything that costs it until it's paid off.",
+            lost > 0 && `${lost} over the cap will be lost.`,
+          ]
+            .filter(Boolean)
+            .join("\n");
+          return (
+            <button
+              key={id}
+              type="button"
+              title={tip}
+              aria-label={`${tip} Open the Exchange.`}
+              aria-expanded={pop.open && other === id}
+              disabled={!money}
+              onClick={() => openOn(id)}
+              className={`flex flex-col items-center gap-0.5 rounded border-0 px-2 py-1 font-mono leading-none whitespace-nowrap ${pop.open && other === id ? "bg-raised" : "bg-transparent"}`}
+            >
+              <ResourceIcon id={id} name={name(id)} />
+              <span className="flex items-baseline gap-1">
                 <span
-                  className={`text-xs ${net < 0 ? "text-danger" : full ? "text-ink-4" : "text-ok"}`}
+                  className={
+                    amount < 0
+                      ? "text-danger"
+                      : full
+                        ? "text-accent"
+                        : "text-ink"
+                  }
                 >
-                  {net < 0 ? compact.format(net) : `+${compact.format(net)}`}
+                  {compact.format(amount)}
                 </span>
-              )}
-            </span>
-          </button>
-        );
-      })}
+                {net !== 0 && (
+                  <span
+                    className={`text-xs ${net < 0 ? "text-danger" : full ? "text-ink-4" : "text-ok"}`}
+                  >
+                    {net < 0 ? compact.format(net) : `+${compact.format(net)}`}
+                  </span>
+                )}
+              </span>
+            </button>
+          );
+        })}
       {pop.open && money && (
         <section
           aria-label="Exchange"
@@ -969,9 +979,15 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
           planet: string;
           winner: number | null;
         }>(e);
+        // A side hears whether it won, so a loss can't read as a win at a glance.
+        const result = !mine(battle)
+          ? `${who(winner)} won`
+          : winner === view()?.you
+            ? "you won"
+            : "you lost";
         notify(
           "battle",
-          `Battle at ${planet(id)} is over: ${who(winner)} won`,
+          `Battle at ${planet(id)} is over: ${result}`,
           mine(battle)
             ? {
                 label: "Report",

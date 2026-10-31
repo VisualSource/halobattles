@@ -23,7 +23,6 @@ type QueueItem struct {
 }
 
 var (
-	errInDebt = errors.New("you can't queue anything while in debt")
 	errLocked = errors.New("that Planet is Locked by a Battle")
 )
 
@@ -57,8 +56,6 @@ func (s *State) QueueBuilding(c *cs.Content, seat int, planet string, slot int, 
 		return fmt.Errorf("you can't build %s", building)
 	case b.TechSlots != nil && p.labs(c) >= c.Rulesets[RulesetID].Tech.LabsPerPlanet:
 		return fmt.Errorf("a Planet holds at most %d Labs", c.Rulesets[RulesetID].Tech.LabsPerPlanet)
-	case pl.inDebt():
-		return errInDebt
 	}
 	if err := s.mustUnlock(c, seat, building, false); err != nil {
 		return err
@@ -166,20 +163,11 @@ func (p *Player) refund(cost map[string]int, percent int) {
 	}
 }
 
-func (p *Player) inDebt() bool {
-	for _, a := range p.Resources {
-		if a < 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// build runs every queue. Queues pause while their owner is in debt or the
-// Planet is Locked.
+// build runs every queue. Queues pause while their Planet is Locked; debt
+// only stops queuing what costs a Resource in debt, since that can't be paid.
 func (s *State) build(c *cs.Content, now int64) {
 	for _, p := range s.Planets {
-		run := p.Owner != Neutral && !s.Players[p.Owner].inDebt() && !p.Locked
+		run := p.Owner != Neutral && !p.Locked
 		p.Queue = runQueue(p.Queue, run, now, func(q QueueItem) bool {
 			p.Buildings[q.Slot] = q.Building
 			delete(p.Techs, q.Slot) // a new building never inherits a lost Lab's Techs

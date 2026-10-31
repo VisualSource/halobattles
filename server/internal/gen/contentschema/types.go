@@ -732,6 +732,9 @@ type Resource struct {
 	// Name corresponds to the JSON schema field "name".
 	Name Name `json:"name"`
 
+	// Where it's listed, lowest first; a tie goes by id.
+	Order *int `json:"order,omitempty,omitzero"`
+
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
 }
