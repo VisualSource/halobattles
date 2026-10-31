@@ -16,6 +16,7 @@ type Weights struct {
 	Cover      float64 // preferring cover and high ground to stop on
 	Raid       float64 // going after enemy buildings
 	Scout      float64 // searching when no enemy is in view
+	Mass       float64 // strength a Task Force gathers over the threat at its goal
 }
 
 // WeightsOf reads a Faction's AI block; anything it leaves out is 1.
@@ -27,9 +28,9 @@ func WeightsOf(w *cs.AIWeights) Weights {
 		return *p
 	}
 	if w == nil {
-		return Weights{1, 1, 1, 1, 1}
+		return Weights{1, 1, 1, 1, 1, 1}
 	}
-	return Weights{or(w.Aggression), or(w.Caution), or(w.Cover), or(w.Raid), or(w.Scout)}
+	return Weights{or(w.Aggression), or(w.Caution), or(w.Cover), or(w.Raid), or(w.Scout), or(w.Mass)}
 }
 
 type goalKind int
@@ -116,8 +117,10 @@ type AI struct {
 	own     []*Squad         // the side's squads on the field this tick
 	looked  []int            // per block of the map, the tick the side last saw its middle
 	roles   map[int]role     // squads with a job, by id
-	rested  map[int]int      // the tick a squad got back from falling back
-	round   map[int]int      // a skirmisher's place on its patrol
+	forces  map[forceKey]*taskForce
+	forceOf map[int]*taskForce // squads in a Task Force, by id
+	rested  map[int]int        // the tick a squad got back from falling back
+	round   map[int]int        // a skirmisher's place on its patrol
 }
 
 func NewAI(w Weights) *AI {
@@ -243,7 +246,12 @@ func (ai *AI) Orders(v View) []Order {
 			continue
 		}
 		if p.engaged != 0 { // it's dead or gone: back to the plan
-			p.engaged, p.steps, p.sent = 0, nil, false
+			p.engaged, p.steps, p.sent, p.moveTo = 0, nil, false, Cell{}
+		}
+		tf := ai.forceOf[sq.ID]
+		if tf != nil && !tf.going {
+			out = append(out, ai.gather(v, sq, p, tf)...)
+			continue
 		}
 		if p.goal.kind == defend {
 			if v.Tick() < p.beatUntil {
@@ -261,7 +269,12 @@ func (ai *AI) Orders(v View) []Order {
 		if p.steps == nil || flipped || len(sq.Members) < p.members || (v.Tick()+sq.ID)%TicksPerSecond == 0 {
 			ai.replan(v, sq, p)
 		}
-		out = append(out, ai.execute(v, sq, p)...)
+		for _, o := range ai.execute(v, sq, p) {
+			if tf != nil && o.Kind == Move {
+				o.Pace = tf.pace // in together
+			}
+			out = append(out, o)
+		}
 	}
 	return out
 }
@@ -305,7 +318,9 @@ func (ai *AI) remember(v View, own, enemies []*Squad) {
 // one it scores highest. A goal's score is its value, less for distance, for
 // squads already on it, and, except for holding a point, for enemies the
 // side has seen near it lately. A squad's current goal scores a quarter more,
-// so near-ties don't flip it back and forth.
+// so near-ties don't flip it back and forth. A Task Force's goal (see
+// taskforce.go) loses nothing for squads on it until it has the strength
+// the threat there calls for, so squads mass on it rather than spread out.
 func (ai *AI) command(v View, own, enemies []*Squad) {
 	s := v.sim
 	var goals []goal
@@ -378,6 +393,16 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		strength += float64(len(sq.Members))
 	}
 	assigned := make([]float64, len(goals))
+	on := make([][]*Squad, len(goals))
+	need, members := make([]float64, len(goals)), make([]float64, len(goals))
+	for i, g := range goals {
+		need[i] = margin * w.Mass * threat[i]
+		if g.kind == defend {
+			// Worth leaving a quiet point for. Against Task Forces, at 2 the
+			// attacker won 59% of Starting Kit Battles; at 3, 51%.
+			values[i] *= 1 + 3*threat[i]/max(1, strength)
+		}
+	}
 	busy := ai.assignRoles(v, own, enemies)
 	for _, sq := range own {
 		if sq.speed == 0 || sq.retreating || busy[sq.ID] {
@@ -389,7 +414,10 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			if g.target != 0 && s.tier(sq, s.squad(g.target)) == None {
 				continue // it can't hurt that
 			}
-			score := values[i] / (1 + dist(sq.Cell, g.cell)/distScale) / (1 + assigned[i])
+			score := values[i] / (1 + dist(sq.Cell, g.cell)/distScale)
+			if !g.kind.forms() || len(on[i]) >= minForce && members[i] >= need[i] {
+				score /= 1 + assigned[i] // spread out, once a Task Force has what it needs
+			}
 			if g.target != 0 {
 				score *= matchup[s.tier(sq, s.squad(g.target))] // go after what it's good against
 			}
@@ -407,12 +435,17 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			continue
 		}
 		assigned[best]++
+		if goals[best].kind.forms() {
+			on[best] = append(on[best], sq)
+			members[best] += float64(len(sq.Members))
+		}
 		if p := ai.plans[sq.ID]; p != nil && p.goal.same(goals[best]) {
 			p.goal = goals[best]
 			continue
 		}
 		ai.plans[sq.ID] = &plan{goal: goals[best]}
 	}
+	ai.form(v, goals, on)
 }
 
 // walkBeat sends an idle guard to the next stop on its beat round its point,

@@ -494,6 +494,10 @@ export interface AIWeights {
    * How much it searches when it can see no enemy. Defaults to 1.
    */
   scout?: number;
+  /**
+   * How much more strength than the threat it has seen it gathers before a Task Force goes in. Defaults to 1.
+   */
+  mass?: number;
   bot?: BotWeights;
 }
 /**

@@ -202,7 +202,7 @@ Spots on the Battlefield where a side that holds one can build a turret, as on E
 ## Controllers
 
 - Each side has one **Controller**. Each tick it receives that side's **filtered view** of the Battle (the same data its client would get) and returns **orders**:
-  - `move(squad, cell)`
+  - `move(squad, cell, pace?)`: an optional pace caps its speed on this move, so squads can keep together; it doesn't apply to a Retreat
   - `attack(squad, target)`
   - `hold(squad)`: stay put and fire at anything in range
   - `retreat(side)`
@@ -215,7 +215,7 @@ Spots on the Battlefield where a side that holds one can build a turret, as on E
 
 ## AI
 
-The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
+The AI Controller has a Commander and a planner per Squad ([ADR 0005](../adr/0005-ai-as-controller.md)), with Task Forces between them ([ADR 0007](../adr/0007-battle-ai-task-forces.md)).
 
 ### Commander (side level)
 
@@ -223,7 +223,8 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
   - the goal's value;
   - distance;
   - the enemy strength the side can see near it;
-  - the strength already assigned to it, so all Squads don't pile onto one point.
+  - the Squads already assigned to it, so all Squads don't pile onto one point. A Task Force's goal (below) loses nothing for them until it has at least 2 Squads and at least 1.5 × its `mass` weight × the threat seen there in members (with no threat seen, any 2 Squads will do); then it spreads out like any other.
+- **Threatened points:** holding a point is worth 1 + 3 × (threat seen there ÷ the side's strength) times more, so guards leave a quiet point for one under attack. At 2, Task Force attackers won 59% of Starting Kit Battles; at 3, 51%.
 - **Matchups:** a kill or raid goal's score is scaled by the squad's tier against the target: ×1.15 for Advantage, ×0.9 for Disadvantage. Kept mild: at ×1.5 and ×0.6 the attacker, free to pick its fights while the defender is tied to its points, won 75% of Starting Kit Battles.
 - Caution's threat penalty applies to every goal except holding a point: a threatened point is the one to hold.
 - An **armed building** the side has seen adds threat to goals within its reach, counted like a 5-member squad. A turret outranges infantry, so its threat goes as far as it can shoot.
@@ -242,6 +243,16 @@ The AI Controller has two layers ([ADR 0005](../adr/0005-ai-as-controller.md)).
   - `killSquad(s)`: only Squads in view
   - `scout(area)`: the fallback when no enemy has been seen
 - It only knows what its side's filtered view shows.
+
+### Task Forces
+
+- A Squad the Commander gives a capture, kill or raid goal joins that goal's **Task Force**. A Task Force has at most 4 Squads; a goal with more gets more Task Forces. A Squad stays in the Task Force it was in, and new ones fill free places in id order, so a Task Force going in is never pulled back to gather.
+- **Gathering:** a new Task Force first meets at a **stage** 8 cells from its goal, toward where its Squads are. Each further Task Force on the goal stages on a bearing turned about 51° from the last, alternating sides, so a big force comes in from more than one side. The stage is the nearest cell to that point every member can stand on.
+- **Going in:** the Task Forces on a goal go in together once all have gathered, or once one has waited 20 s. A member counts as gathered within 3 cells of the stage, or once it has got as near as it can. One stopped by a fight on the way is sent on to the stage after it.
+- No gathering for a Task Force already within 11 cells of its goal, after a moving target (kill), or retaking a point for the defender while the attacker's hold timer runs.
+- **Moving together:** once going, every Move a member's plan sends carries the Task Force's **pace**, its slowest member's speed, so faster units don't arrive alone.
+- A member under fire still answers as it would alone (see **Under fire** above). Scouts, skirmishers and guards on their points aren't in Task Forces.
+- **Measured:** with gathering but no threatened-point value, Starting Kit attackers won 71% / 73%; without gathering, 60% / 57%. Retakes that gathered while the hold timer ran cost the defender about 10 points.
 
 ### Roles
 
@@ -272,7 +283,7 @@ On top of the usual goals, the Commander gives some squads a job:
   - `regroup`: to the nearest friendly squad.
 - **Budget:** plans are at most 4 actions deep.
 - **When it replans:** a Control Point changes hands, it loses a member, or otherwise once a second, staggered by Squad id. A replan whose next step hasn't changed keeps the destination it already sent, since every new destination costs a path.
-- **Code and data:** goals, actions and facts are Go code. Their **weights** are content: a Faction's optional `ai` block of `aggression`, `caution`, `cover`, `raid` and `scout`, each defaulting to 1. The base Covenant lean keener (aggression 1.05, caution 0.9, cover 0.9); the UNSC lean careful (aggression 0.95, caution 1.1, cover 1.25). Keep them close to 1: aggression especially is a strong lever, and at 1.4 the Covenant won 80% of their attacks. The planner looks up weights **per Squad** even though v1 only has Faction weights, so per-unit weights can be added later (see [Later](#later)). A neutral garrison plays the defaults.
+- **Code and data:** goals, actions and facts are Go code. Their **weights** are content: a Faction's optional `ai` block of `aggression`, `caution`, `cover`, `raid`, `scout` and `mass` (how much strength over the threat a Task Force wants), each defaulting to 1. The base Covenant lean keener (aggression 1.05, caution 0.9, cover 0.9); the UNSC lean careful (aggression 0.95, caution 1.1, cover 1.25). Keep them close to 1: aggression especially is a strong lever, and at 1.4 the Covenant won 80% of their attacks. The planner looks up weights **per Squad** even though v1 only has Faction weights, so per-unit weights can be added later (see [Later](#later)). A neutral garrison plays the defaults.
 - **Determinism:** ties between equal plan costs or equal goal scores go to the earlier goal or the action declared first, and squads are planned in id order. Any randomness comes from the Battle RNG.
 
 ### Movement among other squads
@@ -347,8 +358,8 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
 ## Pacing
 
 - Two evenly matched forces should fight for about **1–3 minutes**.
-- The two Starting Kits should stay roughly even: either one attacking wins about 45–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights.
-- A Go test checks both over 100 seeds per matchup, allowing 40–60% for sampling noise. When last tuned: about 96 s per Battle; UNSC attacking wins 48%, Covenant attacking 53%.
+- The two Starting Kits should stay roughly even, with a lean to the defender allowed: either one attacking wins 40–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights. A heavy lean to the defender is as much a problem as one to the attacker.
+- A Go test checks both over 100 seeds per matchup. When last tuned (Task Forces, #65): about 86 s per Battle; UNSC attacking wins 52%, Covenant attacking 52%.
 - The test covers **big Battles** too (three Starting Kit Stacks a side): UNSC attacking wins 56%, Covenant attacking 60%, right at the allowance. They were 73% / 67% before roles, the paused hold timer, guard posts, and cover for any positive weight.
 - Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 

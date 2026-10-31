@@ -74,7 +74,7 @@ func TestDefendersGoAfterAnEnemyTheySee(t *testing.T) {
 func TestNoAggressionLeavesEnemiesAlone(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:grunt", 5, 1}}}})
 	stageNear(t, s)
-	ai := NewAI(Weights{Aggression: 0, Caution: 1, Cover: 1, Raid: 1, Scout: 1})
+	ai := NewAI(Weights{Aggression: 0, Caution: 1, Cover: 1, Raid: 1, Scout: 1, Mass: 1})
 	v := View{s, Defender}
 	ai.command(v, v.Own(), v.Enemies())
 
@@ -88,7 +88,7 @@ func TestNoAggressionLeavesEnemiesAlone(t *testing.T) {
 func TestAHurtCautiousSquadRegroupsBeforeItFights(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
 	sq, target := s.Squads[0], s.Squads[1]
-	ai := NewAI(Weights{Aggression: 1, Caution: 1.5, Cover: 1, Raid: 1, Scout: 1})
+	ai := NewAI(Weights{Aggression: 1, Caution: 1.5, Cover: 1, Raid: 1, Scout: 1, Mass: 1})
 	v := View{s, Attacker}
 
 	sq.Members = sq.Members[:1] // 1 of 5 left

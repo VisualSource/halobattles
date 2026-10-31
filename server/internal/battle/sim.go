@@ -76,6 +76,7 @@ type Squad struct {
 	fireTicks              int
 	cooldown               int
 	bank                   float64 // movement saved up toward the next cell
+	pace                   float64 // the most it moves a second on its current order, or 0 for its speed
 	path                   []Cell
 	goal                   Cell
 	target                 int // an ordered target's id, or 0
@@ -474,7 +475,7 @@ func (s *Sim) apply(side Side, o Order) {
 		if sq.speed == 0 || o.Cell.X < 0 || o.Cell.Y < 0 || o.Cell.X >= s.Field.W || o.Cell.Y >= s.Field.H {
 			return
 		}
-		sq.goal, sq.blocked = o.Cell, 0
+		sq.goal, sq.blocked, sq.pace = o.Cell, 0, o.Pace
 		sq.path = s.Field.path(s.costsFor(sq.class), sq.Cell, o.Cell, nil)
 	case Attack:
 		if t := s.squad(o.Target); t != nil && t.Side != side {
@@ -528,7 +529,11 @@ func (s *Sim) move() {
 		}
 		c := s.costsFor(sq.class)
 		layer := s.layer(sq)
-		sq.bank += sq.speed / TicksPerSecond
+		speed := sq.speed
+		if sq.pace > 0 && !sq.retreating {
+			speed = min(speed, sq.pace)
+		}
+		sq.bank += speed / TicksPerSecond
 		for len(sq.path) > 0 {
 			next := sq.path[0]
 			cost := s.Field.stepCost(c, sq.Cell, next)

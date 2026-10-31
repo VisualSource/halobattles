@@ -20,6 +20,10 @@ type AIWeights struct {
 	// Defaults to 1.
 	Cover *float64 `json:"cover,omitempty,omitzero"`
 
+	// How much more strength than the threat it has seen it gathers before a Task
+	// Force goes in. Defaults to 1.
+	Mass *float64 `json:"mass,omitempty,omitzero"`
+
 	// How much it goes after enemy buildings. Defaults to 1.
 	Raid *float64 `json:"raid,omitempty,omitzero"`
 

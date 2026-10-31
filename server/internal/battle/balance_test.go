@@ -27,9 +27,10 @@ func kitForce(c *cs.Content, faction string, defending bool) Force {
 }
 
 // The roster's pacing and balance targets: the two Starting Kits, alone and
-// three Stacks a side, fight for 1–3 minutes on average, and either attacking the other wins 45–55% of the
-// time, each side playing its Faction's AI weights. Over 100 seeds the rate
-// is within about 5 points of the truth, so the test allows 40–60%.
+// three Stacks a side, fight for 1–3 minutes on average, and either attacking the other wins 40–55% of the
+// time, each side playing its Faction's AI weights: a lean to the defender
+// is fine, a heavy one isn't. Over 100 seeds the rate is within about 5
+// points of the truth.
 func TestStartingKitsArePacedAndBalanced(t *testing.T) {
 	if testing.Short() {
 		t.Skip("hundreds of Battles")
@@ -81,8 +82,8 @@ func TestStartingKitsArePacedAndBalanced(t *testing.T) {
 			if mean < 60 || mean > 180 {
 				t.Errorf("Starting Kits fight for %.0f s on average, want 60–180", mean)
 			}
-			if rate < 0.4 || rate > 0.6 {
-				t.Errorf("the attacker wins %.0f%%, want 45–55%% (40–60%% allowing for noise): the Starting Kits are out of balance", rate*100)
+			if rate < 0.4 || rate > 0.55 {
+				t.Errorf("the attacker wins %.0f%%, want 40–55%%: the Starting Kits are out of balance", rate*100)
 			}
 		})
 	}

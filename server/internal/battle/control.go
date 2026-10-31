@@ -22,8 +22,9 @@ type Order struct {
 	Kind     OrderKind
 	Squad    int
 	Cell     Cell
-	Target   int    // a squad id, or for Build a pad's index
-	Building string // for Build: the pad turret
+	Target   int     // a squad id, or for Build a pad's index
+	Building string  // for Build: the pad turret
+	Pace     float64 // for Move: the most it moves a second, so squads keep together; 0 is its own speed
 }
 
 // Controller drives one side: each tick it reads the side's View and returns

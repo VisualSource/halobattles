@@ -117,8 +117,12 @@ A Seat played by the AI: it reads only its View and sends only the commands a pl
 _Avoid_: AI player, computer, CPU
 
 **Commander**:
-The AI Controller's side-level layer, which assigns each Squad a goal.
+The AI Controller's side-level layer, which assigns goals to Task Forces and to single Squads.
 _Avoid_: General, strategist
+
+**Task Force**:
+A few of one side's Squads the Commander gives one goal, which gather and then go in together at the slowest one's pace.
+_Avoid_: Group, squad (a Squad is one Unit Slot), Stack (that's the galaxy's)
 
 **Unit Class**:
 A combat category of units and armed buildings (e.g. Infantry, Vehicle, Aircraft, Structure) that attackers are more or less effective against.

@@ -22,6 +22,7 @@
         "cover": { "description": "How much it prefers cover and high ground when it stops to fight or hold. Defaults to 1.", "type": "number", "minimum": 0, "maximum": 4 },
         "raid": { "description": "How much it goes after enemy buildings. Defaults to 1.", "type": "number", "minimum": 0, "maximum": 4 },
         "scout": { "description": "How much it searches when it can see no enemy. Defaults to 1.", "type": "number", "minimum": 0, "maximum": 4 },
+        "mass": { "description": "How much more strength than the threat it has seen it gathers before a Task Force goes in. Defaults to 1.", "type": "number", "minimum": 0, "maximum": 4 },
         "bot": {
           "title": "Bot Weights",
           "description": "How the Faction's Bots play the galaxy map: each weight scales one goal, times its difficulty's; 1 is neutral. See docs/specs/bot-spec.md.",
