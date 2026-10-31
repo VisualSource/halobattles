@@ -275,6 +275,40 @@ func TestFireGoesForTheBestMatchupInRange(t *testing.T) {
 	}
 }
 
+// focusSim has Marines with two squads of Grunts in range, one nearer.
+func focusSim(t *testing.T) (s *Sim, marines, near, far *Squad) {
+	t.Helper()
+	s = aiSim(t, Force{Formations: [][]Slot{{{"base:marine", 5, 0}}}},
+		Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:grunt", 5, 1}}}})
+	marines, near, far = s.Squads[0], s.Squads[1], s.Squads[2]
+	freeAt(t, s, marines, s.Points[0].Cell, 0)
+	freeAt(t, s, near, marines.Cell, 3)
+	freeAt(t, s, far, marines.Cell, 4)
+	s.see()
+	return
+}
+
+func TestFireGoesForTheTargetAFriendIsAlreadyHitting(t *testing.T) {
+	s, marines, near, far := focusSim(t)
+	s.Tick = 10
+	far.hitBy, far.hitAt = 99, s.Tick-1 // another of the attacker's squads fired on it
+	if got := s.targetOf(marines); got != far {
+		t.Errorf("the Marines fire at squad %d; want %d, which a friend is already hitting, over the nearer %d", got.ID, far.ID, near.ID)
+	}
+	s.Tick += 2 * underFire // long ago now
+	if got := s.targetOf(marines); got != near {
+		t.Errorf("the Marines fire at squad %d; want the nearer %d once the friend's fire is old", got.ID, near.ID)
+	}
+}
+
+func TestFireGoesForTheTargetWithFewestLeft(t *testing.T) {
+	s, marines, _, far := focusSim(t)
+	far.Members = far.Members[:2]
+	if got := s.targetOf(marines); got != far {
+		t.Errorf("the Marines fire at squad %d; want %d, with 2 left, over the nearer full squad", got.ID, far.ID)
+	}
+}
+
 func TestTheCommanderSendsSquadsAfterWhatTheyreGoodAgainst(t *testing.T) {
 	s, marines, grunts, _ := matchupSim(t)
 	for i := range s.Points {

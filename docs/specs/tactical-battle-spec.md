@@ -120,7 +120,7 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 ### Firing
 
 - A Squad fires when its `fireInterval` has run down, it has a target, and that target is visible to its side and in range.
-- **Target:** the Controller's `attack` target if it has one. Otherwise the Squad picks a visible enemy in range that it can target (tier not `none`): the best tier first, then the nearest, then the lowest id.
+- **Target:** the Controller's `attack` target if it has one. Otherwise the Squad picks a visible enemy in range that it can target (tier not `none`): the best tier first, then one its side has fired on in the last 3 s (**focus fire**, so squads finish targets together), then the fewest members left, then the nearest, then the lowest id. This applies to every side, players included. In the Starting Kit balance test it moved attacker wins from 49% / 50% to 43% / 46%. In the big three-Stack case (#40) it moved them from 64% / 54% to 59% / 50%.
 - **A volley:** every living member makes its own attack against the target Squad. Each attack is the usual To-hit roll and, on a hit, the Damage roll, with Advantage or Disadvantage from the tier.
 - **To-hit modifiers**, added to each d20 roll (after Advantage or Disadvantage picks it) and then compared with `toHit`:
   - +2 for high ground ([Height](#height));

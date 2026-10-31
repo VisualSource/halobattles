@@ -707,10 +707,18 @@ func (s *Sim) canHit(actor, target *Squad) bool {
 }
 
 // targetOf is the ordered target if it can be hit, or else the visible enemy
-// in range with the best tier, then the nearest, then the lowest id.
+// in range with the best tier, then one its side has hit lately (focus fire),
+// then the fewest members left, then the nearest, then the lowest id.
 func (s *Sim) targetOf(sq *Squad) *Squad {
 	if t := s.squad(sq.target); t != nil && s.canHit(sq, t) {
 		return t
+	}
+	// Only the other side fires on t, so any recent hit is a friend's.
+	notHit := func(t *Squad) int {
+		if t.hitBy != 0 && s.Tick-t.hitAt <= underFire {
+			return 0
+		}
+		return 1
 	}
 	var best *Squad
 	for _, t := range s.Squads {
@@ -719,6 +727,8 @@ func (s *Sim) targetOf(sq *Squad) *Squad {
 		}
 		if best == nil || cmp.Or(
 			cmp.Compare(tierRank[s.tier(sq, t)], tierRank[s.tier(sq, best)]),
+			cmp.Compare(notHit(t), notHit(best)), // focus fire: finish what friends are hitting
+			cmp.Compare(len(t.Members), len(best.Members)),
 			cmp.Compare(dist2(sq.Cell, t.Cell), dist2(sq.Cell, best.Cell)),
 		) < 0 {
 			best = t // squads are in id order, so a tie keeps the lower id
