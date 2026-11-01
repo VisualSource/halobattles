@@ -13,6 +13,7 @@ import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import type { Building } from "../gen/content";
 import { progress, seatColour } from "../scene/galaxy";
+import { InfoPopover } from "../ui/popover";
 import { Tooltip } from "../ui/tooltip";
 import {
   amounts,
@@ -878,15 +879,15 @@ function BuildingsTab(props: {
                   richness={planet.richness}
                   actions={
                     <>
-                      <Tooltip content={details(b)}>
+                      <InfoPopover content={details(b)}>
                         <button
                           type="button"
                           aria-label={`About ${b.name}`}
-                          className="border-edge text-ink-3 flex size-5.5 flex-none cursor-help items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic"
+                          className="border-edge text-ink-3 hover:text-ink data-popup-open:text-ink data-popup-open:border-ink-3 flex size-5.5 flex-none cursor-pointer items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic"
                         >
                           i
                         </button>
-                      </Tooltip>
+                      </InfoPopover>
                       {editable && (
                         <Tooltip
                           content={`Refunds ${amounts(content, b.cost, refund)}`}
