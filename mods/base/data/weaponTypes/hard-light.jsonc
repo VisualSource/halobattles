@@ -1,8 +1,8 @@
 {
-    "$schema": "../../../../schema/content/weapon-type.schema.json",
-    "id": "hard-light",
-    "name": "Hard Light",
-    "shield": 0.75,
-    "armor": 1.0,
-    "hp": 1.25
+  "$schema": "../../../../schema/content/weapon-type.schema.json",
+  "id": "hard-light",
+  "name": "Hard Light",
+  "shield": 1.25,
+  "armor": 1.25,
+  "hp": 0.75
 }

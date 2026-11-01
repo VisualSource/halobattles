@@ -1,24 +1,24 @@
 {
-    "$schema": "../../../../schema/content/unit.schema.json",
-    "id": "enforcer-sentinel",
-    "name": "Enforcer Sentinel",
-    "faction": "forerunner",
-    "description": "Enforcer Sentinels are variant of large combat Sentinel designed by the Forerunners. They are primarily tasked with key defensive missions and may coordinate local Sentinel activity around security breaches and within Flood containment areas, isolating, containing, or otherwise eliminating any hostile presence.",
-    "buildTime": 25,
-    "commandPoints": 3,
-    "cost": {},
-    "combat": {
-        "unitClass": "vehicle",
-        "weaponType": "explosive",
-        "shield": 15,
-        "armor": 0,
-        "hp": 25,
-        "damage": "2d4",
-        "tiers": {
-            "infantry": "normal",
-            "vehicle": "advantage",
-            "aircraft": "normal",
-            "structure": "normal"
-        }
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "enforcer-sentinel",
+  "name": "Enforcer Sentinel",
+  "faction": "forerunner",
+  "description": "Enforcer Sentinels are variant of large combat Sentinel designed by the Forerunners. They are primarily tasked with key defensive missions and may coordinate local Sentinel activity around security breaches and within Flood containment areas, isolating, containing, or otherwise eliminating any hostile presence.",
+  "buildTime": 25,
+  "commandPoints": 3,
+  "cost": {},
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "explosive",
+    "shield": 15,
+    "armor": 0,
+    "hp": 25,
+    "damage": "2d4",
+    "tiers": {
+      "infantry": "disadvantage",
+      "vehicle": "advantage",
+      "aircraft": "normal",
+      "structure": "normal"
     }
+  }
 }

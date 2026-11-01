@@ -13,13 +13,15 @@
   "combat": {
     "unitClass": "aircraft",
     "weaponType": "laser",
-    "shield": 15,
+    "shield": 12,
     "armor": 0,
-    "hp": 20,
-    "damage": "1d4",
+    "hp": 16,
+    "damage": "1d6",
     "tiers": {
       "infantry": "normal",
-      "vehicle": "advantage"
+      "vehicle": "advantage",
+      "aircraft": "normal",
+      "structure": "normal"
     }
   },
   "description": "The Protector is one of the oldest classes of Sentinel built by the Forerunners, originally used by the Forerunner fleet in vast fleets as escorts for fighter-bomber squadrons. Over time, their role evolved to suit localised defence, leading to their deployment on a range of installations including Installation 00.",

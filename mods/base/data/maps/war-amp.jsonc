@@ -1,0 +1,321 @@
+{
+  "$schema": "../../../../schema/content/map.schema.json",
+  "id": "war-amp",
+  "name": "War Amp",
+  "planets": [
+    { "id": "earth", "name": "Earth", "type": "capital", "position": { "x": 187, "y": 7 } },
+    { "id": "sanghelios", "name": "Sanghelios", "type": "capital", "position": { "x": 571, "y": -78 } },
+    { "id": "doisac", "name": "Doisac", "type": "capital", "position": { "x": 188, "y": 312 } },
+    { "id": "mars", "name": "Mars", "type": "standard", "position": { "x": 150, "y": 50 } },
+    { "id": "onyx", "name": "Onyx", "type": "rich", "position": { "x": 296, "y": 0 } },
+    { "id": "reach", "name": "Reach", "type": "fortress", "position": { "x": 297, "y": 131 } },
+    { "id": "installation-04", "name": "Installation 04", "type": "standard", "position": { "x": 207, "y": 119 }, "model": "ring" },
+    { "id": "installation-07", "name": "Installation 07", "type": "standard", "position": { "x": 400, "y": -6 }, "model": "ring" },
+    { "id": "harvest", "name": "Harvest", "type": "standard", "position": { "x": 388, "y": 87 } },
+    { "id": "draco-iii", "name": "Draco III", "type": "standard", "position": { "x": 247, "y": -24 } },
+    { "id": "draetheus-v", "name": "Draetheus V", "type": "standard", "position": { "x": 133, "y": 173 } },
+    { "id": "installation-02", "name": "Installation 02", "type": "standard", "position": { "x": 359, "y": 246 }, "model": "ring" },
+    { "id": "hesduros", "name": "Hesduros", "type": "standard", "position": { "x": 448, "y": 47 } },
+    { "id": "ealen-iv", "name": "Ealen IV", "type": "standard", "position": { "x": 414, "y": 173 } },
+    { "id": "savadok", "name": "Savadok", "type": "standard", "position": { "x": 192, "y": 258 } },
+    { "id": "ordun-dal", "name": "Ordun Dal", "type": "standard", "position": { "x": 264, "y": 269 } },
+    { "id": "palamok", "name": "Palamok", "type": "capital", "position": { "x": 533, "y": 178 } },
+    { "id": "ansket-iv", "name": "Ansket IV", "type": "standard", "position": { "x": 295, "y": 75 } },
+    { "id": "sephune-iii", "name": "Sephune III", "type": "standard", "position": { "x": 138, "y": 111 } },
+    { "id": "eshin", "name": "Eshin", "type": "standard", "position": { "x": 367, "y": -76 } },
+    { "id": "malurok", "name": "Malurok", "type": "standard", "position": { "x": 484, "y": -39 } },
+    { "id": "epsilon-eridani-iv", "name": "Epsilon Eridani IV", "type": "rich", "position": { "x": 106, "y": -13 } },
+    { "id": "desdoron-v", "name": "Desdoron V", "type": "standard", "position": { "x": 186, "y": -61 } },
+    { "id": "aktis-iv", "name": "Aktis IV", "type": "rich", "position": { "x": 108, "y": 274 } },
+    { "id": "shaps-iii", "name": "Shaps III", "type": "standard", "position": { "x": 516, "y": 77 } },
+    { "id": "zehar-vi", "name": "Zehar VI", "type": "standard", "position": { "x": 502, "y": 256 } },
+    { "id": "gathved", "name": "Gathved", "type": "rich", "position": { "x": 551, "y": 29 } },
+    { "id": "salia-iii", "name": "Salia III", "type": "standard", "position": { "x": 451, "y": 327 } },
+    { "id": "venezia", "name": "Venezia", "type": "standard", "position": { "x": 299, "y": 334 } },
+    { "id": "victoria", "name": "Victoria", "type": "standard", "position": { "x": 467, "y": -138 } },
+    { "id": "cassidy-iii", "name": "Cassidy III", "type": "standard", "position": { "x": 542, "y": 133 } },
+    { "id": "dormire-iii", "name": "Dormire III", "type": "rich", "position": { "x": 488, "y": 206 } },
+    { "id": "alpha-corvi-ii", "name": "Alpha Corvi II", "type": "standard", "position": { "x": 281, "y": -86 } },
+    { "id": "cyrus-vii", "name": "Cyrus VII", "type": "standard", "position": { "x": 506, "y": 39 } }
+  ],
+  "lanes": [
+    { "from": "doisac", "to": "savadok", "type": "fast" },
+    { "from": "earth", "to": "epsilon-eridani-iv", "type": "fast" },
+    { "from": "earth", "to": "desdoron-v", "type": "fast" },
+    { "from": "earth", "to": "draco-iii", "type": "fast" },
+    { "from": "earth", "to": "ansket-iv", "type": "fast" },
+    { "from": "mars", "to": "sephune-iii", "type": "fast" },
+    { "from": "draetheus-v", "to": "sephune-iii", "type": "fast" },
+    { "from": "sephune-iii", "to": "installation-04", "type": "fast" },
+    { "from": "reach", "to": "installation-04", "type": "fast" },
+    { "from": "ordun-dal", "to": "venezia", "type": "fast" },
+    { "from": "salia-iii", "to": "installation-02", "type": "fast" },
+    { "from": "salia-iii", "to": "venezia", "type": "fast" },
+    { "from": "sephune-iii", "to": "epsilon-eridani-iv", "type": "fast" },
+    { "from": "draco-iii", "to": "onyx", "type": "fast" },
+    { "from": "sanghelios", "to": "hesduros", "type": "fast" },
+    { "from": "eshin", "to": "installation-07", "type": "fast" },
+    { "from": "onyx", "to": "harvest", "type": "fast" },
+    { "from": "salia-iii", "to": "zehar-vi", "type": "fast" },
+    { "from": "zehar-vi", "to": "palamok", "type": "fast" },
+    { "from": "ealen-iv", "to": "palamok", "type": "fast" },
+    { "from": "ealen-iv", "to": "reach", "type": "fast" },
+    { "from": "victoria", "to": "eshin", "type": "fast" },
+    { "from": "installation-07", "to": "malurok", "type": "fast" },
+    { "from": "malurok", "to": "sanghelios", "type": "fast" },
+    { "from": "gathved", "to": "sanghelios", "type": "fast" },
+    { "from": "victoria", "to": "sanghelios", "type": "fast" },
+    { "from": "palamok", "to": "harvest", "type": "fast" },
+    { "from": "harvest", "to": "reach", "type": "fast" },
+    { "from": "installation-02", "to": "harvest", "type": "fast" },
+    { "from": "onyx", "to": "hesduros", "type": "fast" },
+    { "from": "palamok", "to": "cassidy-iii", "type": "fast" },
+    { "from": "cassidy-iii", "to": "shaps-iii", "type": "fast" },
+    { "from": "dormire-iii", "to": "palamok", "type": "fast" },
+    { "from": "mars", "to": "earth", "type": "fast" },
+    { "from": "draetheus-v", "to": "savadok", "type": "fast" },
+    { "from": "doisac", "to": "ordun-dal", "type": "fast" },
+    { "from": "aktis-iv", "to": "doisac", "type": "fast" },
+    { "from": "aktis-iv", "to": "draetheus-v", "type": "fast" },
+    { "from": "gathved", "to": "cyrus-vii", "type": "fast" },
+    { "from": "shaps-iii", "to": "cyrus-vii", "type": "fast" },
+    { "from": "hesduros", "to": "cyrus-vii", "type": "fast" },
+    { "from": "desdoron-v", "to": "alpha-corvi-ii", "type": "fast" },
+    { "from": "eshin", "to": "alpha-corvi-ii", "type": "fast" },
+    { "from": "alpha-corvi-ii", "to": "onyx", "type": "fast" },
+    { "from": "installation-07", "to": "onyx", "type": "fast" },
+    { "from": "installation-04", "to": "installation-02", "type": "fast" }
+  ],
+  "starts": ["doisac", "earth", "sanghelios", "palamok"],
+  "minPlayers": 2,
+  "win": {
+    "planetShare": 0.7,
+    "holdSeconds": 160
+  },
+  "garrisons": {
+    "installation-02": [
+      [
+        {
+          "unit": "aggressor-sentinel",
+          "count": 10
+        },
+        {
+          "unit": "enforcer-sentinel",
+          "count": 5
+        },
+        {
+          "unit": "retriever-sentinel",
+          "count": 1
+        }
+      ]
+    ],
+    "installation-07": [
+      [
+        {
+          "unit": "aggressor-sentinel",
+          "count": 10
+        },
+        {
+          "unit": "enforcer-sentinel",
+          "count": 5
+        },
+        {
+          "unit": "protector-sentinel",
+          "count": 2
+        },
+        {
+          "unit": "retriever-sentinel",
+          "count": 1
+        }
+      ]
+    ],
+    "installation-04": [
+      [
+        {
+          "unit": "aggressor-sentinel",
+          "count": 10
+        },
+        {
+          "unit": "enforcer-sentinel",
+          "count": 5
+        },
+        {
+          "unit": "retriever-sentinel",
+          "count": 1
+        }
+      ]
+    ],
+    "onyx": [
+      [
+        {
+          "unit": "protector-sentinel",
+          "count": 7
+        }
+      ]
+    ],
+    "reach": [
+      [
+        {
+          "unit": "marine",
+          "count": 10
+        },
+        {
+          "unit": "warthog",
+          "count": 5
+        },
+        {
+          "unit": "scorpion",
+          "count": 1
+        }
+      ]
+    ],
+    "sanghelios": [
+      [
+        {
+          "unit": "phaeton",
+          "count": 3
+        },
+        {
+          "unit": "promethean-soldier",
+          "count": 15
+        },
+        {
+          "unit": "promethean-knight",
+          "count": 5
+        },
+        {
+          "unit": "promethean-watcher",
+          "count": 3
+        }
+      ]
+    ],
+    "earth": [
+      [
+        {
+          "unit": "phaeton",
+          "count": 3
+        },
+        {
+          "unit": "promethean-knight",
+          "count": 5
+        },
+        {
+          "unit": "promethean-soldier",
+          "count": 15
+        },
+        {
+          "unit": "promethean-watcher",
+          "count": 3
+        }
+      ]
+    ],
+    "doisac": [
+      [
+        {
+          "unit": "phaeton",
+          "count": 13
+        },
+        {
+          "unit": "promethean-soldier",
+          "count": 15
+        },
+        {
+          "unit": "promethean-knight",
+          "count": 5
+        },
+        {
+          "unit": "promethean-watcher",
+          "count": 3
+        }
+      ]
+    ],
+    "palamok": [
+      [
+        {
+          "unit": "phaeton",
+          "count": 3
+        },
+        {
+          "unit": "promethean-soldier",
+          "count": 15
+        },
+        {
+          "unit": "promethean-knight",
+          "count": 4
+        },
+        {
+          "unit": "promethean-watcher",
+          "count": 3
+        }
+      ]
+    ],
+    "harvest": [
+      [
+        {
+          "unit": "aggressor-sentinel",
+          "count": 6
+        }
+      ]
+    ],
+    "draco-iii": [
+      [
+        {
+          "unit": "aggressor-sentinel",
+          "count": 6
+        }
+      ]
+    ],
+    "victoria": [
+      [
+        {
+          "unit": "aggressor-sentinel",
+          "count": 6
+        }
+      ]
+    ],
+    "zehar-vi": [
+      [
+        {
+          "unit": "aggressor-sentinel",
+          "count": 6
+        }
+      ]
+    ],
+    "venezia": [
+      [
+        {
+          "unit": "aggressor-sentinel",
+          "count": 6
+        }
+      ]
+    ],
+    "ealen-iv": [
+      [
+        {
+          "unit": "aggressor-sentinel",
+          "count": 6
+        },
+        {
+          "unit": "enforcer-sentinel",
+          "count": 5
+        }
+      ]
+    ],
+    "sephune-iii": [
+      [
+        {
+          "unit": "retriever-sentinel",
+          "count": 1
+        },
+        {
+          "unit": "aggressor-sentinel",
+          "count": 10
+        },
+        {
+          "unit": "enforcer-sentinel",
+          "count": 2
+        }
+      ]
+    ]
+  }
+}

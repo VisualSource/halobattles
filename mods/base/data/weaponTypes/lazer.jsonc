@@ -1,8 +1,8 @@
 {
-    "$schema": "../../../../schema/content/weapon-type.schema.json",
-    "id": "laser",
-    "name": "Laser",
-    "shield": 0.75,
-    "armor": 1.0,
-    "hp": 1.25
+  "$schema": "../../../../schema/content/weapon-type.schema.json",
+  "id": "laser",
+  "name": "Laser",
+  "shield": 1.0,
+  "armor": 1.0,
+  "hp": 1.0
 }
