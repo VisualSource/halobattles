@@ -12,8 +12,10 @@ import { mapEditor } from "./map-editor.plugin.ts";
  * server's deploy env. A build reads only the committed runtime.env, so a
  * git-ignored local Mod (runtime.local.env) never reaches dist/.
  */
-function enabledMods(command: "build" | "serve"): string[] {
-  let list = process.env.HALO_MODS;
+function enabledMods(
+  command: "build" | "serve",
+  list = process.env.HALO_MODS,
+): string[] {
   const files = [
     "runtime.env",
     ...(command === "serve" ? ["runtime.local.env"] : []),
@@ -57,12 +59,14 @@ export default defineConfig(({ mode, command }) => {
   // TUNNEL_HOST: the public hostname of a tunnel (say Cloudflare) that sends
   // everything to this dev server. Vite then accepts that host, proxies
   // Nakama's API and socket, and runs HMR over the tunnel's port 443.
-  const tunnel = loadEnv(mode, ".", "").TUNNEL_HOST;
+  // loadEnv also returns process.env, so a shell HALO_MODS still wins over .env files.
+  const env = loadEnv(mode, ".", "");
+  const tunnel = env.TUNNEL_HOST;
   const nakama = "http://localhost:7350";
   return {
     // The router plugin generates src/routeTree.gen.ts from src/routes; it must come before react().
     plugins: [
-      enabledModAssets(enabledMods(command)),
+      enabledModAssets(enabledMods(command, env.HALO_MODS)),
       mapEditor(enabledMods("serve")),
       tanstackRouter({ target: "react" }),
       react(),
