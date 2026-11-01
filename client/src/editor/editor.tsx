@@ -65,6 +65,9 @@ export function Editor() {
   const [error, setError] = useState("");
   const [map, setMap] = useState<EditorMap>(newMap);
   const [dirty, setDirty] = useState(false);
+  // The map id last opened or saved: saving under any other id that exists
+  // would overwrite that map, so it asks first.
+  const [opened, setOpened] = useState("");
   const [sel, setSel] = useState<Selection>(null);
   const [tool, setTool] = useState<"select" | "lane">("select");
   const [laneFrom, setLaneFrom] = useState<string | null>(null);
@@ -91,6 +94,7 @@ export function Editor() {
     setSel(null);
     setLaneFrom(null);
     setDirty(false);
+    setOpened(id);
     if (!id) return setMap(newMap());
     try {
       setMap(await fetch(`/__editor/maps/${id}`).then(json<EditorMap>));
@@ -101,14 +105,22 @@ export function Editor() {
   };
 
   const save = async () => {
+    if (
+      map.id !== opened &&
+      data?.maps.includes(map.id) &&
+      !confirm(`A map called ${map.id} already exists. Overwrite it?`)
+    )
+      return;
     setCheck({ kind: "busy", text: "Saving and checking…" });
+    // Clean from now: an edit during the check (up to 2 minutes) marks it dirty again.
+    setDirty(false);
     try {
       const r = await fetch(`/__editor/maps/${map.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(map),
       }).then(json<{ file: string; ok: boolean; output: string }>);
-      setDirty(false);
+      setOpened(map.id);
       setData(
         (d) =>
           d &&
@@ -121,6 +133,7 @@ export function Editor() {
         text: `Saved ${r.file} · ${r.output}`,
       });
     } catch (e) {
+      setDirty(true); // not saved after all
       setCheck({ kind: "bad", text: String(e) });
     }
   };

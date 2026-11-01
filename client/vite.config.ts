@@ -67,7 +67,7 @@ export default defineConfig(({ mode, command }) => {
     // The router plugin generates src/routeTree.gen.ts from src/routes; it must come before react().
     plugins: [
       enabledModAssets(enabledMods(command, env.HALO_MODS)),
-      mapEditor(enabledMods("serve")),
+      mapEditor(enabledMods("serve", env.HALO_MODS)),
       tanstackRouter({ target: "react" }),
       react(),
       tailwindcss(),

@@ -13,7 +13,7 @@ import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import type { Building } from "../gen/content";
 import { progress, seatColour } from "../scene/galaxy";
-import { InfoPopover } from "../ui/popover";
+import { InfoButton, InfoPopover } from "../ui/popover";
 import { Tooltip } from "../ui/tooltip";
 import {
   amounts,
@@ -887,13 +887,7 @@ function BuildingsTab(props: {
                   actions={
                     <>
                       <InfoPopover content={details(b)}>
-                        <button
-                          type="button"
-                          aria-label={`About ${b.name}`}
-                          className="border-edge text-ink-3 hover:text-ink data-popup-open:text-ink data-popup-open:border-ink-3 flex size-5.5 flex-none cursor-pointer items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic"
-                        >
-                          i
-                        </button>
+                        <InfoButton name={b.name} />
                       </InfoPopover>
                       {editable && (
                         <Tooltip
@@ -1255,13 +1249,10 @@ function UnitsTab(props: {
                         />
                       }
                     >
-                      <button
-                        type="button"
-                        aria-label={`About ${u.name}`}
-                        className="border-edge text-ink-3 hover:text-ink data-popup-open:text-ink data-popup-open:border-ink-3 absolute top-2 right-2 flex size-5.5 cursor-pointer items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic"
-                      >
-                        i
-                      </button>
+                      <InfoButton
+                        name={u.name}
+                        className="absolute top-2 right-2"
+                      />
                     </InfoPopover>
                   </div>
                 );

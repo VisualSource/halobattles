@@ -1,6 +1,6 @@
 import { Popover as Base } from "@base-ui/react/popover";
 import { cn } from "cn";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { popupClass } from "./popup";
 
 /**
@@ -32,5 +32,29 @@ export function InfoPopover(props: {
         </Base.Positioner>
       </Base.Portal>
     </Base.Root>
+  );
+}
+
+/**
+ * The round "i" that opens an InfoPopover. It passes its props and ref
+ * through, as the popover's trigger needs.
+ */
+export function InfoButton({
+  name,
+  className,
+  ...props
+}: ComponentProps<"button"> & { name: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={`About ${name}`}
+      className={cn(
+        "border-edge text-ink-3 hover:text-ink data-popup-open:text-ink data-popup-open:border-ink-3 flex size-5.5 flex-none cursor-pointer items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic",
+        className,
+      )}
+      {...props}
+    >
+      i
+    </button>
   );
 }
