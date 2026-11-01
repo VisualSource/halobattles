@@ -44,19 +44,26 @@ func TestArrivingAtAGarrisonedPlanetStartsABattle(t *testing.T) {
 	}
 }
 
-func TestTheSimWaitsOutTheStartDelayThenStepsOncePerTick(t *testing.T) {
+func TestTheStartDelayIsTheSetupThenTheSimStepsOncePerTick(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	_ = s.OrderArmy(0, "a", marines(10), "b", 1)
 	s.Advance(c, 30_000) // arrives; the fighting starts 30 s later
 	b := onlyBattle(t, s)
+	if b.Sim.Setup != 30*battle.TicksPerSecond {
+		t.Fatalf("setup of %d ticks; want the 30 s start delay's", b.Sim.Setup)
+	}
 
+	s.Advance(c, 45_000) // half way through the delay: setup is running
+	if b.Sim.Tick != b.Sim.Setup/2 {
+		t.Errorf("tick %d half way through the delay, want %d", b.Sim.Tick, b.Sim.Setup/2)
+	}
 	s.Advance(c, 60_199)
-	if b.Sim.Tick != 0 {
-		t.Errorf("stepped early: tick %d", b.Sim.Tick)
+	if b.Sim.Tick != b.Sim.Setup {
+		t.Errorf("fought early: tick %d before the delay ran out, setup %d", b.Sim.Tick, b.Sim.Setup)
 	}
 	s.Advance(c, 61_000) // a second in: five ticks, caught up at once
-	if b.Sim.Tick != 5 {
-		t.Errorf("tick %d after 1 s, want 5", b.Sim.Tick)
+	if got := b.Sim.Tick - b.Sim.Setup; got != 5 {
+		t.Errorf("%d ticks of fighting after 1 s, want 5", got)
 	}
 }
 
@@ -263,8 +270,8 @@ func TestOnlyTheTwoSidesSeeTheBattle(t *testing.T) {
 	}
 
 	s.Advance(c, 61_000)
-	if got := s.View(c, 0).Battles[0].Tick; got != 5 {
-		t.Errorf("tick %d after 1 s, want 5", got)
+	if got := s.View(c, 0).Battles[0].Tick - onlyBattle(t, s).Sim.Setup; got != 5 {
+		t.Errorf("%d ticks of fighting after 1 s, want 5", got)
 	}
 }
 

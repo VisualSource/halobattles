@@ -24,15 +24,14 @@ func padSim(t *testing.T, attack, defend Force) (*Sim, *Pad) {
 	return nil, nil
 }
 
-func TestPadsNearThePointsStartAsTheDefenders(t *testing.T) {
+func TestPadsStartUnowned(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
 	if len(s.Pads) == 0 {
 		t.Fatal("no pads")
 	}
 	for _, p := range s.Pads {
-		near := slices.ContainsFunc(s.Points, func(pt Point) bool { return dist(pt.Cell, p.Cell) <= padStart })
-		if want := map[bool]Side{true: Defender, false: NoSide}[near]; p.Owner != want {
-			t.Errorf("pad %v (near a point: %v) starts with %v, want %v", p.Cell, near, p.Owner, want)
+		if p.Owner != NoSide {
+			t.Errorf("pad %v starts with %v; want no owner, for the defender to take in setup", p.Cell, p.Owner)
 		}
 	}
 }

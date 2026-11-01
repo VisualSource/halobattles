@@ -21,6 +21,11 @@ import { Floating, label, Tag, Tile, windowTitle } from "./windows";
 type TickEvent = { battle: number; tick: number; volleys: Volley[] };
 
 const NEUTRAL = "#9ca3af";
+
+/** Ticks of fighting by tick: the first ones are the defender's setup, in
+ * the start delay. */
+const fighting = (content: ContentLookups, tick: number) =>
+  Math.max(0, tick - content.rules.battle.startDelay * BATTLE_TICKS);
 const SIDES: Side[] = ["attacker", "defender"];
 
 const sideName = (view: View | null, seat: number | null) =>
@@ -132,7 +137,7 @@ export function BattlePanel(props: {
   }
 
   const rules = content.rules.battle;
-  const seconds = battle.tick / BATTLE_TICKS;
+  const seconds = fighting(content, battle.tick) / BATTLE_TICKS;
   const unitOf = new Map(
     [...(report?.squads.values() ?? []), ...battle.squads].map((q) => [
       q.id,
@@ -623,7 +628,7 @@ function Report(props: {
       tools={
         <span className="mr-2 font-mono">
           <span className={label}>Lasted </span>
-          {clock(r.ticks / BATTLE_TICKS)}
+          {clock(fighting(content, r.ticks) / BATTLE_TICKS)}
         </span>
       }
     >

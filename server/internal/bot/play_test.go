@@ -30,6 +30,9 @@ func apply(s *game.State, c *cs.Content, seat int, cmd Command) error {
 	case wire.OpStartProject:
 		x := wire.GetRootAsStartProject(cmd.Data, 0)
 		return s.StartProject(c, seat, string(x.Tech()), string(x.Planet()), int(x.Slot()))
+	case wire.OpBattleBuildTurret:
+		x := wire.GetRootAsBattleBuildTurret(cmd.Data, 0)
+		return s.BuildTurret(c, seat, string(x.Planet()), int(x.Pad()), string(x.Building()))
 	case wire.OpBattleRetreat:
 		return s.RetreatFromBattle(seat, string(wire.GetRootAsBattleRetreat(cmd.Data, 0).Planet()), false)
 	case wire.OpExchange:

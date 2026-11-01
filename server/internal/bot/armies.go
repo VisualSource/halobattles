@@ -311,3 +311,37 @@ func (b *Bot) retreat(v game.View, bt game.BattleView) *Command {
 	}
 	return b.command(wire.OpBattleRetreat, &wire.BattleRetreatT{Seq: b.nextSeq(), Planet: bt.Planet})
 }
+
+// buildTurrets buys a pad turret of the Bot's Faction on each empty pad its
+// side holds in a Battle: the cheapest it has the Tech for, and only while
+// it can pay for it twice over, so a turret never leaves it short for the next one or for
+// training. The defender takes its pads in the setup phase.
+func (b *Bot) buildTurrets(v game.View, bt game.BattleView) []Command {
+	side := battle.Attacker
+	if bt.Defender == v.You {
+		side = battle.Defender
+	}
+	left, techs := maps.Clone(v.Economy.Resources), held(v)
+	var out []Command
+	for i, p := range bt.Pads {
+		if p.Owner != side || p.Turret != 0 || p.Building != "" {
+			continue
+		}
+		for _, id := range battle.PadTurrets(b.c) {
+			cost := b.c.Buildings[id].Cost
+			twice := map[string]int{}
+			for r, n := range cost {
+				twice[r] = 2 * n
+			}
+			if string(b.c.Buildings[id].Faction) != b.faction || !unlocked(b.c, techs, id, false) || !battle.Affords(left, twice) {
+				continue
+			}
+			for r, n := range cost {
+				left[r] -= n
+			}
+			out = append(out, *b.command(wire.OpBattleBuildTurret, &wire.BattleBuildTurretT{Seq: b.nextSeq(), Planet: bt.Planet, Pad: byte(i), Building: id}))
+			break
+		}
+	}
+	return out
+}

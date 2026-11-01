@@ -254,6 +254,8 @@ func decode(c Command) any {
 		return wire.GetRootAsStartProject(c.Data, 0).UnPack()
 	case wire.OpExchange:
 		return wire.GetRootAsExchange(c.Data, 0).UnPack()
+	case wire.OpBattleBuildTurret:
+		return wire.GetRootAsBattleBuildTurret(c.Data, 0).UnPack()
 	}
 	return nil
 }

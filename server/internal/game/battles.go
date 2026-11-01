@@ -95,6 +95,8 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
 	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID), attack, defend, s.Seed+uint64(b.ID))
 	b.Sim.Controllers = [2]battle.Controller{battle.NewAI(s.aiWeights(c, b.Attacker)), battle.NewAI(s.aiWeights(c, b.Defender))}
+	b.Sim.Setup = int(delay / tickMs) // the start delay is the defender's setup phase
+	b.Sim.Builders = [2]bool{s.canBuildTurrets(c, b.Attacker), s.canBuildTurrets(c, b.Defender)}
 	if b.Defender == Neutral { // no economy: a budget for pad turrets instead
 		b.Sim.Funds[battle.Defender] = maps.Clone(c.Rulesets[RulesetID].Battle.NeutralFunds)
 	}
@@ -105,6 +107,18 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	}
 	s.Battles[b.ID] = b
 	ev.Started = append(ev.Started, b)
+}
+
+// canBuildTurrets is whether seat can build any pad turret: a neutral
+// garrison always can, with its Battle budget; a player needs one of their
+// Faction's, unlocked.
+func (s *State) canBuildTurrets(c *cs.Content, seat int) bool {
+	if seat == Neutral {
+		return true
+	}
+	return slices.ContainsFunc(battle.PadTurrets(c), func(id string) bool {
+		return string(c.Buildings[id].Faction) == s.Players[seat].Faction && s.mustUnlock(c, seat, id, false) == nil
+	})
 }
 
 // aiWeights is how a Seat's Faction plays its Battles; a neutral garrison
@@ -121,7 +135,8 @@ func (s *State) aiWeights(c *cs.Content, seat int) battle.Weights {
 func (s *State) fightBattles(c *cs.Content, now int64, ev *Events) {
 	for _, id := range slices.Sorted(maps.Keys(s.Battles)) {
 		b := s.Battles[id]
-		for !b.Sim.Over && b.Started+int64(b.Sim.Tick+1)*tickMs <= now {
+		// Setup ticks run before Started, the first fighting tick.
+		for !b.Sim.Over && b.Started+int64(b.Sim.Tick+1-b.Sim.Setup)*tickMs <= now {
 			if vs := b.Sim.Step(); len(vs) > 0 {
 				ev.Ticks = append(ev.Ticks, BattleTick{Battle: b, Volleys: vs})
 			}

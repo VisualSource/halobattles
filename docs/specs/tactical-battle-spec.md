@@ -86,7 +86,14 @@ Base-Mod Terrains:
 
 ## Time and movement
 
-- **Start delay:** when an Army arrives, the Planet Locks and both sides deploy at once, but the first sim tick waits `battle.startDelay` (15 s). That gives players time to open the Battle and see the layout. The window counts down meanwhile. A Battle decided on arrival (one side has nothing that can fight) ends at once.
+- **Start delay:** when an Army arrives, the Planet Locks and both sides deploy at once, but the fighting waits `battle.startDelay` (15 s). That gives players time to open the Battle and see the layout. The window counts down meanwhile. A Battle decided on arrival (one side has nothing that can fight) ends at once.
+- **Setup phase** (#68): the sim runs through the start delay, at the usual 5 ticks a second, as a setup phase for the defender. Its first ticks (`Setup`, the delay's worth) are setup; the fighting starts after them.
+  - Only the defender moves, and only if its side can build a pad turret at all: a neutral garrison always can; a player once they hold a Tech that unlocks one of their Faction's. It's there to take pads: its AI sends a squad only to a pad it can walk to, take, and walk back from to a held point before the fighting starts, valuing a pad at 5 against 2 for holding a point. Roles and sentry beats wait for the fighting. A defender that can't build waits on its points, as before the setup phase existed.
+  - The attacker only watches. A Retreat ordered in setup counts its countdown from the first fighting tick.
+  - Nothing fires; points can't change hands; no side wins or loses.
+  - Captures and turret builds take their usual times (`captureSeconds`, `padBuildSeconds`), so a turret started in setup finishes early in the fight.
+  - The 3-minute time cap counts fighting time only. On the wire, `tick` counts from the start of setup; the client takes `startDelay`'s worth off for the Battle clock.
+  - Measured: letting every defender move in setup cost it 6–10 points of Starting Kit Battles even with no turret to buy, as its squads were caught off their points and its scout's one run was spent before the attacker moved. Limited to defenders that can build, setup leaves those Battles where they were.
 - The sim **steps once per match tick (5 Hz, 200 ms)**. Every duration in seconds is converted to whole ticks, rounded to the nearest one.
 - Within a tick, the order is fixed:
   1. apply orders;
@@ -181,13 +188,14 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 Spots on the Battlefield where a side that holds one can build a turret, as on Empire at War's ground maps.
 
 - **Placement:** the generator places `battlefield.buildPads` (4) pads, dealt round the Control Points in turn. Each is beside a main lane: 2 cells off it, with a clear cell between it and any lane, so a turret never narrows one. It sits from just outside the point's clear ground to 8 cells out, on ground every ground Unit Class can reach, as far from the attacker starts as it can be, and at least 3 cells from other pads and sites. Where its point has no room, it goes by the next point that does.
-- **Owners at the start:** pads within 10 cells of a Control Point start as the defender's; the rest start with no owner. The attacker starts with none. Every pad is by a point now, so the defender holds them all; #68 makes them start unowned and lets the defender take them during the start delay.
+- **Owners at the start:** every pad starts with no owner. The defender takes them in the setup phase (see [Time and movement](#time-and-movement)).
 - **Capture:** like a Control Point, using the same radius and time: one side's ground squads alone near it for `captureSeconds` take it. A pad with a turret on it can't be captured; the enemy has to destroy the turret first. A pad being built on can be captured, which cancels the build without a refund.
 - **Building:** the side holding an empty pad can build one turret on it. A turret is a Building with `padTurret: true` and a `combat` block, of the side's own Faction. It costs that Building's `cost`, paid at once from the player's Resources, the same pool as the galaxy. It's built after `battle.padBuildSeconds` (10 s), and it exists only for this Battle. The base Mod's pad turrets are the Turret and the Plasma Turret.
-- **Who decides:** a player builds with the Battle window's button; the AI never spends a player's money. A **neutral garrison** has no economy, so it gets `battle.neutralFunds` (400 Credits, 100 Materials and 40 Alloys, two turrets' worth) for the Battle, and its AI builds turrets on the pads it holds, the cheapest it can afford first.
+- **Who decides:** a player builds with the Battle window's button; the Battle AI never spends a player's money, but a galaxy Bot buys for its own side (see the Bot spec). A **neutral garrison** has no economy, so it gets `battle.neutralFunds` (400 Credits, 100 Materials and 40 Alloys, two turrets' worth) for the Battle, and its AI builds turrets on the pads it holds, the cheapest it can afford first.
 - **Winning:** a defender's pad turrets count against its elimination, like its armed buildings. An attacker's don't: an attacker with only turrets left has lost.
 - **After the Battle:** pad turrets are gone, whoever won. They aren't Planet buildings.
-- **On the wire:** each pad in `BattleView`: its cell, owner, capture progress, any turret's squad id, and any build under way with the tick it finishes. The command is `BattleBuildTurret {planet, pad, building}`.
+- **Fog:** a side sees a pad's owner, capture, turret and build as they are only for its own pads and those in its Sight; others as it last saw them, which at the start is unowned. A side that loses one of its pads out of Sight learns it has, but not what's built on it after. A pad's cell is always shown, as part of the map. The Battle AI plans from the same picture.
+- **On the wire:** each pad in `BattleView`, as the side sees it: its cell, owner, capture progress, any turret's squad id, and any build under way with the tick it finishes. The command is `BattleBuildTurret {planet, pad, building}`.
 
 ## Retreat in Battle
 
@@ -243,6 +251,7 @@ The AI Controller has a Commander and a planner per Squad ([ADR 0005](../adr/000
 - **Under fire:** a squad an armed building fired on in the last 3 s breaks off its plan for it. If it can hurt the building, it goes after it (stopping to fire once in range) until the building is dead or out of sight. If it can't hurt it, it moves to the nearest cell outside the building's reach. Enemy squads that fire on it are left to the Commander, which sees them by their muzzle flash: breaking off for every shooter won Starting Kit attackers 70% of Battles instead of 50%.
 - **Leash:** a squad guarding a point goes after the enemy it can see and hurt, best matchup first and then nearest, that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. Armed buildings count as enemies here, and a shooter it can hurt comes first, out to the leash plus its own range: a Warthog (range 7) firing on a guard from just off its leash isn't left unanswered. At 8 cells, guards left their points open often enough to tip balance toward the attacker. Without answering shooters past the leash, Task Force attackers won 71% / 75% of Starting Kit Battles and 86–88% of big ones.
 - While the attacker's hold timer runs, the defender values retaking a point at 5 instead of 3.
+- **Urgency:** the attacker's caution falls as the time cap nears: × (1 − fighting time ÷ time cap), so a stalled attack pushes rather than sitting out the clock on the points it holds. A Bot attack that took one point and sat on it till the cap, short of the two it needed, was what showed this.
 - **Goals:**
   - `capturePoint(p)`
   - `defendPoint(p)`

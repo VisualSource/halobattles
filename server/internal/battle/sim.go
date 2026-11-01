@@ -109,10 +109,6 @@ type Pad struct {
 	ReadyAt  int    // the tick it's built
 }
 
-// padStart is how near a Control Point, in cells, a pad starts as the
-// defender's.
-const padStart = 10
-
 // Point is a Control Point. Taker has been in range alone for Progress ticks.
 type Point struct {
 	Cell     Cell
@@ -144,13 +140,23 @@ type Sim struct {
 	Squads []*Squad // by id; dead ones stay, with no Members
 	Points []Point
 	Pads   []Pad
+	// padSeen is each side's picture of the pads, kept by see().
+	padSeen [2][]Pad
 	// Funds is what a side without an economy, a neutral garrison, has to
 	// spend on pad turrets; nil for a player, who pays from their Resources.
 	Funds  [2]map[string]int
 	boosts [2]map[string]Boost // each side's Force.Boosts
 	Edge   int                 // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
 	Tick   int
-	Hold   int // ticks the attacker has held enough points
+	// Setup is how many ticks, from the first, are the setup phase before
+	// the fighting: only the defender acts, nothing fires, and no side can
+	// win yet. The game runs it during the start delay.
+	Setup int
+	// Builders is whether each side can build a pad turret at all: a
+	// neutral garrison can, a player once a Tech unlocks one of their
+	// Faction's. Its AI takes pads in setup only if so.
+	Builders [2]bool
+	Hold     int // ticks the attacker has held enough points
 	// HoldPaused: the attacker holds enough points, but a defender stands on
 	// one, so the hold timer waits.
 	HoldPaused bool
@@ -211,12 +217,11 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	for _, p := range f.Points {
 		s.Points = append(s.Points, Point{Cell: p, Owner: Defender, Taker: Defender})
 	}
-	for _, c := range f.Pads {
-		owner := NoSide
-		if slices.ContainsFunc(f.Points, func(p Cell) bool { return dist(p, c) <= padStart }) {
-			owner = Defender
-		}
-		s.Pads = append(s.Pads, Pad{Cell: c, Owner: owner, Taker: owner})
+	for _, c := range f.Pads { // unowned: the defender takes them in setup
+		s.Pads = append(s.Pads, Pad{Cell: c, Owner: NoSide, Taker: NoSide})
+	}
+	for side := range s.padSeen {
+		s.padSeen[side] = slices.Clone(s.Pads)
 	}
 	// The attacker deploys round one of the Field's starts, which the seed
 	// picks; a Field without any, round the middle of an edge.
@@ -424,7 +429,8 @@ func (s *Sim) Step() []Volley {
 		return nil
 	}
 	for side, ctl := range s.Controllers {
-		if ctl != nil {
+		// In setup only a defender that can build moves: it's there to take pads.
+		if ctl != nil && (!s.setup() || Side(side) == Defender && s.Builders[side]) {
 			for _, o := range ctl.Orders(View{s, Side(side)}) {
 				s.apply(Side(side), o)
 			}
@@ -437,9 +443,14 @@ func (s *Sim) Step() []Volley {
 	volleys := s.fire()
 	s.capture()
 	s.Tick++
-	s.end()
+	if !s.setup() {
+		s.end()
+	}
 	return volleys
 }
+
+// setup is whether the Battle is still in its setup phase.
+func (s *Sim) setup() bool { return s.Tick < s.Setup }
 
 func (s *Sim) squad(id int) *Squad {
 	if id < 1 || id > len(s.Squads) {
@@ -470,10 +481,11 @@ func (s *Sim) apply(side Side, o Order) {
 		}
 		p := &s.Pads[o.Target]
 		p.Building, p.ReadyAt = o.Building, s.Tick+max(1, ticks(s.rules.PadBuildSeconds))
+		s.padSeen[side][o.Target] = *p // its own build shows at once
 		return
 	case Retreat:
 		if s.RetreatAt[side] == 0 {
-			s.RetreatAt[side] = s.Tick + max(1, ticks(s.rules.RetreatCountdown))
+			s.RetreatAt[side] = max(s.Tick, s.Setup) + max(1, ticks(s.rules.RetreatCountdown)) // ordered in setup: from the first fighting tick
 		}
 		return
 	case CancelRetreat:
@@ -711,8 +723,23 @@ func (s *Sim) see() {
 			}
 		}
 		s.visible[side] = vis
+		// Pads: what the side can see of them now, else as it last saw them.
+		// A side holding one, or that thought it did, knows: it learns when
+		// it loses one, if not what's built on it after.
+		for i, p := range s.Pads {
+			if p.Owner == Side(side) || s.padSeen[side][i].Owner == Side(side) || slices.ContainsFunc(s.Squads, func(o *Squad) bool {
+				r := s.sightOf(o)
+				return o.Side == Side(side) && o.alive() && float64(dist2(o.Cell, p.Cell)) <= r*r
+			}) {
+				s.padSeen[side][i] = p
+			}
+		}
 	}
 }
+
+// PadsFor is side's picture of the build pads: its own, and those in its
+// Sight, as they are; the rest as it last saw them.
+func (s *Sim) PadsFor(side Side) []Pad { return slices.Clone(s.padSeen[side]) }
 
 func (s *Sim) tier(actor, target *Squad) string {
 	if t, ok := actor.tiers[target.class]; ok {
@@ -784,6 +811,9 @@ type Volley struct {
 // fire lets every armed squad whose fire interval is up shoot. A squad
 // killed earlier in the tick doesn't fire.
 func (s *Sim) fire() []Volley {
+	if s.setup() {
+		return nil // no one fires till the fighting starts
+	}
 	var out []Volley
 	for _, sq := range s.Squads {
 		if !sq.alive() || !sq.Armed || sq.retreating {
@@ -988,7 +1018,7 @@ func (s *Sim) end() {
 		s.Over, s.Winner, s.Reason = true, Attacker, Eliminated
 	case s.Hold > 0 && s.Hold >= ticks(s.rules.HoldSeconds):
 		s.Over, s.Winner, s.Reason = true, Attacker, HeldPoints
-	case s.Tick >= s.rules.TimeCap*TicksPerSecond:
+	case s.Tick-s.Setup >= s.rules.TimeCap*TicksPerSecond: // fighting time only
 		s.Over, s.Winner, s.Reason = true, Defender, TimeUp
 	}
 }
@@ -1014,7 +1044,7 @@ type Snapshot struct {
 	Edge       int
 	Squads     []SquadView // on the field, by id
 	Points     []Point
-	Pads       []Pad // public, like the Points
+	Pads       []Pad // as the side last saw them: see PadsFor
 	Hold       int
 	HoldPaused bool
 	RetreatAt  int     // the tick the side's own Retreat countdown ends, or 0
@@ -1023,7 +1053,7 @@ type Snapshot struct {
 
 func (s *Sim) Snapshot(side Side) Snapshot {
 	snap := Snapshot{
-		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: slices.Clone(s.Pads), Hold: s.Hold, HoldPaused: s.HoldPaused,
+		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: s.PadsFor(side), Hold: s.Hold, HoldPaused: s.HoldPaused,
 		RetreatAt: s.RetreatAt[side], Retreating: s.Retreating,
 	}
 	for _, sq := range s.Squads {

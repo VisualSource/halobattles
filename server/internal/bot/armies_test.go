@@ -210,3 +210,27 @@ func TestANeutralGarrisonCountsTheTurretsItsBudgetBuys(t *testing.T) {
 		t.Errorf("an empty neutral Planet: %d fighters; want none, as there's no Battle to buy turrets for", len(got))
 	}
 }
+
+func TestABotBuysATurretOnEachPadItHoldsWhileItCanPayTwice(t *testing.T) {
+	b := hard(t)
+	yes := true
+	b.c.Buildings = map[string]cs.Building{
+		"base:turret": {Faction: "base:unsc", PadTurret: &yes, Cost: map[string]int{"base:credits": 300}, Combat: &cs.Combat{Hp: 40, Damage: "1d4"}},
+		"base:theirs": {Faction: "base:covenant", PadTurret: &yes, Cost: map[string]int{"base:credits": 10}, Combat: &cs.Combat{Hp: 40, Damage: "1d4"}},
+	}
+	v := view(nil, 0)
+	v.Economy.Resources["base:credits"] = 800 // twice 300 for the first turret; 500 left isn't, for a second
+	bt := game.BattleView{Planet: "a", Attacker: 1, Defender: 0, Snapshot: battle.Snapshot{Pads: []battle.Pad{
+		{Owner: battle.Attacker},            // the enemy's
+		{Owner: battle.Defender},            // ours, empty
+		{Owner: battle.Defender, Turret: 7}, // ours, built on
+		{Owner: battle.Defender},            // ours, empty: one too many to afford
+	}}}
+	cmds := b.buildTurrets(v, bt)
+	if len(cmds) != 1 {
+		t.Fatalf("%d orders; want 1, as 800 Credits covers a 300 turret twice only once", len(cmds))
+	}
+	if x := decode(cmds[0]).(*wire.BattleBuildTurretT); x.Pad != 1 || x.Building != "base:turret" || x.Planet != "a" {
+		t.Errorf("ordered %+v; want its own Faction's turret on pad 1", x)
+	}
+}

@@ -106,6 +106,7 @@ func (b *Bot) Think(v game.View) []Command {
 		if c := b.retreat(v, bt); c != nil {
 			out = append(out, *c)
 		}
+		out = append(out, b.buildTurrets(v, bt)...)
 	}
 	for _, g := range goals {
 		if len(out) >= maxPerThink {

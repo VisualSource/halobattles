@@ -43,6 +43,7 @@ const (
 	scout                    // look for the enemy
 	patrol                   // a skirmisher's next stop on its round
 	fallback                 // get clear of the enemy: back to a held point or a friend
+	takePad                  // take a build pad the side doesn't hold
 )
 
 // role is a job the Commander gives a squad on top of the usual goals.
@@ -152,8 +153,10 @@ const (
 	// drops the one it has.
 	stickiness = 1.25
 	// padValue is how much the Commander wants a build pad it doesn't hold,
-	// against 3 for a Control Point.
-	padValue = 1.2
+	// against 3 for a Control Point; setupPadValue, the defender's in setup,
+	// against 2 for holding one of its own.
+	padValue      = 1.2
+	setupPadValue = 5
 	// block is the side, in cells, of the squares the AI tracks looking at.
 	block = 8
 	// scoutShare is the part of a defender's mobile squads sent scouting,
@@ -263,7 +266,7 @@ func (ai *AI) Orders(v View) []Order {
 				continue
 			}
 		}
-		if p.goal.kind == defend {
+		if p.goal.kind == defend && !s.setup() { // no beats in setup either
 			if v.Tick() < p.beatUntil {
 				continue // walking its beat, or pausing at a stop
 			}
@@ -353,9 +356,13 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			add(goal{kind: defend, cell: p.Cell}, 1.2)
 		}
 	}
-	for _, p := range s.Pads {
+	pad := padValue
+	if s.setup() && v.Side == Defender {
+		pad = setupPadValue // the attacker can't move yet: take them now
+	}
+	for _, p := range s.PadsFor(v.Side) { // as the side last saw them
 		if p.Owner != v.Side && p.Turret == 0 {
-			add(goal{kind: capture, cell: p.Cell}, padValue)
+			add(goal{kind: takePad, cell: p.Cell}, pad)
 		}
 	}
 	for _, e := range enemies {
@@ -413,7 +420,18 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			values[i] *= 1 + 3*threat[i]/max(1, strength)
 		}
 	}
-	busy := ai.assignRoles(v, own, enemies)
+	// Urgency: the attacker's caution fades as the time cap nears, so a
+	// stalled attack pushes rather than sitting out the clock on the points
+	// it holds.
+	caution := w.Caution
+	if v.Side == Attacker {
+		limit := float64(s.rules.TimeCap * TicksPerSecond)
+		caution *= max(0, 1-float64(s.Tick-s.Setup)/limit)
+	}
+	busy := map[int]bool{} // setup is for taking pads: jobs wait for the fighting
+	if !s.setup() {
+		busy = ai.assignRoles(v, own, enemies)
+	}
 	for _, sq := range own {
 		if sq.speed == 0 || sq.retreating || busy[sq.ID] {
 			continue
@@ -424,6 +442,9 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			if g.target != 0 && s.tier(sq, s.squad(g.target)) == None {
 				continue // it can't hurt that
 			}
+			if g.kind == takePad && s.setup() && (!s.Builders[v.Side] || !ai.backInTime(v, sq, g.cell)) {
+				continue // no use to it yet, or it would still be out when the fighting starts
+			}
 			score := values[i] / (1 + dist(sq.Cell, g.cell)/distScale)
 			if !g.kind.forms() || len(on[i]) >= minForce && members[i] >= need[i] {
 				score /= 1 + assigned[i] // spread out, once a Task Force has what it needs
@@ -432,7 +453,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 				score *= matchup[s.tier(sq, s.squad(g.target))] // go after what it's good against
 			}
 			if g.kind != defend { // a threatened point is the one to hold, not to shy from
-				score /= 1 + w.Caution*threat[i]/max(1, strength)
+				score /= 1 + caution*threat[i]/max(1, strength)
 			}
 			if current != nil && current.goal.same(g) {
 				score *= stickiness
@@ -461,6 +482,20 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	}
 }
 
+// backInTime is whether sq can walk to a pad, take it, and walk on to the
+// nearest point its side holds before the setup phase ends.
+func (ai *AI) backInTime(v View, sq *Squad, pad Cell) bool {
+	s := v.sim
+	back := math.Inf(1)
+	for _, p := range s.Points {
+		if p.Owner == v.Side {
+			back = min(back, dist(pad, p.Cell))
+		}
+	}
+	walk := (dist(sq.Cell, pad) + back) / max(sq.speed, 0.1)
+	return walk+s.rules.CaptureSeconds <= float64(s.Setup-s.Tick)/TicksPerSecond
+}
+
 // walkBeat sends an idle guard to the next stop on its beat round its point,
 // so a garrison doesn't stand still: covered cells by the point, or else a
 // spot each way. It goes only when it's settled on the point and the side
@@ -469,7 +504,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 func (ai *AI) walkBeat(v View, sq *Squad, p *plan) (Order, bool) {
 	s := v.sim
 	if len(p.steps) > 0 || len(sq.path) > 0 || dist(sq.Cell, p.goal.cell) > s.rules.CaptureRadius ||
-		v.Tick()-p.beatAt < beatEvery*TicksPerSecond || (v.Tick()+sq.ID)%TicksPerSecond != 0 {
+		v.Tick()-max(p.beatAt, s.Setup) < beatEvery*TicksPerSecond || (v.Tick()+sq.ID)%TicksPerSecond != 0 { // the first one 8 s into the fighting
 		return Order{}, false
 	}
 	if len(ai.sighted) > 0 {

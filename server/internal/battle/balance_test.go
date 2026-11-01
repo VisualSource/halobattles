@@ -64,13 +64,14 @@ func TestStartingKitsArePacedAndBalanced(t *testing.T) {
 					attack, defend = three(attack), three(defend)
 				}
 				s := New(c, r, Generate(c, r.Battlefield, nil, seed), attack, defend, seed)
+				s.Setup = r.Battle.StartDelay * TicksPerSecond // as the game runs it
 				s.Controllers = [2]Controller{
 					NewAI(WeightsOf(c.Factions[tc.attack].Ai)), NewAI(WeightsOf(c.Factions[tc.defend].Ai)),
 				}
 				for !s.Over {
 					s.Step()
 				}
-				ticks += s.Tick
+				ticks += s.Tick - s.Setup // fighting time
 				reasons[s.Reason]++
 				if s.Winner == Attacker {
 					wins++
