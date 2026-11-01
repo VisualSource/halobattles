@@ -13,13 +13,19 @@ export function InfoPopover(props: {
   children: ReactElement;
   content: ReactNode;
   side?: "top" | "bottom" | "left" | "right";
+  /** Along that side: "start" lines up the popup's top (or left) edge with the trigger's. */
+  align?: "start" | "center" | "end";
   className?: string;
 }) {
   return (
     <Base.Root>
       <Base.Trigger openOnHover delay={300} render={props.children} />
       <Base.Portal>
-        <Base.Positioner side={props.side ?? "bottom"} sideOffset={8}>
+        <Base.Positioner
+          side={props.side ?? "bottom"}
+          align={props.align ?? "center"}
+          sideOffset={8}
+        >
           <Base.Popup className={cn(popupClass, props.className)}>
             {props.content}
           </Base.Popup>

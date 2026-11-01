@@ -3,6 +3,7 @@
   "id": "wraith",
   "name": "Wraith",
   "faction": "covenant",
+  "description": "A Covenant hover tank whose plasma mortar breaks vehicles and buildings.",
   "cost": { "credits": 250, "materials": 100, "alloys": 30 },
   "upkeep": { "credits": 25, "alloys": 2 },
   "buildTime": 45,

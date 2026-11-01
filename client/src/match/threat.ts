@@ -5,7 +5,7 @@ import type { PlanetView } from "./store";
 export const THREAT_LEVELS = ["Low", "Medium", "High", "Very high"] as const;
 
 /** A Damage roll's average: "2d6+1" is 8. */
-const average = (dice: string) => {
+export const average = (dice: string) => {
   const m = /^(\d+)d(\d+)(?:\+(\d+))?$/.exec(dice);
   return m ? (Number(m[1]) * (Number(m[2]) + 1)) / 2 + Number(m[3] ?? 0) : 0;
 };

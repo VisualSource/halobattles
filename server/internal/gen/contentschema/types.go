@@ -1087,6 +1087,9 @@ type Unit struct {
 	// Cost corresponds to the JSON schema field "cost".
 	Cost map[string]int `json:"cost"`
 
+	// A sentence or two on what it's for, shown in its info popover.
+	Description *string `json:"description,omitempty,omitzero"`
+
 	// Faction corresponds to the JSON schema field "faction".
 	Faction ID `json:"faction"`
 

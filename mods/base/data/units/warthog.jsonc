@@ -3,6 +3,7 @@
   "id": "warthog",
   "name": "Warthog",
   "faction": "unsc",
+  "description": "A fast light vehicle with a mounted gun. It scouts ahead and runs down infantry from outside their range.",
   "cost": { "credits": 150, "materials": 50, "alloys": 15 },
   "upkeep": { "credits": 15, "alloys": 1 },
   "buildTime": 30,

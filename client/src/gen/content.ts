@@ -585,6 +585,10 @@ export interface Unit {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   faction: string;
+  /**
+   * A sentence or two on what it's for, shown in its info popover.
+   */
+  description?: string;
   cost: ResourceMap3;
   upkeep?: ResourceMap4;
   /**

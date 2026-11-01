@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { cn } from "cn";
 import {
-  type ReactNode,
   startTransition,
   useEffect,
   useRef,
@@ -22,6 +21,7 @@ import { moneyOf, presets, quote } from "./exchange";
 import { isPending } from "./local";
 import { inMatch } from "./phase";
 import { ResearchButton, ResearchPanel } from "./research";
+import { ResourceIcon } from "./resources";
 import { laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import { ConfirmDialog } from "./status";
@@ -487,68 +487,6 @@ function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
         </div>
       )}
     </div>
-  );
-}
-
-// shortcut: the base Mod's Resources drawn here, since Mods can't ship assets
-// yet; once they can, draw a Resource's own `icon` instead.
-const resourceGlyphs: Record<string, ReactNode> = {
-  "base:credits": (
-    <>
-      <circle cx="9" cy="9" r="7.5" fill="var(--color-res-credits)" />
-      <circle
-        cx="9"
-        cy="9"
-        r="4.5"
-        fill="none"
-        stroke="var(--color-bar)"
-        strokeWidth="1.5"
-      />
-    </>
-  ),
-  "base:materials": (
-    <>
-      <path
-        d="M9 1.5 15.5 6v6L9 16.5 2.5 12V6z"
-        fill="var(--color-res-materials)"
-      />
-      <path
-        d="M2.5 6 9 9l6.5-3M9 9v7.5"
-        fill="none"
-        stroke="var(--color-bar)"
-        strokeWidth="1.2"
-      />
-    </>
-  ),
-  "base:alloys": (
-    <>
-      <path d="M4 8.5 6 4h6l2 4.5z" fill="var(--color-res-alloys)" />
-      <path d="M1.5 15 3.5 10h11l2 5z" fill="var(--color-res-alloys)" />
-    </>
-  ),
-};
-
-/** A Resource's icon; one without its own shows its initial. */
-function ResourceIcon(props: { id: string; name: string; size?: number }) {
-  const size = props.size ?? 18;
-  return (
-    <svg width={size} height={size} viewBox="0 0 18 18" aria-hidden="true">
-      {resourceGlyphs[props.id] ?? (
-        <>
-          <circle cx="9" cy="9" r="7.5" fill="var(--color-ink-3)" />
-          <text
-            x="9"
-            y="12.5"
-            textAnchor="middle"
-            fontSize="10"
-            fontWeight="600"
-            fill="var(--color-bar)"
-          >
-            {props.name[0]}
-          </text>
-        </>
-      )}
-    </svg>
   );
 }
 

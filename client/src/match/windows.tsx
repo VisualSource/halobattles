@@ -27,6 +27,7 @@ import {
 } from "./buildings";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
+import { CostIcons } from "./resources";
 import { laneTimes } from "./route";
 import { freeCell, moveSlot } from "./stacks";
 import { ConfirmDialog } from "./status";
@@ -34,6 +35,7 @@ import type { PlanetView, QueueItem, UnitSlot, View } from "./store";
 import { heldTechs, listed, needsTech } from "./tech";
 import { THREAT_LEVELS, threat } from "./threat";
 import { formatAge, useMatchNow } from "./time";
+import { UnitInfo } from "./units";
 
 // The play screen's floating windows: the selected Planet, its Stacks, and
 // the selected Army. Each can be dragged by its title bar.
@@ -814,7 +816,10 @@ function BuildingsTab(props: {
                             blocked && "opacity-55",
                           )}
                         >
-                          {amounts(content, sprawled(content, view, b.cost))}
+                          <CostIcons
+                            content={content}
+                            cost={sprawled(content, view, b.cost)}
+                          />
                         </span>
                       </span>
                       <span
@@ -826,7 +831,7 @@ function BuildingsTab(props: {
                         <span className="text-ink-3">{b.buildTime} s</span>
                         {amounts(content, b.upkeep) && (
                           <span className="text-danger">
-                            −{amounts(content, b.upkeep)}
+                            −<CostIcons content={content} cost={b.upkeep} />
                           </span>
                         )}
                       </span>
@@ -1076,8 +1081,8 @@ function BuildingFace(props: {
       )}
       <div className="border-line border-t pt-1 font-mono text-[11px]">
         {amounts(content, b.upkeep) ? (
-          <span className="text-danger">
-            Upkeep {amounts(content, b.upkeep)} / Payday
+          <span className="text-danger inline-flex items-center gap-1">
+            Upkeep <CostIcons content={content} cost={b.upkeep} /> / Payday
           </span>
         ) : (
           <span className="text-ink-4">No upkeep</span>
@@ -1198,36 +1203,64 @@ function UnitsTab(props: {
                   ? needsTech(content, heldTechs(view), "units", id)
                   : [];
                 return (
-                  <button
-                    key={id}
-                    type="button"
-                    title={
-                      needs.length ? `Needs ${needs.join(" or ")}` : undefined
-                    }
-                    disabled={busy || needs.length > 0}
-                    onClick={(e) =>
-                      conn.queueUnit(planet.id, slot, id, e.shiftKey ? 5 : 1)
-                    }
-                    className="bg-item flex items-center gap-2.5 rounded-md p-2 text-left"
-                  >
-                    <Tile name={u.name} size="size-12" />
-                    <span className="flex flex-col gap-0.5">
-                      <span className="font-semibold">{u.name}</span>
-                      {needs.length > 0 && (
-                        <span className="text-accent text-[11px]">
-                          Needs {needs.join(" or ")}
+                  <div key={id} className="relative">
+                    <button
+                      type="button"
+                      title={
+                        needs.length ? `Needs ${needs.join(" or ")}` : undefined
+                      }
+                      disabled={busy || needs.length > 0}
+                      onClick={(e) =>
+                        conn.queueUnit(planet.id, slot, id, e.shiftKey ? 5 : 1)
+                      }
+                      className="bg-item flex h-24 w-full items-center gap-2.5 rounded-md p-2 pr-8 text-left disabled:opacity-50"
+                    >
+                      <Tile name={u.name} size="size-12" />
+                      {/* Four lines on every card, so they match: a locked unit's Needs takes its class line. */}
+                      <span className="flex min-w-0 flex-col gap-0.5 [&>span]:truncate">
+                        <span className="font-semibold">{u.name}</span>
+                        {needs.length > 0 ? (
+                          <span className="text-accent text-[11px]">
+                            Needs {needs.join(" or ")}
+                          </span>
+                        ) : (
+                          <span className="text-ink-3 text-[11px]">
+                            {nameOf("unitClasses", u.combat.unitClass)} ·{" "}
+                            {nameOf("weaponTypes", u.combat.weaponType)}
+                          </span>
+                        )}
+                        <span className="font-mono text-[11px]">
+                          <CostIcons
+                            content={content}
+                            cost={sprawled(content, view, u.cost)}
+                          />
                         </span>
-                      )}
-                      <span className="text-ink-3 text-[11px]">
-                        {nameOf("unitClasses", u.combat.unitClass)} ·{" "}
-                        {nameOf("weaponTypes", u.combat.weaponType)}
+                        <span className="text-ink-3 font-mono text-[11px]">
+                          {u.commandPoints} CP · {u.buildTime} s
+                        </span>
                       </span>
-                      <span className="font-mono text-[11px]">
-                        {amounts(content, sprawled(content, view, u.cost))} ·{" "}
-                        {u.commandPoints} CP · {u.buildTime} s
-                      </span>
-                    </span>
-                  </button>
+                    </button>
+                    <InfoPopover
+                      side="right"
+                      align="start"
+                      content={
+                        <UnitInfo
+                          content={content}
+                          unit={u}
+                          cost={sprawled(content, view, u.cost)}
+                          needs={needs}
+                        />
+                      }
+                    >
+                      <button
+                        type="button"
+                        aria-label={`About ${u.name}`}
+                        className="border-edge text-ink-3 hover:text-ink data-popup-open:text-ink data-popup-open:border-ink-3 absolute top-2 right-2 flex size-5.5 cursor-pointer items-center justify-center rounded-full border bg-transparent p-0 font-serif text-xs italic"
+                      >
+                        i
+                      </button>
+                    </InfoPopover>
+                  </div>
                 );
               })}
             </div>
