@@ -1,6 +1,7 @@
 import type { ContentLookups } from "../content";
 import type { Unit } from "../gen/content";
 import { amounts } from "./buildings";
+import { CommandPoints } from "./resources";
 import { average } from "./threat";
 
 // How units explain themselves in the Units tab's info popover. All of it
@@ -205,7 +206,9 @@ export function UnitInfo(props: {
         </div>
         <div className={row}>
           <dt>Command</dt>
-          <dd className="m-0 font-mono">{u.commandPoints} CP</dd>
+          <dd className="m-0 font-mono">
+            <CommandPoints n={u.commandPoints} size={13} />
+          </dd>
         </div>
       </dl>
       {props.needs.length > 0 && (

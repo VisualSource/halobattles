@@ -95,3 +95,27 @@ export function CostIcons(props: {
     </span>
   );
 }
+
+/** The Command Points icon: three solid chevrons pointing down. */
+export function CommandIcon(props: { size?: number }) {
+  const size = props.size ?? 18;
+  return (
+    <svg width={size} height={size} viewBox="0 0 18 18" aria-hidden="true">
+      <path
+        d="M2.5 1 9 5l6.5-4v3L9 8 2.5 4zM2.5 6 9 10l6.5-4v3L9 13 2.5 9zM2.5 11 9 15l6.5-4v3L9 18 2.5 14z"
+        fill="var(--color-command)"
+      />
+    </svg>
+  );
+}
+
+/** "[icon] 2": Command Points, named for screen readers and on hover. */
+export function CommandPoints(props: { n: number; size?: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5" title="Command Points">
+      <CommandIcon size={props.size ?? 12} />
+      <span className="sr-only">Command Points</span>
+      {props.n}
+    </span>
+  );
+}

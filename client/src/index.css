@@ -25,24 +25,35 @@
   --color-danger: #f08a7a;
   --color-danger-wash: #3a1a17;
 
-  --color-divider: #1f2830; /* between list rows */
-  --color-item: #161f27; /* a row in a list */
-  --color-tile: #1a242d; /* behind an icon */
-  --color-highlight: #18232c; /* your own Seat row */
-  --color-open-seat: #2f3a44; /* an open Seat's stripe */
+  --color-divider: #1f2830;
+  /* between list rows */
+  --color-item: #161f27;
+  /* a row in a list */
+  --color-tile: #1a242d;
+  /* behind an icon */
+  --color-highlight: #18232c;
+  /* your own Seat row */
+  --color-open-seat: #2f3a44;
+  /* an open Seat's stripe */
   --color-host: #f0c27a;
   --color-host-wash: #3a2c12;
-  --color-idle: #b8c2cb; /* not ready, unavailable */
+  --color-idle: #b8c2cb;
+  /* not ready, unavailable */
   --color-idle-wash: #2a2f35;
-  --color-void: #090d11; /* full-screen dialogs */
-  --color-scrim: #05080b; /* behind a modal */
-  --color-hero: #0f1a26; /* the Faction picker's showcase */
+  --color-void: #090d11;
+  /* full-screen dialogs */
+  --color-scrim: #05080b;
+  /* behind a modal */
+  --color-hero: #0f1a26;
+  /* the Faction picker's showcase */
   --color-ink-bright: #f2f5f7;
   /* Resource icons in the HUD */
   --color-res-credits: #f2c94c;
   --color-res-materials: #e0735c;
   --color-res-alloys: #b48cf0;
   --color-res-research: #5fb3e8;
+  --color-command: #667c3e;
+  /* the Command Points icon */
   /* Tech Rarities, on the research picker's cards */
   --color-rarity-common: #c3ccd4;
   --color-rarity-uncommon: #7fdca0;
@@ -51,11 +62,14 @@
 
   /* The music player's bars while a track plays */
   --animate-eq: eq 0.9s ease-in-out infinite;
+
   @keyframes eq {
+
     0%,
     100% {
       transform: scaleY(0.3);
     }
+
     50% {
       transform: scaleY(1);
     }
@@ -70,8 +84,10 @@
   --toastify-font-family: var(--font-sans);
   --toastify-toast-width: 300px;
   --toastify-toast-top: 72px;
-  --toastify-z-index: 15; /* over the map's windows, under the header's popovers */
+  --toastify-z-index: 15;
+  /* over the map's windows, under the header's popovers */
 }
+
 .Toastify__toast {
   border: 1px solid var(--color-edge);
 }
@@ -80,9 +96,11 @@
   html {
     color-scheme: dark;
   }
+
   body {
     @apply bg-ground font-sans text-ink;
   }
+
   /* Base UI's popups portal to the body: a stacking context here keeps the
      app's z-indexes inside it, so every popup sits above all of them. */
   #root {
@@ -95,22 +113,28 @@
   select {
     @apply rounded border border-edge bg-well px-2 py-1;
   }
+
   button:not(:disabled) {
     @apply cursor-pointer;
   }
+
   button:disabled,
   select:disabled {
     @apply cursor-default opacity-50;
   }
+
   h1 {
     @apply text-2xl font-semibold;
   }
+
   h2 {
     @apply text-xl font-semibold;
   }
+
   h3 {
     @apply font-semibold;
   }
+
   a {
     @apply text-accent hover:underline;
   }
@@ -121,7 +145,9 @@
 :root {
   view-transition-name: none;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*) {

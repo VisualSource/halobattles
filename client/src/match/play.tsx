@@ -21,7 +21,7 @@ import { moneyOf, presets, quote } from "./exchange";
 import { isPending } from "./local";
 import { inMatch } from "./phase";
 import { ResearchButton, ResearchPanel } from "./research";
-import { ResourceIcon } from "./resources";
+import { CommandIcon, ResourceIcon } from "./resources";
 import { laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import { ConfirmDialog } from "./status";
@@ -336,7 +336,10 @@ function Hud(props: {
         title="Command Points in use, of your cap"
         className="flex flex-col items-center gap-0.5 font-mono leading-none"
       >
-        <span className={cn(label, "flex h-4.5 items-center")}>CP</span>
+        <span className={cn(label, "flex h-4.5 items-center")}>
+          <CommandIcon />
+          <span className="sr-only">Command Points</span>
+        </span>
         <span
           className={
             economy.commandPointsUsed >= economy.commandPointsCap

@@ -27,7 +27,7 @@ import {
 } from "./buildings";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
-import { CostIcons } from "./resources";
+import { CommandPoints, CostIcons } from "./resources";
 import { laneTimes } from "./route";
 import { freeCell, moveSlot } from "./stacks";
 import { ConfirmDialog } from "./status";
@@ -473,7 +473,9 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
           {used} / {type?.buildingSlots ?? planet?.buildings.length ?? "?"}
         </dd>
         <dt className={label}>Command</dt>
-        <dd className="font-mono">+{type?.commandPointBonus ?? 0} CP</dd>
+        <dd className="font-mono">
+          +<CommandPoints n={type?.commandPointBonus ?? 0} />
+        </dd>
         {planet &&
           [...content.resources].map(([id, r], i) => {
             const level = richness.get(id) ?? "none";
@@ -1236,7 +1238,8 @@ function UnitsTab(props: {
                           />
                         </span>
                         <span className="text-ink-3 font-mono text-[11px]">
-                          {u.commandPoints} CP · {u.buildTime} s
+                          <CommandPoints n={u.commandPoints} /> · {u.buildTime}{" "}
+                          s
                         </span>
                       </span>
                     </button>
