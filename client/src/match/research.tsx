@@ -17,6 +17,7 @@ import {
   techCost,
   techText,
 } from "./tech";
+import { TechTree } from "./techtree";
 import { useMatchNow } from "./time";
 import { useDismiss } from "./windows";
 
@@ -210,6 +211,7 @@ export function ResearchPanel(props: {
   const view = useStore(conn.store, (s) => s.view);
   const now = useMatchNow(conn.local);
   const [picking, setPicking] = useState<string | null>(props.pick ?? null);
+  const [tree, setTree] = useState(false);
   const pickRef = useDismiss<HTMLLIElement>(picking !== null, () =>
     setPicking(null),
   );
@@ -221,123 +223,140 @@ export function ResearchPanel(props: {
   const fieldOf = (tech: string) => content.techs.get(tech)?.field;
 
   return (
-    <section
-      id="research"
-      aria-labelledby="research-title"
-      className="border-edge bg-panel/95 absolute top-4 left-4 z-20 flex w-105 flex-col rounded-lg border shadow-[0_12px_32px_#000a]"
-    >
-      <div className="border-line bg-bar flex h-11 items-center gap-2.5 rounded-t-lg border-b pr-2 pl-3.5">
-        <h2
-          id="research-title"
-          className="font-display flex-1 text-lg font-semibold"
-        >
-          Research
-        </h2>
-        <span className="text-ok font-mono">
-          +{perPayday(content, totalRate(view))}
-        </span>
-        <button
-          type="button"
-          aria-label="Close Research"
-          onClick={props.onClose}
-          className="text-ink-3 size-8 border-0 bg-transparent p-0"
-        >
-          ✕
-        </button>
-      </div>
-      <ol className="flex flex-col gap-2.5 p-3">
-        {fieldsOf(content).map((f) => {
-          const p = research.projects.find((x) => fieldOf(x.tech) === f.id);
-          const rate = research.rates.get(f.id) ?? 0;
-          const builds = researchBuildings(content, view, f.id);
-          return (
-            <li
-              key={f.id}
-              ref={picking === f.id ? pickRef : undefined}
-              className="relative flex flex-col gap-1"
-            >
-              <div className="flex items-center gap-1.5 px-0.5">
-                <FieldIcon content={content} field={f.id} />
-                <span
-                  className="font-display text-[13px] font-semibold tracking-[0.05em] uppercase"
-                  style={{ color: f.colour }}
-                >
-                  {f.name}
-                </span>
-                <span className="text-ink-2 ml-auto font-mono text-xs">
-                  +{perPayday(content, rate)} · {rate}/s
-                </span>
-              </div>
-              {p ? (
-                <ProjectCard
-                  conn={conn}
-                  content={content}
-                  view={view}
-                  project={p}
-                  colour={f.colour}
-                  now={now}
-                  planetName={planetName}
-                />
-              ) : offered(content, view, f.id) ? (
-                <button
-                  type="button"
-                  aria-expanded={picking === f.id}
-                  onClick={() => setPicking(picking === f.id ? null : f.id)}
-                  className={`flex h-28 w-full items-center justify-center gap-2.5 rounded-md p-2.5 ${picking === f.id ? "border-accent bg-accent-wash" : "border-edge border-dashed bg-transparent"}`}
-                >
-                  <span className="border-edge text-accent flex size-11 flex-none items-center justify-center rounded-md border border-dashed text-2xl">
-                    +
+    <>
+      {tree && (
+        <TechTree
+          conn={conn}
+          content={content}
+          onClose={() => setTree(false)}
+        />
+      )}
+      <section
+        id="research"
+        aria-labelledby="research-title"
+        className="border-edge bg-panel/95 absolute top-4 left-4 z-20 flex w-105 flex-col rounded-lg border shadow-[0_12px_32px_#000a]"
+      >
+        <div className="border-line bg-bar flex h-11 items-center gap-2.5 rounded-t-lg border-b pr-2 pl-3.5">
+          <h2
+            id="research-title"
+            className="font-display flex-1 text-lg font-semibold"
+          >
+            Research
+          </h2>
+          <span className="text-ok font-mono">
+            +{perPayday(content, totalRate(view))}
+          </span>
+          <button
+            type="button"
+            aria-pressed={tree}
+            onClick={() => setTree((t) => !t)}
+            className="border-edge text-ink-2 aria-pressed:bg-raised aria-pressed:text-ink h-7 rounded border bg-transparent px-2.5 text-xs"
+          >
+            Tech tree
+          </button>
+          <button
+            type="button"
+            aria-label="Close Research"
+            onClick={props.onClose}
+            className="text-ink-3 size-8 border-0 bg-transparent p-0"
+          >
+            ✕
+          </button>
+        </div>
+        <ol className="flex flex-col gap-2.5 p-3">
+          {fieldsOf(content).map((f) => {
+            const p = research.projects.find((x) => fieldOf(x.tech) === f.id);
+            const rate = research.rates.get(f.id) ?? 0;
+            const builds = researchBuildings(content, view, f.id);
+            return (
+              <li
+                key={f.id}
+                ref={picking === f.id ? pickRef : undefined}
+                className="relative flex flex-col gap-1"
+              >
+                <div className="flex items-center gap-1.5 px-0.5">
+                  <FieldIcon content={content} field={f.id} />
+                  <span
+                    className="font-display text-[13px] font-semibold tracking-[0.05em] uppercase"
+                    style={{ color: f.colour }}
+                  >
+                    {f.name}
                   </span>
-                  <span className="flex flex-col gap-0.5 text-left">
-                    <span className="font-semibold">Free {f.name} slot</span>
-                    <span className="text-ink-3 text-xs">
-                      Choose what to research next
+                  <span className="text-ink-2 ml-auto font-mono text-xs">
+                    +{perPayday(content, rate)} · {rate}/s
+                  </span>
+                </div>
+                {p ? (
+                  <ProjectCard
+                    conn={conn}
+                    content={content}
+                    view={view}
+                    project={p}
+                    colour={f.colour}
+                    now={now}
+                    planetName={planetName}
+                  />
+                ) : offered(content, view, f.id) ? (
+                  <button
+                    type="button"
+                    aria-expanded={picking === f.id}
+                    onClick={() => setPicking(picking === f.id ? null : f.id)}
+                    className={`flex h-28 w-full items-center justify-center gap-2.5 rounded-md p-2.5 ${picking === f.id ? "border-accent bg-accent-wash" : "border-edge border-dashed bg-transparent"}`}
+                  >
+                    <span className="border-edge text-accent flex size-11 flex-none items-center justify-center rounded-md border border-dashed text-2xl">
+                      +
                     </span>
-                  </span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="border-edge text-ink-3 flex h-28 w-full items-center justify-center gap-2.5 rounded-md border-dashed bg-transparent p-2.5"
-                >
-                  <span className="border-edge text-ink-4 flex size-11 flex-none items-center justify-center rounded-md border border-dashed text-2xl">
-                    ·
-                  </span>
-                  <span className="flex max-w-65 flex-col gap-0.5 text-left">
-                    <span
-                      className={cn(
-                        "font-semibold",
-                        builds.length && "text-ink",
-                      )}
-                    >
-                      {builds.length
-                        ? `${f.name} Techs need more Research`
-                        : "Nothing to research yet"}
+                    <span className="flex flex-col gap-0.5 text-left">
+                      <span className="font-semibold">Free {f.name} slot</span>
+                      <span className="text-ink-3 text-xs">
+                        Choose what to research next
+                      </span>
                     </span>
-                    <span className="text-xs">
-                      {builds.length
-                        ? `${builds.join(" or ")} raises ${f.name} Research. Build enough to open its Techs.`
-                        : `More ${f.name} Research, or the buildings a Tech needs, brings more.`}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="border-edge text-ink-3 flex h-28 w-full items-center justify-center gap-2.5 rounded-md border-dashed bg-transparent p-2.5"
+                  >
+                    <span className="border-edge text-ink-4 flex size-11 flex-none items-center justify-center rounded-md border border-dashed text-2xl">
+                      ·
                     </span>
-                  </span>
-                </button>
-              )}
-              {picking === f.id && !p && (
-                <TechPicker
-                  conn={conn}
-                  content={content}
-                  view={view}
-                  field={f.id}
-                  planetName={planetName}
-                  onDone={() => setPicking(null)}
-                />
-              )}
-            </li>
-          );
-        })}
-      </ol>
-    </section>
+                    <span className="flex max-w-65 flex-col gap-0.5 text-left">
+                      <span
+                        className={cn(
+                          "font-semibold",
+                          builds.length && "text-ink",
+                        )}
+                      >
+                        {builds.length
+                          ? `${f.name} Techs need more Research`
+                          : "Nothing to research yet"}
+                      </span>
+                      <span className="text-xs">
+                        {builds.length
+                          ? `${builds.join(" or ")} raises ${f.name} Research. Build enough to open its Techs.`
+                          : `More ${f.name} Research, or the buildings a Tech needs, brings more.`}
+                      </span>
+                    </span>
+                  </button>
+                )}
+                {picking === f.id && !p && (
+                  <TechPicker
+                    conn={conn}
+                    content={content}
+                    view={view}
+                    field={f.id}
+                    planetName={planetName}
+                    onDone={() => setPicking(null)}
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    </>
   );
 }
 

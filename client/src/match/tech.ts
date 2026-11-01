@@ -230,3 +230,97 @@ export function finishedProjects(was: View, now: View): Project[] {
       !now.research.projects.some((q) => q.tech === p.tech),
   );
 }
+
+/** Where a Tech stands for you, as the tech tree shows it. */
+export type TreeStatus =
+  | { kind: "held"; planets: string[] } // in a Lab on these Planets
+  | { kind: "researching"; project: Project }
+  | { kind: "saved"; done: number; cost: number } // a stopped Project or lost Tech, guaranteed back
+  | { kind: "hand" } // drawn: ready to start
+  | { kind: "drawable" } // can come up in a hand
+  | { kind: "locked"; needs: string[] }; // what's missing, in words
+
+/** Your Faction's Techs and the shared ones, in a field, by id. */
+export const treeTechs = (content: ContentLookups, view: View, field: string) =>
+  [...content.techs.values()]
+    .filter(
+      (t) =>
+        t.field === field &&
+        (!t.faction || t.faction === view.players[view.you]?.faction),
+    )
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+export function treeStatus(
+  content: ContentLookups,
+  view: View,
+  id: string,
+): TreeStatus {
+  const r = view.research;
+  const planets = [...view.planets.values()]
+    .filter(
+      (p) =>
+        p.owner === view.you &&
+        [...p.labs.values()].some((h) => h.includes(id)),
+    )
+    .map((p) => p.id);
+  if (planets.length) return { kind: "held", planets };
+  const project = r.projects.find((p) => p.tech === id);
+  if (project) return { kind: "researching", project };
+  const saved = r.saved.find((s) => s.tech === id);
+  if (saved) return { kind: "saved", done: saved.done, cost: saved.cost };
+  if ([...r.hands.values()].some((h) => h.includes(id)))
+    return { kind: "hand" };
+  const t = content.techs.get(id);
+  if (!t) return { kind: "locked", needs: [] };
+  const held = heldTechs(view);
+  const owned = new Set(
+    [...view.planets.values()]
+      .filter((p) => p.owner === view.you)
+      .flatMap((p) => p.buildings),
+  );
+  const needs = [
+    ...(t.requires?.techs ?? [])
+      .filter((x) => !held.has(x))
+      .map((x) => content.techs.get(x)?.name ?? x),
+    ...(t.requires?.buildings ?? [])
+      .filter((b) => !owned.has(b))
+      .map((b) => `a ${content.buildings.get(b)?.name ?? b}`),
+  ];
+  // Its Rarity opens once the field's Research reaches a threshold, kept hidden.
+  const from = content.rules.tech.rarities[t.rarity]?.from ?? 0;
+  if (from > (r.rates.get(t.field) ?? 0))
+    needs.push(
+      `more ${content.rules.tech.fields[t.field]?.name ?? t.field} Research`,
+    );
+  return needs.length ? { kind: "locked", needs } : { kind: "drawable" };
+}
+
+/**
+ * Where each Tech goes in a field's tree, in columns (its depth) and rows: a
+ * tidy tree, leaves taking rows in turn and a Tech centred on the Techs that
+ * need it. A Tech needing two in the field sits under the first.
+ */
+export function treeLayout(techs: Tech[]) {
+  const ids = new Set(techs.map((t) => t.id));
+  const parentOf = (t: Tech) =>
+    (t.requires?.techs ?? []).find((x) => ids.has(x));
+  const kids = (id: string) => techs.filter((t) => parentOf(t) === id);
+  const at = new Map<string, { col: number; row: number }>();
+  let row = 0;
+  const place = (t: Tech, col: number) => {
+    if (at.has(t.id)) return;
+    at.set(t.id, { col, row: -1 }); // reserved, so a loop can't recurse forever
+    const ks = kids(t.id).filter((k) => !at.has(k.id));
+    for (const k of ks) place(k, col + 1);
+    const placed = ks.map((k) => at.get(k.id)?.row ?? 0);
+    at.set(t.id, {
+      col,
+      row: placed.length
+        ? (Math.min(...placed) + Math.max(...placed)) / 2
+        : row++,
+    });
+  };
+  for (const t of techs) if (!parentOf(t)) place(t, 0);
+  for (const t of techs) place(t, 0); // anything caught in a loop
+  return at;
+}
