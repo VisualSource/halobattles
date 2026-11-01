@@ -88,7 +88,18 @@
       "infantry": { "speed": 1.5, "range": 5, "fireInterval": 1.5, "sight": 8 },
       "vehicle": { "speed": 2.5, "range": 7, "fireInterval": 2, "sight": 9 },
       "aircraft": { "speed": 4, "range": 6, "fireInterval": 1.5, "sight": 11 },
-      "structure": { "speed": 0, "range": 8, "fireInterval": 2, "sight": 10 }
+      "structure": {
+        "speed": 0,
+        "range": 8,
+        "fireInterval": 2,
+        "sight": 10
+      },
+      "artillery": {
+        "speed": 1.5,
+        "range": 5,
+        "fireInterval": 6,
+        "sight": 15
+      }
     }
   }
 }

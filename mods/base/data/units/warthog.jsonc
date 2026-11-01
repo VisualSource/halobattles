@@ -1,9 +1,9 @@
 {
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "warthog",
-  "name": "Warthog",
+  "name": "M12 Warthog",
   "faction": "unsc",
-  "description": "A fast light vehicle with a mounted gun. It scouts ahead and runs down infantry from outside their range.",
+  "description": "The M12 Force Application Vehicle (M12-FAV), commonly referred to as the Warthog or simply the Hog, is a fast attack vehicle serving as the United Nations Space Command Armed Forces' primary joint light tactical ground vehicle.",
   "cost": { "credits": 150, "materials": 50, "alloys": 15 },
   "upkeep": { "credits": 15, "alloys": 1 },
   "buildTime": 30,

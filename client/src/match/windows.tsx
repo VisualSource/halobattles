@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
-import type { Building } from "../gen/content";
+import type { Building, Unit } from "../gen/content";
 import { progress, seatColour } from "../scene/galaxy";
 import { InfoButton, InfoPopover } from "../ui/popover";
 import { Tooltip } from "../ui/tooltip";
@@ -1134,6 +1134,72 @@ function LabSlots(props: {
   );
 }
 
+/**
+ * A unit you can train, as the Units tab shows it: its tile, name, class or
+ * the Tech it needs, cost and Command Points, and an "i" for its details.
+ * Clicking trains one, Shift-click 5. The editor's preview draws it too.
+ */
+export function UnitCard(props: {
+  content: ContentLookups;
+  unit: Unit;
+  /** What it costs you to queue now. */
+  cost: Record<string, number>;
+  needs: string[];
+  disabled?: boolean;
+  onTrain?: (count: number) => void;
+}) {
+  const { content, unit: u, needs } = props;
+  const nameOf = (m: "unitClasses" | "weaponTypes", id: string) =>
+    content[m].get(id)?.name ?? id;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        title={needs.length ? `Needs ${needs.join(" or ")}` : undefined}
+        disabled={props.disabled}
+        onClick={(e) => props.onTrain?.(e.shiftKey ? 5 : 1)}
+        className="bg-item flex h-24 w-full items-center gap-2.5 rounded-md p-2 pr-8 text-left disabled:opacity-50"
+      >
+        <Tile name={u.name} size="size-12" />
+        {/* Four lines on every card, so they match: a locked unit's Needs takes its class line. */}
+        <span className="flex min-w-0 flex-col gap-0.5 [&>span]:truncate">
+          <span className="font-semibold">{u.name}</span>
+          {needs.length > 0 ? (
+            <span className="text-accent text-[11px]">
+              Needs {needs.join(" or ")}
+            </span>
+          ) : (
+            <span className="text-ink-3 text-[11px]">
+              {nameOf("unitClasses", u.combat.unitClass)} ·{" "}
+              {nameOf("weaponTypes", u.combat.weaponType)}
+            </span>
+          )}
+          <span className="font-mono text-[11px]">
+            <CostIcons content={content} cost={props.cost} />
+          </span>
+          <span className="text-ink-3 font-mono text-[11px]">
+            <CommandPoints n={u.commandPoints} /> · {u.buildTime} s
+          </span>
+        </span>
+      </button>
+      <InfoPopover
+        side="right"
+        align="start"
+        content={
+          <UnitInfo
+            content={content}
+            unit={u}
+            cost={props.cost}
+            needs={needs}
+          />
+        }
+      >
+        <InfoButton name={u.name} className="absolute top-2 right-2" />
+      </InfoPopover>
+    </div>
+  );
+}
+
 /** Every unit your Faction trains, grouped by the building that trains it. */
 function UnitsTab(props: {
   conn: MatchConnection;
@@ -1148,8 +1214,6 @@ function UnitsTab(props: {
     (b) => b.faction === faction && b.trains?.length,
   );
   const busy = isPending(local, "train");
-  const nameOf = (m: "unitClasses" | "weaponTypes", id: string) =>
-    content[m].get(id)?.name ?? id;
 
   const built = trainers.filter((b) => planet.buildings.includes(b.id));
   if (!built.length) {
@@ -1199,62 +1263,15 @@ function UnitsTab(props: {
                   ? needsTech(content, heldTechs(view), "units", id)
                   : [];
                 return (
-                  <div key={id} className="relative">
-                    <button
-                      type="button"
-                      title={
-                        needs.length ? `Needs ${needs.join(" or ")}` : undefined
-                      }
-                      disabled={busy || needs.length > 0}
-                      onClick={(e) =>
-                        conn.queueUnit(planet.id, slot, id, e.shiftKey ? 5 : 1)
-                      }
-                      className="bg-item flex h-24 w-full items-center gap-2.5 rounded-md p-2 pr-8 text-left disabled:opacity-50"
-                    >
-                      <Tile name={u.name} size="size-12" />
-                      {/* Four lines on every card, so they match: a locked unit's Needs takes its class line. */}
-                      <span className="flex min-w-0 flex-col gap-0.5 [&>span]:truncate">
-                        <span className="font-semibold">{u.name}</span>
-                        {needs.length > 0 ? (
-                          <span className="text-accent text-[11px]">
-                            Needs {needs.join(" or ")}
-                          </span>
-                        ) : (
-                          <span className="text-ink-3 text-[11px]">
-                            {nameOf("unitClasses", u.combat.unitClass)} ·{" "}
-                            {nameOf("weaponTypes", u.combat.weaponType)}
-                          </span>
-                        )}
-                        <span className="font-mono text-[11px]">
-                          <CostIcons
-                            content={content}
-                            cost={sprawled(content, view, u.cost)}
-                          />
-                        </span>
-                        <span className="text-ink-3 font-mono text-[11px]">
-                          <CommandPoints n={u.commandPoints} /> · {u.buildTime}{" "}
-                          s
-                        </span>
-                      </span>
-                    </button>
-                    <InfoPopover
-                      side="right"
-                      align="start"
-                      content={
-                        <UnitInfo
-                          content={content}
-                          unit={u}
-                          cost={sprawled(content, view, u.cost)}
-                          needs={needs}
-                        />
-                      }
-                    >
-                      <InfoButton
-                        name={u.name}
-                        className="absolute top-2 right-2"
-                      />
-                    </InfoPopover>
-                  </div>
+                  <UnitCard
+                    key={id}
+                    content={content}
+                    unit={u}
+                    cost={sprawled(content, view, u.cost)}
+                    needs={needs}
+                    disabled={busy || needs.length > 0}
+                    onTrain={(n) => conn.queueUnit(planet.id, slot, id, n)}
+                  />
                 );
               })}
             </div>

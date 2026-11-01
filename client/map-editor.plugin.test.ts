@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { parse } from "jsonc-parser";
 import { describe, expect, it } from "vitest";
-import { mapText } from "./map-editor.plugin";
+import { applyWrite, mapText } from "./map-editor.plugin";
 
 const quadrant = readFileSync(
   new URL("../mods/base/data/maps/quadrant.jsonc", import.meta.url),
@@ -47,5 +47,55 @@ describe("Saving a map", () => {
       $schema: "../../../../schema/content/map.schema.json",
       id: "x",
     });
+  });
+});
+
+describe("Saving content", () => {
+  const warthog = `{
+  // A scout.
+  "id": "warthog",
+  "trains": ["marine"]
+}
+`;
+
+  it("patches one value in place, comments kept", () => {
+    const text = applyWrite(warthog, {
+      kind: "buildings",
+      file: "barracks",
+      path: ["trains"],
+      value: ["marine", "odst"],
+    });
+    expect(text).toContain("// A scout.");
+    expect(text).toContain('"odst"');
+  });
+
+  it("removes a value patched to null", () => {
+    const text = applyWrite(
+      '{\n  "movement": { "vehicle": 1, "infantry": 1 }\n}\n',
+      {
+        kind: "terrains",
+        file: "open",
+        path: ["movement", "vehicle"],
+        value: null,
+      },
+    );
+    expect(text).not.toContain("vehicle");
+    expect(text).toContain("infantry");
+  });
+
+  it("writes a new entity with its kind's schema", () => {
+    const text = applyWrite(undefined, {
+      kind: "weaponTypes",
+      file: "laser",
+      value: { id: "laser", name: "Laser" },
+    });
+    expect(text).toContain("schema/content/weapon-type.schema.json");
+  });
+
+  it("refuses a kind, file or path it doesn't know", () => {
+    const bad = (w: object) => () => applyWrite(warthog, w as never);
+    expect(bad({ kind: "maps", file: "x", value: {} })).toThrow();
+    expect(bad({ kind: "units", file: "../x", value: {} })).toThrow();
+    expect(bad({ kind: "units", file: "x", path: [""], value: 1 })).toThrow();
   });
 });

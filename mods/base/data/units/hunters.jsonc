@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "hunters",
+  "name": "Hunters",
+  "faction": "covenant",
+  "cost": {},
+  "buildTime": 30,
+  "commandPoints": 1,
+  "combat": {
+    "unitClass": "infantry",
+    "weaponType": "kinetic",
+    "shield": 0,
+    "armor": 0,
+    "hp": 10,
+    "damage": "1d4",
+    "tiers": {
+      "aircraft": "disadvantage",
+      "vehicle": "advantage",
+      "artillery": "advantage"
+    }
+  }
+}

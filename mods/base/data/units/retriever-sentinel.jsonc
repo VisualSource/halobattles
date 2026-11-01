@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "retriever-sentinel",
+  "name": "Retriever Sentinel",
+  "faction": "forerunner",
+  "cost": {
+    "credits": 2000,
+    "materials": 2000,
+    "alloys": 1000
+  },
+  "buildTime": 160,
+  "commandPoints": 20,
+  "combat": {
+    "unitClass": "aircraft",
+    "weaponType": "laser",
+    "shield": 0,
+    "armor": 0,
+    "hp": 10,
+    "damage": "1d12",
+    "tiers": {
+      "infantry": "advantage",
+      "structure": "advantage",
+      "vehicle": "advantage"
+    }
+  },
+  "description": "he Retriever Sentinel, is a variant of Strato-Sentinel drones employed by the Forerunners. Considered to be one of the more powerful variants of the Sentinel, Retrievers are massive, ship-sized drones that were utilized to construct installations of the Halo Array from Installation 00, as well as to provide maintenance to the Ark itself.",
+  "maxCount": 2,
+  "slotLimit": 2
+}

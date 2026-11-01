@@ -1,5 +1,12 @@
 import { cn } from "cn";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { Lane, MapPlanet, Position, Stack } from "../gen/content";
 import {
   type EditorMap,
@@ -60,7 +67,8 @@ async function json<T>(res: Response): Promise<T> {
   return body as T;
 }
 
-export function Editor() {
+/** The map editor; `active` is false while another page shows, so its keys rest. */
+export function Editor(props: { tabs: ReactNode; active: boolean }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
   const [map, setMap] = useState<EditorMap>(newMap);
@@ -175,9 +183,10 @@ export function Editor() {
         setLaneFrom(null);
       } else if (e.key === "l") setTool("lane");
     };
+    if (!props.active) return;
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [remove]);
+  }, [remove, props.active]);
 
   if (error)
     return (
@@ -193,9 +202,7 @@ export function Editor() {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <header className="border-line bg-bar flex h-13 flex-none items-center gap-3 border-b px-3.5">
-        <h1 className="font-display mr-1 text-base font-bold tracking-widest">
-          MAP EDITOR
-        </h1>
+        {props.tabs}
         <label className={field}>
           <span className={label}>Open</span>
           <select
@@ -213,7 +220,7 @@ export function Editor() {
           <input
             className="w-32"
             value={map.id}
-            pattern="[a-z0-9_-]+"
+            pattern="[a-z0-9_\-]+"
             onChange={(e) => edit((m) => ({ ...m, id: e.target.value }))}
           />
         </label>

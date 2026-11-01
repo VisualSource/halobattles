@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "promethean-watcher",
+  "name": "Promethean Watcher",
+  "faction": "forerunner",
+  "cost": {},
+  "buildTime": 30,
+  "commandPoints": 1,
+  "combat": {
+    "unitClass": "infantry",
+    "weaponType": "hard-light",
+    "shield": 5,
+    "armor": 0,
+    "hp": 10,
+    "damage": "1d4",
+    "tiers": {
+      "aircraft": "none",
+      "structure": "disadvantage",
+      "vehicle": "disadvantage",
+      "infantry": "disadvantage"
+    }
+  },
+  "roles": ["scout"],
+  "description": "The Promethean Watcher is a kind of Sentinel designed by the Forerunners. Watchers are part of the mechanical Promethean forces created by the Ur-Didact near the end of the Forerunner-Flood war as a desperate attempt to combat the Flood."
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "warthog-m12a",
+  "name": "M12A Rocket Warthog",
+  "faction": "unsc",
+  "cost": {
+    "credits": 150,
+    "alloys": 15,
+    "materials": 50
+  },
+  "buildTime": 30,
+  "commandPoints": 3,
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "explosive",
+    "shield": 0,
+    "armor": 0,
+    "hp": 10,
+    "damage": "1d4",
+    "tiers": {
+      "vehicle": "advantage",
+      "infantry": "disadvantage"
+    },
+    "fireInterval": 3
+  },
+  "description": "The M12A Light Anti-Armor Vehicle (LAAV) commonly referred to as the Rocket Warthog, is ground vehicle in use by the United Nations Space Command. It is a configuration of the M12 \"Warthog\" Force Application Vehicle, boasting a mounted rocket turret to conduct anti-armor fire support. ",
+  "upkeep": {
+    "credits": 15,
+    "alloys": 1
+  }
+}

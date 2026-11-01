@@ -13,9 +13,11 @@ import {
 } from "jsonc-parser";
 import type { Plugin } from "vite";
 
-// The dev-only map editor's endpoints (client/editor.html): read the planet
-// list and base Mod data, open a map, and save one into mods/base/data/maps,
-// then run halo-mod check on the result. Under `vite` only, never a build.
+// The dev-only editor's endpoints (client/editor.html): read the planet list
+// and base Mod data, open a map and save one into mods/base/data/maps, read
+// and save units, Weapon Types, Unit Classes and Factions (and the bits of
+// buildings, Terrains and the Ruleset they reach into), then run halo-mod
+// check on the result. Under `vite` only, never a build.
 
 const repo = new URL("../", import.meta.url);
 const file = (path: string) => new URL(path, repo);
@@ -56,17 +58,25 @@ function format(v: unknown): string {
   return JSON.stringify(v, null, 2).replace(/\n/g, "\n  ");
 }
 
-/**
- * The map file with map's values: each top-level key that changed is
- * rewritten in place, so comments elsewhere in the file survive.
- */
-export function mapText(
+/** The map file with map's values: see contentText. */
+export const mapText = (
   old: string | undefined,
   map: Record<string, unknown>,
+) => contentText(old, map, "map.schema.json");
+
+/**
+ * A content file with value's values: each top-level key that changed is
+ * rewritten in place, so comments elsewhere in the file survive. A new file
+ * gets the schema named.
+ */
+export function contentText(
+  old: string | undefined,
+  map: Record<string, unknown>,
+  schema: string,
 ): string {
   if (old === undefined) {
     const body = Object.entries({
-      $schema: "../../../../schema/content/map.schema.json",
+      $schema: `../../../../schema/content/${schema}`,
       ...map,
     })
       .map(([k, v]) => `  ${JSON.stringify(k)}: ${format(v)}`)
@@ -133,6 +143,53 @@ async function body(req: IncomingMessage): Promise<string> {
   return s;
 }
 
+/** The content kinds the editor reads and writes: their folder and schema. */
+export const KINDS = {
+  units: { dir: "units", schema: "unit.schema.json" },
+  weaponTypes: { dir: "weaponTypes", schema: "weapon-type.schema.json" },
+  unitClasses: { dir: "unitClasses", schema: "unit-class.schema.json" },
+  factions: { dir: "factions", schema: "faction.schema.json" },
+  buildings: { dir: "buildings", schema: "building.schema.json" },
+  terrains: { dir: "terrains", schema: "terrain.schema.json" },
+  rulesets: { dir: "rulesets", schema: "ruleset.schema.json" },
+} as const;
+export type Kind = keyof typeof KINDS;
+
+/**
+ * One file change the editor asks for: a whole entity, or one value at a
+ * path inside one (null removes it), each in its kind's folder under the
+ * file name given (an entity's file can differ from its id).
+ */
+export type Write =
+  | { kind: Kind; file: string; value: Record<string, unknown> }
+  | { kind: Kind; file: string; path: string[]; value: unknown };
+
+/** The file's text after a write, comments kept. Throws on a bad write. */
+export function applyWrite(old: string | undefined, w: Write): string {
+  if (!(w.kind in KINDS) || !ID.test(w.file))
+    throw new Error(`bad write: ${w.kind}/${w.file}`);
+  if ("path" in w) {
+    if (old === undefined) throw new Error(`no ${w.kind}/${w.file} to patch`);
+    if (!w.path.every((k) => typeof k === "string" && k))
+      throw new Error("bad path");
+    const opts = { formattingOptions: { insertSpaces: true, tabSize: 2 } };
+    return applyEdits(
+      old,
+      modify(old, w.path, w.value === null ? undefined : w.value, opts),
+    );
+  }
+  return contentText(old, w.value, KINDS[w.kind].schema);
+}
+
+const BASE = "mods/base/data/";
+const readOr = (path: string) => {
+  try {
+    return readFileSync(file(path), "utf8");
+  } catch {
+    return undefined;
+  }
+};
+
 export function mapEditor(mods: string[]): Plugin {
   return {
     name: "map-editor",
@@ -164,6 +221,35 @@ export function mapEditor(mods: string[]): Plugin {
               })),
               laneTypes: rules.laneTypes ?? {},
               maps: jsoncIn(MAPS).map((m) => m.name),
+            });
+          }
+          if (req.method === "GET" && url.pathname === "/content") {
+            const all = Object.fromEntries(
+              Object.entries(KINDS).map(([k, { dir }]) => [
+                k,
+                jsoncIn(BASE + dir + "/").map(({ name, value }) => ({
+                  file: name,
+                  value,
+                })),
+              ]),
+            );
+            const resources = jsoncIn(`${BASE}resources/`).map((r) => r.value);
+            return send(res, 200, { ...all, resources });
+          }
+          if (req.method === "POST" && url.pathname === "/save") {
+            const { writes } = JSON.parse(await body(req)) as {
+              writes: Write[];
+            };
+            // Every write is worked out before any is written, so a bad one changes nothing.
+            const out = new Map<string, string>();
+            for (const w of writes) {
+              const path = `${BASE}${KINDS[w.kind]?.dir}/${w.file}.jsonc`;
+              out.set(path, applyWrite(out.get(path) ?? readOr(path), w));
+            }
+            for (const [path, text] of out) writeFileSync(file(path), text);
+            return send(res, 200, {
+              files: [...out.keys()],
+              ...(await check(mods)),
             });
           }
           const id = url.pathname.match(/^\/maps\/([^/]+)$/)?.[1];

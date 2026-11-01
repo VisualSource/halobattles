@@ -1,0 +1,474 @@
+import type { ReactNode } from "react";
+import type { ContentLookups } from "../content";
+import type { Unit } from "../gen/content";
+import { average } from "../match/threat";
+import { UnitInfo } from "../match/units";
+import { UnitCard } from "../match/windows";
+import {
+  Choice,
+  type Content,
+  ContentPage,
+  Field,
+  input,
+  label,
+  Num,
+  Section,
+} from "./content";
+
+// The Units page: every field of unit.schema.json, the buildings that train
+// it, and the game's own card and info panel as a live preview.
+
+type Raw = Record<string, unknown>;
+/** A unit as the form edits it: with the buildings ticked in Trained at, by file, once changed. */
+type Draft = Unit & { _trainedAt?: string[] };
+const TIERS = [
+  { id: "advantage", name: "Strong", className: "bg-ok-wash text-ok" },
+  { id: "normal", name: "Normal" },
+  { id: "disadvantage", name: "Weak", className: "bg-danger-wash text-danger" },
+  { id: "none", name: "Can't hit", className: "bg-raised text-ink-3" },
+] as const;
+const DICE = /^[1-9][0-9]*d[1-9][0-9]*(\+[0-9]+)?$/;
+
+const blank = (): Unit => ({
+  id: "",
+  name: "",
+  faction: "",
+  cost: {},
+  buildTime: 30,
+  commandPoints: 1,
+  combat: {
+    unitClass: "infantry",
+    weaponType: "kinetic",
+    shield: 0,
+    armor: 0,
+    hp: 10,
+    damage: "1d4",
+  },
+});
+
+/** A map by id of one kind's values. */
+const byId = (items: { value: Raw }[]) =>
+  new Map(items.map((i) => [String(i.value.id), i.value]));
+
+/**
+ * The bits of ContentLookups the game's unit card and panel read, from the
+ * raw files: Resources get their Mod's prefix, as the game's icons expect.
+ */
+function lookups(data: Content, draft: Unit): ContentLookups {
+  const units = byId(data.units);
+  units.set(draft.id, draft as unknown as Raw);
+  const rules = (data.rulesets[0]?.value ?? {}) as {
+    battle?: { classDefaults?: object };
+  };
+  return {
+    units,
+    unitClasses: byId(data.unitClasses),
+    weaponTypes: byId(data.weaponTypes),
+    resources: new Map(data.resources.map((r) => [`base:${r.id}`, r])),
+    rules: { battle: { classDefaults: rules.battle?.classDefaults ?? {} } },
+  } as unknown as ContentLookups;
+}
+const prefixed = (m: Record<string, number> = {}) =>
+  Object.fromEntries(Object.entries(m).map(([k, n]) => [`base:${k}`, n]));
+
+/** Resource amounts, one row per Resource; blank leaves one out. */
+function Amounts(props: {
+  data: Content;
+  value: Record<string, number> | undefined;
+  onChange: (v: Record<string, number>) => void;
+}) {
+  const rs = [...props.data.resources].sort(
+    (a, b) => (a.order ?? 0) - (b.order ?? 0),
+  );
+  return (
+    <span className="grid grid-cols-[5.5rem_auto] items-center gap-1.5">
+      {rs.map((r) => (
+        <Row key={r.id} name={r.name}>
+          <Num
+            optional
+            min={0}
+            placeholder="0"
+            value={props.value?.[r.id]}
+            onChange={(n) => {
+              const next = { ...props.value };
+              if (n === undefined || n === 0) delete next[r.id];
+              else next[r.id] = n;
+              props.onChange(next);
+            }}
+          />
+        </Row>
+      ))}
+    </span>
+  );
+}
+const Row = (props: { name: string; children: ReactNode }) => (
+  <>
+    <span className="text-ink-2 text-[13px]">{props.name}</span>
+    {props.children}
+  </>
+);
+
+export function UnitsPage(props: {
+  tabs: ReactNode;
+  data: Content;
+  reload: () => Promise<void>;
+}) {
+  const { data } = props;
+  const nameOf = (items: { value: Raw }[], id: string) =>
+    String(byId(items).get(id)?.name ?? id);
+  const defaults = (cls: string) =>
+    ((data.rulesets[0]?.value as { battle?: { classDefaults?: Raw } })?.battle
+      ?.classDefaults?.[cls] ?? {}) as Partial<Record<string, number>>;
+  /** The building files whose trains lists name it now. */
+  const trainedAt = (id: string) =>
+    data.buildings
+      .filter(
+        (b) =>
+          id && ((b.value.trains as string[] | undefined) ?? []).includes(id),
+      )
+      .map((b) => b.file);
+  const trainers = (faction: string) =>
+    data.buildings.filter(
+      (b) => b.value.faction === faction && Array.isArray(b.value.trains),
+    );
+
+  return (
+    <ContentPage<Draft>
+      tabs={props.tabs}
+      noun="unit"
+      items={data.units as unknown as { file: string; value: Draft }[]}
+      blank={blank}
+      group={(u) => nameOf(data.factions, u.faction)}
+      sub={(u) => u.combat?.unitClass ?? ""}
+      onSaved={props.reload}
+      // The unit's file, then each building whose trains list it changes.
+      writes={({ _trainedAt, ...u }, file) => [
+        { kind: "units", file, value: u },
+        ...data.buildings.flatMap((b) => {
+          const list = (b.value.trains as string[] | undefined) ?? [];
+          const want = (_trainedAt ?? trainedAt(u.id)).includes(b.file);
+          if (want === list.includes(u.id)) return [];
+          return [
+            {
+              kind: "buildings" as const,
+              file: b.file,
+              path: ["trains"],
+              value: want ? [...list, u.id] : list.filter((x) => x !== u.id),
+            },
+          ];
+        }),
+      ]}
+      form={(u, set) => {
+        const c = u.combat;
+        const setC = (f: (c: Unit["combat"]) => Unit["combat"]) =>
+          set((x) => ({ ...x, combat: f(x.combat) }));
+        const d = defaults(c.unitClass);
+        const roles = new Set(u.roles ?? []);
+        return (
+          <>
+            <Section title="Unit">
+              <div className="flex flex-wrap gap-3">
+                <Field name="Id">
+                  <input
+                    className={`${input} w-36 font-mono`}
+                    value={u.id}
+                    pattern="[a-z0-9_\-]+"
+                    onChange={(e) => set((x) => ({ ...x, id: e.target.value }))}
+                  />
+                </Field>
+                <Field name="Name">
+                  <input
+                    className={`${input} w-44`}
+                    value={u.name}
+                    onChange={(e) =>
+                      set((x) => ({ ...x, name: e.target.value }))
+                    }
+                  />
+                </Field>
+                <Field name="Faction">
+                  <select
+                    className={input}
+                    value={u.faction}
+                    onChange={(e) =>
+                      set((x) => ({ ...x, faction: e.target.value }))
+                    }
+                  >
+                    <option value="">(pick one)</option>
+                    {data.factions.map((f) => (
+                      <option key={f.file} value={String(f.value.id)}>
+                        {String(f.value.name)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="flex flex-col gap-0.5">
+                  <span className={label}>AI roles</span>
+                  <span className="flex h-7 items-center gap-3">
+                    {(["scout", "skirmisher"] as const).map((r) => (
+                      <label
+                        key={r}
+                        className="flex items-center gap-1.5 text-[13px] capitalize"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={roles.has(r)}
+                          onChange={(e) =>
+                            set((x) => {
+                              const next = new Set(x.roles ?? []);
+                              if (e.target.checked) next.add(r);
+                              else next.delete(r);
+                              const { roles: _, ...rest } = x;
+                              return next.size
+                                ? { ...rest, roles: [...next] }
+                                : rest;
+                            })
+                          }
+                        />
+                        {r}
+                      </label>
+                    ))}
+                  </span>
+                </div>
+              </div>
+              <Field name="Description">
+                <textarea
+                  className={`${input} min-h-14`}
+                  value={u.description ?? ""}
+                  onChange={(e) =>
+                    set((x) => ({
+                      ...x,
+                      description: e.target.value || undefined,
+                    }))
+                  }
+                />
+              </Field>
+            </Section>
+            <Section title="Training">
+              <div className="flex flex-wrap gap-8">
+                <Field name="Cost">
+                  <Amounts
+                    data={data}
+                    value={u.cost}
+                    onChange={(cost) => set((x) => ({ ...x, cost }))}
+                  />
+                </Field>
+                <Field name="Upkeep / Payday">
+                  <Amounts
+                    data={data}
+                    value={u.upkeep}
+                    onChange={(up) =>
+                      set((x) => ({
+                        ...x,
+                        upkeep: Object.keys(up).length ? up : undefined,
+                      }))
+                    }
+                  />
+                </Field>
+                <div className="grid grid-cols-2 content-start gap-3">
+                  <Field name="Build s">
+                    <Num
+                      min={1}
+                      value={u.buildTime}
+                      onChange={(n) =>
+                        set((x) => ({ ...x, buildTime: n ?? 1 }))
+                      }
+                    />
+                  </Field>
+                  <Field name="Command">
+                    <Num
+                      min={0}
+                      value={u.commandPoints}
+                      onChange={(n) =>
+                        set((x) => ({ ...x, commandPoints: n ?? 0 }))
+                      }
+                    />
+                  </Field>
+                  <Field name="Max count">
+                    <Num
+                      optional
+                      min={1}
+                      placeholder="none"
+                      value={u.maxCount}
+                      onChange={(n) => set((x) => ({ ...x, maxCount: n }))}
+                    />
+                  </Field>
+                  <Field name="Slot limit">
+                    <Num
+                      optional
+                      min={1}
+                      placeholder="none"
+                      value={u.slotLimit}
+                      onChange={(n) => set((x) => ({ ...x, slotLimit: n }))}
+                    />
+                  </Field>
+                </div>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className={label}>Trained at</span>
+                <span className="flex flex-wrap gap-3">
+                  {trainers(u.faction).map((b) => {
+                    const at = u._trainedAt ?? trainedAt(u.id);
+                    return (
+                      <label
+                        key={b.file}
+                        className="flex items-center gap-1.5 text-[13px]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={at.includes(b.file)}
+                          onChange={(e) =>
+                            set((x) => ({
+                              ...x,
+                              _trainedAt: e.target.checked
+                                ? [...at, b.file]
+                                : at.filter((f) => f !== b.file),
+                            }))
+                          }
+                        />
+                        {String(b.value.name)}
+                      </label>
+                    );
+                  })}
+                  {trainers(u.faction).length === 0 && (
+                    <span className="text-ink-4 text-[13px]">
+                      Pick a Faction with production buildings.
+                    </span>
+                  )}
+                </span>
+                <span className="text-ink-4 text-[11px]">
+                  Saving edits each building's trains list.
+                </span>
+              </div>
+            </Section>
+            <Section title="Combat">
+              <div className="flex flex-wrap gap-3">
+                <Field name="Unit Class">
+                  <select
+                    className={input}
+                    value={c.unitClass}
+                    onChange={(e) =>
+                      setC((x) => ({ ...x, unitClass: e.target.value }))
+                    }
+                  >
+                    {data.unitClasses.map((k) => (
+                      <option key={k.file} value={String(k.value.id)}>
+                        {String(k.value.name)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field name="Weapon">
+                  <select
+                    className={input}
+                    value={c.weaponType}
+                    onChange={(e) =>
+                      setC((x) => ({ ...x, weaponType: e.target.value }))
+                    }
+                  >
+                    {data.weaponTypes.map((w) => (
+                      <option key={w.file} value={String(w.value.id)}>
+                        {String(w.value.name)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {(["shield", "armor", "hp"] as const).map((k) => (
+                  <Field key={k} name={k === "hp" ? "HP" : k}>
+                    <Num
+                      min={k === "hp" ? 1 : 0}
+                      value={c[k]}
+                      onChange={(n) => setC((x) => ({ ...x, [k]: n ?? 0 }))}
+                      className="w-16"
+                    />
+                  </Field>
+                ))}
+                <Field
+                  name="Damage"
+                  hint={
+                    DICE.test(c.damage)
+                      ? `avg ${average(c.damage)}`
+                      : "NdM or NdM+K"
+                  }
+                >
+                  <input
+                    className={`${input} w-24 font-mono ${DICE.test(c.damage) ? "" : "border-danger"}`}
+                    value={c.damage}
+                    onChange={(e) =>
+                      setC((x) => ({ ...x, damage: e.target.value }))
+                    }
+                  />
+                </Field>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {(
+                  [
+                    ["range", "Range"],
+                    ["minRange", "Min range"],
+                    ["speed", "Speed"],
+                    ["sight", "Sight"],
+                    ["fireInterval", "Fire every s"],
+                  ] as const
+                ).map(([k, name]) => (
+                  <Field
+                    key={k}
+                    name={name}
+                    hint={c[k] === undefined ? "class default" : undefined}
+                  >
+                    <Num
+                      optional
+                      step={0.5}
+                      min={0}
+                      placeholder={String(d[k] ?? (k === "minRange" ? 0 : ""))}
+                      value={c[k]}
+                      onChange={(n) => setC((x) => ({ ...x, [k]: n }))}
+                    />
+                  </Field>
+                ))}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className={label}>Against each Unit Class</span>
+                <span className="grid grid-cols-[6rem_auto] items-center justify-start gap-x-3 gap-y-1.5">
+                  {data.unitClasses.map((k) => {
+                    const id = String(k.value.id);
+                    return (
+                      <Row key={id} name={String(k.value.name)}>
+                        <Choice
+                          label={`Against ${String(k.value.name)}`}
+                          value={c.tiers?.[id] ?? "normal"}
+                          options={[...TIERS]}
+                          onChange={(t) =>
+                            setC((x) => {
+                              const tiers = { ...x.tiers, [id]: t };
+                              return { ...x, tiers };
+                            })
+                          }
+                        />
+                      </Row>
+                    );
+                  })}
+                </span>
+              </div>
+            </Section>
+          </>
+        );
+      }}
+      preview={({ _trainedAt, ...u }) => {
+        const content = lookups(data, u);
+        const cost = prefixed(u.cost);
+        const shown = { ...u, cost, upkeep: prefixed(u.upkeep) };
+        return DICE.test(u.combat.damage) ? (
+          <>
+            <UnitCard content={content} unit={shown} cost={cost} needs={[]} />
+            <div className="border-edge bg-panel rounded-lg border px-2.5 py-2 text-[13px] shadow-[0_12px_32px_#000a]">
+              <UnitInfo content={content} unit={shown} cost={cost} needs={[]} />
+            </div>
+          </>
+        ) : (
+          <span className="text-ink-3 text-sm">
+            The preview waits for a damage roll like 2d6.
+          </span>
+        );
+      }}
+    />
+  );
+}

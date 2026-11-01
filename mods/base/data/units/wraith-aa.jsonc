@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "wraith-aa",
+  "name": "AA Wraith",
+  "faction": "covenant",
+  "cost": {},
+  "buildTime": 30,
+  "commandPoints": 1,
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "plasma",
+    "shield": 0,
+    "armor": 0,
+    "hp": 10,
+    "damage": "1d4",
+    "tiers": {
+      "aircraft": "advantage",
+      "artillery": "disadvantage",
+      "infantry": "disadvantage",
+      "structure": "disadvantage",
+      "vehicle": "disadvantage"
+    }
+  }
+}

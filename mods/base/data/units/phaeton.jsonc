@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "phaeton",
+  "name": "Phaeton",
+  "faction": "forerunner",
+  "cost": {},
+  "buildTime": 50,
+  "commandPoints": 5,
+  "combat": {
+    "unitClass": "aircraft",
+    "weaponType": "hard-light",
+    "shield": 18,
+    "armor": 0,
+    "hp": 20,
+    "damage": "1d12",
+    "tiers": {
+      "infantry": "advantage"
+    }
+  },
+  "description": "he Phaeton (UNSC Z-classification: Z-1800 Exoatmospheric Multirole Fighter, Z-1800 EMF), is a class of Forerunner weapon-ship. It is employed in a role analogous to a human VTOL gunship. These craft were encountered by UNSC forces in several engagements following the Requiem Campaign."
+}

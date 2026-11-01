@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "jackal-sniper",
+  "name": "Jackal Sniper",
+  "faction": "covenant",
+  "cost": {},
+  "buildTime": 30,
+  "commandPoints": 1,
+  "combat": {
+    "unitClass": "infantry",
+    "weaponType": "laser",
+    "shield": 0,
+    "armor": 0,
+    "hp": 10,
+    "damage": "1d4",
+    "tiers": {
+      "structure": "disadvantage",
+      "infantry": "advantage",
+      "artillery": "disadvantage",
+      "vehicle": "disadvantage",
+      "aircraft": "disadvantage"
+    },
+    "fireInterval": 2
+  },
+  "roles": ["skirmisher"]
+}

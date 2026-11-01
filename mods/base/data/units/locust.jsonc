@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "locust",
+  "name": "Locust",
+  "faction": "covenant",
+  "cost": {},
+  "buildTime": 30,
+  "commandPoints": 1,
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "laser",
+    "shield": 0,
+    "armor": 0,
+    "hp": 10,
+    "damage": "1d4",
+    "tiers": {
+      "aircraft": "disadvantage",
+      "artillery": "normal",
+      "structure": "advantage",
+      "vehicle": "disadvantage"
+    }
+  }
+}

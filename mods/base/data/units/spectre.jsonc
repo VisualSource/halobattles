@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "spectre",
+  "name": "Spectre",
+  "faction": "covenant",
+  "cost": {},
+  "buildTime": 30,
+  "commandPoints": 1,
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "plasma",
+    "shield": 0,
+    "armor": 0,
+    "hp": 10,
+    "damage": "1d4",
+    "tiers": {
+      "infantry": "advantage",
+      "aircraft": "disadvantage"
+    }
+  },
+  "description": "The Wuzum-pattern Patroller (UNSC Type classification: Type-46 Infantry Support Vehicle, T-46 ISV),  more commonly known as the Spectre, is a Covenant anti-infantry and transportation vehicle."
+}

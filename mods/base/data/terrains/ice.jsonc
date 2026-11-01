@@ -5,5 +5,10 @@
   "name": "Ice",
   "colour": "#cfe3ec",
   "cover": 0,
-  "movement": { "infantry": 1.5, "vehicle": 2, "aircraft": 1 }
+  "movement": {
+    "infantry": 1.5,
+    "vehicle": 2,
+    "aircraft": 1,
+    "artillery": 2
+  }
 }

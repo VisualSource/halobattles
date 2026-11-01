@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/faction.schema.json",
+  "id": "forerunner",
+  "name": "Forerunner",
+  "startingKit": {
+    "buildings": [],
+    "stacks": []
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "revenant",
+  "name": "Revenant",
+  "faction": "covenant",
+  "cost": {},
+  "buildTime": 30,
+  "commandPoints": 1,
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "plasma",
+    "shield": 0,
+    "armor": 0,
+    "hp": 10,
+    "damage": "1d4"
+  },
+  "description": "The Rizvum-pattern Swift Tank (UNSC Type classification: Type-48 Light Assault Gun Carriage, T-48 LAGC) is a Covenant mobile artillery vehicle manufactured by the Merchants of Qikost."
+}

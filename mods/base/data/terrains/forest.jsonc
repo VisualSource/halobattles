@@ -4,5 +4,8 @@
   "name": "Forest",
   "colour": "#3f6b35",
   "cover": -2,
-  "movement": { "infantry": 1.5, "aircraft": 1 }
+  "movement": {
+    "infantry": 1.5,
+    "aircraft": 1
+  }
 }
