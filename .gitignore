@@ -11,3 +11,5 @@ client/tsconfig.tsbuildinfo
 # Local-only Soundtrack Mod: "all rights reserved" music, never committed.
 mods/voidreckon/
 deploy/runtime.local.env
+
+.env.*

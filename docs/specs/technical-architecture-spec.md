@@ -69,6 +69,11 @@ mymod/
 
 Kind folders let VS Code attach the right schema by glob. Assets use the `__mod__/` form so they can't be confused with `mod:id`.
 
+- Galaxy maps can be laid out in the dev-only **map editor** (`mise run editor`, which opens `/editor.html` on the client dev server).
+  - **Planets:** placed from `tools/map-editor/planets.json`.
+  - **Saving:** writes `mods/base/data/maps/<id>.jsonc`, rewriting only the top-level keys that changed, so other comments survive. It then runs `halo-mod check` on the result.
+  - **Who can reach it:** its endpoints only answer this machine, and a build never includes it.
+
 - A **Soundtrack** (`data/soundtracks/`) lists an album's tracks as audio assets, with its artist and an optional link. Its track files must exist, like any asset. Music someone else owns is kept in a git-ignored local Mod and enabled through the optional, git-ignored `deploy/runtime.local.env` (for example `HALO_MODS=base,voidreckon`).
 - The client bundles the enabled Mods' assets at build time: those in `HALO_MODS` from the environment, else the committed `runtime.env`. Only the dev server also reads `runtime.local.env`, so a local-only Mod never reaches a build. Local-only Mods are also kept out of the server image by `.dockerignore`.
 

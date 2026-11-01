@@ -8,7 +8,7 @@
 go = "1.27.1"
 node = "24.22.1"
 pnpm = "12.15.0"
-flatc = "25.9.23" # matches the flatbuffers npm runtime, the newest published
+flatc = "25.9.23"                 # matches the flatbuffers npm runtime, the newest published
 watchexec = "2.7.3"
 "github:docker/compose" = "5.6.1"
 
@@ -62,6 +62,15 @@ run = "bash deploy/pterodactyl/smoke.sh localhost/halobattles:dev"
 description = "Run Nakama with .so rebuilds on Go changes, plus Vite"
 depends = ["dev:server", "dev:mods", "dev:client"]
 
+[tasks.preview]
+description = "Run in preview"
+depends = ["dev:server", "dev:mods", "preview:tunnel", "preview:client"]
+
+
+[tasks."preview:tunnel"]
+hide = true
+run = "${CONTAINER:-podman} run docker.io/cloudflare/cloudflared:latest tunnel --no-autoupdate run --token ${TOKEN}"
+
 [tasks."dev:server"]
 hide = true
 run = [
@@ -89,14 +98,22 @@ run = "mise run dev:restart"
 hide = true
 run = "${CONTAINER:-podman} compose -f deploy/compose.yml restart nakama"
 
+[tasks.editor]
+description = "Open the dev-only map editor (client/editor.html), which saves into mods/base/data/maps"
+run = "pnpm -C client exec vite --open /editor.html"
+
 [tasks."dev:client"]
 hide = true
 run = "pnpm -C client dev"
 
+[tasks."preview:client"]
+hide = true
+run = "pnpm -C client preview"
+
 [tasks.test]
 description = "Go and client tests"
-depends = ["gen"] # gen rewrites the embedded schemas, so it can't run alongside
-run =["cd server && go test ./...", "pnpm -C client test"]
+depends = ["gen"]                                           # gen rewrites the embedded schemas, so it can't run alongside
+run = ["cd server && go test ./...", "pnpm -C client test"]
 
 [tasks."mods:check"]
 description = "Validate the base Mod with halo-mod"

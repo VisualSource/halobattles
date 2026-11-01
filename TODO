@@ -6,13 +6,33 @@ Battle Fix:
     [] pick starting location
 
 Problem:
-    [] 
+    [] logistices needs something saying what tech/building it needs to for it to work
+    [] hide unit build options when the required building is not bulit
+    [] https://browserrts.com/ for 3d version of battles
+
+    [] allow to queue building even if you don't have the resources
+    [] give units the building info treatmeant
+
+    1. Start the game with the tunnel hostname (use your own hostname):
 
 
-    [] allow to see own army threat level
-    [] research notifications
-    [] text description for buildings
-    [] better troop manigment
-    [] hide non researched builds/units
-    [] hide non buildable units where the building is not on rather then graying out with missing building tech
-    [] teams
+TUNNEL_HOST=play.example.com VITE_NAKAMA_SAME_ORIGIN=true mise run dev
+TUNNEL_HOST makes Vite accept that hostname, pass Nakama's /v2 and /ws paths on to localhost:7350, and run live reload over port 443. VITE_NAKAMA_SAME_ORIGIN=true makes the client use https://play.example.com for Nakama instead of :7350. Without the two variables, LAN play works as before.
+
+2. Point the tunnel at Vite only. Nakama needs no ingress rule of its own. cloudflared runs in a Podman container, so it reaches the host's Vite at host.containers.internal, not localhost:
+
+Tunnel managed in the Cloudflare dashboard: under Public Hostname, add play.example.com, with Service type HTTP and URL host.containers.internal:5173.
+Tunnel with a config file:
+
+ingress:
+  - hostname: play.example.com
+    service: http://host.containers.internal:5173
+  - service: http_status:404
+Container started with --network host: use http://localhost:5173 instead.
+Cloudflare passes WebSockets through by default, so the Match socket needs nothing extra.
+
+For the playtest:
+
+Public dev setup: testers get the Vite dev server and Nakama with the dev server key, defaultkey. That's fine for a playtest, but don't leave the tunnel up afterwards.
+Console stays private: the Nakama console (port 7351) isn't routed through the tunnel. Keep it that way.
+I haven't tested through a real Cloudflare tunnel, only locally. My check also created a throwaway device account, tunnel-check-device-0001, in your local Nakama database. The change to vite.config.ts and config.ts is uncommitted.

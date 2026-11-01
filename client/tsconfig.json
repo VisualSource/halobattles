@@ -10,6 +10,7 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "types": ["vite/client"],
     // Its package.json "exports" hides its typings.
     "paths": {
@@ -18,5 +19,10 @@
       ]
     }
   },
-  "include": ["src", "vite.config.ts"]
+  "include": [
+    "src",
+    "vite.config.ts",
+    "map-editor.plugin.ts",
+    "map-editor.plugin.test.ts"
+  ]
 }

@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, type Plugin } from "vite";
+import { mapEditor } from "./map-editor.plugin.ts";
 
 /**
  * The Mods whose assets the client bundles: HALO_MODS if set, else the
@@ -62,6 +63,7 @@ export default defineConfig(({ mode, command }) => {
     // The router plugin generates src/routeTree.gen.ts from src/routes; it must come before react().
     plugins: [
       enabledModAssets(enabledMods(command)),
+      mapEditor(enabledMods("serve")),
       tanstackRouter({ target: "react" }),
       react(),
       tailwindcss(),
