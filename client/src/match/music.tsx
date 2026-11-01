@@ -50,6 +50,9 @@ function loadPrefs(): Prefs {
 
 const icon = "size-3.5 fill-current";
 
+/** How long the Match's first song takes to fade in, in ms. */
+const FADE_IN = 3000;
+
 /** The Match's music, bottom-right: plays every Soundtrack in order, looping. */
 export function MusicPlayer(props: { content: ContentLookups }) {
   const tracks = useMemo(() => playlist(props.content), [props.content]);
@@ -57,6 +60,7 @@ export function MusicPlayer(props: { content: ContentLookups }) {
   const [n, setN] = useState(0);
   const [playing, setPlaying] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
+  const faded = useRef(false); // the first song has faded in
 
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(prefs));
@@ -89,11 +93,26 @@ export function MusicPlayer(props: { content: ContentLookups }) {
         autoPlay
         // One track: stepping to itself changes nothing, so the element loops it instead.
         loop={tracks.length === 1}
-        onPlay={() => setPlaying(true)}
+        onPlay={(e) => {
+          setPlaying(true);
+          if (faded.current) return;
+          faded.current = true;
+          const a = e.currentTarget;
+          // Timed from the first frame: a frame's time can be just before a
+          // performance.now() taken here, and a negative volume throws.
+          let start: number | undefined;
+          const tick = (now: number) => {
+            start ??= now;
+            const k = Math.min(1, (now - start) / FADE_IN);
+            a.volume = prefs.volume * k;
+            if (k < 1) requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+        }}
         onPause={() => setPlaying(false)}
         onEnded={() => step(1)}
         onLoadedMetadata={(e) => {
-          e.currentTarget.volume = prefs.volume;
+          e.currentTarget.volume = faded.current ? prefs.volume : 0; // the first song fades in
           e.currentTarget.muted = prefs.muted;
         }}
       />
