@@ -1,13 +1,16 @@
 import type { Client, Session } from "@heroiclabs/nakama-js";
+import { Markdown } from "@tanstack/markdown/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { cn } from "cn";
-import { type FormEvent, useState } from "react";
+import { type ComponentProps, type FormEvent, useState } from "react";
 import { setDisplayName } from "./auth";
 import { useRingBackdrop } from "./backdrop";
+import { BUILD, RELEASES, VERSION } from "./changelog";
 import type { ContentLookups } from "./content";
 import { MapGlyph } from "./match/lobby";
 import { matchIdFromInvite } from "./match/phase";
+import { Dialog } from "./ui/dialog";
 
 export type OpenMatch = { id: string; map: string; seats: number; max: number };
 
@@ -72,7 +75,8 @@ export function Menu(props: {
   }
 
   return (
-    <div className="from-scrim/35 via-scrim/25 to-scrim/90 flex flex-1 flex-col items-center gap-9 bg-linear-to-b via-45% px-8 pt-16 pb-9">
+    <div className="from-scrim/35 via-scrim/25 to-scrim/90 relative flex flex-1 flex-col items-center gap-9 bg-linear-to-b via-45% px-8 pt-16 pb-9">
+      <Version />
       <h1 className="font-display text-7xl font-bold tracking-[0.16em] [text-shadow:0_2px_24px_rgb(0_0_0/0.6)]">
         HALO BATTLES
       </h1>
@@ -217,6 +221,87 @@ export function Menu(props: {
     </div>
   );
 }
+
+/**
+ * The game's version, small in the menu's bottom-left corner, in its bottom
+ * padding so nothing moves; it opens the changelog.
+ */
+function Version() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        title={BUILD}
+        aria-label={`Version ${VERSION}: what's changed`}
+        onClick={() => setOpen(true)}
+        className="text-ink-4 hover:text-ink-2 absolute bottom-2 left-4 border-0 bg-transparent p-1 font-mono text-xs"
+      >
+        v{VERSION}
+      </button>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        label="changelog-title"
+        className="border-edge bg-panel text-ink w-full max-w-lg rounded-xl border"
+      >
+        <div className="flex max-h-[80vh] flex-col">
+          <div className="border-line flex items-center justify-between gap-2 border-b py-3 pr-3 pl-5">
+            <h2
+              id="changelog-title"
+              className="font-display text-ink-2 text-base font-semibold tracking-[0.08em]"
+            >
+              WHAT'S CHANGED
+            </h2>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="border-edge text-ink-2 inline-flex min-h-11 items-center rounded-md border bg-transparent px-4 font-medium"
+            >
+              Close
+            </button>
+          </div>
+          <div className="flex flex-col gap-6 overflow-y-auto px-5 py-4">
+            {RELEASES.map((r) => (
+              <section key={r.version} className="flex flex-col gap-2">
+                <h3 className="font-display text-xl font-semibold">
+                  {r.version}{" "}
+                  <span className="text-ink-3 font-sans text-sm font-normal">
+                    {r.date}
+                  </span>
+                </h3>
+                <Markdown components={notes}>{r.notes}</Markdown>
+              </section>
+            ))}
+          </div>
+          <p className="border-line text-ink-4 border-t px-5 py-2 font-mono text-xs">
+            Build {BUILD}
+          </p>
+        </div>
+      </Dialog>
+    </>
+  );
+}
+
+/** How a release's notes render: its "###" sections sit under the release's own heading. */
+const notes = {
+  h3: (p: ComponentProps<"h3">) => (
+    <h4
+      {...p}
+      className="text-ink-3 mt-2 text-xs font-semibold tracking-[0.12em] uppercase"
+    />
+  ),
+  ul: (p: ComponentProps<"ul">) => (
+    <ul
+      {...p}
+      className="text-ink-2 flex list-disc flex-col gap-1 pl-5 text-sm"
+    />
+  ),
+  p: (p: ComponentProps<"p">) => <p {...p} className="text-ink-2 text-sm" />,
+  a: (p: ComponentProps<"a">) => (
+    <a {...p} target="_blank" rel="noreferrer" className="text-accent" />
+  ),
+};
 
 export function DisplayNamePrompt(props: {
   client: Client;

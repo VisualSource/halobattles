@@ -23,6 +23,9 @@ importers:
       '@heroiclabs/nakama-js-protobuf':
         specifier: 1.4.0
         version: 1.4.0
+      '@tanstack/markdown':
+        specifier: 1.1.1
+        version: 1.1.1(react@19.3.1)
       '@tanstack/react-query':
         specifier: 5.105.0
         version: 5.105.0(@types/react@19.3.0)(react@19.3.1)
@@ -538,6 +541,17 @@ packages:
   '@tanstack/history@1.162.5':
     resolution: {integrity: sha512-w1+YvwmTkwt5n8yUqEH3IWZ9DsmorCZW/EQ3KYHnqEgIkOZpH54NvW6/Epq3Dzb8H0ifIeYX8PExvrNLIH5FIA==}
     engines: {node: '>=20.19'}
+
+  '@tanstack/markdown@1.1.1':
+    resolution: {integrity: sha512-611nn7ontZtoUDELqfDE5zXxg38ydhkqM/T3p19HpgpMQyjB1VnYndSfR+4WFCEXhfy4gBAEdzVOS/SELiIkJg==}
+    peerDependencies:
+      octane: '>=0.1.12'
+      react: '>=18'
+    peerDependenciesMeta:
+      octane:
+        optional: true
+      react:
+        optional: true
 
   '@tanstack/query-core@5.105.0':
     resolution: {integrity: sha512-7p56vRmT/z4UJ6sctGIdl5WRUQyUv53IUpUwEKi2g97zMbO7zh8ZsCLffGAvCPBR4xD72e3VXsDyLwXHhoNTMQ==}
@@ -1824,6 +1838,10 @@ snapshots:
       vite: 8.3.5(@types/node@24.19.2)(jiti@2.7.0)
 
   '@tanstack/history@1.162.5': {}
+
+  '@tanstack/markdown@1.1.1(react@19.3.1)':
+    optionalDependencies:
+      react: 19.3.1
 
   '@tanstack/query-core@5.105.0': {}
 

@@ -1,5 +1,6 @@
 /// <reference types="node" />
 
+import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
@@ -55,6 +56,18 @@ function enabledModAssets(mods: string[]): Plugin {
   };
 }
 
+/** The short commit being built, or "" where git isn't there. */
+function commit(): string {
+  try {
+    return execSync("git rev-parse --short HEAD", {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "";
+  }
+}
+
 export default defineConfig(({ mode, command }) => {
   // TUNNEL_HOST: the public hostname of a tunnel (say Cloudflare) that sends
   // everything to this dev server. Vite then accepts that host, proxies
@@ -64,6 +77,13 @@ export default defineConfig(({ mode, command }) => {
   const tunnel = env.TUNNEL_HOST;
   const nakama = "http://localhost:7350";
   return {
+    // The version and changelog the main menu shows (src/changelog.ts).
+    define: {
+      __CHANGELOG__: JSON.stringify(
+        readFileSync(new URL("../CHANGELOG.md", import.meta.url), "utf8"),
+      ),
+      __COMMIT__: JSON.stringify(commit()),
+    },
     // The router plugin generates src/routeTree.gen.ts from src/routes; it must come before react().
     plugins: [
       enabledModAssets(enabledMods(command, env.HALO_MODS)),

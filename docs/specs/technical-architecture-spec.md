@@ -391,6 +391,13 @@ deploy/                  compose, local.yml, runtime.env
 - A restart drops in-memory Matches, which is fine in dev. Editing content needs only a Nakama restart.
 - Most rule and Battle work runs in plain `go test` against `internal/game`.
 
+### Versions and the changelog
+
+- The game has one version, for client and server together: the newest release in the root `CHANGELOG.md`. It follows SemVer, 0.x while in development: the middle number for a release with new features, the last for fixes only.
+- `CHANGELOG.md` is hand-written for players, in the Keep a Changelog format: `## <version> - <date>` per release, newest first, with `Added`, `Changed` and `Fixed` sections. `## Unreleased` at the top collects changes until the next release; the game doesn't show it.
+- The client build bundles the changelog and the short commit it was built from (`vite.config.ts`). The main menu shows `v<version>` in its bottom-left corner, with `<version>+<commit>` on hover, and opens the changelog in a dialog.
+- To cut a release, rename `Unreleased` to the new version and today's date, and add an empty `Unreleased` above it. `client/src/changelog.test.ts` fails on a malformed heading, or on versions or dates out of order.
+
 ### Tests and checks
 
 - **Go:** `go test ./...`, `go vet` and gofmt (no golangci-lint yet).

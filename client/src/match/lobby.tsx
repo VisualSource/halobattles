@@ -1,17 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
-import {
-  type FormEvent,
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { useStore } from "zustand";
 import { useRingBackdrop } from "../backdrop";
 import type { ContentLookups } from "../content";
 import type { Faction, GalaxyMap } from "../gen/content";
 import { seatColour } from "../scene/galaxy";
+import { Dialog } from "../ui/dialog";
 import { BotTag } from "./bot-tag";
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
@@ -402,32 +397,6 @@ function AddBot(props: {
         Add Bot
       </button>
     </form>
-  );
-}
-
-/** A modal <dialog>, which brings focus trapping and Escape to close. */
-function Dialog(props: {
-  open: boolean;
-  onClose: () => void;
-  label: string;
-  className: string;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const d = ref.current;
-    if (props.open && !d?.open) d?.showModal();
-    if (!props.open && d?.open) d.close();
-  }, [props.open]);
-  return (
-    <dialog
-      ref={ref}
-      onClose={props.onClose}
-      aria-labelledby={props.label}
-      className={cn("backdrop:bg-scrim/70 p-0", props.className)}
-    >
-      {props.open && props.children}
-    </dialog>
   );
 }
 
