@@ -23,8 +23,8 @@ export type BattlefieldLook = {
   terrainColour: (id: string) => string;
   /** Each side's colour. */
   sideColour: Record<Side, string>;
-  /** Your side: its squads' Sight clears the fog. */
-  you: Side;
+  /** Your side: its squads' Sight clears the fog. null, a Spectator: both sides' does. */
+  you: Side | null;
   /** How far a squad sees, in cells, standing at its height level. */
   sight: (sq: Squad, height: number) => number;
   /** Whether a squad flies: drawn as a triangle. */
@@ -484,7 +484,7 @@ export class BattlefieldScene {
     const data = this.fog.image.data as Uint8Array;
     const alpha = new Float32Array(w * h).fill(FOG);
     for (const sq of squads) {
-      if (sq.side !== this.look.you) continue;
+      if (this.look.you && sq.side !== this.look.you) continue;
       const r = this.look.sight(sq, heights[sq.y * w + sq.x] ?? 0);
       for (
         let y = Math.max(0, Math.floor(sq.y - r));

@@ -19,6 +19,7 @@ export type Lobby = {
   map: string;
   startingResources: Map<string, number>;
   seats: Seat[]; // longest held first
+  spectators: { user: string; displayName: string }[];
   winner: number | null; // in results: a Seat, or null for none
   endReason: string; // in results: "hold", "last-standing", ...
 };
@@ -166,6 +167,15 @@ export type PlayerView = {
   connected: boolean;
   graceEnds: number; // Match Time a disconnected player forfeits at
   bot: string; // a Bot's difficulty id; "" for a player
+  stats: PlayerStats | null; // only in a Spectator's View
+};
+
+/** A player's economy at a glance, as a Spectator sees it. */
+export type PlayerStats = {
+  resources: Map<string, number>;
+  income: Map<string, number>; // per Payday
+  commandPointsUsed: number;
+  commandPointsCap: number;
 };
 
 /** The running win-hold countdown, public to everyone. */
@@ -214,7 +224,10 @@ export type View = {
   contentHash: string;
   ruleset: string;
   map: string;
-  you: number; // your Seat
+  you: number; // your Seat; -1 for a lobby Spectator
+  // Watching: a Spectator or an eliminated player. The whole map, no fog,
+  // and no economy or research of your own.
+  spectating: boolean;
   players: PlayerView[]; // by Seat
   planets: Map<string, PlanetView>;
   armies: Map<number, Army>;

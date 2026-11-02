@@ -81,21 +81,30 @@ export function LobbyScreen(props: {
               conn={isHost ? conn : undefined}
               pending={isPending(local, "bot")}
             />
-            {me && (
-              <section className="border-line bg-panel flex flex-col gap-4 rounded-[10px] border p-5">
-                <h2 className={sectionTitle}>YOUR FACTION</h2>
-                <FactionButton
-                  faction={content.factions.get(me.faction)}
-                  pending={isPending(local, "faction")}
-                  onClick={() => setDialog("faction")}
-                />
-                {!isHost && (
-                  <p className="text-ink-3 text-sm">
-                    Changing your Faction clears your ready flag.
-                  </p>
-                )}
-              </section>
-            )}
+            <Spectators
+              lobby={lobby}
+              userId={userId}
+              seated={!!me}
+              seatFree={lobby.seats.length < (map?.starts.length ?? 0)}
+              pending={isPending(local, "seat")}
+              conn={conn}
+            />
+            {/* Kept while spectating, disabled, so switching doesn't move the lobby. */}
+            <section className="border-line bg-panel flex flex-col gap-4 rounded-[10px] border p-5">
+              <h2 className={sectionTitle}>YOUR FACTION</h2>
+              <FactionButton
+                faction={me && content.factions.get(me.faction)}
+                pending={!me || isPending(local, "faction")}
+                onClick={() => setDialog("faction")}
+              />
+              {(!isHost || !me) && (
+                <p className="text-ink-3 text-sm">
+                  {me
+                    ? "Changing your Faction clears your ready flag."
+                    : "Take a Seat to pick a Faction."}
+                </p>
+              )}
+            </section>
           </div>
 
           <section className="border-line bg-panel flex min-w-0 flex-[1_1_320px] flex-col gap-5 rounded-[10px] border p-5">
@@ -140,20 +149,24 @@ export function LobbyScreen(props: {
               START MATCH
             </button>
           ) : (
-            me && (
-              <label
-                className={`font-display inline-flex min-h-13 cursor-pointer items-center gap-3 rounded-lg border px-6 text-lg font-bold tracking-[0.12em] ${me.ready ? "border-ok-edge bg-ok-wash text-ok" : "border-edge bg-raised"}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={me.ready}
-                  disabled={isPending(local, "ready")}
-                  onChange={(e) => conn.setReady(e.target.checked)}
-                  className="accent-accent size-5.5"
-                />
-                READY
-              </label>
-            )
+            <label
+              className={cn(
+                "font-display inline-flex min-h-13 cursor-pointer items-center gap-3 rounded-lg border px-6 text-lg font-bold tracking-[0.12em]",
+                me?.ready
+                  ? "border-ok-edge bg-ok-wash text-ok"
+                  : "border-edge bg-raised",
+                !me && "text-ink-4 cursor-default",
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={me?.ready ?? false}
+                disabled={!me || isPending(local, "ready")}
+                onChange={(e) => conn.setReady(e.target.checked)}
+                className="accent-accent size-5.5"
+              />
+              READY
+            </label>
           )}
         </div>
       </footer>
@@ -201,7 +214,8 @@ export function LobbyScreen(props: {
 function status(lobby: Lobby, map: GalaxyMap | undefined, userId: string) {
   const me = lobby.seats.find((s) => s.user === userId);
   if (lobby.host !== userId) {
-    return me?.ready
+    if (!me) return "You're spectating. You'll watch once the Host starts.";
+    return me.ready
       ? "You're ready. Waiting for the Host to start."
       : "Ready up once you've picked your Faction.";
   }
@@ -345,6 +359,85 @@ function Seats(props: {
     </section>
   );
 }
+
+/**
+ * Who's watching, with your own switch: Spectate from a Seat, or Take a
+ * Seat while one is free. The list scrolls in a fixed height.
+ */
+function Spectators(props: {
+  lobby: Lobby;
+  userId: string;
+  seated: boolean;
+  seatFree: boolean;
+  pending: boolean;
+  conn: MatchConnection;
+}) {
+  const { lobby, conn } = props;
+  return (
+    <section className="border-line bg-panel overflow-hidden rounded-[10px] border">
+      <div className="border-line flex items-center gap-3 border-b px-5 py-3">
+        <h2 className={cn(sectionTitle, "flex-1")}>
+          SPECTATORS{" "}
+          <span className="text-ink-3 font-mono text-sm">
+            {lobby.spectators.length}/{MAX_SPECTATORS}
+          </span>
+        </h2>
+        {props.seated ? (
+          <button
+            type="button"
+            disabled={
+              props.pending || lobby.spectators.length >= MAX_SPECTATORS
+            }
+            onClick={() => conn.spectate()}
+            className="border-edge text-ink-2 min-h-11 rounded-md border bg-transparent px-4 font-medium"
+          >
+            Spectate
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={props.pending || !props.seatFree}
+            title={props.seatFree ? undefined : "Every Seat is taken"}
+            onClick={() => conn.takeSeat()}
+            className="bg-raised min-h-11 rounded-md px-4 font-medium"
+          >
+            Take a Seat
+          </button>
+        )}
+      </div>
+      <ul className="h-30 overflow-y-auto">
+        {lobby.spectators.length === 0 && (
+          <li className="text-ink-4 px-5 py-3 italic">Nobody is watching.</li>
+        )}
+        {lobby.spectators.map((s) => {
+          const me = s.user === props.userId;
+          return (
+            <li
+              key={s.user}
+              className={cn(
+                "border-divider flex min-h-10 items-center gap-2 border-b px-5",
+                me && "bg-highlight",
+              )}
+            >
+              <span className="font-semibold">
+                {s.displayName || "(no name)"}
+              </span>
+              {me && <span className="text-ink-3 text-xs">(you)</span>}
+              {s.user === lobby.host && (
+                <span className="bg-host-wash text-host rounded px-2 py-0.5 text-[11px] font-semibold tracking-widest">
+                  HOST
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** game.MaxSpectators on the server. */
+const MAX_SPECTATORS = 6;
 
 /** The Host's open Seat: a player can still join it, or a Bot can take it. */
 function AddBot(props: {

@@ -202,7 +202,13 @@ export function BattlePanel(props: {
       captureSeconds={rules.captureSeconds}
     />
   );
-  const mySide: Side = battle.attacker === view?.you ? "attacker" : "defender";
+  // A Spectator is neither side: it sees both and gives no orders.
+  const spectating = !!view?.spectating;
+  const mySide: Side | null = spectating
+    ? null
+    : battle.attacker === view?.you
+      ? "attacker"
+      : "defender";
   const faction = view ? view.players[view.you]?.faction : undefined;
   // Your Faction's pad turret, if it has one: the cheapest.
   const turret = [...content.buildings.entries()]
@@ -221,7 +227,7 @@ export function BattlePanel(props: {
     <div className="flex flex-wrap items-center gap-2 px-4 pt-2 text-sm">
       <span className={label}>Pads</span>
       {battle.pads.map((p, i) => {
-        const yours = p.owner === mySide;
+        const yours = !!mySide && p.owner === mySide;
         const state = p.turret
           ? "Turret up"
           : p.building
@@ -341,7 +347,7 @@ export function BattlePanel(props: {
       )}
     </div>
   );
-  const running = battle.retreating[mySide];
+  const running = !!mySide && battle.retreating[mySide];
   const counting = battle.retreatAt > 0 && !running;
   const countdown = Math.max(
     1,
@@ -356,7 +362,9 @@ export function BattlePanel(props: {
     <div className="border-line flex flex-none items-center gap-3 border-t px-4 py-3">
       <button
         type="button"
-        disabled={retreatSent || running || (nowhere && !counting)}
+        disabled={
+          spectating || retreatSent || running || (nowhere && !counting)
+        }
         onClick={() => conn.retreat(battle.planet, counting)}
         className="border-edge bg-raised min-h-11 w-52 flex-none rounded-md px-4 text-sm disabled:opacity-50"
       >
@@ -367,13 +375,15 @@ export function BattlePanel(props: {
             : "Retreat"}
       </button>
       <p className="text-ink-3 text-sm">
-        {running
-          ? "Your squads are heading off the field, holding fire. Whatever gets away Retreats to your nearest Planet."
-          : counting
-            ? "Your side fights on until the countdown ends, then turns and runs."
-            : nowhere
-              ? "You have no other Planet to Retreat to."
-              : `${planetName(battle.planet)} is Locked: its queues are paused and its Stacks are frozen until the Battle ends.`}
+        {spectating
+          ? "You're watching both sides. Spectators give no orders."
+          : running
+            ? "Your squads are heading off the field, holding fire. Whatever gets away Retreats to your nearest Planet."
+            : counting
+              ? "Your side fights on until the countdown ends, then turns and runs."
+              : nowhere
+                ? "You have no other Planet to Retreat to."
+                : `${planetName(battle.planet)} is Locked: its queues are paused and its Stacks are frozen until the Battle ends.`}
       </p>
     </div>
   );
@@ -478,7 +488,11 @@ function BattlefieldView(props: {
         attacker: colourOf(battle.attacker),
         defender: colourOf(battle.defender),
       },
-      you: battle.attacker === view.you ? "attacker" : "defender",
+      you: view.spectating
+        ? null
+        : battle.attacker === view.you
+          ? "attacker"
+          : "defender",
       sight: (sq, height) =>
         (statsOf(sq.unit)?.sight ??
           rules.classDefaults[classOf(sq.unit)]?.sight ??
@@ -591,8 +605,11 @@ function Report(props: {
   const left = (side: Side) => count(side, (q) => q.count);
   const enemy = (seat: number | null) =>
     seat === null ? "the neutral garrison" : sideName(view, seat);
-  const outcome =
-    r.attacker === you
+  const outcome = view?.spectating
+    ? r.winner === r.attacker
+      ? `${enemy(r.attacker)} took ${planetName} from ${enemy(r.defender)}.`
+      : `${enemy(r.defender)} held ${planetName} against ${enemy(r.attacker)}.`
+    : r.attacker === you
       ? won
         ? `You took ${planetName} from ${enemy(r.defender)}. Your survivors moved in.`
         : `Your attack on ${planetName} failed. ${

@@ -445,7 +445,8 @@ export class GalaxyScene {
       !dragged && selectedArmy !== null
         ? view?.armies.get(selectedArmy)
         : undefined;
-    const followed = own?.owner === view?.you ? own : undefined;
+    const followed =
+      own?.owner === view?.you || view?.spectating ? own : undefined;
     const shown = path ?? (followed && [followed.to, ...followed.path]);
     const points = (shown ?? [])
       .map((id) => this.planets.get(id)?.mesh.position.clone().setY(2))

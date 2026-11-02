@@ -42,9 +42,11 @@ import {
   SetRallyStackT,
   SetReadyT,
   SetStartingResourcesT,
+  SpectateT,
   StartMatchT,
   StartProjectT,
   SurrenderT,
+  TakeSeatT,
   ViewDelta,
   type ViewDeltaT,
   ViewFull,
@@ -106,6 +108,10 @@ function toLobby(t: LobbyStateT): Lobby {
       ready: s.ready,
       bot: str(s.bot),
     })),
+    spectators: t.spectators.map((s) => ({
+      user: str(s.user),
+      displayName: str(s.displayName),
+    })),
     winner: t.winner < 0 ? null : t.winner,
     endReason: str(t.endReason),
   };
@@ -128,6 +134,12 @@ const toPlayer = (p: PlayerViewT): PlayerView => ({
   connected: p.connected,
   graceEnds: Number(p.graceEnds),
   bot: str(p.bot),
+  stats: p.stats && {
+    resources: toAmounts(p.stats.resources),
+    income: toAmounts(p.stats.income),
+    commandPointsUsed: p.stats.commandPointsUsed,
+    commandPointsCap: p.stats.commandPointsCap,
+  },
 });
 
 const toPlanet = (p: PlanetViewT): PlanetView => ({
@@ -292,14 +304,17 @@ const NO_RESEARCH: Research = {
   saved: [],
 };
 
-function toView(t: ViewFullT): View {
+/** user is the signed-in player: a Spectator's View doesn't say which Seat, if any, is theirs. */
+function toView(t: ViewFullT, user: string): View {
+  const players = t.players.map(toPlayer);
   return {
     matchTime: Number(t.matchTime),
     contentHash: str(t.contentHash),
     ruleset: str(t.ruleset),
     map: str(t.map),
-    you: t.you,
-    players: t.players.map(toPlayer),
+    you: t.spectating ? players.findIndex((p) => p.user === user) : t.you,
+    spectating: t.spectating,
+    players,
     planets: new Map(t.planets.map((p) => [str(p.id), toPlanet(p)])),
     armies: new Map(t.armies.map((a) => [a.id, toArmy(a)])),
     battles: new Map(t.battles.map((b) => [b.id, toBattle(b)])),
@@ -407,6 +422,16 @@ export class MatchConnection {
   /** Host only: frees the Bot's Seat; user is its Seat's user id. */
   removeBot(user: string) {
     this.send(Op.RemoveBot, "bot", (seq) => new RemoveBotT(seq, user));
+  }
+
+  /** Gives up your Seat to watch. */
+  spectate() {
+    this.send(Op.Spectate, "seat", (seq) => new SpectateT(seq));
+  }
+
+  /** A Spectator takes a free Seat. */
+  takeSeat() {
+    this.send(Op.TakeSeat, "seat", (seq) => new TakeSeatT(seq));
   }
 
   startMatch() {
@@ -582,12 +607,17 @@ export class MatchConnection {
         const lobby = toLobby(t);
         this.debug("LobbyState", lobby);
         this.store.setState({ lobby });
-        const mine = t.seats.find((s) => str(s.user) === this.userId);
+        const mine = [...t.seats, ...t.spectators].find(
+          (s) => str(s.user) === this.userId,
+        );
         if (mine) this.settle(mine.lastSeq);
         return;
       }
       case Op.ViewFull: {
-        const view = toView(ViewFull.getRootAsViewFull(bb).unpack());
+        const view = toView(
+          ViewFull.getRootAsViewFull(bb).unpack(),
+          this.userId,
+        );
         this.debug("ViewFull", view);
         this.syncClock(view.matchTime);
         for (const b of view.battles.values())

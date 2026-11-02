@@ -25,6 +25,7 @@ import {
   Phase,
   PlanetCapturedT,
   PlanetViewT,
+  PlayerStatsT,
   PlayerViewT,
   ProjectT,
   QueueBuilding,
@@ -133,9 +134,50 @@ describe("MatchConnection", () => {
           bot: "",
         },
       ],
+      spectators: [],
       winner: null,
       endReason: "",
     });
+  });
+
+  it("finds a watcher's own Seat in a Spectator View, and decodes each player's stats", async () => {
+    for (const [user, you] of [
+      ["u2", 1], // eliminated: still Seat 1
+      ["w1", -1], // a lobby Spectator: no Seat
+    ] as const) {
+      const { socket, send } = fakeSocket();
+      const conn = new MatchConnection(socket, { log: false });
+      await conn.open({ user_id: user } as Session, "m1");
+      const p = new PlayerViewT(1, "u2", "Arbiter", "base:covenant", 0);
+      p.stats = new PlayerStatsT(
+        [new AmountT("base:credits", 500)],
+        [new AmountT("base:credits", 120)],
+        4,
+        20,
+      );
+      const view = new ViewFullT(
+        0n,
+        "hash1",
+        "base:rules",
+        "base:quadrant",
+        0,
+        [new PlayerViewT(0, "u1", "Chief", "base:unsc", 3), p],
+      );
+      view.spectating = true;
+      const b = new flatbuffers.Builder();
+      b.finish(view.pack(b));
+      send(Op.ViewFull, b.asUint8Array());
+
+      const got = conn.store.getState().view;
+      expect(got?.spectating).toBe(true);
+      expect(got?.you).toBe(you);
+      expect(got?.players[1]?.stats).toEqual({
+        resources: new Map([["base:credits", 500]]),
+        income: new Map([["base:credits", 120]]),
+        commandPointsUsed: 4,
+        commandPointsCap: 20,
+      });
+    }
   });
 
   it("decodes ViewFull into plain objects, Planets in a Map by id", async () => {
@@ -210,6 +252,7 @@ describe("MatchConnection", () => {
       ruleset: "base:rules",
       map: "base:quadrant",
       you: 1,
+      spectating: false,
       players: [
         {
           seat: 0,
@@ -221,6 +264,7 @@ describe("MatchConnection", () => {
           connected: false,
           graceEnds: 0,
           bot: "",
+          stats: null,
         },
         {
           seat: 1,
@@ -232,6 +276,7 @@ describe("MatchConnection", () => {
           connected: false,
           graceEnds: 0,
           bot: "",
+          stats: null,
         },
       ],
       planets: new Map([

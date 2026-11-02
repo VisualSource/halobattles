@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useBlocker } from "@tanstack/react-router";
+import { Link, useBlocker } from "@tanstack/react-router";
 import { cn } from "cn";
 import {
   startTransition,
@@ -54,14 +54,19 @@ export function PlayScreen(props: {
   const { matchId } = useMatchContext();
   // Leaving a Match in play is a final Forfeit. A reload only drops the
   // connection, which keeps the Seat for the Grace Period, so it isn't asked.
+  // Nor is a Spectator: they have nothing to Forfeit.
   const leaving = useBlocker({
-    shouldBlockFn: ({ next }) => !inMatch(next.pathname, matchId),
+    shouldBlockFn: ({ next }) =>
+      !inMatch(next.pathname, matchId) &&
+      !conn.store.getState().view?.spectating,
     enableBeforeUnload: false,
     withResolver: true,
   });
   useHideHeader();
   usePlayNotes(conn, content);
   const mapId = useStore(conn.store, (s) => s.view?.map);
+  // Eliminated with the Research panel open: it closes.
+  const spectating = useStore(conn.store, (s) => !!s.view?.spectating);
   const map = mapId ? content.maps.get(mapId) : undefined;
   const container = useRef<HTMLDivElement>(null);
   const [stacksOpen, setStacksOpen] = useState(true);
@@ -109,9 +114,10 @@ export function PlayScreen(props: {
       />
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div ref={container} className="size-full" />
+        <EliminatedNotice conn={conn} />
         <Players conn={conn} content={content} />
         <PlanetList conn={conn} content={content} />
-        {research && (
+        {research && !spectating && (
           <ResearchPanel
             key={research.pick}
             pick={research.pick}
@@ -324,59 +330,67 @@ function Hud(props: {
         HALO BATTLES
       </span>
       <span aria-hidden="true" className="bg-line h-7 w-px" />
-      <Stockpile conn={conn} content={content} />
-      <ResearchButton
-        conn={conn}
-        content={content}
-        open={props.researchOpen}
-        onToggle={props.onResearch}
-        onPick={props.onPickResearch}
-      />
-      <span
-        title="Command Points in use, of your cap"
-        className="flex flex-col items-center gap-0.5 font-mono leading-none"
-      >
-        <span className={cn(label, "flex h-4.5 items-center")}>
-          <CommandIcon />
-          <span className="sr-only">Command Points</span>
-        </span>
-        <span
-          className={
-            economy.commandPointsUsed >= economy.commandPointsCap
-              ? "text-accent"
-              : ""
-          }
-        >
-          {economy.commandPointsUsed}
-          <span className="text-ink-4">/{economy.commandPointsCap}</span>
-        </span>
-      </span>
-      <div className="flex items-center gap-2.5">
-        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-          <circle
-            cx="15"
-            cy="15"
-            r="12"
-            fill="none"
-            stroke="var(--color-line)"
-            strokeWidth="4"
+      {view.spectating ? (
+        <Standings conn={conn} content={content} />
+      ) : (
+        <>
+          <Stockpile conn={conn} content={content} />
+          <ResearchButton
+            conn={conn}
+            content={content}
+            open={props.researchOpen}
+            onToggle={props.onResearch}
+            onPick={props.onPickResearch}
           />
-          <circle
-            cx="15"
-            cy="15"
-            r="12"
-            fill="none"
-            stroke="var(--color-accent)"
-            strokeWidth="4"
-            strokeDasharray={`${done * ring} ${ring}`}
-            transform="rotate(-90 15 15)"
-          />
-        </svg>
-        <div className="flex flex-col gap-0.5">
-          <span className={label}>Next Payday</span>
-          <span className="font-mono">{clock(economy.paydayEnd - now)}</span>
-        </div>
-      </div>
+          <span
+            title="Command Points in use, of your cap"
+            className="flex flex-col items-center gap-0.5 font-mono leading-none"
+          >
+            <span className={cn(label, "flex h-4.5 items-center")}>
+              <CommandIcon />
+              <span className="sr-only">Command Points</span>
+            </span>
+            <span
+              className={
+                economy.commandPointsUsed >= economy.commandPointsCap
+                  ? "text-accent"
+                  : ""
+              }
+            >
+              {economy.commandPointsUsed}
+              <span className="text-ink-4">/{economy.commandPointsCap}</span>
+            </span>
+          </span>
+          <div className="flex items-center gap-2.5">
+            <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+              <circle
+                cx="15"
+                cy="15"
+                r="12"
+                fill="none"
+                stroke="var(--color-line)"
+                strokeWidth="4"
+              />
+              <circle
+                cx="15"
+                cy="15"
+                r="12"
+                fill="none"
+                stroke="var(--color-accent)"
+                strokeWidth="4"
+                strokeDasharray={`${done * ring} ${ring}`}
+                transform="rotate(-90 15 15)"
+              />
+            </svg>
+            <div className="flex flex-col gap-0.5">
+              <span className={label}>Next Payday</span>
+              <span className="font-mono">
+                {clock(economy.paydayEnd - now)}
+              </span>
+            </div>
+          </div>
+        </>
+      )}
       <span className="flex-1" />
       {winHold.seat !== null && (
         <span className="bg-danger-wash text-danger rounded-md px-3 py-1.5 text-sm">
@@ -386,10 +400,123 @@ function Hud(props: {
       )}
       <Mode conn={conn} content={content} />
       <Notifications />
-      {!view.players[view.you]?.eliminated && (
+      {view.spectating ? (
+        <Link
+          to="/"
+          className="border-edge text-ink-2 inline-flex min-h-9 items-center rounded-md border px-3.5 hover:no-underline"
+        >
+          Leave
+        </Link>
+      ) : (
         <SurrenderButton conn={conn} pending={isPending(local, "surrender")} />
       )}
     </header>
+  );
+}
+
+/**
+ * In a Spectator's header, in place of the Resource bar: every player still
+ * in, with their Planets, Resources and Payday income, and Command Points.
+ * Each takes a fixed width; past the header's room the row scrolls.
+ */
+function Standings(props: { conn: MatchConnection; content: ContentLookups }) {
+  const { content } = props;
+  const players = useStore(props.conn.store, (s) => s.view?.players) ?? [];
+  const name = (r: string) => content.resources.get(r)?.name ?? r;
+  const order = (r: string) => content.resources.get(r)?.order ?? 0;
+  return (
+    <ul aria-label="Players" className="flex min-w-0 gap-2 overflow-x-auto">
+      {players
+        .filter((p) => !p.eliminated)
+        .map((p) => (
+          <li
+            key={p.seat}
+            className="border-line flex w-60 flex-none flex-col gap-0.5 rounded-md border px-2 py-0.5 text-xs leading-tight"
+          >
+            <span className="flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="size-2.5 flex-none rounded-sm"
+                style={{ background: seatColour(p.seat) }}
+              />
+              <span className="min-w-0 flex-1 truncate font-semibold">
+                {p.displayName || `Player ${p.seat + 1}`}
+              </span>
+              <span title="Planets" className="text-ink-2 font-mono">
+                {p.planetCount} ◉
+              </span>
+              <span
+                title="Command Points in use, of the cap"
+                className="text-ink-2 flex items-center gap-0.5 font-mono"
+              >
+                <CommandIcon />
+                {p.stats?.commandPointsUsed ?? 0}/
+                {p.stats?.commandPointsCap ?? 0}
+              </span>
+            </span>
+            <span className="flex items-center gap-2 font-mono">
+              {[...(p.stats?.resources ?? [])]
+                .sort(([a], [b]) => order(a) - order(b) || a.localeCompare(b))
+                .map(([id, amount]) => {
+                  const income = p.stats?.income.get(id) ?? 0;
+                  return (
+                    <span
+                      key={id}
+                      title={`${name(id)}: ${amount}, ${income < 0 ? income : `+${income}`} next Payday`}
+                      className="flex items-center gap-0.5"
+                    >
+                      <ResourceIcon id={id} name={name(id)} size={12} />
+                      <span className={amount < 0 ? "text-danger" : ""}>
+                        {compact.format(amount)}
+                      </span>
+                      {income !== 0 && (
+                        <span
+                          className={income < 0 ? "text-danger" : "text-ok"}
+                        >
+                          {income < 0
+                            ? compact.format(income)
+                            : `+${compact.format(income)}`}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+            </span>
+          </li>
+        ))}
+    </ul>
+  );
+}
+
+/** Shown once you're eliminated: you watch the rest, or leave. */
+function EliminatedNotice(props: { conn: MatchConnection }) {
+  const out = useStore(
+    props.conn.store,
+    (s) => !!s.view?.spectating && (s.view?.you ?? -1) >= 0,
+  );
+  const [hidden, setHidden] = useState(false);
+  if (!out || hidden) return null;
+  return (
+    <div
+      role="status"
+      className="border-edge bg-panel/95 absolute top-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-4 rounded-lg border px-4 py-2.5 shadow-[0_12px_32px_#000a]"
+    >
+      <span>You were eliminated. You're watching the rest of the Match.</span>
+      <Link
+        to="/"
+        className="bg-accent text-accent-ink inline-flex min-h-9 items-center rounded-md px-3.5 font-semibold hover:no-underline"
+      >
+        Leave
+      </Link>
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={() => setHidden(true)}
+        className="text-ink-3 size-7 border-0 bg-transparent p-0"
+      >
+        ✕
+      </button>
+    </div>
   );
 }
 
@@ -958,11 +1085,12 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
           winner: number | null;
         }>(e);
         // A side hears whether it won, so a loss can't read as a win at a glance.
-        const result = !mine(battle)
-          ? `${who(winner)} won`
-          : winner === view()?.you
-            ? "you won"
-            : "you lost";
+        const result =
+          !mine(battle) || view()?.spectating
+            ? `${who(winner)} won`
+            : winner === view()?.you
+              ? "you won"
+              : "you lost";
         notify(
           "battle",
           `Battle at ${planet(id)} is over: ${result}`,

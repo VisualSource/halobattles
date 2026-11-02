@@ -1830,7 +1830,8 @@ export function ArmyWindow(props: {
   };
   const mine = army.owner === view.you;
   const lanes = laneTimes(map, content.rules);
-  const route = mine ? [army.to, ...army.path] : [army.to];
+  // A Spectator sees where every Army is going.
+  const route = mine || view.spectating ? [army.to, ...army.path] : [army.to];
   let at = army.waiting ? now : army.arrives;
   const stops = route.map((p, i) => {
     if (i > 0) at += lanes.get(route[i - 1] ?? "")?.get(p) ?? 0;

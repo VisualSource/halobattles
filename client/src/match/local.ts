@@ -11,6 +11,7 @@ export type CommandKind =
   | "startingResources"
   | "start"
   | "bot"
+  | "seat"
   | "build"
   | "cancel"
   | "sell"
