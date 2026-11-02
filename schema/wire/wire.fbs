@@ -29,6 +29,8 @@ enum Op : int {
   CancelProject = 20,
   AddBot = 21,
   RemoveBot = 22,
+  Spectate = 23,
+  TakeSeat = 24,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -71,6 +73,14 @@ table AddBot {           // Host only: a Bot takes an empty Seat
 table RemoveBot {        // Host only
   seq: uint32;
   user: string;            // the Bot's Seat user
+}
+
+table Spectate {         // lobby only: give up your Seat to watch; a Host stays Host
+  seq: uint32;
+}
+
+table TakeSeat {         // lobby only: a Spectator takes a free Seat
+  seq: uint32;
 }
 
 table SetMap {           // Host only
@@ -206,6 +216,13 @@ table Seat {
   bot: string;           // a Bot's difficulty id; "" for a player
 }
 
+// Someone in the lobby who'll watch rather than play.
+table Spectator {
+  user: string;
+  display_name: string;
+  last_seq: uint32;      // the last command seq processed from them
+}
+
 // Sent whole to everyone on join and on every lobby change.
 table LobbyState {
   phase: Phase;
@@ -215,6 +232,7 @@ table LobbyState {
   seats: [Seat];           // in Seat order: longest held first
   winner: byte = -1;       // in results: a Seat index; -1 is none
   end_reason: string;      // in results: "hold", "last-standing", ...
+  spectators: [Spectator]; // longest here first
 }
 
 // Sent to the sender of a command the server refused.
@@ -384,6 +402,15 @@ table PlayerView {
   connected: bool;
   grace_ends: long;        // Match Time a disconnected player forfeits at
   bot: string;             // a Bot's difficulty id; "" for a player
+  stats: PlayerStats;      // only in a Spectator's View
+}
+
+// What a Spectator sees of a player's economy.
+table PlayerStats {
+  resources: [Amount];
+  income: [Amount];        // what the next Payday would change
+  command_points_used: uint32;
+  command_points_cap: uint32;
 }
 
 // The running win-hold countdown, public to everyone.
@@ -452,6 +479,7 @@ table ViewFull {
   battles: [BattleView];
   win_hold: WinHold;
   research: Research;
+  spectating: bool;        // a Spectator's View: no fog, no economy or research, you means nothing
 }
 
 // Sent on a tick when the viewer's View changed since the last one sent.

@@ -94,6 +94,17 @@ type State struct {
 	HoldSeat int
 	HoldEnds int64
 	Result   *Result // set once the Match is over
+	// Spectators who came from the lobby. Eliminated players watch too, as
+	// Players.
+	Spectators []Spectator
+}
+
+// Spectator is someone watching the Match without a Seat.
+type Spectator struct {
+	User         string
+	Disconnected bool
+	GraceEnds    int64 // Match Time; while Disconnected
+	Left         bool  // gone for good
 }
 
 // SeatSetup is one Seat as the lobby left it.

@@ -63,7 +63,20 @@ type PlayerView struct {
 	Connected   bool
 	GraceEnds   int64  // Match Time; 0 while connected
 	Bot         string // a Bot's difficulty id; "" for a player
+	Stats       *Stats // only in a Spectator's View
 }
+
+// Stats is what a Spectator sees of a player's economy.
+type Stats struct {
+	Resources         map[string]int
+	Income            map[string]int // what the next Payday would change
+	CommandPointsUsed int
+	CommandPointsCap  int
+}
+
+// Spectating is the You of a Spectator's View: no Seat, so nothing in the
+// Match is its own.
+const Spectating = -2
 
 // PlanetView is a Planet in vision. Other players' queues stay hidden.
 type PlanetView struct {
@@ -132,34 +145,58 @@ func (s *State) sees(seat int, planet string) bool { return s.visible(seat)[plan
 // View is the only place vision is enforced. Planets outside vision are
 // left out, so their owner and Capital flag stay hidden. An Army is seen
 // while either end of its Lane hop is in vision, or the Planet it waits at.
-func (s *State) View(c *cs.Content, seat int) View {
+func (s *State) View(c *cs.Content, seat int) View { return s.view(c, seat) }
+
+// SpectatorView is the Match as a Spectator sees it: every Planet, Army and
+// Battle without fog, where every Army is headed, and each player's Stats.
+// Construction and unit queues and Projects stay private, and a Spectator
+// has no economy or research of its own.
+func (s *State) SpectatorView(c *cs.Content) View { return s.view(c, Spectating) }
+
+func (s *State) view(c *cs.Content, seat int) View {
+	all := seat == Spectating
 	v := View{Time: s.Time, Map: s.Map, You: seat, Hold: Hold{Seat: s.HoldSeat, Ends: s.HoldEnds}}
-	used, cp := s.commandPoints(c, seat)
-	v.Economy = Economy{
-		Resources: maps.Clone(s.Players[seat].Resources), CommandPointsUsed: used, CommandPointsCap: cp,
-		PaydayStart: s.NextPayday - s.PaydayEvery, PaydayEnd: s.NextPayday,
-		Caps: s.caps(c, seat), Projected: s.paydayNet(c, seat),
-	}
-	pl := s.Players[seat]
-	v.Research = Research{
-		Rates: s.researchRates(c, seat), Projects: slices.Clone(pl.Projects),
-		Hands: maps.Clone(pl.Hands), Saved: slices.Clone(pl.Saved),
-	}
-	for i, card := range v.Research.Saved {
-		if card.Lost {
-			v.Research.Saved[i].Cost = s.recoveryCost(c, seat, card.Tech)
+	if !all {
+		used, cp := s.commandPoints(c, seat)
+		v.Economy = Economy{
+			Resources: maps.Clone(s.Players[seat].Resources), CommandPointsUsed: used, CommandPointsCap: cp,
+			PaydayStart: s.NextPayday - s.PaydayEvery, PaydayEnd: s.NextPayday,
+			Caps: s.caps(c, seat), Projected: s.paydayNet(c, seat),
+		}
+		pl := s.Players[seat]
+		v.Research = Research{
+			Rates: s.researchRates(c, seat), Projects: slices.Clone(pl.Projects),
+			Hands: maps.Clone(pl.Hands), Saved: slices.Clone(pl.Saved),
+		}
+		for i, card := range v.Research.Saved {
+			if card.Lost {
+				v.Research.Saved[i].Cost = s.recoveryCost(c, seat, card.Tech)
+			}
 		}
 	}
 	counts := map[int]int{}
 	for _, p := range s.Planets {
 		counts[p.Owner]++
 	}
-	visible := s.visible(seat)
+	var visible map[string]bool
+	if all {
+		visible = map[string]bool{}
+		for id := range s.Planets {
+			visible[id] = true
+		}
+	} else {
+		visible = s.visible(seat)
+	}
 	for _, p := range s.Players {
-		v.Players = append(v.Players, PlayerView{
+		pv := PlayerView{
 			Seat: p.Seat, User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: counts[p.Seat],
 			Eliminated: p.Eliminated, Connected: !p.Disconnected, GraceEnds: p.GraceEnds, Bot: p.Bot,
-		})
+		}
+		if all {
+			used, cp := s.commandPoints(c, p.Seat)
+			pv.Stats = &Stats{Resources: maps.Clone(p.Resources), Income: s.paydayNet(c, p.Seat), CommandPointsUsed: used, CommandPointsCap: cp}
+		}
+		v.Players = append(v.Players, pv)
 	}
 	for _, id := range slices.Sorted(maps.Keys(visible)) {
 		p := s.Planets[id]
@@ -189,20 +226,20 @@ func (s *State) View(c *cs.Content, seat int) View {
 	for _, id := range slices.Sorted(maps.Keys(s.Armies)) {
 		a := s.Armies[id]
 		mine := a.Owner == seat
-		if !mine && !visible[a.To] && (a.Waiting || !visible[a.From]) {
+		if !all && !mine && !visible[a.To] && (a.Waiting || !visible[a.From]) {
 			continue
 		}
 		av := ArmyView{
 			ID: a.ID, Owner: a.Owner, Units: slices.Clone(a.Units), From: a.From, To: a.To,
 			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting,
 		}
-		if mine {
+		if mine || all { // a Spectator sees where every Army is going
 			av.Destination, av.ToStack, av.Path = a.destination(), a.ToStack, slices.Clone(a.Path)
 		}
 		v.Armies = append(v.Armies, av)
 	}
 	for _, id := range slices.Sorted(maps.Keys(s.Battles)) {
-		if b := s.Battles[id]; b.Attacker == seat || b.Defender == seat {
+		if b := s.Battles[id]; all || b.Attacker == seat || b.Defender == seat {
 			v.Battles = append(v.Battles, b.view(seat))
 		}
 	}
@@ -210,14 +247,16 @@ func (s *State) View(c *cs.Content, seat int) View {
 }
 
 func (b *Battle) view(seat int) BattleView {
-	side := battle.Attacker
-	if seat != b.Attacker {
-		side = battle.Defender
+	bv := BattleView{ID: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender, Started: b.Started, Field: b.Sim.Field}
+	switch seat {
+	case Spectating:
+		bv.Snapshot = b.Sim.SnapshotAll()
+	case b.Attacker:
+		bv.Snapshot = b.Sim.Snapshot(battle.Attacker)
+	default:
+		bv.Snapshot = b.Sim.Snapshot(battle.Defender)
 	}
-	return BattleView{
-		ID: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender, Started: b.Started,
-		Field: b.Sim.Field, Snapshot: b.Sim.Snapshot(side),
-	}
+	return bv
 }
 
 // Delta is what changed between two Views of the same player: whole
@@ -241,7 +280,7 @@ type Delta struct {
 func Diff(prev, next View) (Delta, bool) {
 	d := Delta{Time: next.Time}
 	for i, p := range next.Players {
-		if i >= len(prev.Players) || prev.Players[i] != p {
+		if i >= len(prev.Players) || !reflect.DeepEqual(prev.Players[i], p) {
 			d.Players = append(d.Players, p)
 		}
 	}

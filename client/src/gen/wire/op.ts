@@ -26,6 +26,8 @@ export enum Op {
   CancelProject = 20,
   AddBot = 21,
   RemoveBot = 22,
+  Spectate = 23,
+  TakeSeat = 24,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,

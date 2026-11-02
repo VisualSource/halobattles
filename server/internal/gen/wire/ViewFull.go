@@ -19,6 +19,7 @@ type ViewFullT struct {
 	Battles     []*BattleViewT `json:"battles"`
 	WinHold     *WinHoldT      `json:"win_hold"`
 	Research    *ResearchT     `json:"research"`
+	Spectating  bool           `json:"spectating"`
 }
 
 func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -105,6 +106,7 @@ func (t *ViewFullT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	ViewFullAddBattles(builder, battlesOffset)
 	ViewFullAddWinHold(builder, winHoldOffset)
 	ViewFullAddResearch(builder, researchOffset)
+	ViewFullAddSpectating(builder, t.Spectating)
 	return ViewFullEnd(builder)
 }
 
@@ -145,6 +147,7 @@ func (rcv *ViewFull) UnPackTo(t *ViewFullT) {
 	}
 	t.WinHold = rcv.WinHold(nil).UnPack()
 	t.Research = rcv.Research(nil).UnPack()
+	t.Spectating = rcv.Spectating()
 }
 
 func (rcv *ViewFull) UnPack() *ViewFullT {
@@ -385,8 +388,20 @@ func (rcv *ViewFull) Research(obj *Research) *Research {
 	return nil
 }
 
+func (rcv *ViewFull) Spectating() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *ViewFull) MutateSpectating(n bool) bool {
+	return rcv._tab.MutateBoolSlot(28, n)
+}
+
 func ViewFullStart(builder *flatbuffers.Builder) {
-	builder.StartObject(12)
+	builder.StartObject(13)
 }
 func ViewFullAddMatchTime(builder *flatbuffers.Builder, matchTime int64) {
 	builder.PrependInt64Slot(0, matchTime, 0)
@@ -435,6 +450,9 @@ func ViewFullAddWinHold(builder *flatbuffers.Builder, winHold flatbuffers.UOffse
 }
 func ViewFullAddResearch(builder *flatbuffers.Builder, research flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(11, flatbuffers.UOffsetT(research), 0)
+}
+func ViewFullAddSpectating(builder *flatbuffers.Builder, spectating bool) {
+	builder.PrependBoolSlot(12, spectating, false)
 }
 func ViewFullEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

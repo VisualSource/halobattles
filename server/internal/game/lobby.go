@@ -7,8 +7,13 @@ import (
 	"slices"
 )
 
-// ErrLobbyFull rejects a join once every Seat is taken.
+// ErrLobbyFull rejects a join once every Seat and Spectator place is taken.
 var ErrLobbyFull = errors.New("every Seat is taken")
+
+// MaxSpectators is how many can watch a Match, besides its eliminated players.
+const MaxSpectators = 6
+
+var errSpectatorsFull = errors.New("every Spectator place is taken")
 
 var (
 	errNoSeat  = errors.New("you have no Seat in this Match")
@@ -41,13 +46,21 @@ type LobbyContent struct {
 	BotNames          map[string][]string // per Faction, taken in order
 }
 
+// LobbySpectator is someone in the lobby who'll watch rather than play.
+type LobbySpectator struct {
+	User        string
+	DisplayName string
+}
+
 // Lobby is a Match before Start.
 type Lobby struct {
 	Map               string
 	StartingResources map[string]int
-	Seats             []Seat // longest held first
+	Seats             []Seat           // longest held first
+	Spectators        []LobbySpectator // longest here first
 	content           LobbyContent
-	bots              int // Bots added so far, for their Seat user ids
+	bots              int      // Bots added so far, for their Seat user ids
+	order             []string // players and Spectators, longest here first: the Host is the first
 }
 
 // NewLobby starts on the first map by id and the Ruleset's
@@ -63,14 +76,19 @@ func NewLobby(c LobbyContent) *Lobby {
 // MaxSeats is the selected map's number of starts.
 func (l *Lobby) MaxSeats() int { return l.content.Maps[l.Map].Starts }
 
-// Host is the longest-held player's Seat, so the role passes on when the
-// Host leaves; a Bot is never Host. It is "" in a lobby with no player.
+// Host is whoever has been in the lobby longest, seated or spectating, so
+// the role passes on when the Host leaves, and stays with a Host who
+// switches to spectating; a Bot is never Host. It is "" in a lobby with
+// nobody in it.
 func (l *Lobby) Host() string {
-	if i := slices.IndexFunc(l.Seats, func(s Seat) bool { return s.Bot == "" }); i >= 0 {
-		return l.Seats[i].User
+	if len(l.order) > 0 {
+		return l.order[0]
 	}
 	return ""
 }
+
+// People counts everyone in the lobby but Bots: players and Spectators.
+func (l *Lobby) People() int { return len(l.order) }
 
 // Players counts the Seats held by players, not Bots.
 func (l *Lobby) Players() int {
@@ -128,33 +146,81 @@ func (l *Lobby) seatIndex(user string) int {
 
 func (l *Lobby) HasSeat(user string) bool { return l.seatIndex(user) >= 0 }
 
-// CanJoin reports whether user already has a Seat or one is free.
-func (l *Lobby) CanJoin(user string) bool {
-	return l.HasSeat(user) || len(l.Seats) < l.MaxSeats()
+func (l *Lobby) spectatorIndex(user string) int {
+	return slices.IndexFunc(l.Spectators, func(s LobbySpectator) bool { return s.User == user })
 }
 
-// Join seats user on the first Faction by id, not ready. A seated user
-// keeps their Seat.
+// IsSpectator reports whether user is watching rather than playing.
+func (l *Lobby) IsSpectator(user string) bool { return l.spectatorIndex(user) >= 0 }
+
+// IsMember reports whether user is in the lobby, seated or spectating.
+func (l *Lobby) IsMember(user string) bool { return l.HasSeat(user) || l.IsSpectator(user) }
+
+// CanJoin reports whether user is already in the lobby, or a Seat or a
+// Spectator place is free.
+func (l *Lobby) CanJoin(user string) bool {
+	return l.IsMember(user) || len(l.Seats) < l.MaxSeats() || len(l.Spectators) < MaxSpectators
+}
+
+// Join seats user on the first Faction by id, not ready, or with every
+// Seat taken, makes them a Spectator. Someone already in keeps their place.
 func (l *Lobby) Join(user, displayName string) error {
-	if l.HasSeat(user) {
+	switch {
+	case l.IsMember(user):
 		return nil
-	}
-	if len(l.Seats) >= l.MaxSeats() {
+	case len(l.Seats) < l.MaxSeats():
+		l.Seats = append(l.Seats, Seat{User: user, DisplayName: displayName, Faction: slices.Min(l.content.Factions)})
+	case len(l.Spectators) < MaxSpectators:
+		l.Spectators = append(l.Spectators, LobbySpectator{User: user, DisplayName: displayName})
+	default:
 		return ErrLobbyFull
 	}
-	l.Seats = append(l.Seats, Seat{User: user, DisplayName: displayName, Faction: slices.Min(l.content.Factions)})
+	l.order = append(l.order, user)
 	return nil
 }
 
-// Leave frees user's Seat, if they have one.
+// Leave frees user's Seat or Spectator place.
 func (l *Lobby) Leave(user string) {
 	if i := l.seatIndex(user); i >= 0 {
 		l.Seats = slices.Delete(l.Seats, i, i+1)
 	}
+	if i := l.spectatorIndex(user); i >= 0 {
+		l.Spectators = slices.Delete(l.Spectators, i, i+1)
+	}
+	l.order = slices.DeleteFunc(l.order, func(u string) bool { return u == user })
+}
+
+// Spectate gives up user's Seat to watch; a Host stays Host.
+func (l *Lobby) Spectate(user string) error {
+	i := l.seatIndex(user)
+	switch {
+	case i < 0:
+		return errNoSeat
+	case len(l.Spectators) >= MaxSpectators:
+		return errSpectatorsFull
+	}
+	l.Spectators = append(l.Spectators, LobbySpectator{User: user, DisplayName: l.Seats[i].DisplayName})
+	l.Seats = slices.Delete(l.Seats, i, i+1)
+	return nil
+}
+
+// TakeSeat seats a Spectator in a free Seat, on the first Faction by id,
+// not ready.
+func (l *Lobby) TakeSeat(user string) error {
+	i := l.spectatorIndex(user)
+	switch {
+	case i < 0:
+		return errors.New("you aren't spectating")
+	case len(l.Seats) >= l.MaxSeats():
+		return ErrLobbyFull
+	}
+	l.Seats = append(l.Seats, Seat{User: user, DisplayName: l.Spectators[i].DisplayName, Faction: slices.Min(l.content.Factions)})
+	l.Spectators = slices.Delete(l.Spectators, i, i+1)
+	return nil
 }
 
 func (l *Lobby) mustBeHost(user string) error {
-	if l.seatIndex(user) < 0 {
+	if !l.IsMember(user) {
 		return errNoSeat
 	}
 	if user != l.Host() {

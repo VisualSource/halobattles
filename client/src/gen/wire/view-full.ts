@@ -117,8 +117,13 @@ research(obj?:Research):Research|null {
   return offset ? (obj || new Research()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
 }
 
+spectating():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 28);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startViewFull(builder:flatbuffers.Builder) {
-  builder.startObject(12);
+  builder.startObject(13);
 }
 
 static addMatchTime(builder:flatbuffers.Builder, matchTime:bigint) {
@@ -217,6 +222,10 @@ static addResearch(builder:flatbuffers.Builder, researchOffset:flatbuffers.Offse
   builder.addFieldOffset(11, researchOffset, 0);
 }
 
+static addSpectating(builder:flatbuffers.Builder, spectating:boolean) {
+  builder.addFieldInt8(12, +spectating, +false);
+}
+
 static endViewFull(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -236,7 +245,8 @@ unpack(): ViewFullT {
     this.bb!.createObjList<ArmyView, ArmyViewT>(this.armies.bind(this), this.armiesLength()),
     this.bb!.createObjList<BattleView, BattleViewT>(this.battles.bind(this), this.battlesLength()),
     (this.winHold() !== null ? this.winHold()!.unpack() : null),
-    (this.research() !== null ? this.research()!.unpack() : null)
+    (this.research() !== null ? this.research()!.unpack() : null),
+    this.spectating()
   );
 }
 
@@ -254,6 +264,7 @@ unpackTo(_o: ViewFullT): void {
   _o.battles = this.bb!.createObjList<BattleView, BattleViewT>(this.battles.bind(this), this.battlesLength());
   _o.winHold = (this.winHold() !== null ? this.winHold()!.unpack() : null);
   _o.research = (this.research() !== null ? this.research()!.unpack() : null);
+  _o.spectating = this.spectating();
 }
 }
 
@@ -270,7 +281,8 @@ constructor(
   public armies: (ArmyViewT)[] = [],
   public battles: (BattleViewT)[] = [],
   public winHold: WinHoldT|null = null,
-  public research: ResearchT|null = null
+  public research: ResearchT|null = null,
+  public spectating: boolean = false
 ){}
 
 
@@ -299,6 +311,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   ViewFull.addBattles(builder, battles);
   ViewFull.addWinHold(builder, winHold);
   ViewFull.addResearch(builder, research);
+  ViewFull.addSpectating(builder, this.spectating);
 
   return ViewFull.endViewFull(builder);
 }

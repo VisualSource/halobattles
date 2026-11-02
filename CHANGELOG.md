@@ -4,6 +4,10 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ## Unreleased
 
+### Added
+
+- Join a full lobby to watch the Match, or switch between a Seat and watching. Beaten players can stay and watch the rest, and Bots play on while someone watches.
+
 ## 0.4.0 - 2026-11-02
 
 ### Added

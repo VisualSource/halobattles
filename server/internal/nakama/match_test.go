@@ -3,10 +3,12 @@ package nakama
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"testing"
 
 	"github.com/VisualSource/halobattles/server/internal/content"
+	"github.com/VisualSource/halobattles/server/internal/game"
 	"github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
 	"github.com/heroiclabs/nakama-common/api"
@@ -182,9 +184,9 @@ func TestLobbyJoinLeaveAndHostHandoff(t *testing.T) {
 	}
 	join(presence{user: "u2", session: "s2"})
 
-	// The lobby is full: u3 is turned away.
-	if _, ok, _ := m.MatchJoinAttempt(ctx, log, nil, nk, d, 0, state, presence{user: "u3", session: "s3"}, nil); ok {
-		t.Error("join attempt with every Seat taken was accepted")
+	// Every Seat is taken: u3 is let in, to spectate (see TestLobbyMakesTheLoserOfARaceForTheLastSeatASpectator).
+	if _, ok, _ := m.MatchJoinAttempt(ctx, log, nil, nk, d, 0, state, presence{user: "u3", session: "s3"}, nil); !ok {
+		t.Error("join attempt with every Seat taken was refused; want a Spectator")
 	}
 
 	// u1 reloads: the new session joins before the old one's leave arrives.
@@ -205,7 +207,9 @@ func TestLobbyJoinLeaveAndHostHandoff(t *testing.T) {
 	}
 }
 
-func TestLobbyKicksTheLoserOfARaceForTheLastSeat(t *testing.T) {
+// The loser of a race for the last Seat spectates; with every Spectator
+// place taken too, it's kicked.
+func TestLobbyMakesTheLoserOfARaceForTheLastSeatASpectator(t *testing.T) {
 	ctx, log, nk := context.Background(), nopLogger{}, fakeNK{}
 	d := &fakeDispatcher{}
 	m := &match{content: testContent()}
@@ -216,8 +220,17 @@ func TestLobbyKicksTheLoserOfARaceForTheLastSeat(t *testing.T) {
 	state = m.MatchJoin(ctx, log, nil, nk, d, 0, state, []runtime.Presence{
 		presence{user: "u2", session: "s2"}, presence{user: "u3", session: "s3"}})
 
-	if len(d.kicked) != 1 || d.kicked[0] != "s3" || len(d.lobby.Seats) != 2 {
-		t.Errorf("kicked %v, seats %v", d.kicked, seatNames(d.lobby))
+	if len(d.kicked) != 0 || len(d.lobby.Seats) != 2 || len(d.lobby.Spectators) != 1 || d.lobby.Spectators[0].User != "u3" {
+		t.Errorf("kicked %v, seats %v, spectators %v; want u3 spectating", d.kicked, seatNames(d.lobby), d.lobby.Spectators)
+	}
+
+	var late []runtime.Presence
+	for i := range game.MaxSpectators {
+		late = append(late, presence{user: fmt.Sprintf("w%d", i), session: fmt.Sprintf("ws%d", i)})
+	}
+	m.MatchJoin(ctx, log, nil, nk, d, 0, state, late) // one more than there's room for
+	if len(d.kicked) != 1 || d.kicked[0] != fmt.Sprintf("ws%d", game.MaxSpectators-1) || len(d.lobby.Spectators) != game.MaxSpectators {
+		t.Errorf("kicked %v, %d spectators", d.kicked, len(d.lobby.Spectators))
 	}
 }
 

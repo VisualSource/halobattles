@@ -1051,13 +1051,22 @@ type Snapshot struct {
 	Retreating [2]bool // public: you see the enemy turn and run
 }
 
-func (s *Sim) Snapshot(side Side) Snapshot {
+func (s *Sim) Snapshot(side Side) Snapshot { return s.snapshot(side, false) }
+
+// SnapshotAll is the Battle as a Spectator sees it: every squad on the
+// field and every pad as it is, both sides, and no Retreat countdown of its own.
+func (s *Sim) SnapshotAll() Snapshot { return s.snapshot(NoSide, true) }
+
+func (s *Sim) snapshot(side Side, all bool) Snapshot {
 	snap := Snapshot{
-		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: s.PadsFor(side), Hold: s.Hold, HoldPaused: s.HoldPaused,
-		RetreatAt: s.RetreatAt[side], Retreating: s.Retreating,
+		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: slices.Clone(s.Pads), Hold: s.Hold, HoldPaused: s.HoldPaused,
+		Retreating: s.Retreating,
+	}
+	if !all {
+		snap.Pads, snap.RetreatAt = s.PadsFor(side), s.RetreatAt[side]
 	}
 	for _, sq := range s.Squads {
-		if sq.alive() && s.visible[side][sq.ID] {
+		if sq.alive() && (all || s.visible[side][sq.ID]) {
 			snap.Squads = append(snap.Squads, SquadView{
 				ID: sq.ID, Side: sq.Side, Unit: sq.Unit, Building: sq.Building, Cell: sq.Cell,
 				Count: len(sq.Members), Start: sq.Start, Front: sq.Members[0],

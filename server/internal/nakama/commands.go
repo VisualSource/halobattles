@@ -71,6 +71,12 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 	case wire.OpRemoveBot:
 		c := wire.GetRootAsRemoveBot(data, 0)
 		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.RemoveBot(user, string(c.User())) }
+	case wire.OpSpectate:
+		c := wire.GetRootAsSpectate(data, 0)
+		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.Spectate(user) }
+	case wire.OpTakeSeat:
+		c := wire.GetRootAsTakeSeat(data, 0)
+		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.TakeSeat(user) }
 	case wire.OpSetFaction:
 		c := wire.GetRootAsSetFaction(data, 0)
 		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.SetFaction(user, string(c.Faction())) }
@@ -188,11 +194,15 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 		return seq, errNotLobby
 	case s.phase != phase:
 		return seq, errNotPlay
+	case phase == wire.PhasePlay && s.seat(user) < 0:
+		return seq, errSpectating
 	}
 	return seq, apply(s.lobby)
 }
 
-// seat is user's Seat in the running Match. Only seated users can join it.
+var errSpectating = errors.New("Spectators give no orders")
+
+// seat is user's Seat in the running Match; -1 for a Spectator.
 func (s *matchState) seat(user string) int {
 	return slices.IndexFunc(s.play.Players, func(p game.Player) bool { return p.User == user })
 }

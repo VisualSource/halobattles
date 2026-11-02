@@ -32,9 +32,11 @@ func TestTheHostAddsAndRemovesBots(t *testing.T) {
 	if b.Bot != "hard" || !b.Ready || b.Faction != "base:covenant" || b.DisplayName != "Bot 3" {
 		t.Errorf("Bot Seat %+v; want a ready Hard Covenant Bot, named by its Seat (no names in this content)", b)
 	}
-	if h.join(presence{user: "u3", session: "s3"}) {
-		t.Error("a player took the Bot's Seat")
+	h.join(presence{user: "u3", session: "s3"}) // every Seat taken: u3 spectates
+	if h.seat("bot:1").Bot != "hard" || len(h.d.lobby.Spectators) != 1 || h.d.lobby.Spectators[0].User != "u3" {
+		t.Errorf("seats %v, spectators %v; want the Bot kept and u3 spectating", seatNames(h.d.lobby), h.d.lobby.Spectators)
 	}
+	h.leave(presence{user: "u3", session: "s3"})
 
 	h.loop(
 		cmd(u2, wire.OpRemoveBot, &wire.RemoveBotT{Seq: 3, User: "bot:1"}),

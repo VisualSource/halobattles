@@ -7,15 +7,16 @@ import (
 )
 
 type PlayerViewT struct {
-	Seat        byte   `json:"seat"`
-	User        string `json:"user"`
-	DisplayName string `json:"display_name"`
-	Faction     string `json:"faction"`
-	PlanetCount uint16 `json:"planet_count"`
-	Eliminated  bool   `json:"eliminated"`
-	Connected   bool   `json:"connected"`
-	GraceEnds   int64  `json:"grace_ends"`
-	Bot         string `json:"bot"`
+	Seat        byte          `json:"seat"`
+	User        string        `json:"user"`
+	DisplayName string        `json:"display_name"`
+	Faction     string        `json:"faction"`
+	PlanetCount uint16        `json:"planet_count"`
+	Eliminated  bool          `json:"eliminated"`
+	Connected   bool          `json:"connected"`
+	GraceEnds   int64         `json:"grace_ends"`
+	Bot         string        `json:"bot"`
+	Stats       *PlayerStatsT `json:"stats"`
 }
 
 func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -38,6 +39,7 @@ func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t.Bot != "" {
 		botOffset = builder.CreateString(t.Bot)
 	}
+	statsOffset := t.Stats.Pack(builder)
 	PlayerViewStart(builder)
 	PlayerViewAddSeat(builder, t.Seat)
 	PlayerViewAddUser(builder, userOffset)
@@ -48,6 +50,7 @@ func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	PlayerViewAddConnected(builder, t.Connected)
 	PlayerViewAddGraceEnds(builder, t.GraceEnds)
 	PlayerViewAddBot(builder, botOffset)
+	PlayerViewAddStats(builder, statsOffset)
 	return PlayerViewEnd(builder)
 }
 
@@ -61,6 +64,7 @@ func (rcv *PlayerView) UnPackTo(t *PlayerViewT) {
 	t.Connected = rcv.Connected()
 	t.GraceEnds = rcv.GraceEnds()
 	t.Bot = string(rcv.Bot())
+	t.Stats = rcv.Stats(nil).UnPack()
 }
 
 func (rcv *PlayerView) UnPack() *PlayerViewT {
@@ -199,8 +203,21 @@ func (rcv *PlayerView) Bot() []byte {
 	return nil
 }
 
+func (rcv *PlayerView) Stats(obj *PlayerStats) *PlayerStats {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(PlayerStats)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
+}
+
 func PlayerViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(9)
+	builder.StartObject(10)
 }
 func PlayerViewAddSeat(builder *flatbuffers.Builder, seat byte) {
 	builder.PrependByteSlot(0, seat, 0)
@@ -228,6 +245,9 @@ func PlayerViewAddGraceEnds(builder *flatbuffers.Builder, graceEnds int64) {
 }
 func PlayerViewAddBot(builder *flatbuffers.Builder, bot flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(8, flatbuffers.UOffsetT(bot), 0)
+}
+func PlayerViewAddStats(builder *flatbuffers.Builder, stats flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(stats), 0)
 }
 func PlayerViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

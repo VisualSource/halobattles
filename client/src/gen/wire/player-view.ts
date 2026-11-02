@@ -4,6 +4,7 @@
 
 import * as flatbuffers from 'flatbuffers';
 
+import { PlayerStats, PlayerStatsT } from '../wire/player-stats.js';
 
 
 export class PlayerView implements flatbuffers.IUnpackableObject<PlayerViewT> {
@@ -77,8 +78,13 @@ bot(optionalEncoding?:any):string|Uint8Array|null {
   return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
 }
 
+stats(obj?:PlayerStats):PlayerStats|null {
+  const offset = this.bb!.__offset(this.bb_pos, 22);
+  return offset ? (obj || new PlayerStats()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
+}
+
 static startPlayerView(builder:flatbuffers.Builder) {
-  builder.startObject(9);
+  builder.startObject(10);
 }
 
 static addSeat(builder:flatbuffers.Builder, seat:number) {
@@ -117,24 +123,15 @@ static addBot(builder:flatbuffers.Builder, botOffset:flatbuffers.Offset) {
   builder.addFieldOffset(8, botOffset, 0);
 }
 
+static addStats(builder:flatbuffers.Builder, statsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(9, statsOffset, 0);
+}
+
 static endPlayerView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createPlayerView(builder:flatbuffers.Builder, seat:number, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, planetCount:number, eliminated:boolean, connected:boolean, graceEnds:bigint, botOffset:flatbuffers.Offset):flatbuffers.Offset {
-  PlayerView.startPlayerView(builder);
-  PlayerView.addSeat(builder, seat);
-  PlayerView.addUser(builder, userOffset);
-  PlayerView.addDisplayName(builder, displayNameOffset);
-  PlayerView.addFaction(builder, factionOffset);
-  PlayerView.addPlanetCount(builder, planetCount);
-  PlayerView.addEliminated(builder, eliminated);
-  PlayerView.addConnected(builder, connected);
-  PlayerView.addGraceEnds(builder, graceEnds);
-  PlayerView.addBot(builder, botOffset);
-  return PlayerView.endPlayerView(builder);
-}
 
 unpack(): PlayerViewT {
   return new PlayerViewT(
@@ -146,7 +143,8 @@ unpack(): PlayerViewT {
     this.eliminated(),
     this.connected(),
     this.graceEnds(),
-    this.bot()
+    this.bot(),
+    (this.stats() !== null ? this.stats()!.unpack() : null)
   );
 }
 
@@ -161,6 +159,7 @@ unpackTo(_o: PlayerViewT): void {
   _o.connected = this.connected();
   _o.graceEnds = this.graceEnds();
   _o.bot = this.bot();
+  _o.stats = (this.stats() !== null ? this.stats()!.unpack() : null);
 }
 }
 
@@ -174,7 +173,8 @@ constructor(
   public eliminated: boolean = false,
   public connected: boolean = false,
   public graceEnds: bigint = BigInt('0'),
-  public bot: string|Uint8Array|null = null
+  public bot: string|Uint8Array|null = null,
+  public stats: PlayerStatsT|null = null
 ){}
 
 
@@ -183,17 +183,20 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const displayName = (this.displayName !== null ? builder.createString(this.displayName!) : 0);
   const faction = (this.faction !== null ? builder.createString(this.faction!) : 0);
   const bot = (this.bot !== null ? builder.createString(this.bot!) : 0);
+  const stats = (this.stats !== null ? this.stats!.pack(builder) : 0);
 
-  return PlayerView.createPlayerView(builder,
-    this.seat,
-    user,
-    displayName,
-    faction,
-    this.planetCount,
-    this.eliminated,
-    this.connected,
-    this.graceEnds,
-    bot
-  );
+  PlayerView.startPlayerView(builder);
+  PlayerView.addSeat(builder, this.seat);
+  PlayerView.addUser(builder, user);
+  PlayerView.addDisplayName(builder, displayName);
+  PlayerView.addFaction(builder, faction);
+  PlayerView.addPlanetCount(builder, this.planetCount);
+  PlayerView.addEliminated(builder, this.eliminated);
+  PlayerView.addConnected(builder, this.connected);
+  PlayerView.addGraceEnds(builder, this.graceEnds);
+  PlayerView.addBot(builder, bot);
+  PlayerView.addStats(builder, stats);
+
+  return PlayerView.endPlayerView(builder);
 }
 }

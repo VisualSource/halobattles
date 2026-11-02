@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -102,17 +103,61 @@ func TestFirstJoinerIsHostWithDefaults(t *testing.T) {
 	}
 }
 
-func TestJoinIsRejectedOnceEverySeatIsTaken(t *testing.T) {
+// With every Seat taken a joiner spectates, up to MaxSpectators; only then
+// is a join refused.
+func TestAFullLobbyTakesSpectatorsThenRefuses(t *testing.T) {
 	l := joined(t, "u1", "u2")
 
-	if l.CanJoin("u3") {
-		t.Error("CanJoin(u3) = true with every Seat taken")
+	for i := range MaxSpectators {
+		u := fmt.Sprintf("s%d", i)
+		if !l.CanJoin(u) || l.Join(u, u) != nil || !l.IsSpectator(u) {
+			t.Fatalf("join %s with every Seat taken: want a Spectator", u)
+		}
 	}
-	if err := l.Join("u3", "u3"); !errors.Is(err, ErrLobbyFull) {
-		t.Errorf("join u3 = %v, want ErrLobbyFull", err)
+	if l.CanJoin("late") {
+		t.Error("CanJoin(late) with every Seat and Spectator place taken")
+	}
+	if err := l.Join("late", "late"); !errors.Is(err, ErrLobbyFull) {
+		t.Errorf("join late = %v, want ErrLobbyFull", err)
 	}
 	if !l.CanJoin("u2") || l.Join("u2", "u2") != nil || len(l.Seats) != 2 {
 		t.Errorf("a seated player joining again should keep their one Seat, seats = %v", seatUsers(l))
+	}
+}
+
+// A Host who spectates stays Host, and can still run the lobby; anyone can
+// switch back to a free Seat.
+func TestSwitchingBetweenASeatAndSpectating(t *testing.T) {
+	l := joined(t, "u1", "u2")
+	if err := l.Spectate("u1"); err != nil {
+		t.Fatal(err)
+	}
+	if l.HasSeat("u1") || !l.IsSpectator("u1") || l.Host() != "u1" {
+		t.Errorf("u1 spectating: seat %v, spectator %v, host %q", l.HasSeat("u1"), l.IsSpectator("u1"), l.Host())
+	}
+	if err := l.SetMap("u1", "base:quadrant"); err != nil {
+		t.Errorf("a spectating Host can't change the map: %v", err)
+	}
+	if err := l.SetReady("u1", true); err == nil {
+		t.Error("a Spectator readied up")
+	}
+	if err := l.TakeSeat("u1"); err != nil || !l.HasSeat("u1") || l.IsSpectator("u1") {
+		t.Errorf("taking a Seat back: %v", err)
+	}
+	if err := l.TakeSeat("u2"); err == nil {
+		t.Error("a seated player took another Seat")
+	}
+
+	full := joined(t, "a", "b") // base:duel, 2 Seats
+	_ = full.Join("c", "c")     // spectating
+	if err := full.TakeSeat("c"); !errors.Is(err, ErrLobbyFull) {
+		t.Errorf("taking a Seat with none free: %v", err)
+	}
+	for i := range MaxSpectators - 1 {
+		_ = full.Join(fmt.Sprintf("s%d", i), "")
+	}
+	if err := full.Spectate("a"); err == nil {
+		t.Error("spectated with every Spectator place taken")
 	}
 }
 

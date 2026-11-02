@@ -211,11 +211,14 @@ func TestABotThatBeatsTheLastPlayerWins(t *testing.T) {
 	}
 }
 
-func TestTwoBotsLeftAfterTheLastPlayerIsBeatenAbandonIt(t *testing.T) {
+// The beaten player could stay and watch (see spectator_test.go); gone, two
+// Bots don't play on alone.
+func TestTwoBotsLeftAfterTheLastPlayerIsBeatenAndGoneAbandonIt(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	s.Players[1].Bot = "hard"
 	s.Players = append(s.Players, Player{Seat: 2, Bot: "easy"})
 	s.eliminate(0, &Events{})
+	s.Forfeit(0) // leaves rather than watching
 
 	ev := s.Advance(c, 1_000)
 	if ev.MatchEnded == nil || *ev.MatchEnded != (Result{Winner: Neutral, Reason: ReasonAbandoned}) {

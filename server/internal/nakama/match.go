@@ -94,7 +94,7 @@ func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 func (m *match) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presence runtime.Presence, metadata map[string]string) (interface{}, bool, string) {
 	s := state.(*matchState)
 	switch {
-	case s.phase != wire.PhaseLobby && !s.lobby.HasSeat(presence.GetUserId()):
+	case s.phase != wire.PhaseLobby && !s.lobby.IsMember(presence.GetUserId()):
 		return s, false, "this Match has started"
 	case !s.lobby.CanJoin(presence.GetUserId()):
 		return s, false, game.ErrLobbyFull.Error()
@@ -126,6 +126,8 @@ func (m *match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB
 		for _, p := range presences {
 			if seat := s.seat(p.GetUserId()); seat >= 0 {
 				s.play.Reconnect(seat) // back within the Grace Period
+			} else {
+				s.play.SpectatorBack(p.GetUserId())
 			}
 		}
 		s.sendViews(logger, dispatcher, presences)
@@ -148,10 +150,16 @@ func (m *match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.D
 			// keeps the Seat for the Grace Period.
 			s.setTime(tick)
 			seat := s.seat(p.GetUserId())
-			if p.GetReason() == runtime.PresenceReasonLeave {
+			grace := int64(s.content.Doc.Rulesets[game.RulesetID].GracePeriodSeconds) * 1000
+			switch leave := p.GetReason() == runtime.PresenceReasonLeave; {
+			case seat < 0 && leave:
+				s.play.SpectatorLeft(p.GetUserId())
+			case seat < 0:
+				s.play.SpectatorAway(p.GetUserId(), grace)
+			case leave:
 				s.play.Forfeit(seat)
-			} else {
-				s.play.Disconnect(seat, int64(s.content.Doc.Rulesets[game.RulesetID].GracePeriodSeconds)*1000)
+			default:
+				s.play.Disconnect(seat, grace)
 			}
 		}
 	}
@@ -161,7 +169,7 @@ func (m *match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.D
 
 func (m *match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, messages []runtime.MatchData) interface{} {
 	s := state.(*matchState)
-	if s.phase == wire.PhaseLobby && s.lobby.Players() == 0 && (s.joined || tick > creatorGraceTicks) {
+	if s.phase == wire.PhaseLobby && s.lobby.People() == 0 && (s.joined || tick > creatorGraceTicks) {
 		return nil // returning nil ends the Match
 	}
 	if s.phase == wire.PhaseResults {
@@ -212,11 +220,12 @@ func sides(b *game.Battle) []int {
 }
 
 // sendTo sends an event to the connected players among seats. Anyone
-// disconnected catches up from their ViewFull.
+// disconnected catches up from their ViewFull; an eliminated player gets
+// events as a watcher instead, so not twice.
 func (s *matchState) sendTo(logger runtime.Logger, dispatcher runtime.MatchDispatcher, op wire.Op, data []byte, seats ...int) {
 	var to []runtime.Presence
 	for _, seat := range seats {
-		if p := s.presences[s.play.Players[seat].User]; p != nil {
+		if p := s.presences[s.play.Players[seat].User]; p != nil && !s.play.Players[seat].Eliminated {
 			to = append(to, p)
 		}
 	}
@@ -234,9 +243,11 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		t := &wire.PlayerEliminatedT{MatchTime: s.play.Time, Seat: uint8(seat)}
 		s.broadcast(logger, dispatcher, wire.OpPlayerEliminated, finish(t))
 	}
+	watchers := s.watchers()
 	for _, c := range ev.Captures {
 		t := &wire.PlanetCapturedT{MatchTime: s.play.Time, Planet: c.Planet, From: int8(c.From), To: int8(c.To)}
 		s.sendTo(logger, dispatcher, wire.OpPlanetCaptured, finish(t), c.Viewers...)
+		s.sendToPresences(logger, dispatcher, wire.OpPlanetCaptured, finish(t), watchers)
 	}
 	for _, b := range ev.Started {
 		if s.log != nil {
@@ -248,8 +259,13 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 			Started: b.Started, Field: field(b.Sim.Field),
 		}
 		s.sendTo(logger, dispatcher, wire.OpBattleStarted, finish(t), sides(b)...)
+		s.sendToPresences(logger, dispatcher, wire.OpBattleStarted, finish(t), watchers)
 	}
 	for _, bt := range ev.Ticks {
+		if len(watchers) > 0 { // a Spectator sees both sides' fire
+			t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: bt.Battle.ID, Planet: bt.Battle.Planet, Tick: uint32(bt.Battle.Sim.Tick), Volleys: volleys(bt.Volleys)}
+			s.sendToPresences(logger, dispatcher, wire.OpBattleTick, finish(t), watchers)
+		}
 		for _, seat := range sides(bt.Battle) {
 			side := battle.Defender
 			if seat == bt.Battle.Attacker {
@@ -270,22 +286,27 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		}
 		t := &wire.BattleEndedT{MatchTime: s.play.Time, Battle: e.Battle, Planet: e.Planet, Winner: int8(e.Winner)}
 		s.sendTo(logger, dispatcher, wire.OpBattleEnded, finish(t), e.Viewers...)
+		s.sendToPresences(logger, dispatcher, wire.OpBattleEnded, finish(t), watchers)
 	}
 	for _, paid := range ev.Paydays {
 		t := &wire.PaydayPaidT{MatchTime: s.play.Time, Net: amounts(paid.Net)}
 		s.sendTo(logger, dispatcher, wire.OpPaydayPaid, finish(t), paid.Seat)
 	}
-	for seat, pl := range s.play.Players {
-		p := s.presences[pl.User]
-		if p == nil {
+	views := s.viewer()
+	for user, p := range s.presences {
+		v, ok := views(user)
+		if !ok {
 			continue
 		}
-		v := s.play.View(&s.content.Doc, seat)
-		d, changed := game.Diff(s.sent[pl.User], v)
+		if s.sent[user].You != v.You { // just eliminated: now a Spectator
+			s.sendViews(logger, dispatcher, []runtime.Presence{p})
+			continue
+		}
+		d, changed := game.Diff(s.sent[user], v)
 		if !changed {
 			continue
 		}
-		s.sent[pl.User] = v
+		s.sent[user] = v
 		if err := dispatcher.BroadcastMessage(int64(wire.OpViewDelta), encodeDelta(d), []runtime.Presence{p}, nil, true); err != nil {
 			logger.Error("send ViewDelta: %v", err)
 		}
@@ -315,6 +336,9 @@ func (s *matchState) start(tick int64) error {
 	if err != nil {
 		return err
 	}
+	for _, sp := range s.lobby.Spectators {
+		g.AddSpectator(sp.User)
+	}
 	s.play, s.phase, s.startTick = g, wire.PhasePlay, tick
 	s.log = openMatchLog(s.logger, s.logName())
 	s.log.write("match", 0, matchStart{Content: s.content.Hash, Map: s.lobby.Map, Seed: s.seed, Seats: seats, Start: s.lobby.StartingResources})
@@ -328,14 +352,56 @@ func (s *matchState) isCurrent(p runtime.Presence) bool {
 	return cur != nil && cur.GetSessionId() == p.GetSessionId()
 }
 
+// viewer returns each user's View for this tick: a player's own, or the
+// Spectator View for a Spectator or an eliminated player, built once and
+// shared. ok is false for anyone with neither.
+func (s *matchState) viewer() func(user string) (game.View, bool) {
+	var spectating *game.View
+	return func(user string) (game.View, bool) {
+		seat := s.seat(user)
+		switch {
+		case seat >= 0 && !s.play.Players[seat].Eliminated:
+			return s.play.View(&s.content.Doc, seat), true
+		case seat >= 0 || s.play.IsSpectator(user):
+			if spectating == nil {
+				v := s.play.SpectatorView(&s.content.Doc)
+				spectating = &v
+			}
+			return *spectating, true
+		}
+		return game.View{}, false
+	}
+}
+
+// watchers are the connected Spectators and eliminated players.
+func (s *matchState) watchers() []runtime.Presence {
+	var out []runtime.Presence
+	for user, p := range s.presences {
+		if seat := s.seat(user); seat >= 0 && s.play.Players[seat].Eliminated || seat < 0 && s.play.IsSpectator(user) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// sendToPresences sends an event to presences, if any.
+func (s *matchState) sendToPresences(logger runtime.Logger, dispatcher runtime.MatchDispatcher, op wire.Op, data []byte, to []runtime.Presence) {
+	if len(to) == 0 {
+		return
+	}
+	if err := dispatcher.BroadcastMessage(int64(op), data, to, nil, true); err != nil {
+		logger.Error("send %s: %v", op, err)
+	}
+}
+
 // sendViews sends each of presences their own ViewFull.
 func (s *matchState) sendViews(logger runtime.Logger, dispatcher runtime.MatchDispatcher, presences []runtime.Presence) {
+	views := s.viewer()
 	for _, p := range presences {
-		seat := s.seat(p.GetUserId())
-		if seat < 0 {
+		v, ok := views(p.GetUserId())
+		if !ok {
 			continue
 		}
-		v := s.play.View(&s.content.Doc, seat)
 		s.sent[p.GetUserId()] = v
 		data := encodeView(v, s.content.Hash)
 		if err := dispatcher.BroadcastMessage(int64(wire.OpViewFull), data, []runtime.Presence{p}, nil, true); err != nil {
@@ -389,6 +455,9 @@ func (s *matchState) encodeLobby() []byte {
 			LastSeq: s.lastSeq[seat.User], Bot: seat.Bot,
 		})
 	}
+	for _, sp := range l.Spectators {
+		t.Spectators = append(t.Spectators, &wire.SpectatorT{User: sp.User, DisplayName: sp.DisplayName, LastSeq: s.lastSeq[sp.User]})
+	}
 	return finish(t)
 }
 
@@ -400,8 +469,13 @@ func (s *matchState) result() *game.Result {
 }
 
 func encodeView(v game.View, contentHash string) []byte {
+	spectating := v.You == game.Spectating
+	you := uint8(0)
+	if !spectating {
+		you = uint8(v.You)
+	}
 	return finish(&wire.ViewFullT{
-		MatchTime: v.Time, ContentHash: contentHash, Ruleset: game.RulesetID, Map: v.Map, You: uint8(v.You),
+		Spectating: spectating, MatchTime: v.Time, ContentHash: contentHash, Ruleset: game.RulesetID, Map: v.Map, You: you,
 		Players: players(v.Players), Planets: planets(v.Planets), Economy: economy(&v.Economy), Armies: armies(v.Armies),
 		Battles: battles(v.Battles, true), WinHold: &wire.WinHoldT{Seat: int8(v.Hold.Seat), Ends: v.Hold.Ends},
 		Research: research(&v.Research),
@@ -520,10 +594,20 @@ func players(ps []game.PlayerView) []*wire.PlayerViewT {
 	for _, p := range ps {
 		out = append(out, &wire.PlayerViewT{
 			Seat: uint8(p.Seat), User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: uint16(p.PlanetCount),
-			Eliminated: p.Eliminated, Connected: p.Connected, GraceEnds: p.GraceEnds, Bot: p.Bot,
+			Eliminated: p.Eliminated, Connected: p.Connected, GraceEnds: p.GraceEnds, Bot: p.Bot, Stats: stats(p.Stats),
 		})
 	}
 	return out
+}
+
+func stats(st *game.Stats) *wire.PlayerStatsT {
+	if st == nil {
+		return nil
+	}
+	return &wire.PlayerStatsT{
+		Resources: amounts(st.Resources), Income: amounts(st.Income),
+		CommandPointsUsed: uint32(st.CommandPointsUsed), CommandPointsCap: uint32(st.CommandPointsCap),
+	}
 }
 
 func planets(ps []game.PlanetView) []*wire.PlanetViewT {

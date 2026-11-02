@@ -7,6 +7,7 @@ import * as flatbuffers from 'flatbuffers';
 import { Amount, AmountT } from '../wire/amount.js';
 import { Phase } from '../wire/phase.js';
 import { Seat, SeatT } from '../wire/seat.js';
+import { Spectator, SpectatorT } from '../wire/spectator.js';
 
 
 export class LobbyState implements flatbuffers.IUnpackableObject<LobbyStateT> {
@@ -78,8 +79,18 @@ endReason(optionalEncoding?:any):string|Uint8Array|null {
   return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
 }
 
+spectators(index: number, obj?:Spectator):Spectator|null {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? (obj || new Spectator()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+spectatorsLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
 static startLobbyState(builder:flatbuffers.Builder) {
-  builder.startObject(7);
+  builder.startObject(8);
 }
 
 static addPhase(builder:flatbuffers.Builder, phase:Phase) {
@@ -134,12 +145,28 @@ static addEndReason(builder:flatbuffers.Builder, endReasonOffset:flatbuffers.Off
   builder.addFieldOffset(6, endReasonOffset, 0);
 }
 
+static addSpectators(builder:flatbuffers.Builder, spectatorsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(7, spectatorsOffset, 0);
+}
+
+static createSpectatorsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startSpectatorsVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
 static endLobbyState(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createLobbyState(builder:flatbuffers.Builder, phase:Phase, hostOffset:flatbuffers.Offset, mapOffset:flatbuffers.Offset, startingResourcesOffset:flatbuffers.Offset, seatsOffset:flatbuffers.Offset, winner:number, endReasonOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createLobbyState(builder:flatbuffers.Builder, phase:Phase, hostOffset:flatbuffers.Offset, mapOffset:flatbuffers.Offset, startingResourcesOffset:flatbuffers.Offset, seatsOffset:flatbuffers.Offset, winner:number, endReasonOffset:flatbuffers.Offset, spectatorsOffset:flatbuffers.Offset):flatbuffers.Offset {
   LobbyState.startLobbyState(builder);
   LobbyState.addPhase(builder, phase);
   LobbyState.addHost(builder, hostOffset);
@@ -148,6 +175,7 @@ static createLobbyState(builder:flatbuffers.Builder, phase:Phase, hostOffset:fla
   LobbyState.addSeats(builder, seatsOffset);
   LobbyState.addWinner(builder, winner);
   LobbyState.addEndReason(builder, endReasonOffset);
+  LobbyState.addSpectators(builder, spectatorsOffset);
   return LobbyState.endLobbyState(builder);
 }
 
@@ -159,7 +187,8 @@ unpack(): LobbyStateT {
     this.bb!.createObjList<Amount, AmountT>(this.startingResources.bind(this), this.startingResourcesLength()),
     this.bb!.createObjList<Seat, SeatT>(this.seats.bind(this), this.seatsLength()),
     this.winner(),
-    this.endReason()
+    this.endReason(),
+    this.bb!.createObjList<Spectator, SpectatorT>(this.spectators.bind(this), this.spectatorsLength())
   );
 }
 
@@ -172,6 +201,7 @@ unpackTo(_o: LobbyStateT): void {
   _o.seats = this.bb!.createObjList<Seat, SeatT>(this.seats.bind(this), this.seatsLength());
   _o.winner = this.winner();
   _o.endReason = this.endReason();
+  _o.spectators = this.bb!.createObjList<Spectator, SpectatorT>(this.spectators.bind(this), this.spectatorsLength());
 }
 }
 
@@ -183,7 +213,8 @@ constructor(
   public startingResources: (AmountT)[] = [],
   public seats: (SeatT)[] = [],
   public winner: number = -1,
-  public endReason: string|Uint8Array|null = null
+  public endReason: string|Uint8Array|null = null,
+  public spectators: (SpectatorT)[] = []
 ){}
 
 
@@ -193,6 +224,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const startingResources = LobbyState.createStartingResourcesVector(builder, builder.createObjectOffsetList(this.startingResources));
   const seats = LobbyState.createSeatsVector(builder, builder.createObjectOffsetList(this.seats));
   const endReason = (this.endReason !== null ? builder.createString(this.endReason!) : 0);
+  const spectators = LobbyState.createSpectatorsVector(builder, builder.createObjectOffsetList(this.spectators));
 
   return LobbyState.createLobbyState(builder,
     this.phase,
@@ -201,7 +233,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     startingResources,
     seats,
     this.winner,
-    endReason
+    endReason,
+    spectators
   );
 }
 }
