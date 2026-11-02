@@ -62,38 +62,43 @@ type Model = {
  * A map Planet's model: the one its map names, a Halo ring or a style, or
  * else a style picked by its id, so the same Planet always looks the same.
  */
-export const planetModel = (
-  p: Pick<MapPlanet, "id" | "type" | "model">,
-): Model => {
+export const planetModel = (p: Pick<MapPlanet, "id" | "model">): Model => {
   if (p.model === "ring") return ringPlanet(p.id);
   const rnd = random(hash(p.id) || 1);
   const picked = styleFor(rnd); // drawn either way, so a named style keeps the colours it had
-  return (p.model && p.model !== "planet" ? NAMED[p.model] : picked)(p.id, rnd);
+  return (p.model && p.model !== "planet" ? STYLES[p.model][1] : picked)(
+    p.id,
+    rnd,
+  );
 };
 
 /** A style, picked by rnd and its weight. */
 export function styleFor(rnd: () => number) {
-  let pick = rnd() * STYLES.reduce((n, [w]) => n + w, 0);
-  for (const [w, style] of STYLES) {
+  const styles = Object.values(STYLES);
+  let pick = rnd() * styles.reduce((n, [w]) => n + w, 0);
+  for (const [w, style] of styles) {
     pick -= w;
     if (pick < 0) return style;
   }
   return gasGiant;
 }
 
-/** The styles a map can name. */
-const NAMED = { gasGiant, ringedGiant, terrestrial, barren, ice, lava, desert };
-
-/** Planet styles and how often each comes up. */
-const STYLES: [number, (id: string, rnd: () => number) => Model][] = [
-  [2, gasGiant],
-  [2, ringedGiant],
-  [3, terrestrial],
-  [2, barren],
-  [1.5, ice],
-  [1.5, lava],
-  [2, desert],
-];
+/**
+ * Every style a map can name, keyed as the schema names them, and how often
+ * each comes up when a Planet's look is picked by its id.
+ */
+const STYLES: Record<
+  Exclude<NonNullable<MapPlanet["model"]>, "planet" | "ring">,
+  [number, (id: string, rnd: () => number) => Model]
+> = {
+  gasGiant: [2, gasGiant],
+  ringedGiant: [2, ringedGiant],
+  terrestrial: [3, terrestrial],
+  barren: [2, barren],
+  ice: [1.5, ice],
+  lava: [1.5, lava],
+  desert: [2, desert],
+};
 
 /**
  * One Planet's colour shift, from rnd: its hue turned up to 25° either way,
@@ -213,13 +218,13 @@ function ringedGiant(id: string, rnd: () => number) {
   // RingGeometry maps a square texture flat across it: draw the bands round its middle.
   const bands = canvasTexture(256, 256, (g) => {
     for (let r = 128; r > 70; r -= 2 + rnd() * 4) {
-      g.fillStyle = shift([200, 186, 160])
-        .replace("rgb(", "rgba(")
-        .replace(")", `,${0.25 + rnd() * 0.6})`);
+      g.fillStyle = shift([200, 186, 160]);
+      g.globalAlpha = 0.25 + rnd() * 0.6;
       g.beginPath();
       g.arc(128, 128, r, 0, Math.PI * 2);
       g.fill();
     }
+    g.globalAlpha = 1; // the hole is cut clean
     g.globalCompositeOperation = "destination-out";
     g.beginPath();
     g.arc(128, 128, 70, 0, Math.PI * 2);

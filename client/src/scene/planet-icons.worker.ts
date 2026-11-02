@@ -7,7 +7,7 @@ import { PLANET_RADIUS, planetModel } from "./planet-model";
 
 export type IconRequest = {
   size: number;
-  planets: Pick<MapPlanet, "id" | "type" | "model">[];
+  planets: Pick<MapPlanet, "id" | "model">[];
 };
 export type IconResult = { id: string; blob: Blob } | { error: string };
 

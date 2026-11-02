@@ -2,6 +2,22 @@ import { describe, expect, it } from "vitest";
 import { hash, planetTones, styleFor } from "./planet-model";
 import { random } from "./ring";
 
+// Quadrant's Planets: a map's worth of ids.
+const ids = [
+  "reach",
+  "jericho",
+  "tribute",
+  "harvest",
+  "draetheus",
+  "paris",
+  "arcadia",
+  "meridian",
+  "sigma",
+  "sanghelios",
+  "requiem",
+  "trevelyan",
+];
+
 const tones = (id: string) => planetTones(random(hash(id) || 1));
 
 describe("planetTones", () => {
@@ -12,40 +28,12 @@ describe("planetTones", () => {
   });
 
   it("gives a map's Planets different colours", () => {
-    const ids = [
-      "reach",
-      "jericho",
-      "tribute",
-      "harvest",
-      "draetheus",
-      "paris",
-      "arcadia",
-      "meridian",
-      "sigma",
-      "sanghelios",
-      "requiem",
-      "trevelyan",
-    ];
     // Each Planet's first band tone: no two alike across the map.
     expect(new Set(ids.map((id) => tones(id)[0])).size).toBe(ids.length);
   });
 });
 
 describe("styleFor", () => {
-  const ids = [
-    "reach",
-    "jericho",
-    "tribute",
-    "harvest",
-    "draetheus",
-    "paris",
-    "arcadia",
-    "meridian",
-    "sigma",
-    "sanghelios",
-    "requiem",
-    "trevelyan",
-  ];
   const style = (id: string) => styleFor(random(hash(id) || 1)).name;
 
   it("gives a Planet the same style every time", () => {

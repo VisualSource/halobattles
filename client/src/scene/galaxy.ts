@@ -311,13 +311,13 @@ export class GalaxyScene {
       mesh.position.copy(pos);
       this.scene.add(mesh);
 
-      // Two labels just past the glow: the Stacks anchored by their bottom
-      // edge above the Planet, the name by its top edge below it. The camera
-      // looks north, so up the screen is -z.
+      // Two labels past the glow (1.35 radii): the Stacks anchored by their
+      // bottom edge above the Planet, clear of it, the name by its top edge
+      // below it. The camera looks north, so up the screen is -z.
       const label = document.createElement("div");
       const name = document.createElement("div");
       for (const [el, anchorY, dz] of [
-        [label, 1, -1.5],
+        [label, 1, -1.75],
         [name, 0, 1.5],
       ] as const) {
         Object.assign(el.style, {
@@ -495,9 +495,7 @@ export class GalaxyScene {
     on(canvas, "pointerdown", (e) => {
       if (e.button !== 0) return;
       const view = this.stores.store.getState().view;
-      const id = this.hit(e, [...this.armies.values()])?.userData.army as
-        | number
-        | undefined;
+      const id = this.armyAt(e);
       const army = id === undefined ? undefined : view?.armies.get(id);
       if (army && army.owner === view?.you) {
         this.startOrder({ from: army.to, army: army.id }, e);
@@ -622,9 +620,7 @@ export class GalaxyScene {
    * both.
    */
   private select(e: PointerEvent) {
-    const army = this.hit(e, [...this.armies.values()])?.userData.army as
-      | number
-      | undefined;
+    const army = this.armyAt(e);
     const planet = army === undefined ? this.planetAt(e) : null;
     this.stores.local.setState(
       army !== undefined
@@ -704,12 +700,26 @@ export class GalaxyScene {
     }
   }
 
+  /**
+   * The Army under the pointer, unless the pointer is on a Planet's globe:
+   * an Army in orbit, or just leaving, overlaps its Planet, and its glow
+   * more so, and clicking the Planet itself should get the Planet.
+   */
+  private armyAt(e: MouseEvent): number | undefined {
+    const globes = [...this.planets.values()].map((p) => p.mesh);
+    if (this.hit(e, globes, false)) return undefined;
+    return this.hit(e, [...this.armies.values()])?.userData.army as
+      | number
+      | undefined;
+  }
+
   private planetAt(e: MouseEvent): string | null {
     const meshes = [...this.planets.values()].map((p) => p.mesh);
     return (this.hit(e, meshes)?.userData.planet as string | undefined) ?? null;
   }
 
-  private hit(e: MouseEvent, objects: THREE.Object3D[]) {
+  /** The nearest of objects under the pointer; with deep, their children too. */
+  private hit(e: MouseEvent, objects: THREE.Object3D[], deep = true) {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -717,7 +727,7 @@ export class GalaxyScene {
     );
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, this.camera);
-    return ray.intersectObjects(objects)[0]?.object;
+    return ray.intersectObjects(objects, deep)[0]?.object;
   }
 
   private resize() {
@@ -1014,12 +1024,14 @@ function pancakes(units: number, colour: string) {
       width: "34px",
       height: "14px",
       borderRadius: "50%",
-      border: units ? `1px solid ${colour}` : "1px dashed #7d8a95",
-      // The owner's colour, tinted over a dark base so the count stays readable.
+      border: units ? `1px solid ${colour}` : "1px dashed #9aa5b1",
+      // The owner's colour over a dark base, so the count stays readable; an
+      // empty slot is dark too, so it doesn't vanish into the Planet behind.
       background: units
-        ? `linear-gradient(${colour}66, ${colour}66), #141c23`
-        : "transparent",
-      boxShadow: units ? "0 1px 0 #000a" : "none",
+        ? `linear-gradient(${colour}99, ${colour}99), #141c23`
+        : "#0e151bd9",
+      // A black edge parts each oval from the one below and from the plate.
+      boxShadow: units ? "0 0 0 1px #000c, 0 1px 0 #000a" : "0 0 0 1px #000a",
       marginBottom: k ? "-9px" : "0", // each sits on the one below
     });
     pile.append(disc);

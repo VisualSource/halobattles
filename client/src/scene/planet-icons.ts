@@ -39,7 +39,7 @@ function renderIcons(map: GalaxyMap, size: number, signal: AbortSignal) {
     };
     worker.postMessage({
       size,
-      planets: map.planets.map(({ id, type, model }) => ({ id, type, model })),
+      planets: map.planets.map(({ id, model }) => ({ id, model })),
     } satisfies IconRequest);
   });
 }
