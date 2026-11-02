@@ -15,7 +15,7 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 - The Host adds a Bot to an empty Seat, choosing its **Faction** and **difficulty** (Easy, Normal or Hard), and can remove it.
 - A Bot is always Ready, and counts toward the map's `minPlayers`. A joining player can't take its Seat.
 - Its name comes from a list per Faction (UNSC: "Cmdr. Keyes", "Lord Hood", …; Covenant: "Thel 'Vadam", "Rtas 'Vadum", …), shown with a tag, "Bot · Hard".
-- A Match with no human Seat left ends as abandoned, as when everyone Forfeits.
+- A Match whose players have all left (a Forfeit, or a Grace Period run out) ends as abandoned, Bots still in or not: a Bot doesn't win a Match its players walked out of. A Bot that beats the last player wins as last standing; with more than one Bot left then, it's abandoned all the same, since Bots don't play on alone.
 
 ## Running
 
@@ -72,6 +72,8 @@ The Match's win conditions add to goal scores. Each condition has its own rules,
 - Each Planet keeps a **home guard**, sized by the enemy strength seen near it and the Defend weight; the Capital's is larger.
 - Expand and Attack gather spare units at a **staging Planet**, the Bot's own Planet nearest the target, and order the Army once its strength reaches the target's estimate × the difficulty's **attack margin**, each side's counted with its Advantage tiers against the other's Unit Classes. Units still on their way count toward it, and the Army waits for them. A staging Planet keeps what it has: units gather there only from Planets that aren't staging.
 - One attack at a time on a Planet: no Army goes while one is headed there or fighting there, since it would wait in orbit and fight alone once that Battle ended.
+- One target at a time: only the best Expand or Attack that's moving units gathers them. Otherwise a lower one stages units that the best one takes the next think, and they relay through it (#77). A lower one still attacks if its staging Planet is already strong enough; Defend always gathers.
+- No Army goes through an enemy Planet: entering one ends the move there, with a Battle. A Bot gathering units along such a route sent each spare unit to fight alone, one after another, and kept the Planet Locked (#77).
 - **Failed attacks:** each attack that ends without taking the Planet (lost, or Retreated from) asks half as much again of the next Army there. Taking the Planet clears them.
 - **Out of reach:** at its Command Point cap, Expand or Attack on a Planet its whole force couldn't take, counted as an attack would be, scores a tenth. It can't grow toward it, and chasing it would keep units staged that other goals could use.
 - Trained units join the Rally Stack (Stack 1). A Bot doesn't rearrange Stacks beyond picking units for Armies.

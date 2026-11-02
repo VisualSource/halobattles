@@ -628,3 +628,30 @@ func TestRolesGrowWithTheForce(t *testing.T) {
 		}
 	}
 }
+
+// The trace hears each squad's first goal, then only changes: a whole
+// Battle's decisions fit a log, and every one names a squad on its side.
+func TestTheAITracesItsDecisions(t *testing.T) {
+	c := baseContent(t)
+	unsc, covenant := kits()
+	s := newSim(c, unsc, covenant, 7)
+	var got []Decision
+	s.Controllers[Defender].(*AI).Trace = func(d Decision) { got = append(got, d) }
+	run(s)
+	if len(got) == 0 {
+		t.Fatal("no decisions traced")
+	}
+	last := map[int]Decision{}
+	for _, d := range got {
+		if sq := s.squad(d.Squad); sq == nil || sq.Side != Defender {
+			t.Errorf("traced %+v, not a defender's squad", d)
+		}
+		if old, ok := last[d.Squad]; ok && old.Goal == d.Goal && old.Target == d.Target && old.Role == d.Role && (d.Target != 0 || old.Cell == d.Cell) {
+			t.Errorf("traced %+v again, unchanged", d)
+		}
+		last[d.Squad] = d
+	}
+	if len(got) > 20*s.Tick/TicksPerSecond {
+		t.Errorf("%d decisions in %d s: more than a change a squad a second", len(got), s.Tick/TicksPerSecond)
+	}
+}

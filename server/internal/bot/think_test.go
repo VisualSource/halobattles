@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"encoding/json"
 	"math"
 	"slices"
 	"testing"
@@ -304,5 +305,42 @@ func TestThinkSendsFirstStepsAsCommands(t *testing.T) {
 		if c.Op == wire.OpOrderArmy || c.Op == wire.OpQueueUnit {
 			t.Errorf("depth 2 with no production planned %v; building, training and sending takes 3", c.Op)
 		}
+	}
+}
+
+func TestThinkTracesWhatItWeighedAndSent(t *testing.T) {
+	b := hard(t)
+	var got []Trace
+	b.Trace = func(tr Trace) { got = append(got, tr) }
+	v := view([]string{"base:barracks", "base:lab", ""}, 4)
+	cmds := b.Think(v)
+	if len(got) != 1 {
+		t.Fatalf("%d traces for one think", len(got))
+	}
+	tr := got[0]
+	if len(tr.Goals) == 0 || len(tr.Commands) != len(cmds) {
+		t.Fatalf("trace %+v for %d commands", tr, len(cmds))
+	}
+	steps := map[string]string{}
+	for _, g := range tr.Goals {
+		steps[g.Goal] = g.Step
+	}
+	for _, c := range tr.Commands {
+		if c.Goal != "" && steps[c.Goal] == "" {
+			t.Errorf("command %+v for %s, which the trace shows no step for", c, c.Goal)
+		}
+	}
+	if _, err := json.Marshal(tr); err != nil {
+		t.Errorf("the trace won't go in a log: %v", err)
+	}
+
+	b.Rejected(3, "not enough Credits")
+	b.Think(v)
+	b.Think(v)
+	if r := got[1].Rejected; len(r) != 1 || r[0] != "3: not enough Credits" {
+		t.Errorf("next think's refusals %v", r)
+	}
+	if len(got[2].Rejected) != 0 {
+		t.Errorf("the refusal came round again: %v", got[2].Rejected)
 	}
 }

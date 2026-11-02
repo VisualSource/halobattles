@@ -224,14 +224,44 @@ func (b *Bot) gatherAt(t *turn, g goal) string {
 	return ""
 }
 
-// richest is the own Planet with the most spare strength, other than except
-// and any Planet units are gathering at: a staging Planet keeps what it has,
-// or two goals would trade units back and forth.
-func (b *Bot) richest(t *turn, except string) (*game.PlanetView, float64) {
+// clear reports whether an Army from one Planet would reach another without
+// entering an enemy Planet on the way, which would end its move there with a
+// Battle. The server's Route enters as few enemy Planets as it can before
+// it weighs time, so a route counting every Lane as one step finds the same
+// number. Planets the Bot hasn't seen count as neutral.
+func (b *Bot) clear(v game.View, from, to string) bool {
+	if b.lanes == nil {
+		b.lanes = map[string]map[string]int64{}
+		for _, l := range b.c.Maps[v.Map].Lanes {
+			for _, e := range [][2]string{{string(l.From), string(l.To)}, {string(l.To), string(l.From)}} {
+				if b.lanes[e[0]] == nil {
+					b.lanes[e[0]] = map[string]int64{}
+				}
+				b.lanes[e[0]][e[1]] = 1
+			}
+		}
+	}
+	owner := func(id string) int {
+		if s, ok := b.seen[id]; ok {
+			return s.planet.Owner
+		}
+		return game.Neutral
+	}
+	path, _, ok := game.Route(b.lanes, owner, v.You, from, to)
+	return ok && !slices.ContainsFunc(path[1:len(path)-1], func(id string) bool {
+		return owner(id) != v.You && owner(id) != game.Neutral
+	})
+}
+
+// richest is the own Planet with the most spare strength that can reach to
+// clear of enemy Planets, other than to and any Planet units are gathering
+// at: a staging Planet keeps what it has, or two goals would trade units
+// back and forth.
+func (b *Bot) richest(t *turn, to string) (*game.PlanetView, float64) {
 	var best *game.PlanetView
 	most := 0.0
 	for i, p := range t.mine {
-		if p.ID == except || t.gathering[p.ID] || b.inbound(t, p.ID) {
+		if p.ID == to || t.gathering[p.ID] || b.inbound(t, p.ID) || !b.clear(t.v, p.ID, to) {
 			continue
 		}
 		if _, s, _ := b.spare(t, p); s > most {
@@ -256,8 +286,8 @@ func (b *Bot) send(t *turn, p *game.PlanetView, to string) *Command {
 // of the Army has gathered there.
 func (b *Bot) sendArmy(t *turn, g goal) *Command {
 	st := b.staging(t, g.target)
-	if st == nil || b.inbound(t, st.ID) || b.underway(t, g.target) {
-		return nil // still gathering, or already attacking
+	if st == nil || b.inbound(t, st.ID) || b.underway(t, g.target) || !b.clear(t.v, st.ID, g.target) {
+		return nil // still gathering, already attacking, or an enemy Planet in the way
 	}
 	if !b.strongEnough(t, g, st, false) {
 		return nil
@@ -265,11 +295,22 @@ func (b *Bot) sendArmy(t *turn, g goal) *Command {
 	return b.send(t, st, g.target)
 }
 
+// mayGather reports whether g may gather units at to. Expand and Attack
+// gather for one target at a time, the best one moving units: otherwise a
+// lower one stages units the best one takes next think, and they relay
+// through it (#77). Defend always may.
+func (b *Bot) mayGather(t *turn, g goal, to string) bool {
+	return g.kind == defend || t.campaign == "" || t.campaign == to
+}
+
 // gather sends the most spare units from another Planet to where g needs them.
 func (b *Bot) gather(t *turn, g goal) *Command {
 	to := b.gatherAt(t, g)
+	if to == "" || !b.mayGather(t, g, to) {
+		return nil
+	}
 	from, _ := b.richest(t, to)
-	if from == nil || to == "" {
+	if from == nil {
 		return nil
 	}
 	return b.send(t, from, to)

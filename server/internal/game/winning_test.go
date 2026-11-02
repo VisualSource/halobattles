@@ -198,6 +198,31 @@ func TestBotsNeverKeepAMatchGoingAlone(t *testing.T) {
 	}
 }
 
+// Beaten rather than gone: a Bot that takes the last player's Capital wins,
+// as a playtest found (#77).
+func TestABotThatBeatsTheLastPlayerWins(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Players[1].Bot = "hard"
+	s.eliminate(0, &Events{}) // its Capital taken
+
+	ev := s.Advance(c, 1_000)
+	if ev.MatchEnded == nil || *ev.MatchEnded != (Result{Winner: 1, Reason: ReasonLastStanding}) {
+		t.Errorf("ended %+v, want the Bot to win", ev.MatchEnded)
+	}
+}
+
+func TestTwoBotsLeftAfterTheLastPlayerIsBeatenAbandonIt(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Players[1].Bot = "hard"
+	s.Players = append(s.Players, Player{Seat: 2, Bot: "easy"})
+	s.eliminate(0, &Events{})
+
+	ev := s.Advance(c, 1_000)
+	if ev.MatchEnded == nil || *ev.MatchEnded != (Result{Winner: Neutral, Reason: ReasonAbandoned}) {
+		t.Errorf("ended %+v, want abandoned: Bots don't play on alone", ev.MatchEnded)
+	}
+}
+
 func TestEveryoneRunningOutTheirGraceAbandonsTheMatch(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
 	s.Disconnect(0, grace)

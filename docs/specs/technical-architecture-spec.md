@@ -33,6 +33,14 @@ Nakama 3.41.0 (Go plugin .so)  ──  Postgres 16 (accounts only; no Match stat
 - **Panics crash the whole server**, because Nakama doesn't `recover()`. The adapter wraps every handler call in `recover()` (see [Repo layout](#repo-layout)).
 - **Per-player sends:** `BroadcastMessage` with a list of presences sends one filtered payload to one player.
 - **Lobby listing:** a JSON match label (max 2 KB, batched about every 1 s, searchable) plus `MatchList`. `MatchJoinAttempt` sees join metadata and can reject.
+- **Match logs** (#77), for reviewing a Match after it ends. With `HALO_MATCH_LOG` set to a folder, each Match writes `<folder>/<match id>.jsonl`, one JSON object a line, each with its `kind` and Match `time`:
+  - `match`: the content hash, map, seed, Seats and starting resources.
+  - `think`: each Bot think, with its goals and scores, the step each got, the commands it sent and for which goal, its refusals and its failed attacks.
+  - `battle`: each Battle as it ended, with everything it was made from (Forces, seeds, AI weights, funds, setup) and the players' orders, enough to replay it exactly.
+  - `battleAI`: each change in what a Battle AI has a squad do, only with `HALO_MATCH_LOG_BATTLE_AI=1`, since there are many.
+  - `end`: the Result.
+
+  Unset, nothing is written. In the Pterodactyl image only `/home/container` is writable, so the folder goes under it.
 - **Later, not MVP:**
   - Plugins: wazero v1.12.0 links into the plugin with no conflicts. It enforces a memory cap and a context-deadline CPU cutoff, but has no fuel metering, so it would need a per-call deadline well under one tick.
   - Saving Matches: periodic `nk.StorageWrite` snapshots (the only thing that survives a crash), `MatchTerminate` and `RegisterShutdown` (only with `shutdown_grace_sec > 0`), and resuming via `MatchCreate` with a new Match id.

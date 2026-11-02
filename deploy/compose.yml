@@ -34,6 +34,7 @@ services:
       - ./local.yml:/nakama/data/local.yml:ro,z
       - ../server/build:/nakama/data/modules:z
       - ../mods:/nakama/data/mods:ro,z
+      - ../match-logs:/nakama/data/match-logs:z
     ports:
       - "7349:7349"
       - "7350:7350"

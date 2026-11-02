@@ -60,16 +60,20 @@ func (s *State) eliminate(seat int, ev *Events) {
 //
 // A Forfeit (surrendering, leaving, or running out the Grace Period)
 // eliminates the player first. The last player standing must be connected
-// to win; while they're away the Match waits for them to return or run out,
-// and with no player left, Bots or not, it's abandoned.
+// to win; while they're away the Match waits for them to return or run out.
+// Once every player has left, it's abandoned: a Bot doesn't win a Match its
+// players walked out of. A Bot that beat the last of them wins, though, and
+// with more than one Bot left it's abandoned all the same.
 func (s *State) checkWin(c *cs.Content, now int64, ev *Events) {
+	left := func(p Player) bool { return p.Forfeiting || p.Disconnected && p.GraceEnds <= now }
 	for i, p := range s.Players {
-		if !p.Eliminated && (p.Forfeiting || p.Disconnected && p.GraceEnds <= now) {
+		if !p.Eliminated && left(p) {
 			s.eliminate(i, ev)
 		}
 	}
 	var alive []int
 	players := 0 // still in, not Bots
+	gone := true // every player, not a Bot, left rather than was beaten
 	for _, p := range s.Players {
 		if !p.Eliminated {
 			alive = append(alive, p.Seat)
@@ -77,9 +81,12 @@ func (s *State) checkWin(c *cs.Content, now int64, ev *Events) {
 				players++
 			}
 		}
+		if p.Bot == "" && !left(p) {
+			gone = false
+		}
 	}
 	switch {
-	case players == 0: // Bots never keep a Match going alone
+	case players == 0 && (gone || len(alive) != 1): // Bots never keep a Match going alone
 		s.end(Result{Winner: Neutral, Reason: ReasonAbandoned}, ev)
 		return
 	case len(s.Players) == 1:

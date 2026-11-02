@@ -26,6 +26,12 @@ type Battle struct {
 	Started  int64 // Match Time of the first sim tick, after the start delay
 	ToStack  int   // where the attackers go if they win
 	Sim      *battle.Sim
+	// What the Sim was made from, so the Battle can be replayed: with the
+	// Sim's Setup, Builders and Log, it plays out the same again.
+	Attack, Defend  battle.Force
+	Seed, FieldSeed uint64 // the Sim's, and its Battlefield's
+	Weights         [2]battle.Weights
+	Funds           [2]map[string]int // each side's at the start; the Sim spends its own
 }
 
 // tickMs is one sim tick in Match Time.
@@ -57,14 +63,19 @@ func (s *State) field(c *cs.Content, planet string) *battle.Field {
 			override = mp.Battlefield
 		}
 	}
-	h := fnv.New64a()
-	h.Write([]byte(planet))
-	f := battle.Generate(c, c.Rulesets[RulesetID].Battlefield, override, s.Seed^h.Sum64())
+	f := battle.Generate(c, c.Rulesets[RulesetID].Battlefield, override, s.fieldSeed(planet))
 	if s.Fields == nil {
 		s.Fields = map[string]*battle.Field{}
 	}
 	s.Fields[planet] = f
 	return f
+}
+
+// fieldSeed is what a Planet's Battlefield is generated from.
+func (s *State) fieldSeed(planet string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(planet))
+	return s.Seed ^ h.Sum64()
 }
 
 // startBattle fights an Army against everything defending a Planet: every
@@ -93,12 +104,15 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	defend.Buildings = slices.Clone(p.Buildings)
 	attack.Boosts, defend.Boosts = s.boosts(c, b.Attacker), s.boosts(c, b.Defender)
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
-	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID), attack, defend, s.Seed+uint64(b.ID))
-	b.Sim.Controllers = [2]battle.Controller{battle.NewAI(s.aiWeights(c, b.Attacker)), battle.NewAI(s.aiWeights(c, b.Defender))}
+	b.Attack, b.Defend, b.Seed, b.FieldSeed = attack, defend, s.Seed+uint64(b.ID), s.fieldSeed(p.ID)
+	b.Weights = [2]battle.Weights{s.aiWeights(c, b.Attacker), s.aiWeights(c, b.Defender)}
+	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID), attack, defend, b.Seed)
+	b.Sim.Controllers = [2]battle.Controller{battle.NewAI(b.Weights[0]), battle.NewAI(b.Weights[1])}
 	b.Sim.Setup = int(delay / tickMs) // the start delay is the defender's setup phase
 	b.Sim.Builders = [2]bool{s.canBuildTurrets(c, b.Attacker), s.canBuildTurrets(c, b.Defender)}
 	if b.Defender == Neutral { // no economy: a budget for pad turrets instead
-		b.Sim.Funds[battle.Defender] = maps.Clone(c.Rulesets[RulesetID].Battle.NeutralFunds)
+		b.Funds[battle.Defender] = c.Rulesets[RulesetID].Battle.NeutralFunds
+		b.Sim.Funds[battle.Defender] = maps.Clone(b.Funds[battle.Defender])
 	}
 	p.Locked = true
 	delete(s.Armies, a.ID)

@@ -125,6 +125,47 @@ type AI struct {
 	forceOf map[int]*taskForce // squads in a Task Force, by id
 	rested  map[int]int        // the tick a squad got back from falling back
 	round   map[int]int        // a skirmisher's place on its patrol
+	// Trace, if set, hears each change in what a squad has been told to do,
+	// for a Match log.
+	Trace  func(Decision)
+	traced map[int]Decision
+}
+
+// Decision is what the Commander has a squad do: its goal, and any role.
+type Decision struct {
+	Tick   int    `json:"tick"`
+	Squad  int    `json:"squad"`
+	Unit   string `json:"unit"`
+	Goal   string `json:"goal"`
+	Target int    `json:"target,omitempty"` // a squad id, for kill and raid
+	Cell   Cell   `json:"cell"`
+	Role   string `json:"role,omitempty"`
+}
+
+var (
+	goalNames = [...]string{"capture", "defend", "kill", "raid", "scout", "patrol", "fallback", "takePad"}
+	roleNames = [...]string{"", "scouting", "skirmish", "fallingBack"}
+)
+
+// trace tells Trace of each squad whose goal or role changed since the last
+// call; a moving target's new cell isn't a change.
+func (ai *AI) trace(v View) {
+	if ai.traced == nil {
+		ai.traced = map[int]Decision{}
+	}
+	for _, sq := range ai.own {
+		p := ai.plans[sq.ID]
+		if p == nil {
+			continue
+		}
+		d := Decision{Tick: v.Tick(), Squad: sq.ID, Unit: sq.Unit, Goal: goalNames[p.goal.kind], Target: p.goal.target, Cell: p.goal.cell, Role: roleNames[ai.roles[sq.ID]]}
+		old, ok := ai.traced[sq.ID]
+		if ok && old.Goal == d.Goal && old.Target == d.Target && old.Role == d.Role && (d.Target != 0 || old.Cell == d.Cell) {
+			continue
+		}
+		ai.traced[sq.ID] = d
+		ai.Trace(d)
+	}
 }
 
 func NewAI(w Weights) *AI {
@@ -226,6 +267,9 @@ func (ai *AI) Orders(v View) []Order {
 	if flipped || v.Tick()%TicksPerSecond == 0 {
 		ai.look(v, own)
 		ai.command(v, own, enemies)
+		if ai.Trace != nil {
+			ai.trace(v)
+		}
 		out = append(out, ai.build(v)...)
 	}
 

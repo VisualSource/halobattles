@@ -75,12 +75,18 @@ func (s *matchState) startBots() {
 	for n, i := range seats {
 		p := s.play.Players[i]
 		offset := int64(1000 * n / len(seats))
-		s.bots[p.User] = runBot(bot.New(&s.content.Doc, i, p.Faction, p.Bot, s.seed, offset))
+		b := bot.New(&s.content.Doc, i, p.Faction, p.Bot, s.seed, offset)
+		if l := s.log; l != nil {
+			b.Trace = func(tr bot.Trace) { l.write("think", tr.Time, tr) } // from the Bot's goroutine
+		}
+		s.bots[p.User] = runBot(b)
 	}
 }
 
-// stopBots ends every Bot's goroutine; call it when the Match ends.
+// stopBots ends every Bot's goroutine, and closes the Match log: every way
+// a Match ends comes through here.
 func (s *matchState) stopBots() {
+	s.log.close()
 	for _, r := range s.bots {
 		close(r.done)
 	}

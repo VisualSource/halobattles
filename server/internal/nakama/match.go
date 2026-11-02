@@ -46,6 +46,10 @@ type matchState struct {
 	endTick   int64                 // the tick the Match ended on, in results
 	joined    bool                  // someone has joined; an empty lobby after that closes
 	bots      map[string]*botRunner // the running Bots, by Seat user
+	logger    runtime.Logger
+	matchID   string
+	log       *matchLog               // nil unless HALO_MATCH_LOG is set
+	battles   map[uint32]*game.Battle // running Battles, for the log's replays
 }
 
 func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
@@ -71,7 +75,11 @@ func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 	for id, gm := range doc.Maps {
 		lc.Maps[id] = game.LobbyMap{Starts: len(gm.Starts), MinPlayers: gm.MinPlayers}
 	}
+	id, _ := ctx.Value(runtime.RUNTIME_CTX_MATCH_ID).(string)
 	s := &matchState{
+		logger:    logger,
+		matchID:   id,
+		battles:   map[uint32]*game.Battle{},
 		phase:     wire.PhaseLobby,
 		lobby:     game.NewLobby(lc),
 		content:   m.content,
@@ -231,6 +239,10 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		s.sendTo(logger, dispatcher, wire.OpPlanetCaptured, finish(t), c.Viewers...)
 	}
 	for _, b := range ev.Started {
+		if s.log != nil {
+			s.battles[b.ID] = b
+			s.traceBattle(b)
+		}
 		t := &wire.BattleStartedT{
 			MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender),
 			Started: b.Started, Field: field(b.Sim.Field),
@@ -252,6 +264,10 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		}
 	}
 	for _, e := range ev.Ended {
+		if b := s.battles[e.Battle]; b != nil {
+			s.log.write("battle", s.play.Time, replay(b, e.Winner))
+			delete(s.battles, e.Battle)
+		}
 		t := &wire.BattleEndedT{MatchTime: s.play.Time, Battle: e.Battle, Planet: e.Planet, Winner: int8(e.Winner)}
 		s.sendTo(logger, dispatcher, wire.OpBattleEnded, finish(t), e.Viewers...)
 	}
@@ -278,6 +294,7 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 	if r := ev.MatchEnded; r != nil {
 		t := &wire.MatchEndedT{MatchTime: s.play.Time, Winner: int8(r.Winner), Reason: r.Reason}
 		s.broadcast(logger, dispatcher, wire.OpMatchEnded, finish(t))
+		s.log.write("end", s.play.Time, r)
 		s.phase, s.endTick = wire.PhaseResults, tick
 		s.stopBots()
 		s.lobbyChanged(logger, dispatcher)
@@ -299,6 +316,8 @@ func (s *matchState) start(tick int64) error {
 		return err
 	}
 	s.play, s.phase, s.startTick = g, wire.PhasePlay, tick
+	s.log = openMatchLog(s.logger, s.logName())
+	s.log.write("match", 0, matchStart{Content: s.content.Hash, Map: s.lobby.Map, Seed: s.seed, Seats: seats, Start: s.lobby.StartingResources})
 	s.startBots()
 	return nil
 }

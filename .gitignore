@@ -13,3 +13,5 @@ mods/voidreckon/
 deploy/runtime.local.env
 
 .env.*
+
+match-logs

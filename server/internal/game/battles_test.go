@@ -1,6 +1,7 @@
 package game
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -89,6 +90,36 @@ func TestAWinningAttackerCapturesAndMovesIn(t *testing.T) {
 	}
 	if len(ev.Ended) != 1 || ev.Ended[0].Winner != 0 || len(ev.Captures) != 1 || len(s.Armies) != 0 {
 		t.Errorf("ended %+v, captures %+v, Armies %d", ev.Ended, ev.Captures, len(s.Armies))
+	}
+}
+
+// A Battle rebuilt from only what it keeps for a Match log plays out the
+// same: the same ticks, winner and survivors.
+func TestABattleReplaysFromWhatItKeeps(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	_ = s.OrderArmy(0, "a", marines(10), "b", 1)
+	s.Advance(c, 30_000)
+	b := onlyBattle(t, s)
+	fight(t, s, c)
+
+	r := c.Rulesets[RulesetID]
+	again := battle.New(c, r, battle.Generate(c, r.Battlefield, nil, b.FieldSeed), b.Attack, b.Defend, b.Seed)
+	again.Controllers = [2]battle.Controller{battle.NewAI(b.Weights[0]), battle.NewAI(b.Weights[1])}
+	again.Setup, again.Builders = b.Sim.Setup, b.Sim.Builders
+	for side, f := range b.Funds {
+		again.Funds[side] = maps.Clone(f)
+	}
+	for !again.Over {
+		again.Step()
+	}
+	if again.Tick != b.Sim.Tick || again.Winner != b.Sim.Winner || len(again.Squads) != len(b.Sim.Squads) {
+		t.Fatalf("replay: tick %d, winner %v, %d squads; the Battle: %d, %v, %d",
+			again.Tick, again.Winner, len(again.Squads), b.Sim.Tick, b.Sim.Winner, len(b.Sim.Squads))
+	}
+	for i, sq := range b.Sim.Squads {
+		if n := len(again.Squads[i].Members); n != len(sq.Members) {
+			t.Errorf("squad %d (%s): %d left in the replay, %d in the Battle", sq.ID, sq.Unit, n, len(sq.Members))
+		}
 	}
 }
 

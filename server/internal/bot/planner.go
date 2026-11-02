@@ -108,6 +108,7 @@ type turn struct {
 	foes      map[string]float64 // enemy units seen, by Unit Class
 	units     map[string]int     // own units, from queue to death, by id
 	gathering map[string]bool    // Planets this think gathered units at
+	campaign  string             // the staging Planet of the best Expand or Attack moving units: only it gathers
 	top       [len(goalNames)]float64
 }
 
@@ -205,7 +206,7 @@ func (b *Bot) facts(t *turn, g goal) facts {
 		}
 	}
 	if g.target != "" {
-		if to := b.gatherAt(t, g); to != "" {
+		if to := b.gatherAt(t, g); to != "" && b.mayGather(t, g, to) {
 			if from, _ := b.richest(t, to); from != nil {
 				f |= spareUnits
 			}

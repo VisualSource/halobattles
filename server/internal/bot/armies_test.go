@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/VisualSource/halobattles/server/internal/battle"
@@ -65,6 +66,58 @@ func TestArmiesGatherAtTheStagingPlanetAndGoAtTheMargin(t *testing.T) {
 	v.Battles = []game.BattleView{{ID: 1, Planet: "c", Attacker: 0, Defender: game.Neutral}}
 	if o := order(b.sendArmy(b.newTurn(v), c)); o != nil {
 		t.Errorf("sent a second wave while attacking c: %+v", o)
+	}
+}
+
+// a — b — c — d, with an enemy on b: units gathering at c for d would stop
+// at b and fight, one wave per spare unit, as an Easy Bot's lone Grunts did
+// in a playtest (#77).
+func TestNoArmyIsSentThroughAnEnemyPlanet(t *testing.T) {
+	b := hard(t)
+	v := view(nil, 10)
+	v.Planets[1].Owner = 1 // b, empty, so a keeps no guard
+	v.Planets = append(v.Planets, game.PlanetView{ID: "c", Owner: 0, Buildings: []string{"", "", ""}})
+	b.remember(v)
+	d := goal{kind: expand, target: "d"} // staged from c
+	tt := b.newTurn(v)
+	if b.facts(tt, d)&spareUnits != 0 {
+		t.Error("a's Marines counted as spare for c, behind b")
+	}
+	if cmd := b.gather(tt, d); cmd != nil {
+		t.Errorf("gathered %+v through the enemy's b", decode(*cmd))
+	}
+}
+
+// l — p — x — s — h: h, empty, is staged from s and outranks l, staged from
+// p. The best goal takes the most spare units, p's; a lower goal mustn't
+// gather x's to p for it to take next think, a relay a playtest's log showed
+// (#77). Only the best Expand or Attack gathers.
+func TestUnitsGatherForOneTargetAtATime(t *testing.T) {
+	c := lineContent()
+	m := c.Maps["base:line"]
+	planet := func(id string) cs.MapPlanet { return cs.MapPlanet{ID: cs.LocalID(id), Type: "base:std"} }
+	m.Planets = []cs.MapPlanet{planet("l"), planet("p"), planet("x"), planet("s"), planet("h")}
+	m.Lanes = []cs.Lane{{From: "l", To: "p"}, {From: "p", To: "x"}, {From: "x", To: "s"}, {From: "s", To: "h"}}
+	m.Garrisons = map[string]cs.Stacks{"l": {{{Unit: "base:marine", Count: 10}}}}
+	c.Maps["base:line"] = m
+	b := New(c, 0, "base:unsc", "hard", 1, 0)
+	own := func(id string, n int) game.PlanetView {
+		p := game.PlanetView{ID: id, Owner: 0, Buildings: []string{"", "", ""}}
+		if n > 0 {
+			p.Stacks = marines(n)
+		}
+		return p
+	}
+	v := view(nil, 0)
+	v.Planets = []game.PlanetView{own("p", 2), own("x", 1), own("s", 0)}
+	var orders []string
+	for _, cmd := range b.Think(v) {
+		if o, ok := decode(cmd).(*wire.OrderArmyT); ok {
+			orders = append(orders, o.FromPlanet+">"+o.ToPlanet)
+		}
+	}
+	if !slices.Equal(orders, []string{"p>s"}) {
+		t.Errorf("orders %v; want only p's Marines gathered at s, for h", orders)
 	}
 }
 
