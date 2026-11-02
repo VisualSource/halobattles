@@ -86,6 +86,7 @@ func Load(dirs []string) (*Content, error) {
 		return nil, l.errs
 	}
 	doc, sources := l.merge(mods)
+	l.resolveVariants(doc["units"])
 
 	// A definition that fails its schema is dropped, and references to it
 	// aren't reported again as unknown.
@@ -99,6 +100,8 @@ func Load(dirs []string) (*Content, error) {
 			}
 		}
 	}
+
+	l.trainVariants(doc)
 
 	c := &Content{}
 	if c.JSON, err = json.Marshal(doc); err != nil {

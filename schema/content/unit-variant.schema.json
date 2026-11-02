@@ -1,0 +1,286 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Unit Variant",
+  "description": "A unit file with variantOf: only what differs from its parent. null drops an inherited key. The merged unit is checked against unit.schema.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "variantOf"
+  ],
+  "properties": {
+    "$schema": {
+      "$ref": "unit.schema.json#/properties/$schema"
+    },
+    "replace": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/replace"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "$ref": "unit.schema.json#/properties/id"
+    },
+    "name": {
+      "$ref": "unit.schema.json#/properties/name"
+    },
+    "variantOf": {
+      "$ref": "unit.schema.json#/properties/variantOf"
+    },
+    "faction": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/faction"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "description": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/description"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cost": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/cost"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "upkeep": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/upkeep"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "buildTime": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/buildTime"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "commandPoints": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/commandPoints"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "maxCount": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/maxCount"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "slotLimit": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/slotLimit"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "trainable": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/trainable"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "roles": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/roles"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "combat": {
+      "description": "Merged over the parent's combat key by key.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "unitClass": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/unitClass"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "weaponType": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/weaponType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shield": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/shield"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "armor": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/armor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hp": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/hp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "damage": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/damage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "speed": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/speed"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "range": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/range"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "minRange": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/minRange"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fireInterval": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/fireInterval"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sight": {
+          "anyOf": [
+            {
+              "$ref": "defs.schema.json#/definitions/combat/properties/sight"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tiers": {
+          "anyOf": [
+            {
+              "type": "object",
+              "propertyNames": {
+                "$ref": "defs.schema.json#/definitions/id"
+              },
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "defs.schema.json#/definitions/combat/properties/tiers/additionalProperties"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "icon": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/icon"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

@@ -1,31 +1,23 @@
 {
-  "$schema": "../../../../schema/content/unit.schema.json",
+  "$schema": "../../../../schema/content/unit-variant.schema.json",
   "id": "warthog-m12g1",
   "name": "M12G1 Gauss Warthog",
-  "faction": "unsc",
-  "cost": {
-    "credits": 150,
-    "alloys": 15,
-    "materials": 50
-  },
-  "buildTime": 30,
-  "commandPoints": 3,
+  "variantOf": "warthog",
+  // Placeholder stats: kept off the Vehicle Depot until they are balanced.
+  "trainable": false,
   "combat": {
-    "unitClass": "vehicle",
     "weaponType": "explosive",
-    "shield": 0,
     "armor": 0,
     "hp": 10,
     "damage": "1d4",
     "tiers": {
       "vehicle": "advantage",
-      "infantry": "disadvantage"
+      "infantry": "disadvantage",
+      "aircraft": null,
+      "structure": null
     },
     "fireInterval": 4
   },
   "description": "The M12G1 Light Anti-Armor Vehicle (M12G1 LAAV), commonly known as the Gauss Warthog, is a United Nations Space Command ground vehicle.",
-  "upkeep": {
-    "credits": 15,
-    "alloys": 1
-  }
+  "roles": null
 }

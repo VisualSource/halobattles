@@ -109,7 +109,8 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 
 - A unit or building named in any Tech's unlocks is **locked**: the player can queue it only while they hold a Tech that unlocks it. Everything no Tech names is free.
 - A building that trains units doesn't unlock them: a unit can need its own Tech (in the base Mod the Vehicle Depot comes with the Warthog, and the Scorpion is a later Tech).
-- The client shows a locked item disabled, naming the Tech it needs.
+- A [Unit Variant](../../GLOSSARY.md) is locked while its parent is, and also while a Tech names it and the player holds none of those. A variant no Tech names comes with its parent.
+- The client shows a locked item disabled, naming the Tech it needs, except a locked Unit Variant, which isn't shown at all until it's unlocked; losing the Tech hides it again. Units already queued or trained stay.
 - Starting Kits may place locked buildings and units; they work, but more can't be made without the Tech.
 
 ## Effects

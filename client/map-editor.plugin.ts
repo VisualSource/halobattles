@@ -89,6 +89,9 @@ export function contentText(
     unknown
   >;
   const opts = { formattingOptions: { insertSpaces: true, tabSize: 2 } };
+  const want = `../../../../schema/content/${schema}`;
+  if (typeof was.$schema === "string" && was.$schema !== want)
+    text = applyEdits(text, modify(text, ["$schema"], want, opts));
   for (const key of Object.keys(was))
     if (key !== "$schema" && !(key in map))
       text = applyEdits(text, modify(text, [key], undefined, opts));
@@ -178,7 +181,12 @@ export function applyWrite(old: string | undefined, w: Write): string {
       modify(old, w.path, w.value === null ? undefined : w.value, opts),
     );
   }
-  return contentText(old, w.value, KINDS[w.kind].schema);
+  const variant = w.kind === "units" && "variantOf" in w.value;
+  return contentText(
+    old,
+    w.value,
+    variant ? "unit-variant.schema.json" : KINDS[w.kind].schema,
+  );
 }
 
 const BASE = "mods/base/data/";

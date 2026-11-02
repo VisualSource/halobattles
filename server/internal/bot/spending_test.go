@@ -256,3 +256,17 @@ func TestItSavesForATopGoalTheNextPaydayAffords(t *testing.T) {
 		t.Error("a 3001 Lab counted affordable after Payday, over the 3000 cap")
 	}
 }
+
+func TestAUnitVariantIsUnlockedOnlyWithItsParent(t *testing.T) {
+	odst := cs.ID("base:odst")
+	c := &cs.Content{
+		Units: map[string]cs.Unit{"base:odst": {}, "base:hev": {VariantOf: &odst}},
+		Techs: map[string]cs.Tech{"base:helljumpers": {Unlocks: &cs.TechUnlocks{Units: []cs.ID{"base:odst"}}}},
+	}
+	if unlocked(c, nil, "base:hev", true) {
+		t.Error("a variant whose parent is locked is unlocked")
+	}
+	if !unlocked(c, map[string]bool{"base:helljumpers": true}, "base:hev", true) {
+		t.Error("a variant no Tech names isn't unlocked with its parent")
+	}
+}

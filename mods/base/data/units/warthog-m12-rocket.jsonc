@@ -1,19 +1,12 @@
 {
-  "$schema": "../../../../schema/content/unit.schema.json",
+  "$schema": "../../../../schema/content/unit-variant.schema.json",
   "id": "warthog-m12-rocket",
   "name": "M12R Rocket Warthog",
-  "faction": "unsc",
-  "cost": {
-    "credits": 150,
-    "alloys": 15,
-    "materials": 50
-  },
-  "buildTime": 30,
-  "commandPoints": 3,
+  "variantOf": "warthog",
+  // Placeholder stats: kept off the Vehicle Depot until they are balanced.
+  "trainable": false,
   "combat": {
-    "unitClass": "vehicle",
     "weaponType": "explosive",
-    "shield": 0,
     "armor": 0,
     "hp": 10,
     "damage": "1d4",
@@ -24,9 +17,6 @@
       "vehicle": "normal"
     }
   },
-  "description": "he M12R Light Anti-Aircraft Vehicle, abbreviated as M12R LAAV and commonly referred to as the Missile Warthog, Rocket Warthog, or Rockethog, is a UNSC ground vehicle",
-  "upkeep": {
-    "credits": 15,
-    "alloys": 1
-  }
+  "description": "The M12R Light Anti-Aircraft Vehicle, abbreviated as M12R LAAV and commonly referred to as the Missile Warthog, Rocket Warthog, or Rockethog, is a UNSC ground vehicle",
+  "roles": null
 }

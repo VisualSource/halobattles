@@ -186,8 +186,12 @@ func held(v game.View) map[string]bool {
 }
 
 // unlocked mirrors the server's rule: anything a Tech unlocks needs one of
-// those Techs held; anything no Tech unlocks is free.
+// those Techs held; anything no Tech unlocks is free; a Unit Variant also
+// needs its parent unlocked.
 func unlocked(c *cs.Content, h map[string]bool, id string, unit bool) bool {
+	if p := c.Units[id].VariantOf; unit && p != nil && !unlocked(c, h, string(*p), true) {
+		return false
+	}
 	locked := false
 	for tid, t := range c.Techs {
 		u := t.Unlocks

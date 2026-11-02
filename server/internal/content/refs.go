@@ -46,6 +46,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		}
 	case "units", "buildings":
 		qualifyField(obj, "faction", ns)
+		qualifyField(obj, "variantOf", ns)
 		qualifyKeys(obj, "cost", ns)
 		qualifyKeys(obj, "upkeep", ns)
 		qualifyKeys(obj, "yield", ns)

@@ -30,8 +30,13 @@ func (s *State) heldTechs(c *cs.Content, seat int) map[string]bool {
 
 // mustUnlock refuses a unit (or, with unit false, a building) that some Tech
 // unlocks while seat holds none of those Techs, naming them. Anything no
-// Tech unlocks is free.
+// Tech unlocks is free. A Unit Variant also needs its parent unlocked.
 func (s *State) mustUnlock(c *cs.Content, seat int, id string, unit bool) error {
+	if p := c.Units[id].VariantOf; unit && p != nil {
+		if err := s.mustUnlock(c, seat, string(*p), true); err != nil {
+			return err
+		}
+	}
 	var held map[string]bool
 	var need []string
 	for _, tid := range slices.Sorted(maps.Keys(c.Techs)) {

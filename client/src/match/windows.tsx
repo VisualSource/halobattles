@@ -1262,6 +1262,8 @@ function UnitsTab(props: {
                 const needs = view
                   ? needsTech(content, heldTechs(view), "units", id)
                   : [];
+                // A locked Unit Variant isn't shown until it's unlocked.
+                if (u.variantOf && needs.length) return null;
                 return (
                   <UnitCard
                     key={id}

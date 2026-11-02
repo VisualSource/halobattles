@@ -48,17 +48,37 @@ export function useContent() {
   return { data, error, reload: load };
 }
 
-/** A labelled field above its control. */
+/** ↺: put a Unit Variant's field back to its parent's value. */
+export const Reset = (props: { onClick: () => void }) => (
+  <button
+    type="button"
+    title="Reset to the parent's value"
+    aria-label="Reset to the parent's value"
+    onClick={(e) => {
+      e.preventDefault(); // not the label's control
+      props.onClick();
+    }}
+    className="text-ink-3 hover:text-ink border-0 bg-transparent p-0 text-[11px] leading-none"
+  >
+    ↺
+  </button>
+);
+
+/** A labelled field above its control; reset adds a ↺ beside the name. */
 export function Field(props: {
   name: string;
   hint?: string;
+  reset?: () => void;
   children: ReactNode;
   className?: string;
 }) {
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the control is the child
     <label className={cn("flex flex-col gap-0.5", props.className)}>
-      <span className={label}>{props.name}</span>
+      <span className={cn(label, "flex items-center gap-1")}>
+        {props.name}
+        {props.reset && <Reset onClick={props.reset} />}
+      </span>
       {props.children}
       {props.hint && (
         <span className="text-ink-4 text-[11px]">{props.hint}</span>
@@ -164,6 +184,10 @@ export function ContentPage<T extends { id?: unknown; name?: unknown }>(props: {
   /** The list's group heading for one, if the list is grouped. */
   group?: (v: T) => string;
   sub?: (v: T) => string;
+  /** Its place in its group, by name unless given. */
+  order?: (v: T) => string;
+  /** How far in to indent it in the list. */
+  indent?: (v: T) => number;
   form: (draft: T, set: (f: (d: T) => T) => void) => ReactNode;
   preview?: (draft: T) => ReactNode;
   writes: (draft: T, file: string) => Write[];
@@ -235,7 +259,10 @@ export function ContentPage<T extends { id?: unknown; name?: unknown }>(props: {
       (a, b) =>
         (props.group?.(a.value) ?? "").localeCompare(
           props.group?.(b.value) ?? "",
-        ) || String(a.value.name).localeCompare(String(b.value.name)),
+        ) ||
+        (props.order?.(a.value) ?? String(a.value.name)).localeCompare(
+          props.order?.(b.value) ?? String(b.value.name),
+        ),
     );
 
   return (
@@ -286,6 +313,9 @@ export function ContentPage<T extends { id?: unknown; name?: unknown }>(props: {
                 <button
                   type="button"
                   onClick={() => pick(i)}
+                  style={{
+                    paddingLeft: `${0.5 + (props.indent?.(i.value) ?? 0)}rem`,
+                  }}
                   className={cn(
                     "text-ink-2 flex items-baseline justify-between gap-2 rounded border-0 bg-transparent px-2 py-1 text-left text-[13px]",
                     i.file === opened && "bg-raised text-ink",

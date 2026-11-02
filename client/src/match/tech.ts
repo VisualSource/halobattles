@@ -48,7 +48,8 @@ export function techCost(
 
 /**
  * The Techs that would unlock a unit or building, if one is needed and you
- * hold none of them; empty when you may make it.
+ * hold none of them; empty when you may make it. A Unit Variant needs its
+ * parent's first.
  */
 export function needsTech(
   content: ContentLookups,
@@ -56,6 +57,9 @@ export function needsTech(
   kind: "units" | "buildings",
   id: string,
 ): string[] {
+  const parent = kind === "units" && content.units.get(id)?.variantOf;
+  const first = parent ? needsTech(content, held, "units", parent) : [];
+  if (first.length) return first;
   const by = [...content.techs.values()].filter((t) =>
     t.unlocks?.[kind]?.includes(id),
   );

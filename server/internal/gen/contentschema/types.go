@@ -1117,9 +1117,17 @@ type Unit struct {
 	// limit.
 	SlotLimit *int `json:"slotLimit,omitempty,omitzero"`
 
+	// False keeps it off every building's trains, and its variants with it: a
+	// garrison or Starting Kit unit. Defaults to true.
+	Trainable *bool `json:"trainable,omitempty,omitzero"`
+
 	// Charged at each Payday for each living unit, from training until death. Left
 	// out is none.
 	Upkeep map[string]int `json:"upkeep,omitempty,omitzero"`
+
+	// The unit this is a Unit Variant of. A variant file lists only what differs,
+	// against unit-variant.schema.json; the loader merges it over its parent.
+	VariantOf *ID `json:"variantOf,omitempty,omitzero"`
 }
 
 // A combat category that attackers are more or less effective against.

@@ -71,6 +71,36 @@ func TestALockedUnitNeedsATechUnlockingIt(t *testing.T) {
 	}
 }
 
+func TestAUnitVariantNeedsItsParentsTechAndItsOwn(t *testing.T) {
+	s, c := fixedMatch(t), withLockingTechs(lineContent())
+	odst := cs.ID("base:odst")
+	for _, id := range []string{"base:hev", "base:oni"} {
+		u := c.Units["base:odst"]
+		u.VariantOf = &odst
+		c.Units[id] = u
+	}
+	b := c.Buildings["base:barracks"]
+	b.Trains = append(b.Trains, "base:hev", "base:oni")
+	c.Buildings["base:barracks"] = b
+	c.Techs["base:oni-ops"] = cs.Tech{Name: "ONI Ops", Unlocks: &cs.TechUnlocks{Units: []cs.ID{"base:oni"}}}
+
+	if err := s.QueueUnit(c, 0, "a", 0, "base:hev", 1); err == nil || !strings.Contains(err.Error(), "Helljumpers") {
+		t.Errorf("a variant no Tech names, its parent locked: err = %v, want it to name Helljumpers", err)
+	}
+	holdTech(s, "a", 2, "base:helljumpers")
+	if err := s.QueueUnit(c, 0, "a", 0, "base:hev", 1); err != nil {
+		t.Errorf("a variant no Tech names comes with its parent: %v", err)
+	}
+	s.Planets["a"].UnitQueues = nil // free its Command Points
+	if err := s.QueueUnit(c, 0, "a", 0, "base:oni", 1); err == nil || !strings.Contains(err.Error(), "ONI Ops") {
+		t.Errorf("err = %v, want the variant's own Tech named", err)
+	}
+	holdTech(s, "a", 2, "base:helljumpers", "base:oni-ops")
+	if err := s.QueueUnit(c, 0, "a", 0, "base:oni", 1); err != nil {
+		t.Errorf("with both Techs held: %v", err)
+	}
+}
+
 func TestATechCountsOnlyWhileItsLabStands(t *testing.T) {
 	s, c := fixedMatch(t), withLockingTechs(lineContent())
 	holdTech(s, "a", 2, "base:helljumpers")

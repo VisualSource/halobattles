@@ -166,6 +166,8 @@ The base Mod ships **no icons or sprites**; the client draws placeholders.
 
 The rosters mirror each other's roles and costs. Covenant units put part of their durability into Shields; UNSC units carry more Armor and HP. Each living unit pays its Upkeep at every Payday, from training until death; queued units and neutral garrisons pay none ([economy spec](economy-spec.md#unit-upkeep)). Movement, range, fire-rate and Sight come from the [Unit Class defaults](tactical-battle-spec.md#stats) until playtests give units their own.
 
+A [Unit Variant](../../GLOSSARY.md) (the M12A Rocket Warthog from the M12 Warthog, say) is trained where its parent is and locked while its parent is; it stays out of the build picker until the player can train it ([content](technical-architecture-spec.md#unit-variants), [locking](tech-spec.md#locked-content)).
+
 Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 40–55% of the time) and fight for 1–3 minutes; a Go test keeps both (see [Pacing](tactical-battle-spec.md#pacing)).
 
 | Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Tiers Inf/Veh/Air/Str | Cost | Upkeep | Time | CP | Trained at |

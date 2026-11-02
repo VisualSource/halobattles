@@ -69,6 +69,23 @@ describe("Saving content", () => {
     expect(text).toContain('"odst"');
   });
 
+  it("gives a Unit Variant the variant schema, and back", () => {
+    const unit = `{\n  "$schema": "../../../../schema/content/unit.schema.json",\n  "id": "hog"\n}\n`;
+    const variant = { id: "hog", name: "Hog", variantOf: "warthog" };
+    const text = applyWrite(unit, {
+      kind: "units",
+      file: "hog",
+      value: variant,
+    });
+    expect(text).toContain("unit-variant.schema.json");
+    expect(
+      applyWrite(undefined, { kind: "units", file: "hog", value: variant }),
+    ).toContain("unit-variant.schema.json");
+    expect(
+      applyWrite(text, { kind: "units", file: "hog", value: { id: "hog" } }),
+    ).toContain("/unit.schema.json");
+  });
+
   it("removes a value patched to null", () => {
     const text = applyWrite(
       '{\n  "movement": { "vehicle": 1, "infantry": 1 }\n}\n',

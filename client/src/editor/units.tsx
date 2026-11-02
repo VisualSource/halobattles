@@ -12,11 +12,15 @@ import {
   input,
   label,
   Num,
+  Reset,
   Section,
+  type Write,
 } from "./content";
+import { overridden, overrides, resetAt, resolved } from "./variant";
 
 // The Units page: every field of unit.schema.json, the buildings that train
-// it, and the game's own card and info panel as a live preview.
+// it, and the game's own card and info panel as a live preview. A Unit
+// Variant is edited merged over its parent; Save writes only what differs.
 
 type Raw = Record<string, unknown>;
 /** A unit as the form edits it: with the buildings ticked in Trained at, by file, once changed. */
@@ -101,12 +105,69 @@ function Amounts(props: {
     </span>
   );
 }
-const Row = (props: { name: string; children: ReactNode }) => (
+/** Whether id is root or one of root's variants, at any depth. */
+function isBelow(units: Map<string, Raw>, id: string, root: string) {
+  for (let at: unknown = id, n = 0; typeof at === "string" && n < 64; n++) {
+    if (at === root) return true;
+    at = units.get(at)?.variantOf;
+  }
+  return false;
+}
+const Row = (props: {
+  name: string;
+  reset?: () => void;
+  children: ReactNode;
+}) => (
   <>
-    <span className="text-ink-2 text-[13px]">{props.name}</span>
+    <span className="text-ink-2 flex items-center gap-1 text-[13px]">
+      {props.name}
+      {props.reset && <Reset onClick={props.reset} />}
+    </span>
     {props.children}
   </>
 );
+
+/** The building files whose trains lists name it now. */
+const trainedAtIn = (data: Content, id: string) =>
+  data.buildings
+    .filter(
+      (b) =>
+        id && ((b.value.trains as string[] | undefined) ?? []).includes(id),
+    )
+    .map((b) => b.file);
+
+/**
+ * The files a save of u writes: its own (only what differs from its parent,
+ * for a Unit Variant), then each building whose trains list changes. One
+ * that isn't trainable comes off every list, as the loader requires.
+ */
+export function unitWrites(
+  data: Content,
+  { _trainedAt, ...u }: Draft,
+  file: string,
+): Write[] {
+  const raw = byId(data.units);
+  const parent =
+    u.variantOf && raw.has(u.variantOf) && resolved(raw, u.variantOf);
+  const at =
+    u.trainable === false ? [] : (_trainedAt ?? trainedAtIn(data, u.id));
+  return [
+    { kind: "units", file, value: parent ? overrides(u as never, parent) : u },
+    ...data.buildings.flatMap((b): Write[] => {
+      const list = (b.value.trains as string[] | undefined) ?? [];
+      const want = at.includes(b.file);
+      if (want === list.includes(u.id)) return [];
+      return [
+        {
+          kind: "buildings",
+          file: b.file,
+          path: ["trains"],
+          value: want ? [...list, u.id] : list.filter((x) => x !== u.id),
+        },
+      ];
+    }),
+  ];
+}
 
 export function UnitsPage(props: {
   tabs: ReactNode;
@@ -114,19 +175,27 @@ export function UnitsPage(props: {
   reload: () => Promise<void>;
 }) {
   const { data } = props;
+  const raw = byId(data.units);
+  /** Its parent, merged over its own parents, if it's a Unit Variant. */
+  const parentOf = (u: Unit) =>
+    u.variantOf && raw.has(u.variantOf)
+      ? (resolved(raw, u.variantOf) as unknown as Unit)
+      : undefined;
+  /** Its parents' names then its own, so a variant sorts after its parent. */
+  const chain = (id: string, seen: string[] = []): string[] => {
+    const u = raw.get(id);
+    const p = u?.variantOf;
+    const own = String(u?.name ?? id);
+    return typeof p === "string" && raw.has(p) && !seen.includes(id)
+      ? [...chain(p, [...seen, id]), own]
+      : [own];
+  };
   const nameOf = (items: { value: Raw }[], id: string) =>
     String(byId(items).get(id)?.name ?? id);
   const defaults = (cls: string) =>
     ((data.rulesets[0]?.value as { battle?: { classDefaults?: Raw } })?.battle
       ?.classDefaults?.[cls] ?? {}) as Partial<Record<string, number>>;
-  /** The building files whose trains lists name it now. */
-  const trainedAt = (id: string) =>
-    data.buildings
-      .filter(
-        (b) =>
-          id && ((b.value.trains as string[] | undefined) ?? []).includes(id),
-      )
-      .map((b) => b.file);
+  const trainedAt = (id: string) => trainedAtIn(data, id);
   const trainers = (faction: string) =>
     data.buildings.filter(
       (b) => b.value.faction === faction && Array.isArray(b.value.trains),
@@ -136,34 +205,34 @@ export function UnitsPage(props: {
     <ContentPage<Draft>
       tabs={props.tabs}
       noun="unit"
-      items={data.units as unknown as { file: string; value: Draft }[]}
+      items={data.units.map((i) => ({
+        file: i.file,
+        value: resolved(raw, String(i.value.id)) as unknown as Draft,
+      }))}
       blank={blank}
       group={(u) => nameOf(data.factions, u.faction)}
       sub={(u) => u.combat?.unitClass ?? ""}
+      order={(u) => chain(u.id).join("\u0000")}
+      indent={(u) => chain(u.id).length - 1}
       onSaved={props.reload}
       // The unit's file, then each building whose trains list it changes.
-      writes={({ _trainedAt, ...u }, file) => [
-        { kind: "units", file, value: u },
-        ...data.buildings.flatMap((b) => {
-          const list = (b.value.trains as string[] | undefined) ?? [];
-          const want = (_trainedAt ?? trainedAt(u.id)).includes(b.file);
-          if (want === list.includes(u.id)) return [];
-          return [
-            {
-              kind: "buildings" as const,
-              file: b.file,
-              path: ["trains"],
-              value: want ? [...list, u.id] : list.filter((x) => x !== u.id),
-            },
-          ];
-        }),
-      ]}
+      writes={(u, file) => unitWrites(data, u, file)}
       form={(u, set) => {
         const c = u.combat;
         const setC = (f: (c: Unit["combat"]) => Unit["combat"]) =>
           set((x) => ({ ...x, combat: f(x.combat) }));
         const d = defaults(c.unitClass);
         const roles = new Set(u.roles ?? []);
+        const parent = parentOf(u);
+        /** A field's name, marked when it overrides the parent, with a reset. */
+        const inh = (name: string, path: string[]) => {
+          if (!parent || !overridden(u as never, parent as never, path))
+            return { name };
+          return {
+            name: `${name} ●`,
+            reset: () => set((x) => resetAt(x, parent as never, path)),
+          };
+        };
         return (
           <>
             <Section title="Unit">
@@ -185,9 +254,43 @@ export function UnitsPage(props: {
                     }
                   />
                 </Field>
-                <Field name="Faction">
+                <Field name="Variant of" hint="none: a unit of its own">
                   <select
                     className={input}
+                    value={u.variantOf ?? ""}
+                    onChange={(e) => {
+                      const p = e.target.value;
+                      set(({ variantOf: _, ...x }) =>
+                        p
+                          ? {
+                              ...(resolved(raw, p) as unknown as Unit),
+                              id: x.id,
+                              name: x.name,
+                              variantOf: p,
+                            }
+                          : x,
+                      );
+                    }}
+                  >
+                    <option value="">(none)</option>
+                    {data.units
+                      .map((x) => String(x.value.id))
+                      // Not itself, nor one of its own variants: no cycles.
+                      .filter((id) => !isBelow(raw, id, u.id))
+                      .map((id) => (
+                        <option key={id} value={id}>
+                          {chain(id).join(" › ")}
+                        </option>
+                      ))}
+                  </select>
+                </Field>
+                <Field
+                  name="Faction"
+                  hint={parent ? "from its parent" : undefined}
+                >
+                  <select
+                    className={input}
+                    disabled={!!parent}
                     value={u.faction}
                     onChange={(e) =>
                       set((x) => ({ ...x, faction: e.target.value }))
@@ -202,7 +305,9 @@ export function UnitsPage(props: {
                   </select>
                 </Field>
                 <div className="flex flex-col gap-0.5">
-                  <span className={label}>AI roles</span>
+                  <span className={label}>
+                    {inh("AI roles", ["roles"]).name}
+                  </span>
                   <span className="flex h-7 items-center gap-3">
                     {(["scout", "skirmisher"] as const).map((r) => (
                       <label
@@ -230,7 +335,7 @@ export function UnitsPage(props: {
                   </span>
                 </div>
               </div>
-              <Field name="Description">
+              <Field {...inh("Description", ["description"])}>
                 <textarea
                   className={`${input} min-h-14`}
                   value={u.description ?? ""}
@@ -245,14 +350,14 @@ export function UnitsPage(props: {
             </Section>
             <Section title="Training">
               <div className="flex flex-wrap gap-8">
-                <Field name="Cost">
+                <Field {...inh("Cost", ["cost"])}>
                   <Amounts
                     data={data}
                     value={u.cost}
                     onChange={(cost) => set((x) => ({ ...x, cost }))}
                   />
                 </Field>
-                <Field name="Upkeep / Payday">
+                <Field {...inh("Upkeep / Payday", ["upkeep"])}>
                   <Amounts
                     data={data}
                     value={u.upkeep}
@@ -265,7 +370,7 @@ export function UnitsPage(props: {
                   />
                 </Field>
                 <div className="grid grid-cols-2 content-start gap-3">
-                  <Field name="Build s">
+                  <Field {...inh("Build s", ["buildTime"])}>
                     <Num
                       min={1}
                       value={u.buildTime}
@@ -274,7 +379,7 @@ export function UnitsPage(props: {
                       }
                     />
                   </Field>
-                  <Field name="Command">
+                  <Field {...inh("Command", ["commandPoints"])}>
                     <Num
                       min={0}
                       value={u.commandPoints}
@@ -283,7 +388,7 @@ export function UnitsPage(props: {
                       }
                     />
                   </Field>
-                  <Field name="Max count">
+                  <Field {...inh("Max count", ["maxCount"])}>
                     <Num
                       optional
                       min={1}
@@ -292,7 +397,7 @@ export function UnitsPage(props: {
                       onChange={(n) => set((x) => ({ ...x, maxCount: n }))}
                     />
                   </Field>
-                  <Field name="Slot limit">
+                  <Field {...inh("Slot limit", ["slotLimit"])}>
                     <Num
                       optional
                       min={1}
@@ -315,6 +420,7 @@ export function UnitsPage(props: {
                       >
                         <input
                           type="checkbox"
+                          disabled={u.trainable === false}
                           checked={at.includes(b.file)}
                           onChange={(e) =>
                             set((x) => ({
@@ -335,14 +441,30 @@ export function UnitsPage(props: {
                     </span>
                   )}
                 </span>
+                <label className="flex items-center gap-1.5 text-[13px]">
+                  <input
+                    type="checkbox"
+                    checked={u.trainable !== false}
+                    onChange={(e) =>
+                      set(({ trainable: _, ...x }) =>
+                        e.target.checked ? x : { ...x, trainable: false },
+                      )
+                    }
+                  />
+                  Trainable{" "}
+                  <span className="text-ink-4 text-[11px]">
+                    off: a garrison or Starting Kit unit, trained nowhere
+                  </span>
+                </label>
                 <span className="text-ink-4 text-[11px]">
+                  {parent ? `Also trained wherever ${parent.name} is. ` : ""}
                   Saving edits each building's trains list.
                 </span>
               </div>
             </Section>
             <Section title="Combat">
               <div className="flex flex-wrap gap-3">
-                <Field name="Unit Class">
+                <Field {...inh("Unit Class", ["combat", "unitClass"])}>
                   <select
                     className={input}
                     value={c.unitClass}
@@ -357,7 +479,7 @@ export function UnitsPage(props: {
                     ))}
                   </select>
                 </Field>
-                <Field name="Weapon">
+                <Field {...inh("Weapon", ["combat", "weaponType"])}>
                   <select
                     className={input}
                     value={c.weaponType}
@@ -373,7 +495,7 @@ export function UnitsPage(props: {
                   </select>
                 </Field>
                 {(["shield", "armor", "hp"] as const).map((k) => (
-                  <Field key={k} name={k === "hp" ? "HP" : k}>
+                  <Field key={k} {...inh(k === "hp" ? "HP" : k, ["combat", k])}>
                     <Num
                       min={k === "hp" ? 1 : 0}
                       value={c[k]}
@@ -383,7 +505,7 @@ export function UnitsPage(props: {
                   </Field>
                 ))}
                 <Field
-                  name="Damage"
+                  {...inh("Damage", ["combat", "damage"])}
                   hint={
                     DICE.test(c.damage)
                       ? `avg ${average(c.damage)}`
@@ -411,7 +533,7 @@ export function UnitsPage(props: {
                 ).map(([k, name]) => (
                   <Field
                     key={k}
-                    name={name}
+                    {...inh(name, ["combat", k])}
                     hint={c[k] === undefined ? "class default" : undefined}
                   >
                     <Num
@@ -431,7 +553,10 @@ export function UnitsPage(props: {
                   {data.unitClasses.map((k) => {
                     const id = String(k.value.id);
                     return (
-                      <Row key={id} name={String(k.value.name)}>
+                      <Row
+                        key={id}
+                        {...inh(String(k.value.name), ["combat", "tiers", id])}
+                      >
                         <Choice
                           label={`Against ${String(k.value.name)}`}
                           value={c.tiers?.[id] ?? "normal"}

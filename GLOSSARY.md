@@ -128,6 +128,10 @@ _Avoid_: General, strategist
 A few of one side's Squads the Commander gives one goal, which gather and then go in together at the slowest one's pace.
 _Avoid_: Group, squad (a Squad is one Unit Slot), Stack (that's the galaxy's)
 
+**Unit Variant**:
+A unit type made from another (its parent) by changing some of its stats, e.g. the Flame Hog from the Warthog; in a Match it is a unit type like any other.
+_Avoid_: Upgrade (that changes units you already have), subtype, loadout
+
 **Unit Class**:
 A combat category of units and armed buildings (e.g. Infantry, Vehicle, Aircraft, Structure) that attackers are more or less effective against.
 _Avoid_: Unit type (a unit type is a specific unit, e.g. Marine), class

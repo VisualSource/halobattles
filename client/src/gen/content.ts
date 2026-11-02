@@ -584,6 +584,10 @@ export interface Unit {
   /**
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
+  variantOf?: string;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
   faction: string;
   /**
    * A sentence or two on what it's for, shown in its info popover.
@@ -607,6 +611,10 @@ export interface Unit {
    * The most of this unit one Unit Slot holds; more take another slot. Unset is no limit.
    */
   slotLimit?: number;
+  /**
+   * False keeps it off every building's trains, and its variants with it: a garrison or Starting Kit unit. Defaults to true.
+   */
+  trainable?: boolean;
   /**
    * Hints for the Battle AI: which roles it picks this unit for first. A scout roams to look and falls back from the enemy; a skirmisher patrols between points and hunts what it's good against.
    */

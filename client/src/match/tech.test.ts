@@ -57,7 +57,10 @@ const content = {
     ["lab", { name: "Research Lab", techSlots: 2 }],
     ["shrine", { name: "Relic Shrine" }],
   ]),
-  units: new Map([["warthog", { name: "Warthog" }]]),
+  units: new Map([
+    ["warthog", { name: "Warthog" }],
+    ["flame", { name: "Flame Hog", variantOf: "warthog" }],
+  ]),
   unitClasses: new Map([["infantry", { name: "Infantry" }]]),
   resources: new Map(),
   rules: {
@@ -195,6 +198,15 @@ describe("Techs", () => {
       needsTech(content, new Set(["hangars"]), "buildings", "depot"),
     ).toEqual([]);
     expect(needsTech(content, new Set(), "buildings", "lab")).toEqual([]);
+  });
+
+  it("locks a Unit Variant while its parent is locked", () => {
+    expect(needsTech(content, new Set(), "units", "flame")).toEqual([
+      "Motor Pool",
+    ]);
+    expect(
+      needsTech(content, new Set(["motor-pool"]), "units", "flame"),
+    ).toEqual([]);
   });
 
   it("costs 10% more for each Tech held, rounded like the server", () => {

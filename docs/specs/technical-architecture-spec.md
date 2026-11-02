@@ -58,6 +58,14 @@ Format choice: [ADR 0001](../../docs/adr/0001-content-format.md).
   - writes a **Patch**, an RFC 7396 JSON Merge Patch (`{"patch": "base:marine", "combat": {"hp": 60}}`), where `null` deletes a field and arrays are replaced whole.
 - Defining an existing id without marking it as a replacement is a load error.
 
+### Unit Variants
+
+- A unit file with `"variantOf": "<unit id>"` is a [Unit Variant](../../GLOSSARY.md): it lists only what differs from its parent. Its own schema, `unit-variant.schema.json`, requires just `id`, `name` and `variantOf`.
+- After every Mod's definitions and Patches are applied, the loader merges each variant over its parent, the same way a Patch merges (`null` drops an inherited key, objects merge key by key, arrays replace). It inherits everything but `id`, and keeps `variantOf`. Variants of variants resolve parent first, to any depth. A Patch to a parent so reaches its variants.
+- The merged unit must pass `unit.schema.json`. A missing parent or a cycle is a load error.
+- **Training:** the loader adds each variant to every building's `trains` that holds its parent, right after the parent. A building may also list a variant itself. `"trainable": false` (on any unit) keeps it off every `trains` list: it isn't added for its parent, and a building listing it is a load error. Like everything else, a variant inherits it.
+- Past the loader, a variant is a unit like any other; only locking and the client's build picker read `variantOf` ([tech spec](tech-spec.md#locked-content)).
+
 ### Files
 
 ```
