@@ -234,6 +234,14 @@ func TestLobbyMakesTheLoserOfARaceForTheLastSeatASpectator(t *testing.T) {
 	}
 }
 
+func TestAHiddenFactionIsntOfferedInTheLobby(t *testing.T) {
+	hidden := true
+	got := lobbyFactions(map[string]contentschema.Faction{"base:unsc": {}, "base:forerunner": {Hidden: &hidden}})
+	if len(got) != 1 || got[0] != "base:unsc" {
+		t.Errorf("lobby Factions %v; want only base:unsc", got)
+	}
+}
+
 func TestNewMatchWaitsForItsCreator(t *testing.T) {
 	ctx, log, nk := context.Background(), nopLogger{}, fakeNK{}
 	m := &match{content: testContent()}

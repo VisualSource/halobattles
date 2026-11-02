@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/faction.schema.json",
   "id": "forerunner",
   "name": "Forerunner",
+  "hidden": true, // only supplies neutral garrisons' units
   "startingKit": {
     "buildings": [],
     "stacks": []

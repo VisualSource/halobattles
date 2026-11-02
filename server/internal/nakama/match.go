@@ -11,6 +11,7 @@ import (
 	"github.com/VisualSource/halobattles/server/internal/battle"
 	"github.com/VisualSource/halobattles/server/internal/content"
 	"github.com/VisualSource/halobattles/server/internal/game"
+	"github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -52,11 +53,22 @@ type matchState struct {
 	battles   map[uint32]*game.Battle // running Battles, for the log's replays
 }
 
+// lobbyFactions are the Factions players and Bots can pick: every one not hidden.
+func lobbyFactions(fs map[string]contentschema.Faction) []string {
+	var ids []string
+	for id, f := range fs {
+		if f.Hidden == nil || !*f.Hidden {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
 func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, params map[string]interface{}) (interface{}, int, string) {
 	doc := m.content.Doc
 	lc := game.LobbyContent{
 		Maps:              map[string]game.LobbyMap{},
-		Factions:          slices.Collect(maps.Keys(doc.Factions)),
+		Factions:          lobbyFactions(doc.Factions),
 		Resources:         slices.Collect(maps.Keys(doc.Resources)),
 		StartingResources: doc.Rulesets[game.RulesetID].StartingResources,
 		Caps:              doc.Rulesets[game.RulesetID].StockpileCaps,

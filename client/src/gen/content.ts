@@ -482,6 +482,10 @@ export interface Faction {
    * An asset in a Mod's assets/ folder, written `__mod__/path`.
    */
   icon?: string;
+  /**
+   * Not offered in the lobby, to players or Bots: a Faction that only supplies content, such as neutral garrisons' units.
+   */
+  hidden?: boolean;
   ai?: AIWeights;
   startingKit: StartingKit;
 }

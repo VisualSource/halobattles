@@ -486,6 +486,10 @@ type Faction struct {
 	// neutral.
 	Ai *AIWeights `json:"ai,omitempty,omitzero"`
 
+	// Not offered in the lobby, to players or Bots: a Faction that only supplies
+	// content, such as neutral garrisons' units.
+	Hidden *bool `json:"hidden,omitempty,omitzero"`
+
 	// Icon corresponds to the JSON schema field "icon".
 	Icon *Asset `json:"icon,omitempty,omitzero"`
 

@@ -11,6 +11,7 @@
     "id": { "$ref": "defs.schema.json#/definitions/id" },
     "name": { "$ref": "defs.schema.json#/definitions/name" },
     "icon": { "$ref": "defs.schema.json#/definitions/asset" },
+    "hidden": { "description": "Not offered in the lobby, to players or Bots: a Faction that only supplies content, such as neutral garrisons' units.", "type": "boolean" },
     "ai": {
       "title": "AI Weights",
       "description": "How the Faction's Battle AI plays: each weight scales one kind of choice; 1 is neutral.",

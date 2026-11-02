@@ -17,6 +17,10 @@ import type { Lobby } from "./store";
 const byId = <T,>(m: Map<string, T>) =>
   [...m.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
 
+/** The Factions on offer to players and Bots: a hidden one only supplies content. */
+const pickable = (content: ContentLookups) =>
+  byId(content.factions).filter(([, f]) => !f.hidden);
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 const sectionTitle =
@@ -445,7 +449,7 @@ function AddBot(props: {
   pending: boolean;
   onAdd: (faction: string, difficulty: string) => void;
 }) {
-  const factions = byId(props.content.factions);
+  const factions = pickable(props.content);
   const difficulties = props.content.rules.botDifficulties;
   const [faction, setFaction] = useState(factions[0]?.[0] ?? "");
   const [difficulty, setDifficulty] = useState(difficulties[0].id);
@@ -747,7 +751,7 @@ function FactionPicker(props: {
 
       <div className="border-line bg-ground flex flex-wrap items-center justify-between gap-5 border-t px-8 py-5">
         <div className="flex flex-wrap gap-3">
-          {byId(content.factions).map(([id, f]) => (
+          {pickable(content).map(([id, f]) => (
             <button
               key={id}
               type="button"

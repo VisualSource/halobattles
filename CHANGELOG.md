@@ -8,6 +8,10 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 - Join a full lobby to watch the Match, or switch between a Seat and watching. Beaten players can stay and watch the rest, and Bots play on while someone watches.
 
+### Fixed
+
+- The Forerunner no longer show up as a Faction to play or give a Bot: they only guard neutral Planets.
+
 ## 0.4.0 - 2026-11-02
 
 ### Added
