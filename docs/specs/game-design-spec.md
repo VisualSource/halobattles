@@ -278,7 +278,7 @@ A Match moves through the phases `lobby` → `play` → `results`.
 - The Host can Start only when every other Seat is ready and the Seat count is at least the map's `minPlayers`.
 - The phase goes straight to `play` at Match Time 0, with no countdown.
 - The map's starts are shuffled and assigned to Seats at random. Unused starts become garrisoned neutrals.
-- After Start, only returning Seats can join. There are no new players and no spectators.
+- After Start, only returning Seats and Spectators can join: no new players, and no new Spectators (see [Spectators](#spectators)).
 
 ### Disconnects and Forfeits
 
@@ -291,6 +291,20 @@ A Match moves through the phases `lobby` → `play` → `results`.
   - leaving a `play` Match explicitly, which is final.
 - Every player sees which players are disconnected, with a forfeit countdown.
 - If every remaining player is disconnected, the Match runs on until the Grace Periods expire, then ends with no winner (reason: abandoned).
+
+### Spectators
+
+A **Spectator** watches a Match without a Seat (#48).
+
+- **Becoming one:** in the lobby, anyone can switch between their Seat and spectating, the Host included, who stays Host. Joining a lobby whose Seats are full makes you a Spectator rather than turning you away. A player who's eliminated becomes one at once, with a notice ("You were eliminated. You're watching the rest of the Match.") and a Leave button.
+- **How many:** at most **6** Spectators a Match. Eliminated players don't count against it.
+- **In the lobby:** a Spectators list under the Seats, with a Spectate or Take a Seat button for yourself. Spectators don't ready up, and Start doesn't wait for them. The open list's Seat count counts Seats only.
+- **What they see:** the whole map without fog, every Planet, Army and Stack, and where every Army is going. In place of the Resource bar, a player list: each player's Faction colour, Planets, Resources, income and Command Points. Not shown: construction and unit queues (not even that one is running) and Projects; a Lab's Techs show as they do to anyone in Vision. Planet and Army windows show the rest, with every action control disabled.
+- **Battles:** a Spectator can open any Battle and watch it live, both sides without fog, giving no orders.
+- **Keeping a Match going:** with players still in, Spectators change nothing. With no player left in it, a Match with a Spectator connected goes on until a Bot wins, by the hold or as last standing, and ends as abandoned when the last Spectator leaves.
+- **Leaving:** a Spectator who drops keeps their place for the Grace Period, so a reload doesn't end a Bot-only Match; an explicit leave counts at once.
+- **Results:** Spectators see the results screen, as players do.
+- **Later:** watching as one player, with their fog; joining a Match that's already running to watch it.
 
 ### Results
 

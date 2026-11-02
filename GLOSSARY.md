@@ -12,6 +12,10 @@ _Avoid_: Game, lobby (a lobby is the pre-start phase of a Match)
 A player's place in a Match, held from joining the lobby until they leave it or Forfeit; a Match has at most as many Seats as its map has starts.
 _Avoid_: Slot (a Slot belongs to a Planet or Stack), player position
 
+**Spectator**:
+Someone watching a Match without a Seat: a lobby member who chose to watch, or a player who was eliminated. A Spectator sees the whole map and gives no orders.
+_Avoid_: Observer, viewer, ghost
+
 **Host**:
 The Seat that controls a Match's lobby settings and starts it; the creator, passing to the longest-held Seat if they leave the lobby.
 _Avoid_: Owner, admin

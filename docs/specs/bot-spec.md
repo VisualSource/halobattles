@@ -16,6 +16,7 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 - A Bot is always Ready, and counts toward the map's `minPlayers`. A joining player can't take its Seat.
 - Its name comes from a list per Faction (UNSC: "Cmdr. Keyes", "Lord Hood", …; Covenant: "Thel 'Vadam", "Rtas 'Vadum", …), shown with a tag, "Bot · Hard".
 - A Match whose players have all left (a Forfeit, or a Grace Period run out) ends as abandoned, Bots still in or not: a Bot doesn't win a Match its players walked out of. A Bot that beats the last player wins as last standing; with more than one Bot left then, it's abandoned all the same, since Bots don't play on alone.
+- A connected Spectator keeps a Match with no player in it going: until a Bot wins, by the hold or as last standing, or the last Spectator leaves, when it's abandoned. That's how to watch Bots play each other (see the game-design spec's [Spectators](game-design-spec.md#spectators)).
 
 ## Running
 
@@ -120,5 +121,4 @@ A Faction's `ai` block gains a `bot` sub-block of goal weights (`expand`, `attac
 
 ## Later
 
-- A **spectator view** for eliminated players, and watching Bots play each other in a Match with no human Seat; a Match still ends when no human is left in it.
 - A cheating "Brutal" difficulty.
