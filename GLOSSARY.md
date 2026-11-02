@@ -16,6 +16,14 @@ _Avoid_: Slot (a Slot belongs to a Planet or Stack), player position
 Someone watching a Match without a Seat: a lobby member who chose to watch, or a player who was eliminated. A Spectator sees the whole map and gives no orders.
 _Avoid_: Observer, viewer, ghost
 
+**Team**:
+Seats that play on the same side and win together, set in the lobby when the Host turns Teams on; with Teams off, each Seat is its own Team.
+_Avoid_: Alliance, side (a side is a Battle's attacker or defender), faction
+
+**Hostile**:
+Two players not on the same Team: the only players whose Planets you attack and whose Armies stop yours.
+_Avoid_: Enemy (fine in prose, but the rule is Hostile), opponent
+
 **Host**:
 The Seat that controls a Match's lobby settings and starts it; the creator, passing to the longest-held Seat if they leave the lobby.
 _Avoid_: Owner, admin
