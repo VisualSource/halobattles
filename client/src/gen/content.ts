@@ -914,9 +914,9 @@ export interface MapPlanet {
   type: string;
   position: Position;
   /**
-   * How the client draws it: a planet (the default), or a Halo ring.
+   * How the client draws it: planet (the default) picks a style by the Planet's id; ring is a Halo ring; the rest name a style.
    */
-  model?: "planet" | "ring";
+  model?: "planet" | "ring" | "gasGiant" | "ringedGiant" | "terrestrial" | "barren" | "ice" | "lava" | "desert";
   battlefield?: PlanetBattlefield;
   overrides?: PlanetOverrides;
 }

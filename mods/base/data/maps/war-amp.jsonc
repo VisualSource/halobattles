@@ -3,7 +3,7 @@
   "id": "war-amp",
   "name": "War Amp",
   "planets": [
-    { "id": "earth", "name": "Earth", "type": "capital", "position": { "x": 187, "y": 7 } },
+    { "id": "earth", "name": "Earth", "type": "capital", "position": { "x": 187, "y": 7 }, "model": "terrestrial" },
     { "id": "sanghelios", "name": "Sanghelios", "type": "capital", "position": { "x": 571, "y": -78 } },
     { "id": "doisac", "name": "Doisac", "type": "capital", "position": { "x": 188, "y": 312 } },
     { "id": "mars", "name": "Mars", "type": "standard", "position": { "x": 150, "y": 50 } },

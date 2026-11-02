@@ -540,8 +540,15 @@ type GalaxyMap struct {
 
 type GalaxyMapPlanetsElemModel string
 
+const GalaxyMapPlanetsElemModelBarren GalaxyMapPlanetsElemModel = "barren"
+const GalaxyMapPlanetsElemModelDesert GalaxyMapPlanetsElemModel = "desert"
+const GalaxyMapPlanetsElemModelGasGiant GalaxyMapPlanetsElemModel = "gasGiant"
+const GalaxyMapPlanetsElemModelIce GalaxyMapPlanetsElemModel = "ice"
+const GalaxyMapPlanetsElemModelLava GalaxyMapPlanetsElemModel = "lava"
 const GalaxyMapPlanetsElemModelPlanet GalaxyMapPlanetsElemModel = "planet"
 const GalaxyMapPlanetsElemModelRing GalaxyMapPlanetsElemModel = "ring"
+const GalaxyMapPlanetsElemModelRingedGiant GalaxyMapPlanetsElemModel = "ringedGiant"
+const GalaxyMapPlanetsElemModelTerrestrial GalaxyMapPlanetsElemModel = "terrestrial"
 
 // A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it.
 // ASCII only, so Go and JS sort ids the same way.
@@ -574,7 +581,8 @@ type MapPlanet struct {
 	// ID corresponds to the JSON schema field "id".
 	ID LocalID `json:"id"`
 
-	// How the client draws it: a planet (the default), or a Halo ring.
+	// How the client draws it: planet (the default) picks a style by the Planet's id;
+	// ring is a Halo ring; the rest name a style.
 	Model *GalaxyMapPlanetsElemModel `json:"model,omitempty,omitzero"`
 
 	// Name corresponds to the JSON schema field "name".

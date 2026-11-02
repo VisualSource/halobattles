@@ -55,6 +55,19 @@ const TAGS: [string, string, string][] = [
   ["sol", "Sol", "#7fdca0"],
 ];
 const UNTAGGED = "#7d8a95";
+
+/** A Planet's looks: picked by its id, or one the map names. */
+const LOOKS: [NonNullable<MapPlanet["model"]>, string][] = [
+  ["planet", "Random"],
+  ["ring", "Halo ring"],
+  ["gasGiant", "Gas giant"],
+  ["ringedGiant", "Ringed gas giant"],
+  ["terrestrial", "Terrestrial"],
+  ["barren", "Barren"],
+  ["ice", "Ice"],
+  ["lava", "Lava"],
+  ["desert", "Desert"],
+];
 const colourOf = (tags: string[] = []) =>
   TAGS.find(([t]) => tags.includes(t))?.[2] ?? UNTAGGED;
 
@@ -813,19 +826,24 @@ function Side(props: {
             />
           </label>
           <label className={row}>
-            Halo ring
-            <input
-              type="checkbox"
-              className="accent-accent"
-              checked={planet.model === "ring"}
-              onChange={(e) =>
+            Look
+            <select
+              value={planet.model ?? "planet"}
+              onChange={(e) => {
+                const model = e.target.value as MapPlanet["model"];
                 edit((m) =>
                   updatePlanet(m, planet.id, {
-                    model: e.target.checked ? "ring" : undefined,
+                    model: model === "planet" ? undefined : model,
                   }),
-                )
-              }
-            />
+                );
+              }}
+            >
+              {LOOKS.map(([value, name]) => (
+                <option key={value} value={value}>
+                  {name}
+                </option>
+              ))}
+            </select>
           </label>
           <div className={row}>
             Lanes{" "}

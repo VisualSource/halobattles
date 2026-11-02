@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { MapPlanet } from "../gen/content";
 import { PLANET_RADIUS, planetModel } from "./planet-model";
 
 // Renders map Planets to PNG icons off the main thread: the galaxy map's own
@@ -6,7 +7,7 @@ import { PLANET_RADIUS, planetModel } from "./planet-model";
 
 export type IconRequest = {
   size: number;
-  planets: { id: string; type: string; model?: "planet" | "ring" }[];
+  planets: Pick<MapPlanet, "id" | "type" | "model">[];
 };
 export type IconResult = { id: string; blob: Blob } | { error: string };
 

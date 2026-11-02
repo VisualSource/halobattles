@@ -30,8 +30,8 @@
             "properties": { "x": { "type": "number" }, "y": { "type": "number" } }
           },
           "model": {
-            "description": "How the client draws it: a planet (the default), or a Halo ring.",
-            "enum": ["planet", "ring"]
+            "description": "How the client draws it: planet (the default) picks a style by the Planet's id; ring is a Halo ring; the rest name a style.",
+            "enum": ["planet", "ring", "gasGiant", "ringedGiant", "terrestrial", "barren", "ice", "lava", "desert"]
           },
           "battlefield": {
             "title": "Planet Battlefield",
