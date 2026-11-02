@@ -7,6 +7,8 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 ### Added
 
 - Join a full lobby to watch the Match, or switch between a Seat and watching. Beaten players can stay and watch the rest, and Bots play on while someone watches.
+- Teams: the Host can turn them on in the lobby, and each player picks a Team. Teammates share vision, pass through each other's Planets, and win together.
+- 8 player colours, so no two players on a big map share one.
 
 ### Fixed
 

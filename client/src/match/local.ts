@@ -12,6 +12,8 @@ export type CommandKind =
   | "start"
   | "bot"
   | "seat"
+  | "teams"
+  | "team"
   | "build"
   | "cancel"
   | "sell"

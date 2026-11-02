@@ -125,6 +125,7 @@ describe("MatchConnection", () => {
           faction: "base:unsc",
           ready: true,
           bot: "",
+          team: 0,
         },
         {
           user: "u2",
@@ -132,9 +133,11 @@ describe("MatchConnection", () => {
           faction: "base:covenant",
           ready: false,
           bot: "",
+          team: 0,
         },
       ],
       spectators: [],
+      teams: false,
       winner: null,
       endReason: "",
     });
@@ -265,6 +268,7 @@ describe("MatchConnection", () => {
           graceEnds: 0,
           bot: "",
           stats: null,
+          team: 0,
         },
         {
           seat: 1,
@@ -277,6 +281,7 @@ describe("MatchConnection", () => {
           graceEnds: 0,
           bot: "",
           stats: null,
+          team: 0,
         },
       ],
       planets: new Map([

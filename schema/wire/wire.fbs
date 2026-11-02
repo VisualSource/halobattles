@@ -31,6 +31,8 @@ enum Op : int {
   RemoveBot = 22,
   Spectate = 23,
   TakeSeat = 24,
+  SetTeams = 25,
+  SetTeam = 26,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -81,6 +83,17 @@ table Spectate {         // lobby only: give up your Seat to watch; a Host stays
 
 table TakeSeat {         // lobby only: a Spectator takes a free Seat
   seq: uint32;
+}
+
+table SetTeams {         // Host only: turn Teams on (Seats split between Teams 1 and 2) or off
+  seq: uint32;
+  on: bool;
+}
+
+table SetTeam {          // with Teams on: your own Team, or (Host only) a Bot's
+  seq: uint32;
+  user: string;            // the Seat's user
+  team: ubyte;             // 1 to 4
 }
 
 table SetMap {           // Host only
@@ -214,6 +227,7 @@ table Seat {
   ready: bool;
   last_seq: uint32;      // the last command seq processed from this Seat
   bot: string;           // a Bot's difficulty id; "" for a player
+  team: ubyte;           // 1 to 4 with Teams on; 0 with them off
 }
 
 // Someone in the lobby who'll watch rather than play.
@@ -230,9 +244,10 @@ table LobbyState {
   map: string;
   starting_resources: [Amount];
   seats: [Seat];           // in Seat order: longest held first
-  winner: byte = -1;       // in results: a Seat index; -1 is none
+  winner: byte = -1;       // in results: a Team (Team 1 is 0; with Teams off, a Seat index); -1 is none
   end_reason: string;      // in results: "hold", "last-standing", ...
   spectators: [Spectator]; // longest here first
+  teams: bool;             // each Seat picks a Team; off is a free-for-all
 }
 
 // Sent to the sender of a command the server refused.
@@ -403,6 +418,7 @@ table PlayerView {
   grace_ends: long;        // Match Time a disconnected player forfeits at
   bot: string;             // a Bot's difficulty id; "" for a player
   stats: PlayerStats;      // only in a Spectator's View
+  team: ubyte;             // Team 1 is 0; with Teams off, the Seat index
 }
 
 // What a Spectator sees of a player's economy.
@@ -415,7 +431,7 @@ table PlayerStats {
 
 // The running win-hold countdown, public to everyone.
 table WinHold {
-  seat: byte = -1;         // -1 is none
+  seat: byte = -1;         // the Team holding (Team 1 is 0; with Teams off, a Seat); -1 is none
   ends: long;              // Match Time
 }
 
@@ -543,7 +559,7 @@ table PlayerEliminated {
 // Sent to everyone; the Match moves to results.
 table MatchEnded {
   match_time: long;
-  winner: byte = -1;       // a Seat index; -1 is none
+  winner: byte = -1;       // a Team (Team 1 is 0; with Teams off, a Seat index); -1 is none
   reason: string;
 }
 

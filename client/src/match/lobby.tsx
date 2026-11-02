@@ -84,6 +84,11 @@ export function LobbyScreen(props: {
               userId={userId}
               conn={isHost ? conn : undefined}
               pending={isPending(local, "bot")}
+              onTeam={
+                isPending(local, "team")
+                  ? undefined
+                  : (user, team) => conn.setTeam(user, team)
+              }
             />
             <Spectators
               lobby={lobby}
@@ -129,6 +134,22 @@ export function LobbyScreen(props: {
                 />
               )}
             </div>
+            <label className="flex items-center justify-between gap-3">
+              <span className="flex flex-col gap-0.5">
+                <span className="text-ink-2 text-sm font-semibold">Teams</span>
+                <span className="text-ink-3 text-sm">
+                  Teammates share vision, pass through each other's Planets and
+                  win together.
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={lobby.teams}
+                disabled={!isHost || isPending(local, "teams")}
+                onChange={(e) => conn.setTeams(e.target.checked)}
+                className="accent-accent size-5.5 flex-none"
+              />
+            </label>
             <StartingResources
               conn={conn}
               content={content}
@@ -266,6 +287,7 @@ function Seats(props: {
   userId: string;
   conn?: MatchConnection; // the Host's: adds and removes Bots
   pending: boolean;
+  onTeam?: (user: string, team: number) => void; // undefined while one is pending
 }) {
   const { lobby, content, conn } = props;
   const open = Math.max(
@@ -311,6 +333,24 @@ function Seats(props: {
                   {content.factions.get(s.faction)?.name ?? s.faction}
                 </span>
               </div>
+              {lobby.teams && (
+                // Yours to change, and the Host's for Bots; everyone else's only shows.
+                <select
+                  aria-label={`${s.displayName}'s Team`}
+                  value={s.team}
+                  disabled={!props.onTeam || !(me || (s.bot && conn))}
+                  onChange={(e) =>
+                    props.onTeam?.(s.user, Number(e.target.value))
+                  }
+                  className="min-h-11 w-28 disabled:opacity-100"
+                >
+                  {[1, 2, 3, 4].map((t) => (
+                    <option key={t} value={t}>
+                      Team {t}
+                    </option>
+                  ))}
+                </select>
+              )}
               {!host && (
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${s.ready ? "bg-ok-wash text-ok" : "bg-idle-wash text-idle"}`}

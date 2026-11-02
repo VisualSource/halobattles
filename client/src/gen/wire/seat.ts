@@ -62,8 +62,13 @@ bot(optionalEncoding?:any):string|Uint8Array|null {
   return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
 }
 
+team():number {
+  const offset = this.bb!.__offset(this.bb_pos, 16);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+}
+
 static startSeat(builder:flatbuffers.Builder) {
-  builder.startObject(6);
+  builder.startObject(7);
 }
 
 static addUser(builder:flatbuffers.Builder, userOffset:flatbuffers.Offset) {
@@ -90,12 +95,16 @@ static addBot(builder:flatbuffers.Builder, botOffset:flatbuffers.Offset) {
   builder.addFieldOffset(5, botOffset, 0);
 }
 
+static addTeam(builder:flatbuffers.Builder, team:number) {
+  builder.addFieldInt8(6, team, 0);
+}
+
 static endSeat(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createSeat(builder:flatbuffers.Builder, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, ready:boolean, lastSeq:number, botOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createSeat(builder:flatbuffers.Builder, userOffset:flatbuffers.Offset, displayNameOffset:flatbuffers.Offset, factionOffset:flatbuffers.Offset, ready:boolean, lastSeq:number, botOffset:flatbuffers.Offset, team:number):flatbuffers.Offset {
   Seat.startSeat(builder);
   Seat.addUser(builder, userOffset);
   Seat.addDisplayName(builder, displayNameOffset);
@@ -103,6 +112,7 @@ static createSeat(builder:flatbuffers.Builder, userOffset:flatbuffers.Offset, di
   Seat.addReady(builder, ready);
   Seat.addLastSeq(builder, lastSeq);
   Seat.addBot(builder, botOffset);
+  Seat.addTeam(builder, team);
   return Seat.endSeat(builder);
 }
 
@@ -113,7 +123,8 @@ unpack(): SeatT {
     this.faction(),
     this.ready(),
     this.lastSeq(),
-    this.bot()
+    this.bot(),
+    this.team()
   );
 }
 
@@ -125,6 +136,7 @@ unpackTo(_o: SeatT): void {
   _o.ready = this.ready();
   _o.lastSeq = this.lastSeq();
   _o.bot = this.bot();
+  _o.team = this.team();
 }
 }
 
@@ -135,7 +147,8 @@ constructor(
   public faction: string|Uint8Array|null = null,
   public ready: boolean = false,
   public lastSeq: number = 0,
-  public bot: string|Uint8Array|null = null
+  public bot: string|Uint8Array|null = null,
+  public team: number = 0
 ){}
 
 
@@ -151,7 +164,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     faction,
     this.ready,
     this.lastSeq,
-    bot
+    bot,
+    this.team
   );
 }
 }

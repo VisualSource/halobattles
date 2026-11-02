@@ -77,6 +77,12 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 	case wire.OpTakeSeat:
 		c := wire.GetRootAsTakeSeat(data, 0)
 		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.TakeSeat(user) }
+	case wire.OpSetTeams:
+		c := wire.GetRootAsSetTeams(data, 0)
+		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.SetTeams(user, c.On()) }
+	case wire.OpSetTeam:
+		c := wire.GetRootAsSetTeam(data, 0)
+		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.SetTeam(user, string(c.User()), int(c.Team())) }
 	case wire.OpSetFaction:
 		c := wire.GetRootAsSetFaction(data, 0)
 		seq, apply = c.Seq(), func(l *game.Lobby) error { return l.SetFaction(user, string(c.Faction())) }

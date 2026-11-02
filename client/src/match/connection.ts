@@ -42,6 +42,8 @@ import {
   SetRallyStackT,
   SetReadyT,
   SetStartingResourcesT,
+  SetTeamsT,
+  SetTeamT,
   SpectateT,
   StartMatchT,
   StartProjectT,
@@ -107,11 +109,13 @@ function toLobby(t: LobbyStateT): Lobby {
       faction: str(s.faction),
       ready: s.ready,
       bot: str(s.bot),
+      team: s.team,
     })),
     spectators: t.spectators.map((s) => ({
       user: str(s.user),
       displayName: str(s.displayName),
     })),
+    teams: t.teams,
     winner: t.winner < 0 ? null : t.winner,
     endReason: str(t.endReason),
   };
@@ -140,6 +144,7 @@ const toPlayer = (p: PlayerViewT): PlayerView => ({
     commandPointsUsed: p.stats.commandPointsUsed,
     commandPointsCap: p.stats.commandPointsCap,
   },
+  team: p.team,
 });
 
 const toPlanet = (p: PlanetViewT): PlanetView => ({
@@ -432,6 +437,16 @@ export class MatchConnection {
   /** A Spectator takes a free Seat. */
   takeSeat() {
     this.send(Op.TakeSeat, "seat", (seq) => new TakeSeatT(seq));
+  }
+
+  /** Host only: Teams on (Seats split between Teams 1 and 2) or off. */
+  setTeams(on: boolean) {
+    this.send(Op.SetTeams, "teams", (seq) => new SetTeamsT(seq, on));
+  }
+
+  /** Moves a Seat (user's) to team, 1–4: your own, or for the Host a Bot's. */
+  setTeam(user: string, team: number) {
+    this.send(Op.SetTeam, "team", (seq) => new SetTeamT(seq, user, team));
   }
 
   startMatch() {

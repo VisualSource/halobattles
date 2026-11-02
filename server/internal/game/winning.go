@@ -4,7 +4,7 @@ import cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema
 
 // Result is how a Match ended.
 type Result struct {
-	Winner int // a Seat, or Neutral for none
+	Winner int // a Team (in a free-for-all, a Seat), or Neutral for none
 	Reason string
 }
 
@@ -112,9 +112,9 @@ func (s *State) eliminate(seat int, ev *Events) {
 	ev.Eliminated = append(ev.Eliminated, seat)
 }
 
-// checkWin ends the Match when one player is left, or when one has held more
-// than the map's share of Planets for its hold time. Dropping below the
-// share cancels the hold.
+// checkWin ends the Match when one Team is left, or when one Team's Planets
+// together have held more than the map's share for its hold time. Dropping
+// below the share cancels the hold. In a free-for-all each player is a Team.
 //
 // A Forfeit (surrendering, leaving, or running out the Grace Period)
 // eliminates the player first. The last player standing must be connected
@@ -131,18 +131,26 @@ func (s *State) checkWin(c *cs.Content, now int64, ev *Events) {
 			s.eliminate(i, ev)
 		}
 	}
-	var alive []int
+	// Teams win together: alive maps each Team still in to whether any of
+	// its members still in is connected (a Bot always is).
+	alive := map[int]bool{}
 	players := 0 // still in, not Bots
 	gone := true // every player, not a Bot, left rather than was beaten
 	for _, p := range s.Players {
 		if !p.Eliminated {
-			alive = append(alive, p.Seat)
+			alive[p.Team] = alive[p.Team] || !p.Disconnected
 			if p.Bot == "" {
 				players++
 			}
 		}
 		if p.Bot == "" && !left(p) {
 			gone = false
+		}
+	}
+	last := Neutral // the last Team standing, if one is
+	for team := range alive {
+		if len(alive) == 1 {
+			last = team
 		}
 	}
 	switch {
@@ -153,26 +161,28 @@ func (s *State) checkWin(c *cs.Content, now int64, ev *Events) {
 		return
 	case len(s.Players) == 1:
 		// A Match started alone has no one to outlast: only the hold, or a Forfeit, ends it.
-	case len(alive) == 1 && !s.Players[alive[0]].Disconnected:
-		s.end(Result{Winner: alive[0], Reason: ReasonLastStanding}, ev)
+	case last != Neutral && alive[last]:
+		s.end(Result{Winner: last, Reason: ReasonLastStanding}, ev)
 		return
-	case len(alive) == 1:
-		return // waiting for the last player to return, or run out their grace
+	case last != Neutral:
+		return // waiting for the last Team's players to return, or run out their grace
 	}
 
 	win := c.Maps[s.Map].Win
-	counts := map[int]int{}
+	counts := map[int]int{} // by Team
 	for _, p := range s.Planets {
-		counts[p.Owner]++
-	}
-	holder := Neutral
-	for _, seat := range alive {
-		if float64(counts[seat]) > win.PlanetShare*float64(len(s.Planets)) {
-			holder = seat // the share is over 0.5, so there's at most one
+		if p.Owner != Neutral {
+			counts[s.Players[p.Owner].Team]++
 		}
 	}
-	if holder != s.HoldSeat {
-		s.HoldSeat, s.HoldEnds = holder, 0
+	holder := Neutral
+	for team := range alive {
+		if float64(counts[team]) > win.PlanetShare*float64(len(s.Planets)) {
+			holder = team // the share is over 0.5, so there's at most one
+		}
+	}
+	if holder != s.HoldTeam {
+		s.HoldTeam, s.HoldEnds = holder, 0
 		if holder != Neutral {
 			s.HoldEnds = now + int64(win.HoldSeconds)*1000
 		}

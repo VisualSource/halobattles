@@ -31,7 +31,13 @@ import { CommandPoints, CostIcons } from "./resources";
 import { laneTimes } from "./route";
 import { freeCell, moveSlot } from "./stacks";
 import { ConfirmDialog } from "./status";
-import type { PlanetView, QueueItem, UnitSlot, View } from "./store";
+import {
+  allied,
+  type PlanetView,
+  type QueueItem,
+  type UnitSlot,
+  type View,
+} from "./store";
 import { heldTechs, listed, needsTech } from "./tech";
 import { THREAT_LEVELS, threat } from "./threat";
 import { formatAge, useMatchNow } from "./time";
@@ -256,6 +262,10 @@ function useSelectedPlanet(conn: MatchConnection, content: ContentLookups) {
     last,
     planet: live ?? last?.planet,
     mine: live?.owner === view.you,
+    // A Teammate's: shown like another player's, tagged, with no Threat.
+    ally:
+      (live ?? last?.planet)?.owner !== view.you &&
+      allied(view, (live ?? last?.planet)?.owner ?? null, view.you),
     // Orders need your own Planet, and none run while it's Locked.
     editable: live?.owner === view.you && !live.locked,
   };
@@ -290,6 +300,7 @@ export function PlanetWindow(props: {
               {mine ? "Your Capital" : "Capital"}
             </Tag>
           )}
+          {sel.ally && <Tag className="bg-ok-wash text-ok">Ally</Tag>}
           {sel.last && (
             <Tag className="bg-idle-wash text-idle">
               Last seen <LastSeenAge conn={conn} seenAt={sel.last.seenAt} /> ago
@@ -545,7 +556,7 @@ function Banner(props: { sel: Selected; content: ContentLookups }) {
           )}
         </div>
       )}
-      {!sel.mine && planet && (
+      {!sel.mine && !sel.ally && planet && (
         <Threat content={content} planet={planet} last={!!sel.last} />
       )}
     </div>
@@ -1837,7 +1848,7 @@ export function ArmyWindow(props: {
     if (i > 0) at += lanes.get(route[i - 1] ?? "")?.get(p) ?? 0;
     const owner = ownerOf(p);
     const last = i === route.length - 1;
-    const enemy = owner !== null && owner !== army.owner;
+    const enemy = owner !== null && !allied(view, owner, army.owner);
     const does = !mine
       ? ""
       : enemy

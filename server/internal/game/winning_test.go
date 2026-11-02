@@ -88,10 +88,10 @@ func TestHoldingTheShareForTheHoldTimeWins(t *testing.T) {
 	}
 
 	s.Advance(c, 1_000)
-	if s.HoldSeat != 0 || s.HoldEnds != 91_000 {
-		t.Fatalf("hold = Seat %d until %d, want Seat 0 until 91 s", s.HoldSeat, s.HoldEnds)
+	if s.HoldTeam != 0 || s.HoldEnds != 91_000 {
+		t.Fatalf("hold = Seat %d until %d, want Seat 0 until 91 s", s.HoldTeam, s.HoldEnds)
 	}
-	if h := s.View(c, 1).Hold; h != (Hold{Seat: 0, Ends: 91_000}) {
+	if h := s.View(c, 1).Hold; h != (Hold{Team: 0, Ends: 91_000}) {
 		t.Errorf("Seat 1 sees the hold as %+v; it's public", h)
 	}
 	if ev := s.Advance(c, 90_800); ev.MatchEnded != nil {
@@ -112,8 +112,8 @@ func TestDroppingBelowTheShareCancelsTheHold(t *testing.T) {
 
 	s.Planets["d"].Owner = 1 // back to 3 of 5: exactly 0.6 isn't over it
 	s.Advance(c, 2_000)
-	if s.HoldSeat != Neutral {
-		t.Fatalf("hold = Seat %d, want it cancelled", s.HoldSeat)
+	if s.HoldTeam != Neutral {
+		t.Fatalf("hold = Seat %d, want it cancelled", s.HoldTeam)
 	}
 
 	s.Planets["d"].Owner = 0

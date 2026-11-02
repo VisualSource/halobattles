@@ -83,8 +83,13 @@ stats(obj?:PlayerStats):PlayerStats|null {
   return offset ? (obj || new PlayerStats()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
 }
 
+team():number {
+  const offset = this.bb!.__offset(this.bb_pos, 24);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+}
+
 static startPlayerView(builder:flatbuffers.Builder) {
-  builder.startObject(10);
+  builder.startObject(11);
 }
 
 static addSeat(builder:flatbuffers.Builder, seat:number) {
@@ -127,6 +132,10 @@ static addStats(builder:flatbuffers.Builder, statsOffset:flatbuffers.Offset) {
   builder.addFieldOffset(9, statsOffset, 0);
 }
 
+static addTeam(builder:flatbuffers.Builder, team:number) {
+  builder.addFieldInt8(10, team, 0);
+}
+
 static endPlayerView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -144,7 +153,8 @@ unpack(): PlayerViewT {
     this.connected(),
     this.graceEnds(),
     this.bot(),
-    (this.stats() !== null ? this.stats()!.unpack() : null)
+    (this.stats() !== null ? this.stats()!.unpack() : null),
+    this.team()
   );
 }
 
@@ -160,6 +170,7 @@ unpackTo(_o: PlayerViewT): void {
   _o.graceEnds = this.graceEnds();
   _o.bot = this.bot();
   _o.stats = (this.stats() !== null ? this.stats()!.unpack() : null);
+  _o.team = this.team();
 }
 }
 
@@ -174,7 +185,8 @@ constructor(
   public connected: boolean = false,
   public graceEnds: bigint = BigInt('0'),
   public bot: string|Uint8Array|null = null,
-  public stats: PlayerStatsT|null = null
+  public stats: PlayerStatsT|null = null,
+  public team: number = 0
 ){}
 
 
@@ -196,6 +208,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   PlayerView.addGraceEnds(builder, this.graceEnds);
   PlayerView.addBot(builder, bot);
   PlayerView.addStats(builder, stats);
+  PlayerView.addTeam(builder, this.team);
 
   return PlayerView.endPlayerView(builder);
 }

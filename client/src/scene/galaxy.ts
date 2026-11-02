@@ -6,13 +6,28 @@ import {
 import type { GalaxyMap } from "../gen/content";
 import type { LocalStore } from "../match/local";
 import { type Lanes, route } from "../match/route";
-import type { Army, createMatchStore, PlanetView } from "../match/store";
+import {
+  type Army,
+  allied,
+  allyPlanet,
+  type createMatchStore,
+  type PlanetView,
+} from "../match/store";
 import { formatAge } from "../match/time";
 import { hash, PLANET_RADIUS, planetModel, UNSEEN } from "./planet-model";
 import { canvasTexture, random } from "./ring";
 
-// Player colour comes from Seat order.
-const SEAT_COLOURS = ["#3b82f6", "#ef4444", "#22c55e", "#eab308"];
+// Player colour comes from Seat order: one each for a map's most starts.
+const SEAT_COLOURS = [
+  "#3b82f6",
+  "#ef4444",
+  "#22c55e",
+  "#eab308",
+  "#a855f7",
+  "#f97316",
+  "#06b6d4",
+  "#ec4899",
+];
 const NEUTRAL = "#9ca3af";
 
 // Low and wide, like EaW's galaxy map: far Planets shrink, and the galaxy
@@ -427,13 +442,14 @@ export class GalaxyScene {
         ? route(
             this.orders.lanes,
             // What the player knows: live, else as last seen, else neutral.
+            // A Teammate's Planet is passed as your own, as on the server.
             (id) => {
               const live = view.planets.get(id);
-              if (live) return live.owner;
-              return (
-                this.stores.local.getState().lastSeen.get(id)?.planet.owner ??
-                null
-              );
+              const owner = live
+                ? live.owner
+                : (this.stores.local.getState().lastSeen.get(id)?.planet
+                    .owner ?? null);
+              return allied(view, owner, view.you) ? view.you : owner;
             },
             view.you,
             from,
@@ -470,8 +486,8 @@ export class GalaxyScene {
     if (over && target) {
       this.dropRing.position.copy(over.mesh.position).setY(1);
       this.dropRing.material.color.set(
-        !path
-          ? DROP_NONE
+        !path || allyPlanet(view, target)
+          ? DROP_NONE // no route, or a Teammate's: an Army can't stop there
           : view?.planets.get(target)?.owner === view?.you
             ? DROP_MOVE
             : DROP_ATTACK,

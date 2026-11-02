@@ -145,13 +145,13 @@ func (b *Bot) newTurn(v game.View) *turn {
 		for _, u := range a.Units {
 			if a.Owner == v.You {
 				t.units[u.Unit] += u.Count
-			} else {
+			} else if !allied(v, a.Owner) {
 				t.foes[string(b.c.Units[u.Unit].Combat.UnitClass)] += float64(u.Count)
 			}
 		}
 	}
 	for _, s := range b.seen {
-		if s.planet.Owner == v.You {
+		if allied(v, s.planet.Owner) {
 			continue
 		}
 		for _, st := range s.planet.Stacks {

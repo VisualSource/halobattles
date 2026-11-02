@@ -89,8 +89,13 @@ spectatorsLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+teams():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startLobbyState(builder:flatbuffers.Builder) {
-  builder.startObject(8);
+  builder.startObject(9);
 }
 
 static addPhase(builder:flatbuffers.Builder, phase:Phase) {
@@ -161,12 +166,16 @@ static startSpectatorsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addTeams(builder:flatbuffers.Builder, teams:boolean) {
+  builder.addFieldInt8(8, +teams, +false);
+}
+
 static endLobbyState(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createLobbyState(builder:flatbuffers.Builder, phase:Phase, hostOffset:flatbuffers.Offset, mapOffset:flatbuffers.Offset, startingResourcesOffset:flatbuffers.Offset, seatsOffset:flatbuffers.Offset, winner:number, endReasonOffset:flatbuffers.Offset, spectatorsOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createLobbyState(builder:flatbuffers.Builder, phase:Phase, hostOffset:flatbuffers.Offset, mapOffset:flatbuffers.Offset, startingResourcesOffset:flatbuffers.Offset, seatsOffset:flatbuffers.Offset, winner:number, endReasonOffset:flatbuffers.Offset, spectatorsOffset:flatbuffers.Offset, teams:boolean):flatbuffers.Offset {
   LobbyState.startLobbyState(builder);
   LobbyState.addPhase(builder, phase);
   LobbyState.addHost(builder, hostOffset);
@@ -176,6 +185,7 @@ static createLobbyState(builder:flatbuffers.Builder, phase:Phase, hostOffset:fla
   LobbyState.addWinner(builder, winner);
   LobbyState.addEndReason(builder, endReasonOffset);
   LobbyState.addSpectators(builder, spectatorsOffset);
+  LobbyState.addTeams(builder, teams);
   return LobbyState.endLobbyState(builder);
 }
 
@@ -188,7 +198,8 @@ unpack(): LobbyStateT {
     this.bb!.createObjList<Seat, SeatT>(this.seats.bind(this), this.seatsLength()),
     this.winner(),
     this.endReason(),
-    this.bb!.createObjList<Spectator, SpectatorT>(this.spectators.bind(this), this.spectatorsLength())
+    this.bb!.createObjList<Spectator, SpectatorT>(this.spectators.bind(this), this.spectatorsLength()),
+    this.teams()
   );
 }
 
@@ -202,6 +213,7 @@ unpackTo(_o: LobbyStateT): void {
   _o.winner = this.winner();
   _o.endReason = this.endReason();
   _o.spectators = this.bb!.createObjList<Spectator, SpectatorT>(this.spectators.bind(this), this.spectatorsLength());
+  _o.teams = this.teams();
 }
 }
 
@@ -214,7 +226,8 @@ constructor(
   public seats: (SeatT)[] = [],
   public winner: number = -1,
   public endReason: string|Uint8Array|null = null,
-  public spectators: (SpectatorT)[] = []
+  public spectators: (SpectatorT)[] = [],
+  public teams: boolean = false
 ){}
 
 
@@ -234,7 +247,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     seats,
     this.winner,
     endReason,
-    spectators
+    spectators,
+    this.teams
   );
 }
 }

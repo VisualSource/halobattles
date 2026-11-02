@@ -25,6 +25,7 @@ import { CommandIcon, ResourceIcon } from "./resources";
 import { laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import { ConfirmDialog } from "./status";
+import { allied, teamName, winnerName } from "./store";
 import { finishedProjects } from "./tech";
 import { formatAge, useMatchNow, useWallNow } from "./time";
 import { notify } from "./toasts";
@@ -313,16 +314,17 @@ function Hud(props: {
 }) {
   const { conn, content } = props;
   const view = useStore(conn.store, (s) => s.view);
+  const teams = useStore(conn.store, (s) => !!s.lobby?.teams);
   const local = useStore(conn.local);
   const now = useMatchNow(conn.local);
 
   if (!view) return null;
   const { economy, winHold } = view;
+  const holder =
+    winHold.seat === null ? null : winnerName(view, teams, winHold.seat);
   const span = economy.paydayEnd - economy.paydayStart;
   const done = span > 0 ? Math.min(1, (now - economy.paydayStart) / span) : 0;
   const ring = 2 * Math.PI * 12;
-  const name = (seat: number) =>
-    view.players[seat]?.displayName || `Player ${seat + 1}`;
 
   return (
     <header className="border-line bg-bar flex h-14 flex-none items-center gap-7 border-b px-5">
@@ -394,8 +396,8 @@ function Hud(props: {
       <span className="flex-1" />
       {winHold.seat !== null && (
         <span className="bg-danger-wash text-danger rounded-md px-3 py-1.5 text-sm">
-          {winHold.seat === view.you ? "You win" : `${name(winHold.seat)} wins`}{" "}
-          in {Math.max(0, Math.ceil((winHold.ends - now) / 1000))} s
+          {holder === "You" ? "You win" : `${holder} wins`} in{" "}
+          {Math.max(0, Math.ceil((winHold.ends - now) / 1000))} s
         </span>
       )}
       <Mode conn={conn} content={content} />
@@ -422,6 +424,7 @@ function Hud(props: {
 function Standings(props: { conn: MatchConnection; content: ContentLookups }) {
   const { content } = props;
   const players = useStore(props.conn.store, (s) => s.view?.players) ?? [];
+  const teams = useStore(props.conn.store, (s) => !!s.lobby?.teams);
   const name = (r: string) => content.resources.get(r)?.name ?? r;
   const order = (r: string) => content.resources.get(r)?.order ?? 0;
   return (
@@ -442,6 +445,9 @@ function Standings(props: { conn: MatchConnection; content: ContentLookups }) {
               <span className="min-w-0 flex-1 truncate font-semibold">
                 {p.displayName || `Player ${p.seat + 1}`}
               </span>
+              {teams && (
+                <span className="text-ink-3 flex-none">{teamName(p.team)}</span>
+              )}
               <span title="Planets" className="text-ink-2 font-mono">
                 {p.planetCount} ◉
               </span>
@@ -555,6 +561,7 @@ function SurrenderButton(props: { conn: MatchConnection; pending: boolean }) {
 /** The Ruleset's name; it opens the win rules and the hold countdown. */
 function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
   const view = useStore(props.conn.store, (s) => s.view);
+  const teams = useStore(props.conn.store, (s) => !!s.lobby?.teams);
   const now = useMatchNow(props.conn.local);
   const [pop, popRef] = usePopover();
   const map = view && props.content.maps.get(view.map);
@@ -564,12 +571,7 @@ function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
   // More than the share wins, so this many is enough.
   const needed = Math.floor(map.win.planetShare * total) + 1;
   const hold = view.winHold;
-  const holder =
-    hold.seat === null
-      ? null
-      : hold.seat === view.you
-        ? "You"
-        : view.players[hold.seat]?.displayName || `Player ${hold.seat + 1}`;
+  const holder = hold.seat === null ? null : winnerName(view, teams, hold.seat);
 
   return (
     <div ref={popRef} className="relative">
@@ -601,7 +603,11 @@ function Mode(props: { conn: MatchConnection; content: ContentLookups }) {
           </p>
           <p className="flex gap-2">
             <span className="text-accent font-mono">2</span>
-            <span>Be the last player not eliminated.</span>
+            <span>
+              {teams
+                ? "Be the last Team with anyone not eliminated."
+                : "Be the last player not eliminated."}
+            </span>
           </p>
           <p className="bg-well text-ink-2 rounded-md px-2.5 py-2">
             Losing your Capital eliminates you.
@@ -931,6 +937,7 @@ function Notifications() {
 function Players(props: { conn: MatchConnection; content: ContentLookups }) {
   const { conn, content } = props;
   const view = useStore(conn.store, (s) => s.view);
+  const teams = useStore(conn.store, (s) => !!s.lobby?.teams);
   const now = useMatchNow(conn.local);
   const [pop, popRef] = usePopover();
   if (!view) return null;
@@ -979,6 +986,9 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
                 {p.seat === view.you && (
                   <span className="text-ink-3"> (you)</span>
                 )}
+                {teams && (
+                  <span className="text-ink-3"> · {teamName(p.team)}</span>
+                )}
                 {p.bot && (
                   <>
                     {" "}
@@ -1009,12 +1019,14 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
     const planet = (id: string) =>
       content.maps.get(view()?.map ?? "")?.planets.find((p) => p.id === id)
         ?.name ?? id;
-    const who = (seat: number | null) =>
-      seat === null
-        ? "Neutral"
-        : seat === view()?.you
-          ? "You"
-          : view()?.players[seat]?.displayName || `Player ${seat + 1}`;
+    const who = (seat: number | null) => {
+      const v = view();
+      const name = (s: number) =>
+        v?.players[s]?.displayName || `Player ${s + 1}`;
+      if (seat === null) return "Neutral";
+      if (seat === v?.you) return "You";
+      return v && allied(v, seat, v.you) ? `Ally ${name(seat)}` : name(seat);
+    };
     const show = (id: string) => ({
       label: "Show",
       onClick: () => conn.local.setState({ selected: id }),
@@ -1084,9 +1096,12 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
           planet: string;
           winner: number | null;
         }>(e);
-        // A side hears whether it won, so a loss can't read as a win at a glance.
+        // A side hears whether it won, so a loss can't read as a win at a
+        // glance. A Teammate's Battle, or one watched, just names the winner.
+        const r = conn.local.getState().reports.get(battle);
+        const side = r?.attacker === view()?.you || r?.defender === view()?.you;
         const result =
-          !mine(battle) || view()?.spectating
+          !side || view()?.spectating
             ? `${who(winner)} won`
             : winner === view()?.you
               ? "you won"

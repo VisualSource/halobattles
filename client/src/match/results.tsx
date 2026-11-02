@@ -3,6 +3,7 @@ import { useStore } from "zustand";
 import { useRingBackdrop } from "../backdrop";
 import type { MatchConnection } from "./connection";
 import { AlertCard, primary } from "./status";
+import { teamName } from "./store";
 
 const REASONS: Record<string, string> = {
   hold: "held the winning share of Planets",
@@ -14,14 +15,29 @@ const REASONS: Record<string, string> = {
 export function ResultsScreen(props: { conn: MatchConnection }) {
   useRingBackdrop();
   const lobby = useStore(props.conn.store, (s) => s.lobby);
-  const you = useStore(props.conn.store, (s) => s.view?.you);
+  const view = useStore(props.conn.store, (s) => s.view);
   const winner = lobby?.winner ?? null;
+  const teams = !!lobby?.teams;
+  // With Teams, the winner is a Team: every member wins, eliminated or not.
+  const members =
+    teams && winner !== null
+      ? (view?.players ?? []).filter((p) => p.team === winner)
+      : [];
   const name =
     winner === null
       ? null
-      : lobby?.seats[winner]?.displayName || `Player ${winner + 1}`;
-  const reason = REASONS[lobby?.endReason ?? ""] ?? lobby?.endReason;
-  const won = winner !== null && winner === you;
+      : teams
+        ? teamName(winner)
+        : lobby?.seats[winner]?.displayName || `Player ${winner + 1}`;
+  const reason =
+    teams && lobby?.endReason === "last-standing"
+      ? "was the last Team standing"
+      : (REASONS[lobby?.endReason ?? ""] ?? lobby?.endReason);
+  const won =
+    winner !== null &&
+    !!view &&
+    view.you >= 0 &&
+    (teams ? view.players[view.you]?.team : view.you) === winner;
   return (
     <AlertCard
       role="status"
@@ -46,9 +62,17 @@ export function ResultsScreen(props: { conn: MatchConnection }) {
     >
       <p className="text-ink-2 leading-relaxed">
         {name
-          ? `${won ? "You" : name} ${won ? reason?.replace(/^was /, "were ") : reason}.`
+          ? `${won ? (teams ? "Your Team" : "You") : name} ${won && !teams ? reason?.replace(/^was /, "were ") : reason}.`
           : `The Match ended because ${reason}.`}
       </p>
+      {members.length > 0 && (
+        <p className="text-ink-2">
+          {name}:{" "}
+          {members
+            .map((p) => p.displayName || `Player ${p.seat + 1}`)
+            .join(", ")}
+        </p>
+      )}
       <p className="text-ink-3 text-sm">
         There's no rematch: start a new Match from the menu.
       </p>

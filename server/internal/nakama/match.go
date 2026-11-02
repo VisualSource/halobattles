@@ -223,12 +223,16 @@ func (s *matchState) broadcast(logger runtime.Logger, dispatcher runtime.MatchDi
 	}
 }
 
-// sides are a Battle's players: a neutral defender has nobody to tell.
-func sides(b *game.Battle) []int {
-	if b.Defender == game.Neutral {
-		return []int{b.Attacker}
+// team is seat and its Teammates, who share its Battles; a neutral
+// defender has nobody to tell.
+func (s *matchState) team(seat int) []int {
+	var seats []int
+	for i := range s.play.Players {
+		if s.play.Allied(seat, i) {
+			seats = append(seats, i)
+		}
 	}
-	return []int{b.Attacker, b.Defender}
+	return seats
 }
 
 // sendTo sends an event to the connected players among seats. Anyone
@@ -270,7 +274,7 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 			MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender),
 			Started: b.Started, Field: field(b.Sim.Field),
 		}
-		s.sendTo(logger, dispatcher, wire.OpBattleStarted, finish(t), sides(b)...)
+		s.sendTo(logger, dispatcher, wire.OpBattleStarted, finish(t), append(s.team(b.Attacker), s.team(b.Defender)...)...)
 		s.sendToPresences(logger, dispatcher, wire.OpBattleStarted, finish(t), watchers)
 	}
 	for _, bt := range ev.Ticks {
@@ -278,17 +282,14 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 			t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: bt.Battle.ID, Planet: bt.Battle.Planet, Tick: uint32(bt.Battle.Sim.Tick), Volleys: volleys(bt.Volleys)}
 			s.sendToPresences(logger, dispatcher, wire.OpBattleTick, finish(t), watchers)
 		}
-		for _, seat := range sides(bt.Battle) {
-			side := battle.Defender
-			if seat == bt.Battle.Attacker {
-				side = battle.Attacker
-			}
+		for side, seat := range map[battle.Side]int{battle.Attacker: bt.Battle.Attacker, battle.Defender: bt.Battle.Defender} {
 			vs := bt.Battle.Sim.VolleysFor(side, bt.Volleys)
 			if len(vs) == 0 {
 				continue
 			}
+			// The side's Teammates watch it as that side does.
 			t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: bt.Battle.ID, Planet: bt.Battle.Planet, Tick: uint32(bt.Battle.Sim.Tick), Volleys: volleys(vs)}
-			s.sendTo(logger, dispatcher, wire.OpBattleTick, finish(t), seat)
+			s.sendTo(logger, dispatcher, wire.OpBattleTick, finish(t), s.team(seat)...)
 		}
 	}
 	for _, e := range ev.Ended {
@@ -342,7 +343,7 @@ func (s *matchState) setTime(tick int64) {
 func (s *matchState) start(tick int64) error {
 	var seats []game.SeatSetup
 	for _, seat := range s.lobby.Seats {
-		seats = append(seats, game.SeatSetup{User: seat.User, DisplayName: seat.DisplayName, Faction: seat.Faction, Bot: seat.Bot})
+		seats = append(seats, game.SeatSetup{User: seat.User, DisplayName: seat.DisplayName, Faction: seat.Faction, Bot: seat.Bot, Team: seat.Team})
 	}
 	g, err := game.StartMatch(&s.content.Doc, s.lobby.Map, seats, s.lobby.StartingResources, s.seed)
 	if err != nil {
@@ -456,7 +457,7 @@ func (s *matchState) label() string {
 
 func (s *matchState) encodeLobby() []byte {
 	l := s.lobby
-	t := &wire.LobbyStateT{Phase: s.phase, Host: l.Host(), Map: l.Map, Winner: -1}
+	t := &wire.LobbyStateT{Phase: s.phase, Host: l.Host(), Map: l.Map, Winner: -1, Teams: l.Teams}
 	if r := s.result(); r != nil {
 		t.Winner, t.EndReason = int8(r.Winner), r.Reason
 	}
@@ -464,7 +465,7 @@ func (s *matchState) encodeLobby() []byte {
 	for _, seat := range l.Seats {
 		t.Seats = append(t.Seats, &wire.SeatT{
 			User: seat.User, DisplayName: seat.DisplayName, Faction: seat.Faction, Ready: seat.Ready,
-			LastSeq: s.lastSeq[seat.User], Bot: seat.Bot,
+			LastSeq: s.lastSeq[seat.User], Bot: seat.Bot, Team: uint8(seat.Team),
 		})
 	}
 	for _, sp := range l.Spectators {
@@ -489,7 +490,7 @@ func encodeView(v game.View, contentHash string) []byte {
 	return finish(&wire.ViewFullT{
 		Spectating: spectating, MatchTime: v.Time, ContentHash: contentHash, Ruleset: game.RulesetID, Map: v.Map, You: you,
 		Players: players(v.Players), Planets: planets(v.Planets), Economy: economy(&v.Economy), Armies: armies(v.Armies),
-		Battles: battles(v.Battles, true), WinHold: &wire.WinHoldT{Seat: int8(v.Hold.Seat), Ends: v.Hold.Ends},
+		Battles: battles(v.Battles, true), WinHold: &wire.WinHoldT{Seat: int8(v.Hold.Team), Ends: v.Hold.Ends},
 		Research: research(&v.Research),
 	})
 }
@@ -527,7 +528,7 @@ func winHold(h *game.Hold) *wire.WinHoldT {
 	if h == nil {
 		return nil
 	}
-	return &wire.WinHoldT{Seat: int8(h.Seat), Ends: h.Ends}
+	return &wire.WinHoldT{Seat: int8(h.Team), Ends: h.Ends}
 }
 
 // battles encodes Battles as each side sees them. The Battlefield never
@@ -607,6 +608,7 @@ func players(ps []game.PlayerView) []*wire.PlayerViewT {
 		out = append(out, &wire.PlayerViewT{
 			Seat: uint8(p.Seat), User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: uint16(p.PlanetCount),
 			Eliminated: p.Eliminated, Connected: p.Connected, GraceEnds: p.GraceEnds, Bot: p.Bot, Stats: stats(p.Stats),
+			Team: uint8(p.Team),
 		})
 	}
 	return out

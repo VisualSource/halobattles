@@ -7,6 +7,7 @@ import { seatColour } from "../scene/galaxy";
 import { amounts } from "./buildings";
 import type { MatchConnection } from "./connection";
 import {
+  allied,
   BATTLE_TICKS,
   type Battle,
   type BattleReport,
@@ -35,6 +36,17 @@ const sideName = (view: View | null, seat: number | null) =>
 
 const seatOf = (b: { attacker: number; defender: number | null }, s: Side) =>
   s === "attacker" ? b.attacker : b.defender;
+
+/** The side you see a Battle as: your own, or a Teammate's; null, a Spectator's, is both. */
+const sideOf = (
+  view: View,
+  b: { attacker: number; defender: number | null },
+): Side | null =>
+  view.spectating
+    ? null
+    : allied(view, b.attacker, view.you)
+      ? "attacker"
+      : "defender";
 
 const colourOf = (seat: number | null) =>
   seat === null ? NEUTRAL : seatColour(seat);
@@ -202,13 +214,13 @@ export function BattlePanel(props: {
       captureSeconds={rules.captureSeconds}
     />
   );
-  // A Spectator is neither side: it sees both and gives no orders.
+  // A Spectator is neither side: it sees both. A Teammate of a side sees it
+  // as that side does. Neither gives orders.
   const spectating = !!view?.spectating;
-  const mySide: Side | null = spectating
-    ? null
-    : battle.attacker === view?.you
-      ? "attacker"
-      : "defender";
+  const mySide = view && sideOf(view, battle);
+  const watching =
+    spectating ||
+    (battle.attacker !== view?.you && battle.defender !== view?.you);
   const faction = view ? view.players[view.you]?.faction : undefined;
   // Your Faction's pad turret, if it has one: the cheapest.
   const turret = [...content.buildings.entries()]
@@ -227,7 +239,7 @@ export function BattlePanel(props: {
     <div className="flex flex-wrap items-center gap-2 px-4 pt-2 text-sm">
       <span className={label}>Pads</span>
       {battle.pads.map((p, i) => {
-        const yours = !!mySide && p.owner === mySide;
+        const yours = !watching && p.owner === mySide;
         const state = p.turret
           ? "Turret up"
           : p.building
@@ -362,9 +374,7 @@ export function BattlePanel(props: {
     <div className="border-line flex flex-none items-center gap-3 border-t px-4 py-3">
       <button
         type="button"
-        disabled={
-          spectating || retreatSent || running || (nowhere && !counting)
-        }
+        disabled={watching || retreatSent || running || (nowhere && !counting)}
         onClick={() => conn.retreat(battle.planet, counting)}
         className="border-edge bg-raised min-h-11 w-52 flex-none rounded-md px-4 text-sm disabled:opacity-50"
       >
@@ -377,13 +387,15 @@ export function BattlePanel(props: {
       <p className="text-ink-3 text-sm">
         {spectating
           ? "You're watching both sides. Spectators give no orders."
-          : running
-            ? "Your squads are heading off the field, holding fire. Whatever gets away Retreats to your nearest Planet."
-            : counting
-              ? "Your side fights on until the countdown ends, then turns and runs."
-              : nowhere
-                ? "You have no other Planet to Retreat to."
-                : `${planetName(battle.planet)} is Locked: its queues are paused and its Stacks are frozen until the Battle ends.`}
+          : watching
+            ? "Your Teammate's Battle: you're watching their side, and give no orders."
+            : running
+              ? "Your squads are heading off the field, holding fire. Whatever gets away Retreats to your nearest Planet."
+              : counting
+                ? "Your side fights on until the countdown ends, then turns and runs."
+                : nowhere
+                  ? "You have no other Planet to Retreat to."
+                  : `${planetName(battle.planet)} is Locked: its queues are paused and its Stacks are frozen until the Battle ends.`}
       </p>
     </div>
   );
@@ -488,11 +500,7 @@ function BattlefieldView(props: {
         attacker: colourOf(battle.attacker),
         defender: colourOf(battle.defender),
       },
-      you: view.spectating
-        ? null
-        : battle.attacker === view.you
-          ? "attacker"
-          : "defender",
+      you: sideOf(view, battle),
       sight: (sq, height) =>
         (statsOf(sq.unit)?.sight ??
           rules.classDefaults[classOf(sq.unit)]?.sight ??
@@ -605,21 +613,23 @@ function Report(props: {
   const left = (side: Side) => count(side, (q) => q.count);
   const enemy = (seat: number | null) =>
     seat === null ? "the neutral garrison" : sideName(view, seat);
-  const outcome = view?.spectating
-    ? r.winner === r.attacker
-      ? `${enemy(r.attacker)} took ${planetName} from ${enemy(r.defender)}.`
-      : `${enemy(r.defender)} held ${planetName} against ${enemy(r.attacker)}.`
-    : r.attacker === you
-      ? won
-        ? `You took ${planetName} from ${enemy(r.defender)}. Your survivors moved in.`
-        : `Your attack on ${planetName} failed. ${
-            left("attacker") > 0
-              ? `${left("attacker")} survivors are Retreating.`
-              : "None survived."
-          }`
-      : won
-        ? `You held ${planetName} against ${enemy(r.attacker)}.`
-        : `${enemy(r.attacker)} took ${planetName} from you.`;
+  // A Battle you weren't a side of (watched, or a Teammate's) has no "you".
+  const outcome =
+    view?.spectating || (r.attacker !== you && r.defender !== you)
+      ? r.winner === r.attacker
+        ? `${enemy(r.attacker)} took ${planetName} from ${enemy(r.defender)}.`
+        : `${enemy(r.defender)} held ${planetName} against ${enemy(r.attacker)}.`
+      : r.attacker === you
+        ? won
+          ? `You took ${planetName} from ${enemy(r.defender)}. Your survivors moved in.`
+          : `Your attack on ${planetName} failed. ${
+              left("attacker") > 0
+                ? `${left("attacker")} survivors are Retreating.`
+                : "None survived."
+            }`
+        : won
+          ? `You held ${planetName} against ${enemy(r.attacker)}.`
+          : `${enemy(r.attacker)} took ${planetName} from you.`;
   const name = (unit: string) =>
     content.units.get(unit)?.name ?? content.buildings.get(unit)?.name ?? unit;
 

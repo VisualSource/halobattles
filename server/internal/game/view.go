@@ -36,7 +36,7 @@ type Research struct {
 
 // Hold is the running win-hold countdown, if any.
 type Hold struct {
-	Seat int   // Neutral for none
+	Team int   // Neutral for none; in a free-for-all, a Seat
 	Ends int64 // Match Time
 }
 
@@ -58,6 +58,7 @@ type PlayerView struct {
 	User        string
 	DisplayName string
 	Faction     string
+	Team        int // with Teams on, Team 1 is 0; in a free-for-all, the Seat
 	PlanetCount int
 	Eliminated  bool
 	Connected   bool
@@ -120,17 +121,23 @@ type BattleView struct {
 	battle.Snapshot
 }
 
-// visible is the set of Planets a player sees: those they own, every Planet
-// one Lane away, and any their Armies have sighted lately.
+// visible is the set of Planets a player sees, sharing their Teammates'
+// vision: those the Team owns, every Planet one Lane away, and any the
+// Team's Armies have sighted lately.
 func (s *State) visible(seat int) map[string]bool {
 	v := map[string]bool{}
-	for id, until := range s.Players[seat].Sighted {
-		if until > s.Time {
-			v[id] = true
+	for _, p := range s.Players {
+		if !s.Allied(seat, p.Seat) {
+			continue
+		}
+		for id, until := range p.Sighted {
+			if until > s.Time {
+				v[id] = true
+			}
 		}
 	}
 	for id, p := range s.Planets {
-		if p.Owner == seat {
+		if s.Allied(seat, p.Owner) {
 			v[id] = true
 			for n := range s.Lanes[id] {
 				v[n] = true
@@ -155,7 +162,7 @@ func (s *State) SpectatorView(c *cs.Content) View { return s.view(c, Spectating)
 
 func (s *State) view(c *cs.Content, seat int) View {
 	all := seat == Spectating
-	v := View{Time: s.Time, Map: s.Map, You: seat, Hold: Hold{Seat: s.HoldSeat, Ends: s.HoldEnds}}
+	v := View{Time: s.Time, Map: s.Map, You: seat, Hold: Hold{Team: s.HoldTeam, Ends: s.HoldEnds}}
 	if !all {
 		used, cp := s.commandPoints(c, seat)
 		v.Economy = Economy{
@@ -189,7 +196,7 @@ func (s *State) view(c *cs.Content, seat int) View {
 	}
 	for _, p := range s.Players {
 		pv := PlayerView{
-			Seat: p.Seat, User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: counts[p.Seat],
+			Seat: p.Seat, User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, Team: p.Team, PlanetCount: counts[p.Seat],
 			Eliminated: p.Eliminated, Connected: !p.Disconnected, GraceEnds: p.GraceEnds, Bot: p.Bot,
 		}
 		if all {
@@ -225,36 +232,40 @@ func (s *State) view(c *cs.Content, seat int) View {
 	}
 	for _, id := range slices.Sorted(maps.Keys(s.Armies)) {
 		a := s.Armies[id]
-		mine := a.Owner == seat
-		if !all && !mine && !visible[a.To] && (a.Waiting || !visible[a.From]) {
+		ours := s.Allied(a.Owner, seat) // the viewer's or a Teammate's
+		if !all && !ours && !visible[a.To] && (a.Waiting || !visible[a.From]) {
 			continue
 		}
 		av := ArmyView{
 			ID: a.ID, Owner: a.Owner, Units: slices.Clone(a.Units), From: a.From, To: a.To,
 			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting,
 		}
-		if mine || all { // a Spectator sees where every Army is going
+		if ours || all { // a Spectator sees where every Army is going
 			av.Destination, av.ToStack, av.Path = a.destination(), a.ToStack, slices.Clone(a.Path)
 		}
 		v.Armies = append(v.Armies, av)
 	}
 	for _, id := range slices.Sorted(maps.Keys(s.Battles)) {
-		if b := s.Battles[id]; all || b.Attacker == seat || b.Defender == seat {
-			v.Battles = append(v.Battles, b.view(seat))
+		b := s.Battles[id]
+		switch {
+		case all:
+			v.Battles = append(v.Battles, b.view(battle.NoSide))
+		case s.Allied(seat, b.Attacker): // the viewer's side, or a Teammate's
+			v.Battles = append(v.Battles, b.view(battle.Attacker))
+		case s.Allied(seat, b.Defender):
+			v.Battles = append(v.Battles, b.view(battle.Defender))
 		}
 	}
 	return v
 }
 
-func (b *Battle) view(seat int) BattleView {
+// view is the Battle as side sees it; NoSide is a Spectator's, both sides.
+func (b *Battle) view(side battle.Side) BattleView {
 	bv := BattleView{ID: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender, Started: b.Started, Field: b.Sim.Field}
-	switch seat {
-	case Spectating:
+	if side == battle.NoSide {
 		bv.Snapshot = b.Sim.SnapshotAll()
-	case b.Attacker:
-		bv.Snapshot = b.Sim.Snapshot(battle.Attacker)
-	default:
-		bv.Snapshot = b.Sim.Snapshot(battle.Defender)
+	} else {
+		bv.Snapshot = b.Sim.Snapshot(side)
 	}
 	return bv
 }

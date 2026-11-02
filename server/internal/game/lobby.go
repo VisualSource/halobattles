@@ -27,7 +27,11 @@ type Seat struct {
 	Faction     string
 	Ready       bool
 	Bot         string // a Bot's difficulty id; "" for a player
+	Team        int    // 1 to MaxTeams with Teams on; 0 with them off
 }
+
+// MaxTeams is how many Teams a lobby can split into.
+const MaxTeams = 4
 
 // LobbyMap is what the lobby needs to know about a map.
 type LobbyMap struct {
@@ -58,6 +62,7 @@ type Lobby struct {
 	StartingResources map[string]int
 	Seats             []Seat           // longest held first
 	Spectators        []LobbySpectator // longest here first
+	Teams             bool             // each Seat picks a Team; off is a free-for-all
 	content           LobbyContent
 	bots              int      // Bots added so far, for their Seat user ids
 	order             []string // players and Spectators, longest here first: the Host is the first
@@ -123,7 +128,64 @@ func (l *Lobby) AddBot(user, faction, difficulty string) error {
 			break
 		}
 	}
-	l.Seats = append(l.Seats, Seat{User: fmt.Sprintf("bot:%d", l.bots), DisplayName: name, Faction: faction, Ready: true, Bot: difficulty})
+	l.Seats = append(l.Seats, Seat{User: fmt.Sprintf("bot:%d", l.bots), DisplayName: name, Faction: faction, Ready: true, Bot: difficulty, Team: l.openTeam()})
+	return nil
+}
+
+// openTeam is the Team a new Seat joins: with Teams on, the smaller of
+// Teams 1 and 2, Team 1 on a tie; 0 with them off.
+func (l *Lobby) openTeam() int {
+	if !l.Teams {
+		return 0
+	}
+	n := map[int]int{}
+	for _, s := range l.Seats {
+		n[s.Team]++
+	}
+	if n[2] < n[1] {
+		return 2
+	}
+	return 1
+}
+
+// SetTeams is Host only: on splits the Seats between Teams 1 and 2 in turn,
+// off makes the Match a free-for-all.
+func (l *Lobby) SetTeams(user string, on bool) error {
+	if err := l.mustBeHost(user); err != nil {
+		return err
+	}
+	l.Teams = on
+	for i := range l.Seats {
+		l.Seats[i].Team = 0
+		if on {
+			l.Seats[i].Team = i%2 + 1
+		}
+	}
+	return nil
+}
+
+// SetTeam moves a Seat to team: user's own, or, for the Host, a Bot's.
+// Changing a player's Team clears their ready flag.
+func (l *Lobby) SetTeam(user, seat string, team int) error {
+	i := l.seatIndex(seat)
+	switch {
+	case !l.Teams:
+		return errors.New("Teams are off")
+	case team < 1 || team > MaxTeams:
+		return fmt.Errorf("pick a Team from 1 to %d", MaxTeams)
+	case i < 0:
+		return errors.New("no such Seat")
+	case seat != user && l.Seats[i].Bot == "":
+		return errors.New("you can only change your own Team")
+	case seat != user:
+		if err := l.mustBeHost(user); err != nil {
+			return err
+		}
+	}
+	if l.Seats[i].Team != team {
+		l.Seats[i].Team = team
+		l.Seats[i].Ready = l.Seats[i].Bot != ""
+	}
 	return nil
 }
 
@@ -169,7 +231,7 @@ func (l *Lobby) Join(user, displayName string) error {
 	case l.IsMember(user):
 		return nil
 	case len(l.Seats) < l.MaxSeats():
-		l.Seats = append(l.Seats, Seat{User: user, DisplayName: displayName, Faction: slices.Min(l.content.Factions)})
+		l.Seats = append(l.Seats, Seat{User: user, DisplayName: displayName, Faction: slices.Min(l.content.Factions), Team: l.openTeam()})
 	case len(l.Spectators) < MaxSpectators:
 		l.Spectators = append(l.Spectators, LobbySpectator{User: user, DisplayName: displayName})
 	default:
@@ -214,7 +276,7 @@ func (l *Lobby) TakeSeat(user string) error {
 	case len(l.Seats) >= l.MaxSeats():
 		return ErrLobbyFull
 	}
-	l.Seats = append(l.Seats, Seat{User: user, DisplayName: l.Spectators[i].DisplayName, Faction: slices.Min(l.content.Factions)})
+	l.Seats = append(l.Seats, Seat{User: user, DisplayName: l.Spectators[i].DisplayName, Faction: slices.Min(l.content.Factions), Team: l.openTeam()})
 	l.Spectators = slices.Delete(l.Spectators, i, i+1)
 	return nil
 }
@@ -310,6 +372,15 @@ func (l *Lobby) Start(user string) error {
 	}
 	if slices.ContainsFunc(l.Seats, func(s Seat) bool { return !s.Ready && s.User != user }) {
 		return errors.New("not every Seat is ready")
+	}
+	if l.Teams {
+		teams := map[int]bool{}
+		for _, s := range l.Seats {
+			teams[s.Team] = true
+		}
+		if len(teams) < 2 {
+			return errors.New("Teams need players on at least 2 of them")
+		}
 	}
 	return nil
 }

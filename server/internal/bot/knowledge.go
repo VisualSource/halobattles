@@ -92,12 +92,29 @@ func (b *Bot) estimate(v game.View, id string) float64 {
 	return against(b.defenders(v, id), nil)
 }
 
+// teamOf is seat's Team, as the View tells it; a View without players
+// (a test's) makes each Seat its own.
+func teamOf(v game.View, seat int) int {
+	if seat >= 0 && seat < len(v.Players) {
+		return v.Players[seat].Team
+	}
+	return seat
+}
+
+// allied reports whether owner is the Bot or a Teammate.
+func allied(v game.View, owner int) bool {
+	return owner >= 0 && teamOf(v, owner) == teamOf(v, v.You)
+}
+
+// hostile reports whether owner is a player not on the Bot's Team.
+func hostile(v game.View, owner int) bool { return owner != game.Neutral && !allied(v, owner) }
+
 // threat is the enemy strength near a Planet: Armies headed for it, and
 // half of each known enemy Planet a Lane away, since it may not come.
 func (b *Bot) threat(v game.View, id string) float64 {
 	threat := 0.0
 	for _, a := range v.Armies {
-		if a.Owner != v.You && a.To == id {
+		if !allied(v, a.Owner) && a.To == id {
 			threat += unitsStrength(b.c, a.Units)
 		}
 	}
@@ -109,7 +126,7 @@ func (b *Bot) threat(v game.View, id string) float64 {
 		case string(l.To):
 			next = string(l.From)
 		}
-		if s, ok := b.seen[next]; ok && s.planet.Owner != v.You && s.planet.Owner != game.Neutral {
+		if s, ok := b.seen[next]; ok && hostile(v, s.planet.Owner) {
 			threat += planetStrength(b.c, s.planet) * freshness(s, v.Time) / 2
 		}
 	}
@@ -121,12 +138,12 @@ func (b *Bot) threat(v game.View, id string) float64 {
 func (b *Bot) enemyForce(v game.View) float64 {
 	enemy := 0.0
 	for _, a := range v.Armies {
-		if a.Owner != v.You {
+		if !allied(v, a.Owner) {
 			enemy = max(enemy, unitsStrength(b.c, a.Units))
 		}
 	}
 	for _, s := range b.seen {
-		if s.planet.Owner != v.You && s.planet.Owner != game.Neutral {
+		if hostile(v, s.planet.Owner) {
 			enemy = max(enemy, planetStrength(b.c, s.planet)*freshness(s, v.Time))
 		}
 	}

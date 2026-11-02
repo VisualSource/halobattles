@@ -37,12 +37,14 @@ func (b *Bot) goals(v game.View) []goal {
 	m := b.c.Maps[v.Map]
 	hops := b.hops(v)
 	own, enemy := 0.0, b.enemyForce(v) // the Bot's whole strength, and the strongest enemy force it knows of
-	owned := 0
-	var slots, empty int // Building Slots on its Planets, and those with nothing built or building
+	owned := 0                         // its Team's Planets: the share is the Team's
+	var slots, empty int               // Building Slots on its Planets, and those with nothing built or building
 	var mine []game.PlanetView
 	for _, p := range v.Planets {
-		if p.Owner == v.You {
+		if allied(v, p.Owner) {
 			owned++
+		}
+		if p.Owner == v.You {
 			if !p.Locked {
 				mine = append(mine, p) // as newTurn's: a Locked Planet's Lab can't start a Project
 			}
@@ -90,7 +92,7 @@ func (b *Bot) goals(v game.View) []goal {
 			owner, fresh = s.planet.Owner, freshness(s, v.Time)
 		}
 		d, reachable := hops[id]
-		if owner == v.You || !reachable {
+		if allied(v, owner) || !reachable { // never a Teammate's
 			continue
 		}
 		pt := b.c.PlanetTypes[string(mp.Type)]
@@ -160,15 +162,16 @@ func (b *Bot) winRules(v game.View, g *goal, owned, planets int) float64 {
 	share := b.c.Maps[v.Map].Win.PlanetShare
 	need := int(math.Floor(share*float64(planets))) + 1
 	s, seen := b.seen[g.target]
+	team := teamOf(v, v.You)
 	switch {
-	case v.Hold.Seat == v.You: // holding the share: keep it until the countdown ends
+	case v.Hold.Team == team: // its Team holds the share: keep it until the countdown ends
 		if g.kind == defend {
 			f *= 3
 		} else if g.kind == expand || g.kind == attack {
 			f *= 0.5
 		}
-	case v.Hold.Seat != game.Neutral: // an enemy is: breaking their hold comes first
-		if g.kind == attack && seen && s.planet.Owner == v.Hold.Seat {
+	case v.Hold.Team != game.Neutral: // an enemy Team is: breaking their hold comes first
+		if g.kind == attack && seen && hostile(v, s.planet.Owner) && teamOf(v, s.planet.Owner) == v.Hold.Team {
 			f *= 3
 		}
 	case owned >= need-2 && (g.kind == expand || g.kind == attack): // nearing it

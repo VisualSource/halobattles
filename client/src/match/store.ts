@@ -11,6 +11,7 @@ export type Seat = {
   faction: string;
   ready: boolean;
   bot: string; // a Bot's difficulty id; "" for a player
+  team: number; // 1–4 with Teams on; 0 with them off
 };
 
 export type Lobby = {
@@ -20,7 +21,8 @@ export type Lobby = {
   startingResources: Map<string, number>;
   seats: Seat[]; // longest held first
   spectators: { user: string; displayName: string }[];
-  winner: number | null; // in results: a Seat, or null for none
+  teams: boolean; // each Seat picks a Team; off is a free-for-all
+  winner: number | null; // in results: a Team (a Seat with Teams off), or null for none
   endReason: string; // in results: "hold", "last-standing", ...
 };
 
@@ -168,7 +170,39 @@ export type PlayerView = {
   graceEnds: number; // Match Time a disconnected player forfeits at
   bot: string; // a Bot's difficulty id; "" for a player
   stats: PlayerStats | null; // only in a Spectator's View
+  team: number; // with Teams on, Team 1 is 0; with them off, the Seat
 };
+
+/** Whether two Seats are on one Team: you and your Teammates. Neutral is no one's ally. */
+export const allied = (view: View, a: number | null, b: number | null) =>
+  a !== null &&
+  b !== null &&
+  a >= 0 &&
+  b >= 0 &&
+  (view.players[a]?.team ?? a) === (view.players[b]?.team ?? b);
+
+/** Whether a Planet in view is a Teammate's: passed through, never stopped at. */
+export const allyPlanet = (view: View | null, id: string) => {
+  const owner = view?.planets.get(id)?.owner ?? null;
+  return !!view && owner !== view.you && allied(view, owner, view.you);
+};
+
+/** A Team's name, as the lobby numbers them: Team 1 is 0. */
+export const teamName = (team: number) => `Team ${team + 1}`;
+
+/**
+ * Who holds or won, as a Team (a Seat with Teams off): "You" or "Your Team",
+ * else the Team's or the player's name.
+ */
+export function winnerName(view: View | null, teams: boolean, team: number) {
+  if (teams)
+    return view && view.you >= 0 && view.players[view.you]?.team === team
+      ? "Your Team"
+      : teamName(team);
+  return team === view?.you
+    ? "You"
+    : view?.players[team]?.displayName || `Player ${team + 1}`;
+}
 
 /** A player's economy at a glance, as a Spectator sees it. */
 export type PlayerStats = {
@@ -178,7 +212,7 @@ export type PlayerStats = {
   commandPointsCap: number;
 };
 
-/** The running win-hold countdown, public to everyone. */
+/** The running win-hold countdown, public to everyone. seat is a Team (a Seat with Teams off). */
 export type WinHold = { seat: number | null; ends: number };
 
 /** Your own economy; nobody else's is ever sent. */

@@ -17,6 +17,7 @@ type PlayerViewT struct {
 	GraceEnds   int64         `json:"grace_ends"`
 	Bot         string        `json:"bot"`
 	Stats       *PlayerStatsT `json:"stats"`
+	Team        byte          `json:"team"`
 }
 
 func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -51,6 +52,7 @@ func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	PlayerViewAddGraceEnds(builder, t.GraceEnds)
 	PlayerViewAddBot(builder, botOffset)
 	PlayerViewAddStats(builder, statsOffset)
+	PlayerViewAddTeam(builder, t.Team)
 	return PlayerViewEnd(builder)
 }
 
@@ -65,6 +67,7 @@ func (rcv *PlayerView) UnPackTo(t *PlayerViewT) {
 	t.GraceEnds = rcv.GraceEnds()
 	t.Bot = string(rcv.Bot())
 	t.Stats = rcv.Stats(nil).UnPack()
+	t.Team = rcv.Team()
 }
 
 func (rcv *PlayerView) UnPack() *PlayerViewT {
@@ -216,8 +219,20 @@ func (rcv *PlayerView) Stats(obj *PlayerStats) *PlayerStats {
 	return nil
 }
 
+func (rcv *PlayerView) Team() byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
+	if o != 0 {
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *PlayerView) MutateTeam(n byte) bool {
+	return rcv._tab.MutateByteSlot(24, n)
+}
+
 func PlayerViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(10)
+	builder.StartObject(11)
 }
 func PlayerViewAddSeat(builder *flatbuffers.Builder, seat byte) {
 	builder.PrependByteSlot(0, seat, 0)
@@ -248,6 +263,9 @@ func PlayerViewAddBot(builder *flatbuffers.Builder, bot flatbuffers.UOffsetT) {
 }
 func PlayerViewAddStats(builder *flatbuffers.Builder, stats flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(stats), 0)
+}
+func PlayerViewAddTeam(builder *flatbuffers.Builder, team byte) {
+	builder.PrependByteSlot(10, team, 0)
 }
 func PlayerViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

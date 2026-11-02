@@ -47,7 +47,7 @@ func view(buildings []string, marines int) game.View {
 		a.Stacks[0] = game.Stack{{Unit: "base:marine", Count: marines}}
 	}
 	return game.View{
-		Time: 10_000, Map: "base:line", You: 0, Hold: game.Hold{Seat: game.Neutral},
+		Time: 10_000, Map: "base:line", You: 0, Hold: game.Hold{Team: game.Neutral},
 		Planets:  []game.PlanetView{a, {ID: "b", Owner: game.Neutral, Buildings: []string{"", "", ""}}},
 		Economy:  game.Economy{Resources: map[string]int{"base:credits": 1000}, Caps: map[string]int{"base:credits": 3000}, CommandPointsCap: 20},
 		Research: game.Research{Rates: map[string]int{"base:military": 1, "base:industry": 1}},
@@ -211,7 +211,7 @@ func TestWinConditionsSteerTheGoals(t *testing.T) {
 	scoreOf := func(g goal) float64 { s, _ := find(b.goals(v), g.key()); return s.score }
 	plain := scoreOf(goal{kind: expand, target: "b"})
 
-	v.Hold = game.Hold{Seat: 0} // the Bot holds the share
+	v.Hold = game.Hold{Team: 0} // the Bot holds the share
 	if got := b.winRules(v, &goal{kind: defend, target: "a"}, 1, 4); got != 3*2 {
 		t.Errorf("defend own Capital while holding: ×%v, want ×3 for the hold, ×2 for the Capital", got)
 	}
@@ -221,7 +221,7 @@ func TestWinConditionsSteerTheGoals(t *testing.T) {
 		t.Errorf("expand while holding %v, want %v / 1.5 × 0.5", got, plain)
 	}
 
-	v.Hold = game.Hold{Seat: 1} // an enemy holds it, from c
+	v.Hold = game.Hold{Team: 1} // an enemy holds it, from c
 	b.seen["c"] = sighting{game.PlanetView{ID: "c", Owner: 1}, v.Time}
 	if got := b.winRules(v, &goal{kind: attack, target: "c"}, 1, 4); got != 3 {
 		t.Errorf("attack the holder: ×%v, want ×3", got)
@@ -342,5 +342,23 @@ func TestThinkTracesWhatItWeighedAndSent(t *testing.T) {
 	}
 	if len(got[2].Rejected) != 0 {
 		t.Errorf("the refusal came round again: %v", got[2].Rejected)
+	}
+}
+
+// A Teammate's Planet is never a goal; an enemy Team's is.
+func TestTheCommanderNeverTargetsATeammate(t *testing.T) {
+	b := hard(t)
+	v := view([]string{"base:barracks", "", ""}, 4)
+	v.Players = []game.PlayerView{{Seat: 0, Team: 0}, {Seat: 1, Team: 0}, {Seat: 2, Team: 1}}
+	v.Planets[1].Owner = 1 // b: the Teammate's
+	b.remember(v)
+	gs := b.goals(v)
+	if _, i := find(gs, "attack:b"); i >= 0 {
+		t.Errorf("goals %v; want no attack on the Teammate's b", keys(gs))
+	}
+	v.Players[1].Team = 1 // now b's owner is on the other Team
+	b.remember(v)
+	if _, i := find(b.goals(v), "attack:b"); i < 0 {
+		t.Error("an enemy Team's b isn't an attack goal")
 	}
 }

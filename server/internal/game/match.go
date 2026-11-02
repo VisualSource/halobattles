@@ -55,8 +55,11 @@ type Player struct {
 	DisplayName string
 	Faction     string
 	Bot         string // a Bot's difficulty id; "" for a player
-	Resources   map[string]int
-	Eliminated  bool
+	// Team: Seats on one are Allied. With Teams on, Team 1 is 0; in a
+	// free-for-all each Seat is its own, numbered by its Seat.
+	Team       int
+	Resources  map[string]int
+	Eliminated bool
 	// A disconnected player keeps their Seat until GraceEnds (Match Time).
 	Disconnected bool
 	GraceEnds    int64
@@ -89,9 +92,9 @@ type State struct {
 	Armies      map[uint32]*Army
 	Battles     map[uint32]*Battle
 	Fields      map[string]*battle.Field // each Planet's Battlefield, once it's had a Battle
-	// The win-hold: the Seat holding more than the map's share of Planets
+	// The win-hold: the Team holding more than the map's share of Planets
 	// (-1 for none) and when its hold runs out.
-	HoldSeat int
+	HoldTeam int
 	HoldEnds int64
 	Result   *Result // set once the Match is over
 	// Spectators who came from the lobby. Eliminated players watch too, as
@@ -113,6 +116,13 @@ type SeatSetup struct {
 	DisplayName string
 	Faction     string
 	Bot         string // a Bot's difficulty id; "" for a player
+	Team        int    // 1–4 with Teams on; 0 is a free-for-all, each Seat its own Team
+}
+
+// Allied reports whether seats a and b are on one Team; Neutral is no one's
+// ally. Everyone not Allied is Hostile.
+func (s *State) Allied(a, b int) bool {
+	return a >= 0 && b >= 0 && s.Players[a].Team == s.Players[b].Team
 }
 
 // StartMatch places each Seat on one of the map's starts, shuffled by seed,
@@ -130,7 +140,7 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 	payday := int64(c.Rulesets[RulesetID].PaydaySeconds) * 1000
 	s := &State{
 		Seed: seed, Map: mapID, Planets: map[string]*Planet{}, Lanes: map[string]map[string]int64{},
-		PaydayEvery: payday, NextPayday: payday, HoldSeat: Neutral,
+		PaydayEvery: payday, NextPayday: payday, HoldTeam: Neutral,
 	}
 	for _, mp := range m.Planets {
 		pt := c.PlanetTypes[string(mp.Type)]
@@ -191,9 +201,13 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 			p.Buildings[i] = string(b)
 		}
 		p.Stacks = toStacks(c, kit.Stacks) // replaces the unused-start garrison
+		team := seat
+		if setup.Team > 0 {
+			team = setup.Team - 1
+		}
 		s.Players = append(s.Players, Player{
 			Seat: seat, User: setup.User, DisplayName: setup.DisplayName, Faction: setup.Faction, Bot: setup.Bot,
-			Resources: maps.Clone(startingResources),
+			Team: team, Resources: maps.Clone(startingResources),
 		})
 	}
 	return s, nil

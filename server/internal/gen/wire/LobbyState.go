@@ -15,6 +15,7 @@ type LobbyStateT struct {
 	Winner            int8          `json:"winner"`
 	EndReason         string        `json:"end_reason"`
 	Spectators        []*SpectatorT `json:"spectators"`
+	Teams             bool          `json:"teams"`
 }
 
 func (t *LobbyStateT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -81,6 +82,7 @@ func (t *LobbyStateT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	LobbyStateAddWinner(builder, t.Winner)
 	LobbyStateAddEndReason(builder, endReasonOffset)
 	LobbyStateAddSpectators(builder, spectatorsOffset)
+	LobbyStateAddTeams(builder, t.Teams)
 	return LobbyStateEnd(builder)
 }
 
@@ -111,6 +113,7 @@ func (rcv *LobbyState) UnPackTo(t *LobbyStateT) {
 		rcv.Spectators(&x, j)
 		t.Spectators[j] = x.UnPack()
 	}
+	t.Teams = rcv.Teams()
 }
 
 func (rcv *LobbyState) UnPack() *LobbyStateT {
@@ -274,8 +277,20 @@ func (rcv *LobbyState) SpectatorsLength() int {
 	return 0
 }
 
+func (rcv *LobbyState) Teams() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *LobbyState) MutateTeams(n bool) bool {
+	return rcv._tab.MutateBoolSlot(20, n)
+}
+
 func LobbyStateStart(builder *flatbuffers.Builder) {
-	builder.StartObject(8)
+	builder.StartObject(9)
 }
 func LobbyStateAddPhase(builder *flatbuffers.Builder, phase Phase) {
 	builder.PrependInt8Slot(0, int8(phase), 0)
@@ -309,6 +324,9 @@ func LobbyStateAddSpectators(builder *flatbuffers.Builder, spectators flatbuffer
 }
 func LobbyStateStartSpectatorsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
+}
+func LobbyStateAddTeams(builder *flatbuffers.Builder, teams bool) {
+	builder.PrependBoolSlot(8, teams, false)
 }
 func LobbyStateEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

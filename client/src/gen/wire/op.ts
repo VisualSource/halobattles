@@ -28,6 +28,8 @@ export enum Op {
   RemoveBot = 22,
   Spectate = 23,
   TakeSeat = 24,
+  SetTeams = 25,
+  SetTeam = 26,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,

@@ -242,14 +242,18 @@ func (b *Bot) clear(v game.View, from, to string) bool {
 		}
 	}
 	owner := func(id string) int {
-		if s, ok := b.seen[id]; ok {
-			return s.planet.Owner
+		s, ok := b.seen[id]
+		switch {
+		case !ok:
+			return game.Neutral
+		case allied(v, s.planet.Owner): // as the server's Route: a Teammate's is passed like its own
+			return v.You
 		}
-		return game.Neutral
+		return s.planet.Owner
 	}
 	path, _, ok := game.Route(b.lanes, owner, v.You, from, to)
 	return ok && !slices.ContainsFunc(path[1:len(path)-1], func(id string) bool {
-		return owner(id) != v.You && owner(id) != game.Neutral
+		return hostile(v, owner(id))
 	})
 }
 

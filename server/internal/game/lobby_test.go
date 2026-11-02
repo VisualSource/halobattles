@@ -275,3 +275,45 @@ func TestStartNeedsEveryoneButTheHostReadyAndMinPlayers(t *testing.T) {
 		t.Errorf("Start by an unready new Host: %v", err)
 	}
 }
+
+func TestTeamsInTheLobby(t *testing.T) {
+	l := joined(t, "host", "u2")
+	if err := l.SetMap("host", "base:quadrant"); err != nil { // 3 Seats
+		t.Fatal(err)
+	}
+	if err := l.SetTeam("u2", "u2", 2); err == nil {
+		t.Error("picked a Team with Teams off")
+	}
+	wantReject(t, l.SetTeams("u2", true), "only the Host")
+	if err := l.SetTeams("host", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AddBot("host", "base:covenant", "hard"); err != nil {
+		t.Fatal(err)
+	}
+	if got := fmt.Sprint(l.Seats[0].Team, l.Seats[1].Team, l.Seats[2].Team); got != "1 2 1" {
+		t.Errorf("Teams %s; want split 1 2, then the Bot on the smaller, Team 1", got)
+	}
+
+	// Everyone on Team 1: Start needs two Teams.
+	_ = l.SetReady("u2", true)
+	if err := l.SetTeam("u2", "u2", 1); err != nil || l.Seats[1].Ready {
+		t.Errorf("own Team change: %v, ready %v; want it to clear ready", err, l.Seats[1].Ready)
+	}
+	_ = l.SetReady("u2", true)
+	wantReject(t, l.Start("host"), "at least 2")
+
+	wantReject(t, l.SetTeam("u2", "host", 2), "your own Team")
+	wantReject(t, l.SetTeam("u2", "bot:1", 2), "only the Host")
+	wantReject(t, l.SetTeam("host", "bot:1", 5), "from 1 to 4")
+	if err := l.SetTeam("host", "bot:1", 3); err != nil || !l.Seats[2].Ready {
+		t.Errorf("the Host moving a Bot: %v; it stays ready", err)
+	}
+	if err := l.Start("host"); err != nil {
+		t.Errorf("Start with Teams 1 and 3: %v", err)
+	}
+
+	if err := l.SetTeams("host", false); err != nil || l.Seats[2].Team != 0 {
+		t.Errorf("Teams off: %v, Bot's Team %d", err, l.Seats[2].Team)
+	}
+}

@@ -52,6 +52,8 @@ export { SetMap, SetMapT } from './wire/set-map.js';
 export { SetRallyStack, SetRallyStackT } from './wire/set-rally-stack.js';
 export { SetReady, SetReadyT } from './wire/set-ready.js';
 export { SetStartingResources, SetStartingResourcesT } from './wire/set-starting-resources.js';
+export { SetTeam, SetTeamT } from './wire/set-team.js';
+export { SetTeams, SetTeamsT } from './wire/set-teams.js';
 export { Spectate, SpectateT } from './wire/spectate.js';
 export { Spectator, SpectatorT } from './wire/spectator.js';
 export { Stack, StackT } from './wire/stack.js';

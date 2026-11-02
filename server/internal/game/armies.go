@@ -45,20 +45,30 @@ func (s *State) owns(seat int) func(string) bool {
 	return func(id string) bool { return s.Planets[id] != nil && s.Planets[id].Owner == seat }
 }
 
-// ownerOf is a Planet's owner, for Route.
-func (s *State) ownerOf(id string) int {
-	if p := s.Planets[id]; p != nil {
+// ownerFor is each Planet's owner as Route sees it for seat: a Teammate's
+// Planet counts as seat's own, since its Armies go straight through.
+func (s *State) ownerFor(seat int) func(string) int {
+	return func(id string) int {
+		p := s.Planets[id]
+		switch {
+		case p == nil:
+			return Neutral
+		case s.Allied(seat, p.Owner):
+			return seat
+		}
 		return p.Owner
 	}
-	return Neutral
 }
 
 // passable reports whether an Army of seat may go on through p rather than
-// end its move there: its own Planets and neutral ones. A Locked one makes
-// it wait in orbit first.
-func passable(seat int, p *Planet) bool {
-	return p.Owner == seat || p.Owner == Neutral
+// end its move there: its own and its Teammates' Planets, and neutral ones.
+// A Locked one makes it wait in orbit first.
+func (s *State) passable(seat int, p *Planet) bool {
+	return s.Allied(seat, p.Owner) || p.Owner == Neutral
 }
+
+// errAllyPlanet: Stacks stay one player's, so no Army lands on a Teammate's Planet.
+var errAllyPlanet = errors.New("you can pass through a Teammate's Planet, but not stop there")
 
 // OrderArmy forms an Army from units on one of the player's Planets, taken
 // from any of its Stacks, and sends it on the fastest route to another.
@@ -67,10 +77,10 @@ func (s *State) OrderArmy(seat int, from string, units []ArmyUnits, to string, t
 	if err != nil {
 		return err
 	}
-	if err := s.checkTarget(to, toStack); err != nil {
+	if err := s.checkTarget(seat, to, toStack); err != nil {
 		return err
 	}
-	route, _, ok := Route(s.Lanes, s.ownerOf, seat, from, to)
+	route, _, ok := Route(s.Lanes, s.ownerFor(seat), seat, from, to)
 	if !ok || len(route) < 2 {
 		return fmt.Errorf("no route from %s to %s", from, to)
 	}
@@ -129,12 +139,12 @@ func (s *State) ReorderArmy(seat int, id uint32, to string, toStack int) error {
 	if a.Retreating {
 		return errors.New("a Retreating Army can't be re-ordered")
 	}
-	if err := s.checkTarget(to, toStack); err != nil {
+	if err := s.checkTarget(seat, to, toStack); err != nil {
 		return err
 	}
-	route, _, ok := Route(s.Lanes, s.ownerOf, seat, a.To, to)
+	route, _, ok := Route(s.Lanes, s.ownerFor(seat), seat, a.To, to)
 	// Mid-Lane into an enemy Planet, the Army must stop there.
-	if !ok || !a.Waiting && len(route) > 1 && !passable(seat, s.Planets[a.To]) {
+	if !ok || !a.Waiting && len(route) > 1 && !s.passable(seat, s.Planets[a.To]) {
 		return fmt.Errorf("no route to %s", to)
 	}
 	a.Path, a.ToStack = route[1:], toStack
@@ -145,12 +155,14 @@ func (s *State) ReorderArmy(seat int, id uint32, to string, toStack int) error {
 	return nil
 }
 
-func (s *State) checkTarget(to string, toStack int) error {
-	switch {
-	case s.Planets[to] == nil:
+func (s *State) checkTarget(seat int, to string, toStack int) error {
+	switch p := s.Planets[to]; {
+	case p == nil:
 		return fmt.Errorf("no Planet %s", to)
 	case toStack < 0 || toStack >= StacksPerPlanet:
 		return fmt.Errorf("no Stack %d", toStack+1)
+	case p.Owner != seat && s.Allied(seat, p.Owner):
+		return errAllyPlanet
 	}
 	return nil
 }
@@ -187,12 +199,13 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 				if !s.retreat(a, a.Arrives) {
 					delete(s.Armies, a.ID) // its owner has no Planets left
 				}
-			// Pass through the owner's Planets and neutral ones, as they stand
-			// on arrival; an enemy Planet ends the move there, even one that
-			// changed hands on the way. A Retreat passes through anything.
-			case len(a.Path) > 0 && (a.Retreating || passable(a.Owner, s.Planets[a.To]) && !s.Planets[a.To].Locked):
+			// Pass through the owner's and Teammates' Planets and neutral ones,
+			// as they stand on arrival; an enemy Planet ends the move there,
+			// even one that changed hands on the way. A Retreat passes through
+			// anything.
+			case len(a.Path) > 0 && (a.Retreating || s.passable(a.Owner, s.Planets[a.To]) && !s.Planets[a.To].Locked):
 				a.hop(s.Lanes, a.Arrives)
-			case len(a.Path) > 0 && passable(a.Owner, s.Planets[a.To]):
+			case len(a.Path) > 0 && s.passable(a.Owner, s.Planets[a.To]):
 				a.Waiting = true // Locked on the way: wait out the Battle, keeping the route
 			default:
 				a.Waiting, a.Retreating, a.Path = true, false, nil
@@ -210,7 +223,7 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 		}
 		if len(a.Path) > 0 {
 			// It waited out a Battle on the way: go on if it still may.
-			if passable(a.Owner, p) {
+			if s.passable(a.Owner, p) {
 				a.Waiting = false
 				a.hop(s.Lanes, now)
 				continue
@@ -220,6 +233,14 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 		switch {
 		case p.Owner == Neutral && p.empty():
 			s.capture(p, a.Owner, ev)
+		case p.Owner != a.Owner && s.Allied(a.Owner, p.Owner):
+			// A Teammate took it first: it can't land, so it heads home, as a
+			// Retreat; a Bot never re-orders an Army, so waiting would strand it.
+			a.Waiting, a.Retreating = false, true
+			if !s.retreat(a, now) {
+				delete(s.Armies, a.ID) // its owner has no Planets left
+			}
+			continue
 		case p.Owner != a.Owner:
 			s.startBattle(c, a, p, ev)
 			continue
