@@ -52,8 +52,6 @@ func (s *State) BattleOrder(seat int, planet string, kind battle.OrderKind, squa
 		return errors.New("that isn't a squad order")
 	case len(squads) == 0:
 		return errors.New("pick some squads")
-	case side == battle.Attacker && b.Sim.Tick < b.Sim.Setup && kind != battle.Attack:
-		return errors.New("your squads can't move until the fighting starts")
 	}
 	return b.Sim.CommandGroup(side, squads, battle.Order{Kind: kind, Cell: cell, Target: target})
 }

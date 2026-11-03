@@ -580,6 +580,7 @@ Not in v1, but kept in mind:
 - **Player control** of Squads, beyond Retreat; and AI that chooses to Retreat.
 - **Per-unit AI behaviour:** a unit's own `ai` weights layered on its Faction's. For example, artillery (long `range`, `minRange`) would weigh `takeHighGround` and `keepDistance` heavily and hang back behind friendly Squads instead of moving to the front, while a Ghost would weigh `raid`.
 - **Line-of-sight** blocking.
+- **Unit vision needs a rework.** Seen commanding squads in the Lab (#92): four squads moved into an area together, and only about one of them fired. Likely causes to check: squads sent somewhere hold there and fire only at what's in their own range (short next to Sight), so those behind the front never get a shot; nothing in a group moves up to engage what its neighbours can see. To be scoped before balancing.
 - **Capital-world variant:** a defender HQ the attacker must reach and hold or destroy.
 - **Building sites:** fixed spots on each Planet's Battlefield, with the player choosing what goes where.
 - **Richer contest rules** for Control Points.

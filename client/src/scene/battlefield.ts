@@ -810,6 +810,7 @@ export class BattlefieldScene {
     if (this.commandSide !== null && e.button === 0) {
       this.boxFrom = { x: e.clientX, y: e.clientY }; // a click, or a box
     } else if (this.commandSide === null || e.button === 1) {
+      if (e.button === 1) e.preventDefault(); // not the browser's autoscroll
       this.drag = { x: e.clientX, y: e.clientY };
     }
   };

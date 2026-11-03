@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/VisualSource/halobattles/server/internal/battle"
@@ -137,19 +138,35 @@ func TestTheLabTakesOrdersOnlyForASideYouCommand(t *testing.T) {
 	if f.Thinking[battle.Attacker] != nil || f.Thinking[battle.Defender] == nil {
 		t.Fatalf("thinking %v; want none for the commanded attacker", f.Thinking)
 	}
-	sq := slices.IndexFunc(f.Snapshot.Squads, func(s battle.SquadView) bool { return s.Side == battle.Attacker })
-	order := battle.Order{Kind: battle.Move, Squad: f.Snapshot.Squads[sq].ID, Cell: battle.Cell{X: 30, Y: 20}}
-	h.loop(labMsg(labOrderOp, labOrder{Side: battle.Defender, Order: order}))
+	if f.Commanded != [2]bool{true, false} {
+		t.Errorf("commanded %v; want the attacker's alone", f.Commanded)
+	}
+	sq := f.Snapshot.Squads[slices.IndexFunc(f.Snapshot.Squads, func(s battle.SquadView) bool { return s.Side == battle.Attacker })]
+	order := battle.Order{Kind: battle.Move, Cell: battle.Cell{X: 30, Y: 20}}
+	h.loop(labMsg(labOrderOp, labOrder{Side: battle.Defender, Squads: []int{sq.ID}, Order: order}))
 	var e map[string]string
 	if !h.d.last(t, labErrorOp, &e) {
 		t.Error("an order for the AI's side wasn't refused")
 	}
+	h.loop(labMsg(labOrderOp, labOrder{Side: battle.Attacker, Squads: []int{sq.ID}, Order: order}))
+	if !h.d.last(t, labErrorOp, &e) || !strings.Contains(e["error"], "until the fighting starts") {
+		t.Errorf("an attacker's move in setup: %v; want it refused, saying why", e)
+	}
+
+	for h.frame().Tick < h.frame().Setup { // through setup, a step at a time
+		h.loop(labMsg(labControlOp, labControl{Step: labMaxSteps}))
+	}
 	n := len(h.d.sent)
-	h.loop(labMsg(labOrderOp, labOrder{Side: battle.Attacker, Order: order}))
+	h.loop(labMsg(labOrderOp, labOrder{Side: battle.Attacker, Squads: []int{sq.ID}, Order: order}))
 	for _, m := range h.d.sent[n:] {
 		if m.op == labErrorOp {
 			t.Errorf("an order for the commanded side was refused: %s", m.data)
 		}
+	}
+	h.loop(labMsg(labControlOp, labControl{Step: 1}))
+	got := h.frame().Snapshot.Squads[slices.IndexFunc(h.frame().Snapshot.Squads, func(s battle.SquadView) bool { return s.ID == sq.ID })]
+	if !got.Moving || got.Goal == sq.Cell {
+		t.Errorf("after a Move it shows %+v; want it on its way", got)
 	}
 }
 

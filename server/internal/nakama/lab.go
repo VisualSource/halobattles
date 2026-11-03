@@ -100,7 +100,8 @@ type labFrame struct {
 	Speed     float64             `json:"speed"`
 	Snapshot  battle.Snapshot     `json:"snapshot"`
 	Volleys   []battle.Volley     `json:"volleys,omitempty"`
-	Thinking  [2]*battle.Thinking `json:"thinking"` // nil for a side you command
+	Thinking  [2]*battle.Thinking `json:"thinking"`  // nil for a side you command
+	Commanded [2]bool             `json:"commanded"` // no AI runs it: yours to order
 	Decisions []labDecision       `json:"decisions,omitempty"`
 }
 
@@ -400,6 +401,9 @@ func (s *labState) sendFrame(dispatcher runtime.MatchDispatcher) {
 		fr.Tick, fr.Setup, fr.Raid, fr.Over, fr.Winner, fr.Reason = sim.Tick, sim.Setup, sim.Raid, sim.Over, sim.Winner, sim.Reason
 		fr.Snapshot = sim.SnapshotAll()
 		fr.Thinking = s.think
+		for i, ctl := range sim.Controllers {
+			fr.Commanded[i] = ctl == nil
+		}
 	}
 	s.send(dispatcher, labStateOp, fr, nil)
 	s.volleys, s.decisions, s.dirty = nil, nil, false

@@ -659,12 +659,13 @@ function Field(props: {
   const battle = useStore(conn.store, (s) => s.battle);
   const thinking = useStore(conn.store, (s) => s.thinking);
   const { onPick } = props;
-  // A side with no AI is yours to command from the map.
+  // A side with no AI is yours to command from the map; the attacker, if both.
+  const commanded = useStore(conn.store, (s) => s.commanded);
   const commandSide: Side | null = !battle
     ? null
-    : thinking[0] === null
+    : commanded[0]
       ? "attacker"
-      : thinking[1] === null
+      : commanded[1]
         ? "defender"
         : null;
   const [picked, setPicked] = useState<number[]>([]);

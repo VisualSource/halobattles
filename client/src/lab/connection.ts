@@ -84,6 +84,7 @@ export type LabState = {
   paused: boolean;
   speed: number;
   thinking: [Thinking | null, Thinking | null];
+  commanded: [boolean, boolean]; // no AI runs the side: yours to order
   log: LabDecision[]; // newest first, the last LOG_MAX
   error: string | null;
 };
@@ -152,6 +153,7 @@ type GoFrame = {
     HPDmg: number;
   }[];
   thinking: [Thinking | null, Thinking | null];
+  commanded?: [boolean, boolean];
   decisions?: LabDecision[];
 };
 
@@ -224,6 +226,7 @@ export class LabConnection {
     paused: true,
     speed: 1,
     thinking: [null, null],
+    commanded: [false, false],
     log: [],
     error: null,
   }));
@@ -360,6 +363,7 @@ export class LabConnection {
           paused: f.paused,
           speed: f.speed,
           thinking: f.thinking,
+          commanded: f.commanded ?? [false, false],
           log: [...(f.decisions ?? []).reverse(), ...log].slice(0, LOG_MAX),
         });
         if (volleys.length)

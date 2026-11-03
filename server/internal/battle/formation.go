@@ -73,10 +73,14 @@ func (s *Sim) nearestStandable(sq *Squad, want Cell, taken map[Cell]bool) Cell {
 // CommandGroup gives one order to a group of side's squads, by id, as a
 // player's Commands: Move and AttackMove send each to its own cell of a
 // Formation round o.Cell. A list longer than the Battle has squads is
-// refused, so one message can't flood the log.
+// refused, so one message can't flood the log, as is an attacker's move in
+// setup, which the sim would drop.
 func (s *Sim) CommandGroup(side Side, ids []int, o Order) error {
 	if len(ids) > len(s.Squads) {
 		return errors.New("too many squads")
+	}
+	if s.setup() && side == Attacker && o.Kind != Attack {
+		return errors.New("your squads can't move until the fighting starts")
 	}
 	cells := make([]Cell, len(ids))
 	if o.Kind == Move || o.Kind == AttackMove {
