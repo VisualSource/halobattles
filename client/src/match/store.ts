@@ -101,6 +101,16 @@ export type Squad = {
   // attack, or 0.
   goal: { x: number; y: number } | null;
   target: number;
+  dropship: boolean; // a Dropship in flight: it can't be fired on
+};
+
+/** One of your side's Dropships over a Battle. */
+export type Drop = {
+  unit: string; // the Dropship's
+  units: number; // the troops it carries
+  state: "orbit" | "flying" | "done"; // done: it has landed them, once a Battle
+  point: number | null; // the Landing Zone it's going to, or went to
+  aiAt: number; // in orbit: the tick the AI sends it, if nobody has
 };
 
 /** An order to squads in a Battle you command. */
@@ -173,6 +183,7 @@ export type Battle = {
   buildingsLeft: number; // public: the Planet's buildings standing, a Raid's score
   buildings: number; // and at the start
   commanded: boolean; // your side is yours to command: no AI runs it
+  drops: Drop[]; // your side's Dropships
 };
 
 /** The public part of every player. */

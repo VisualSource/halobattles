@@ -111,6 +111,7 @@ type GoSquad = {
   Moving: boolean;
   Goal: GoCell;
   Target: number;
+  Dropship?: boolean;
 };
 type GoFrame = {
   tick: number;
@@ -175,6 +176,7 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     commandPost: q.CommandPost,
     goal: q.Moving ? { x: q.Goal.X, y: q.Goal.Y } : null,
     target: q.Target,
+    dropship: !!q.Dropship,
   }));
   const pads: BuildPad[] = (s.Pads ?? []).map((p) => ({
     x: p.Cell.X,
@@ -210,6 +212,7 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     buildingsLeft: s.BuildingsLeft,
     buildings: s.Buildings,
     commanded: false, // the Lab page knows which sides it commands
+    drops: [], // shortcut: the Lab has no reinforcements to add yet; replays still land them
   };
 }
 

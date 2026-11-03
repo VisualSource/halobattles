@@ -785,6 +785,7 @@ describe("MatchConnection", () => {
           commandPost: false,
           goal: null,
           target: 0,
+          dropship: false,
         },
         {
           id: 2,
@@ -801,6 +802,7 @@ describe("MatchConnection", () => {
           commandPost: false,
           goal: null,
           target: 0,
+          dropship: false,
         },
       ],
       points: [
@@ -824,6 +826,7 @@ describe("MatchConnection", () => {
       buildingsLeft: 0,
       buildings: 0,
       commanded: false,
+      drops: [],
     });
     expect(ticks).toEqual([
       {

@@ -37,6 +37,7 @@ enum Op : int {
   SetBattleControl = 28,
   SetArmyControl = 29,
   BattleOrder = 30,
+  BattleLand = 31,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -228,6 +229,15 @@ table SetArmyControl {
 
 enum BattleOrderKind : ubyte { Move = 0, Attack = 1, AttackMove = 2, Hold = 3 }
 
+// Sends one of your side's Dropships in orbit over the Battle on planet to a
+// Landing Zone your side holds; you must command the Battle.
+table BattleLand {
+  seq: uint32;
+  planet: string;
+  drop: ubyte;             // its index in BattleView.drops
+  point: ubyte;            // the Landing Zone's index in BattleView.points
+}
+
 // Orders squads of your side in a Battle you command. A group sent to a
 // cell keeps its shape round it.
 table BattleOrder {
@@ -399,6 +409,19 @@ table BattleSquad {
   goal_x: ushort;
   goal_y: ushort;
   target: ushort;          // your own squads': the enemy it was told to attack, or 0
+  dropship: bool;          // a Dropship in flight: it can't be fired on, and both sides see it
+}
+
+enum DropState : ubyte { Orbit = 0, Flying = 1, Done = 2 }
+
+// One of your side's Dropships over a Battle: waiting in orbit, on its way
+// to a Landing Zone, or done, having landed its troops (once a Battle).
+table BattleDrop {
+  unit: string;            // the Dropship's unit id
+  units: ushort;           // the troops it carries
+  state: DropState;
+  point: byte = -1;        // the Landing Zone it's going to, or went to
+  ai_at: uint32;           // in orbit: the tick the AI sends it, if nobody has
 }
 
 table ControlPoint {      // shown to players as a Landing Zone
@@ -444,6 +467,7 @@ table BattleView {
   buildings_left: ubyte;    // public: the Planet's buildings standing, a Raid's score
   buildings: ubyte;         // and at the start
   commanded: bool;         // your side is yours to command: the AI doesn't run it
+  drops: [BattleDrop];     // your side's Dropships
 }
 
 // One squad's fire in one sim tick: every living member's shot at one

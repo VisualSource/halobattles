@@ -65,6 +65,8 @@ type Squad struct {
 	Escaped         bool     // it Retreated off the field, keeping its Members
 	OnPad           int      // a pad turret: its pad's index + 1; it isn't a Planet building
 	CommandPost     bool     // the defender's Command Post: destroying it wins; it isn't a Planet building
+	Dropship        bool     // a Dropship in flight: it never fires, can't be fired on, and both sides see it
+	Drop            int      // landed by a Dropship, or one: its Drop's index + 1; 0 for the rest
 
 	class                  string
 	air                    bool
@@ -166,7 +168,9 @@ type Sim struct {
 	// Raid: the attacker wins by destroying every Planet building within
 	// raidTime, the Command Post decides nothing, and the defender can't
 	// Retreat. Set before the first Step.
-	Raid   bool
+	Raid bool
+	// Drops are the Dropships over the Battle, in the order they arrived.
+	Drops  []Drop
 	Over   bool
 	Winner Side
 	Reason string
@@ -506,6 +510,7 @@ func (s *Sim) Step() []Volley {
 	}
 	s.retreat()
 	s.raiseTurrets()
+	s.dropships()
 	s.move()
 	s.see()
 	volleys := s.fire()
@@ -561,9 +566,17 @@ func (s *Sim) apply(side Side, o Order) {
 			s.RetreatAt[side] = 0
 		}
 		return
+	case Arrive:
+		s.arrive(side, o)
+		return
+	case Land:
+		if s.CanLand(side, o.Target, o.Point) == nil {
+			s.launch(o.Target, o.Point)
+		}
+		return
 	}
 	sq := s.squad(o.Squad)
-	if sq == nil || sq.Side != side || !sq.alive() || sq.retreating {
+	if sq == nil || sq.Side != side || !sq.alive() || sq.retreating || sq.Dropship {
 		return
 	}
 	if s.setup() && side == Attacker && o.Kind != Attack {
@@ -679,7 +692,7 @@ func (s *Sim) retreat() {
 		if at := s.RetreatAt[side]; at != 0 && !s.Retreating[side] && s.Tick >= at {
 			s.Retreating[side] = true
 			for _, sq := range s.Squads {
-				if sq.Side == Side(side) && sq.alive() && sq.speed > 0 {
+				if sq.Side == Side(side) && sq.alive() && sq.speed > 0 && !sq.Dropship {
 					sq.retreating, sq.target = true, 0
 					s.headOut(sq)
 				}
@@ -780,7 +793,7 @@ func (s *Sim) see() {
 			if !e.alive() {
 				continue
 			}
-			if e.Side == Side(side) || e.flashUntil > s.Tick {
+			if e.Side == Side(side) || e.flashUntil > s.Tick || e.Dropship {
 				vis[e.ID] = true
 				continue
 			}
@@ -820,7 +833,7 @@ func (s *Sim) tier(actor, target *Squad) string {
 }
 
 func (s *Sim) canHit(actor, target *Squad) bool {
-	if !target.alive() || target.Side == actor.Side || !s.visible[actor.Side][target.ID] || s.tier(actor, target) == None {
+	if !target.alive() || target.Dropship || target.Side == actor.Side || !s.visible[actor.Side][target.ID] || s.tier(actor, target) == None {
 		return false
 	}
 	d := dist(actor.Cell, target.Cell)
@@ -1064,11 +1077,11 @@ func (s *Sim) presence(c Cell) [2]bool {
 // other out, or both Retreating, goes to the defender.
 func (s *Sim) end() {
 	// Pad turrets don't keep an attacker in the fight.
-	attackers := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Attacker && sq.alive() && sq.OnPad == 0 })
+	attackers := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Attacker && sq.alive() && sq.OnPad == 0 && !sq.Dropship })
 	cp := s.commandPost()
 	left := func(side Side) bool {
 		return s.Retreating[side] && !slices.ContainsFunc(s.Squads, func(sq *Squad) bool {
-			return sq.Side == side && sq.alive() && sq.speed > 0
+			return sq.Side == side && sq.alive() && sq.speed > 0 && !sq.Dropship
 		})
 	}
 	switch {
@@ -1113,9 +1126,10 @@ type SquadView struct {
 	CommandPost bool
 	// Its own side's: whether it's on its way to Goal, and the enemy it was
 	// told to attack, or 0.
-	Moving bool
-	Goal   Cell
-	Target int
+	Moving   bool
+	Goal     Cell
+	Target   int
+	Dropship bool // in flight: both sides see it
 }
 
 // Snapshot is one side's picture of the Battle: its own squads, the enemies
@@ -1132,6 +1146,14 @@ type Snapshot struct {
 	// The Planet's buildings standing, and at the start: public in a Raid,
 	// its score.
 	BuildingsLeft, Buildings int
+	// Drops are the side's Dropships, by their index in the Sim's.
+	Drops []SideDrop
+}
+
+// SideDrop is one of a side's Drops, as it sees them.
+type SideDrop struct {
+	Drop
+	SendsAt int // in orbit: the tick the sim sends it
 }
 
 func (s *Sim) Snapshot(side Side) Snapshot { return s.snapshot(side, false) }
@@ -1156,11 +1178,16 @@ func (s *Sim) snapshot(side Side, all bool) Snapshot {
 	if !all {
 		snap.Pads, snap.RetreatAt = s.PadsFor(side), s.RetreatAt[side]
 	}
+	for _, d := range s.Drops {
+		if all || d.Side == side {
+			snap.Drops = append(snap.Drops, SideDrop{d, s.SendsAt(d)})
+		}
+	}
 	for _, sq := range s.Squads {
 		if sq.alive() && (all || s.visible[side][sq.ID] || sq.CommandPost) {
 			v := SquadView{
 				ID: sq.ID, Side: sq.Side, Unit: sq.Unit, Building: sq.Building, Cell: sq.Cell,
-				Count: len(sq.Members), Start: sq.Start, Front: sq.Members[0], CommandPost: sq.CommandPost,
+				Count: len(sq.Members), Start: sq.Start, Front: sq.Members[0], CommandPost: sq.CommandPost, Dropship: sq.Dropship,
 			}
 			if all || sq.Side == side { // its orders: only its own side sees them
 				v.Moving, v.Goal, v.Target = len(sq.path) > 0, sq.goal, sq.target

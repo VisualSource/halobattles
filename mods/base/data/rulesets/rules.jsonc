@@ -74,6 +74,8 @@
     "raidTime": 100,
     "raidCap": 10,
     "raidRoles": ["scout", "infiltration", "shock"],
+    // A Dropship waits this long in orbit before the AI sends it in.
+    "landingDelay": 20,
     "padBuildSeconds": 10,
     // A neutral garrison's budget for pad turrets, having no economy: two
     // turrets' worth (each costs 200 Credits and 50 Materials).

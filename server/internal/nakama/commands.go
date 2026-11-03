@@ -170,6 +170,11 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
 			return s.play.SetArmyControl(s.seat(user), c.Army(), c.Command())
 		}
+	case wire.OpBattleLand:
+		c := wire.GetRootAsBattleLand(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.BattleLand(s.seat(user), string(c.Planet()), int(c.Drop()), int(c.Point()))
+		}
 	case wire.OpBattleOrder:
 		c := wire.GetRootAsBattleOrder(data, 0).UnPack()
 		kind, ok := orderKinds[c.Kind]

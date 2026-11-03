@@ -155,7 +155,7 @@
       "description": "How a Battle runs on its Battlefield.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "highGroundToHit", "heightSight", "retreatCountdown", "structure", "commandPost", "classDefaults"],
+      "required": ["startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "landingDelay", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "highGroundToHit", "heightSight", "retreatCountdown", "structure", "commandPost", "classDefaults"],
       "properties": {
         "startDelay": { "description": "Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.", "type": "integer", "minimum": 0 },
         "padBuildSeconds": { "description": "Seconds a turret takes to build on a build pad.", "type": "number", "minimum": 0 },
@@ -163,6 +163,7 @@
         "timeCap": { "description": "Seconds of fighting, after startDelay, until the defender wins.", "type": "integer", "minimum": 1 },
         "raidTime": { "description": "Seconds of fighting a Raid has to destroy the Planet's buildings; then the raiders go home.", "type": "integer", "minimum": 1 },
         "raidCap": { "description": "The most Command Points a raiding Stack can hold.", "type": "integer", "minimum": 1 },
+        "landingDelay": { "description": "Seconds a Dropship waits in orbit over a Battle before the AI sends it to a Landing Zone; a commanding player can send it sooner.", "type": "number", "minimum": 0 },
         "raidRoles": { "description": "The unit roles that can Raid: a Stack raids only if every unit has one.", "type": "array", "uniqueItems": true, "items": { "enum": ["scout", "skirmisher", "infiltration", "shock"] } },
         "captureRadius": { "description": "How near, in cells, a ground Squad must be to a Landing Zone to hold or take it.", "type": "number", "minimum": 0 },
         "captureSeconds": { "description": "How long one side alone must be in range to take a Landing Zone.", "type": "number", "minimum": 0 },

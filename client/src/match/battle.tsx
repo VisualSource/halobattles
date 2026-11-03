@@ -446,11 +446,29 @@ export function BattlePanel(props: {
       </p>
     </div>
   );
+  // Always there, even empty, so the map doesn't move when one arrives.
+  const reinforcements = (
+    <Reinforcements
+      battle={battle}
+      side={mySide}
+      commanding={!!commanding}
+      name={name}
+    />
+  );
+  // A Dropship dragged from the list onto a Landing Zone you hold.
+  const land = (e: React.DragEvent) => {
+    const drop = Number(e.dataTransfer.getData(DROP_DRAG));
+    const point = commander.current?.pointAt(e.clientX, e.clientY);
+    if (point == null || battle.points[point]?.owner !== mySide) return;
+    e.preventDefault();
+    conn.battleLand(battle.planet, drop, point);
+  };
   const map = (
     <BattlefieldView
       conn={conn}
       content={content}
       battle={battle.id}
+      onDrop={commanding ? land : undefined}
       className={full ? "min-h-0 flex-1" : "mx-4 h-95 rounded-md"}
       banner={startsIn > 0 ? `The fighting starts in ${startsIn} s` : undefined}
       command={
@@ -513,6 +531,7 @@ export function BattlePanel(props: {
           </div>
           <aside className="border-line bg-panel flex w-105 flex-none flex-col overflow-y-auto border-l">
             {points}
+            {reinforcements}
             {pads}
             {sides}
             {latest}
@@ -536,6 +555,7 @@ export function BattlePanel(props: {
     >
       {timeBar}
       {points}
+      {reinforcements}
       {pads}
       <div className="h-3" />
       {map}
@@ -559,6 +579,8 @@ function BattlefieldView(props: {
   battle: number;
   className: string;
   banner?: string; // shown over the map
+  /** A drag dropped on the map: a Dropship sent to a Landing Zone. */
+  onDrop?: (e: React.DragEvent) => void;
   /** Commanding a side: the map picks and orders its squads. */
   command?: {
     side: Side;
@@ -628,9 +650,18 @@ function BattlefieldView(props: {
   }, [conn, content, id, ready, side]);
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: a drop target for a Dropship dragged from the list; without a drag the AI sends it after landingDelay
     <div
       ref={ref}
       className={cn("bg-void relative overflow-hidden", props.className)}
+      onDragOver={
+        props.onDrop
+          ? (e) => {
+              if (e.dataTransfer.types.includes(DROP_DRAG)) e.preventDefault();
+            }
+          : undefined
+      }
+      onDrop={props.onDrop}
     >
       {!ready && (
         <p className="text-ink-3 flex h-full items-center justify-center text-sm">
@@ -641,6 +672,77 @@ function BattlefieldView(props: {
         <p className="pointer-events-none absolute top-3 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/75 px-3 py-1.5 font-mono text-sm">
           {props.banner}
         </p>
+      )}
+    </div>
+  );
+}
+
+/** The drag data type of a Dropship in orbit, by its index in Battle.drops. */
+export const DROP_DRAG = "application/x-halobattles-drop";
+
+/**
+ * Your side's Dropships over the Battle: in orbit, on their way, or done.
+ * Commanding, you drag one in orbit onto a Landing Zone you hold; otherwise
+ * the AI sends it when its time comes.
+ */
+function Reinforcements(props: {
+  battle: Battle;
+  side: Side | null | undefined;
+  commanding: boolean;
+  name: (unit: string) => string;
+}) {
+  const { battle } = props;
+  const held = battle.points.some((p) => p.owner === props.side);
+  return (
+    <div className="flex items-center gap-2.5 px-4 pt-2 text-sm">
+      <span className={cn(label, "w-16 flex-none")}>In orbit</span>
+      {/* A fixed-height row that scrolls sideways: the window keeps its size. */}
+      <ul className="flex h-11 min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+        {battle.drops.length === 0 && (
+          <li className="text-ink-4 text-[13px]">None</li>
+        )}
+        {battle.drops.map((d, i) => {
+          const drag = props.commanding && d.state === "orbit" && held;
+          const at = d.point === null ? "" : `LZ ${POINT_NAMES[d.point]}`;
+          const note =
+            d.state === "done"
+              ? "landed · can't land again this Battle"
+              : d.state === "flying"
+                ? `landing at ${at}`
+                : !held
+                  ? "waits for a Landing Zone you hold"
+                  : `AI sends in ${clock(Math.max(0, (d.aiAt - battle.tick) / BATTLE_TICKS))}`;
+          return (
+            <li
+              // biome-ignore lint/suspicious/noArrayIndexKey: a Battle's Dropships never reorder
+              key={i}
+              draggable={drag}
+              onDragStart={(e) => {
+                e.dataTransfer.setData(DROP_DRAG, String(i));
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              title={drag ? "Drag onto a Landing Zone you hold" : undefined}
+              className={cn(
+                "flex h-10 flex-none items-center gap-2 rounded-md border px-2.5",
+                d.state === "done"
+                  ? "border-line text-ink-4"
+                  : drag
+                    ? "border-edge bg-raised cursor-grab"
+                    : "border-line",
+              )}
+            >
+              <span>
+                {props.name(d.unit)} · {d.units} units
+              </span>
+              <span className="text-ink-3 font-mono text-xs">{note}</span>
+            </li>
+          );
+        })}
+      </ul>
+      {props.commanding && held && (
+        <span className="text-ink-3 flex-none text-xs">
+          Drag a Dropship onto a Landing Zone you hold
+        </span>
       )}
     </div>
   );

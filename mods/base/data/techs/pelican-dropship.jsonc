@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "pelican-dropship",
+  "name": "Pelican Dropship",
+  "faction": "unsc",
+  "field": "military",
+  "rarity": "rare",
+  "cost": 1200,
+  "requires": { "techs": ["air-wing"] },
+  "unlocks": { "units": ["pelican"] }
+}

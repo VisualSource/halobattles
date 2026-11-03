@@ -203,6 +203,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 				p.Buildings[sq.Slot] = ""
 			}
 		case n == 0:
+		case sq.Drop > 0: // reinforcements: back to their own owners, below
 		case sq.Side == battle.Attacker:
 			attackers = attackers.add(sq.Unit, n, 0)
 		case takes:
@@ -215,6 +216,13 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	}
 	p.Stacks, p.Locked = stacks, false
 	delete(s.Battles, b.ID)
+	dropped := dropSurvivors(b)
+	if takes { // the attacker's own move in with the rest
+		for _, u := range dropped[b.Attacker] {
+			attackers = attackers.add(u.Unit, u.Count, 0)
+		}
+		delete(dropped, b.Attacker)
+	}
 
 	winner := b.Defender
 	if attackerWins {
@@ -228,11 +236,13 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	}
 	ev.Ended = append(ev.Ended, BattleEnded{Battle: b.ID, Planet: p.ID, Winner: winner, Viewers: viewers})
 
+	if takes { // even with none of its own left: a Teammate's landed troops can win it
+		s.capture(p, b.Attacker, ev)
+	}
 	if len(attackers) > 0 && !s.Players[b.Attacker].Eliminated {
 		s.LastID++
 		a := &Army{ID: s.LastID, Owner: b.Attacker, Units: attackers, From: p.ID, To: p.ID, ToStack: b.ToStack}
 		if takes {
-			s.capture(p, b.Attacker, ev)
 			a.Waiting = true
 			s.Armies[a.ID] = a
 			s.land(c, a, p) // with overflow; what doesn't fit waits in orbit
@@ -251,6 +261,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 			s.Armies[d.ID] = d
 		}
 	}
+	s.sendHome(c, p, dropped)
 }
 
 // RetreatFromBattle orders seat's side of the Battle on planet to Retreat,

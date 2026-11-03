@@ -394,6 +394,10 @@ export interface BattleRules {
    */
   raidCap: number;
   /**
+   * Seconds a Dropship waits in orbit over a Battle before the AI sends it to a Landing Zone; a commanding player can send it sooner.
+   */
+  landingDelay: number;
+  /**
    * The unit roles that can Raid: a Stack raids only if every unit has one.
    */
   raidRoles: ("scout" | "skirmisher" | "infiltration" | "shock")[];
@@ -639,6 +643,10 @@ export interface Unit {
    * Hints for the Battle AI: which roles it picks this unit for first. A scout roams to look and falls back from the enemy; a skirmisher patrols between points and hunts what it's good against. A scout, infiltration or shock unit can Raid.
    */
   roles?: ("scout" | "skirmisher" | "infiltration" | "shock")[];
+  /**
+   * A Dropship: the Command Points of units it lands in a Battle already under way, once a Battle. It never fires.
+   */
+  carry?: number;
   combat: Combat;
   /**
    * An asset in a Mod's assets/ folder, written `__mod__/path`.

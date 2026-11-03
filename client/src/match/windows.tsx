@@ -1882,6 +1882,10 @@ export function ArmyWindow(props: {
     return live ? live.owner : (lastSeen.get(p)?.planet.owner ?? null);
   };
   const mine = army.owner === view.you;
+  // A Dropship in it: the Army can land in a Battle already under way.
+  const ship = army.units
+    .map((u) => content.units.get(u.unit))
+    .find((d) => d?.carry);
   const lanes = laneTimes(map, content.rules);
   // A Spectator sees where every Army is going.
   const route = mine || view.spectating ? [army.to, ...army.path] : [army.to];
@@ -1996,6 +2000,13 @@ export function ArmyWindow(props: {
               ))}
             </fieldset>
           </div>
+        )}
+        {mine && ship && (
+          <p className="text-ink-2 text-xs">
+            Has a {ship.name}: it lands up to {ship.carry} Command Points in a
+            Battle your side is fighting, at a Landing Zone you hold. The rest
+            waits in orbit.
+          </p>
         )}
         {mine && (
           <p className="text-ink-4 text-xs">

@@ -285,7 +285,10 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 		}
 		p := s.Planets[a.To]
 		if p.Locked {
-			continue // waits until the Battle ends, then resolves against the new owner
+			if len(a.Path) == 0 { // it ends here; one passing through keeps its order
+				s.reinforce(c, a, p) // with Dropships, it lands what they carry
+			}
+			continue // the rest waits until the Battle ends, then resolves against the new owner
 		}
 		if len(a.Path) > 0 {
 			// It waited out a Battle on the way: go on if it still may.

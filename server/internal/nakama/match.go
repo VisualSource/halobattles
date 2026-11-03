@@ -556,7 +556,12 @@ func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 				Id: uint16(sq.ID), Side: uint8(sq.Side), Unit: sq.Unit, Building: sq.Building,
 				X: uint16(sq.Cell.X), Y: uint16(sq.Cell.Y), Count: uint32(sq.Count), Start: uint32(sq.Start),
 				Shield: float32(max(0, sq.Front.Shield)), Armor: float32(max(0, sq.Front.Armor)), Hp: float32(max(0, sq.Front.HP)),
-				CommandPost: sq.CommandPost, Moving: sq.Moving, GoalX: uint16(sq.Goal.X), GoalY: uint16(sq.Goal.Y), Target: uint16(sq.Target),
+				CommandPost: sq.CommandPost, Moving: sq.Moving, GoalX: uint16(sq.Goal.X), GoalY: uint16(sq.Goal.Y), Target: uint16(sq.Target), Dropship: sq.Dropship,
+			})
+		}
+		for _, d := range b.Drops {
+			bv.Drops = append(bv.Drops, &wire.BattleDropT{
+				Unit: d.Unit, Units: uint16(d.TroopCount()), State: wire.DropState(d.State), Point: int8(d.Point), AiAt: uint32(d.SendsAt),
 			})
 		}
 		for _, p := range b.Points {

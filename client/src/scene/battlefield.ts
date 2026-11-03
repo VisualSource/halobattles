@@ -146,6 +146,7 @@ export class BattlefieldScene {
   // Whose Sight clears the fog: a side, both (null), or no fog at all (false).
   private fogOf: Side | null | false;
   private lastSquads: Squad[] = [];
+  private lastPoints: ControlPoint[] = [];
   private readonly overlays = new THREE.Group();
   private readonly ring = new THREE.Mesh(
     new THREE.RingGeometry(0.55, 0.7, 24),
@@ -287,7 +288,11 @@ export class BattlefieldScene {
         t.to.copy(at);
         t.t0 = now;
       }
-      t.label.element.textContent = sq.commandPost ? "CP" : String(sq.count);
+      t.label.element.textContent = sq.commandPost
+        ? "CP"
+        : sq.dropship
+          ? "Dropship"
+          : String(sq.count);
       t.label.element.style.opacity = sq.count < sq.start ? "0.85" : "1";
     }
     for (const [id, t] of this.tokens) {
@@ -299,6 +304,7 @@ export class BattlefieldScene {
       this.tokens.delete(id);
     }
     this.drawPoints(battle.points);
+    this.lastPoints = battle.points;
     this.drawPads(battle.pads);
     this.lastSquads = battle.squads;
     this.drawFog(battle.squads);
@@ -359,6 +365,16 @@ export class BattlefieldScene {
     this.armed = false;
     this.renderer.domElement.style.cursor = "";
     this.onSelect?.([...this.picked]);
+  }
+
+  /** The Landing Zone under a screen point (a drop), by index, or null. */
+  pointAt(clientX: number, clientY: number) {
+    const at = this.world({ clientX, clientY } as MouseEvent);
+    const r = this.look.captureRadius + 0.5;
+    const i = this.lastPoints.findIndex(
+      (p) => Math.hypot(p.x + 0.5 - at.x, -(p.y + 0.5) - at.y) <= r,
+    );
+    return i < 0 ? null : i;
   }
 
   /** The next left click sends the picked squads on an Attack-move. */

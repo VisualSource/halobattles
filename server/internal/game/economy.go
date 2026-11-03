@@ -166,10 +166,13 @@ func (s *State) units(seat int) map[string]int {
 	for _, b := range s.Battles { // attackers count until the Battle ends
 		if b.Attacker == seat {
 			for _, sq := range b.Sim.Squads {
-				if sq.Side == battle.Attacker {
+				if sq.Side == battle.Attacker && sq.Drop == 0 {
 					n[sq.Unit] += sq.Start
 				}
 			}
+		}
+		for _, u := range dropSurvivors(b)[seat] { // what came in by Dropship, for its owner
+			n[u.Unit] += u.Count
 		}
 	}
 	return n
@@ -213,7 +216,10 @@ func (s *State) unitUpkeep(c *cs.Content, nets []map[string]int) {
 				continue
 			}
 			seat := b.Attacker
-			if sq.Side == battle.Defender {
+			switch {
+			case sq.Drop > 0:
+				seat = b.Sim.Drops[sq.Drop-1].Owner // a reinforcement: its owner's
+			case sq.Side == battle.Defender:
 				seat = b.Defender
 			}
 			charge(seat, sq.Unit, len(sq.Members))

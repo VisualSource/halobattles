@@ -10,6 +10,7 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 - The UNSC M121 Jackrabbit, a light scout vehicle built at the Vehicle Depot.
 - Command your own Battles: pick Command in the new Settings screen (the gear on the main menu, in the lobby and in the game), or for one Army in its window. Click or drag to select squads, right-click to move or attack, A to Attack-move, H to Hold. A Battle you command opens when it starts. If you disconnect, the AI takes over that Battle.
 - A Settings screen, for choices that carry over between Matches.
+- Reinforcements: research the Pelican (UNSC) or Phantom (Covenant) Dropship, and an Army with one that reaches a Battle your side or a Teammate is fighting flies its troops in, up to 12 Command Points a Dropship, at a Landing Zone your side holds. When you command, drag it from the In orbit list onto a Landing Zone; otherwise it goes in after 20 s. Each Dropship lands once a Battle.
 
 ### Changed
 

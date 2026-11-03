@@ -93,6 +93,10 @@ type BattleRules struct {
 	// Added to the To-hit roll of a ground attack from a higher height level.
 	HighGroundToHit int `json:"highGroundToHit"`
 
+	// Seconds a Dropship waits in orbit over a Battle before the AI sends it to a
+	// Landing Zone; a commanding player can send it sooner.
+	LandingDelay float64 `json:"landingDelay"`
+
 	// What a neutral garrison has to spend on pad turrets in each Battle, having no
 	// economy.
 	NeutralFunds map[string]int `json:"neutralFunds"`
@@ -1229,6 +1233,10 @@ type Unit struct {
 
 	// Seconds to train one.
 	BuildTime Seconds `json:"buildTime"`
+
+	// A Dropship: the Command Points of units it lands in a Battle already under way,
+	// once a Battle. It never fires.
+	Carry *int `json:"carry,omitempty,omitzero"`
 
 	// Combat corresponds to the JSON schema field "combat".
 	Combat Combat `json:"combat"`

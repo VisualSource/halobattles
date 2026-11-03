@@ -25,6 +25,7 @@
       "uniqueItems": true,
       "items": { "enum": ["scout", "skirmisher", "infiltration", "shock"] }
     },
+    "carry": { "description": "A Dropship: the Command Points of units it lands in a Battle already under way, once a Battle. It never fires.", "type": "integer", "minimum": 1 },
     "combat": { "$ref": "defs.schema.json#/definitions/combat" },
     "icon": { "$ref": "defs.schema.json#/definitions/asset" }
   }

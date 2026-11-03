@@ -8,6 +8,6 @@
   "buildTime": 60,
   "upkeep": { "credits": 30 },
   "yield": {},
-  "trains": ["hornet"],
+  "trains": ["hornet", "pelican"],
   "commandPointBonus": 0
 }

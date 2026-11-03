@@ -23,6 +23,7 @@ type BattleSquadT struct {
 	GoalX       uint16  `json:"goal_x"`
 	GoalY       uint16  `json:"goal_y"`
 	Target      uint16  `json:"target"`
+	Dropship    bool    `json:"dropship"`
 }
 
 func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -50,6 +51,7 @@ func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleSquadAddGoalX(builder, t.GoalX)
 	BattleSquadAddGoalY(builder, t.GoalY)
 	BattleSquadAddTarget(builder, t.Target)
+	BattleSquadAddDropship(builder, t.Dropship)
 	return BattleSquadEnd(builder)
 }
 
@@ -70,6 +72,7 @@ func (rcv *BattleSquad) UnPackTo(t *BattleSquadT) {
 	t.GoalX = rcv.GoalX()
 	t.GoalY = rcv.GoalY()
 	t.Target = rcv.Target()
+	t.Dropship = rcv.Dropship()
 }
 
 func (rcv *BattleSquad) UnPack() *BattleSquadT {
@@ -341,8 +344,20 @@ func (rcv *BattleSquad) MutateTarget(n uint16) bool {
 	return rcv._tab.MutateUint16Slot(34, n)
 }
 
+func (rcv *BattleSquad) Dropship() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(36))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleSquad) MutateDropship(n bool) bool {
+	return rcv._tab.MutateBoolSlot(36, n)
+}
+
 func BattleSquadStart(builder *flatbuffers.Builder) {
-	builder.StartObject(16)
+	builder.StartObject(17)
 }
 func BattleSquadAddId(builder *flatbuffers.Builder, id uint16) {
 	builder.PrependUint16Slot(0, id, 0)
@@ -391,6 +406,9 @@ func BattleSquadAddGoalY(builder *flatbuffers.Builder, goalY uint16) {
 }
 func BattleSquadAddTarget(builder *flatbuffers.Builder, target uint16) {
 	builder.PrependUint16Slot(15, target, 0)
+}
+func BattleSquadAddDropship(builder *flatbuffers.Builder, dropship bool) {
+	builder.PrependBoolSlot(16, dropship, false)
 }
 func BattleSquadEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

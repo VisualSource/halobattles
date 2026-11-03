@@ -106,8 +106,13 @@ target():number {
   return offset ? this.bb!.readUint16(this.bb_pos + offset) : 0;
 }
 
+dropship():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 36);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startBattleSquad(builder:flatbuffers.Builder) {
-  builder.startObject(16);
+  builder.startObject(17);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -174,12 +179,16 @@ static addTarget(builder:flatbuffers.Builder, target:number) {
   builder.addFieldInt16(15, target, 0);
 }
 
+static addDropship(builder:flatbuffers.Builder, dropship:boolean) {
+  builder.addFieldInt8(16, +dropship, +false);
+}
+
 static endBattleSquad(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, unitOffset:flatbuffers.Offset, building:boolean, x:number, y:number, count:number, start:number, shield:number, armor:number, hp:number, commandPost:boolean, moving:boolean, goalX:number, goalY:number, target:number):flatbuffers.Offset {
+static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, unitOffset:flatbuffers.Offset, building:boolean, x:number, y:number, count:number, start:number, shield:number, armor:number, hp:number, commandPost:boolean, moving:boolean, goalX:number, goalY:number, target:number, dropship:boolean):flatbuffers.Offset {
   BattleSquad.startBattleSquad(builder);
   BattleSquad.addId(builder, id);
   BattleSquad.addSide(builder, side);
@@ -197,6 +206,7 @@ static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, un
   BattleSquad.addGoalX(builder, goalX);
   BattleSquad.addGoalY(builder, goalY);
   BattleSquad.addTarget(builder, target);
+  BattleSquad.addDropship(builder, dropship);
   return BattleSquad.endBattleSquad(builder);
 }
 
@@ -217,7 +227,8 @@ unpack(): BattleSquadT {
     this.moving(),
     this.goalX(),
     this.goalY(),
-    this.target()
+    this.target(),
+    this.dropship()
   );
 }
 
@@ -239,6 +250,7 @@ unpackTo(_o: BattleSquadT): void {
   _o.goalX = this.goalX();
   _o.goalY = this.goalY();
   _o.target = this.target();
+  _o.dropship = this.dropship();
 }
 }
 
@@ -259,7 +271,8 @@ constructor(
   public moving: boolean = false,
   public goalX: number = 0,
   public goalY: number = 0,
-  public target: number = 0
+  public target: number = 0,
+  public dropship: boolean = false
 ){}
 
 
@@ -282,7 +295,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.moving,
     this.goalX,
     this.goalY,
-    this.target
+    this.target,
+    this.dropship
   );
 }
 }

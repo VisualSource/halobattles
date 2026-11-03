@@ -221,7 +221,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 	d := c.Doc
 
 	counts := map[string][2]int{
-		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 26}, "techs": {len(d.Techs), 25},
+		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 26}, "techs": {len(d.Techs), 27},
 		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
 		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 3},
 		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
@@ -297,8 +297,8 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 		}
 		techs[f]++
 	}
-	if techs["shared"] != 7 || techs["base:unsc"] != 9 || techs["base:covenant"] != 9 {
-		t.Errorf("Techs per Faction = %v, want 7 shared and 9 each", techs)
+	if techs["shared"] != 7 || techs["base:unsc"] != 10 || techs["base:covenant"] != 10 {
+		t.Errorf("Techs per Faction = %v, want 7 shared and 10 each", techs)
 	}
 	if mbt := d.Techs["base:main-battle-tank"]; mbt.Cost != 600 || mbt.Requires.Techs[0] != "base:motor-pool" || mbt.Unlocks.Units[0] != "base:scorpion" {
 		t.Errorf("main-battle-tank = %+v", mbt)

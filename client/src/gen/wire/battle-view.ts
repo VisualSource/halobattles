@@ -4,6 +4,7 @@
 
 import * as flatbuffers from 'flatbuffers';
 
+import { BattleDrop, BattleDropT } from '../wire/battle-drop.js';
 import { BattleSquad, BattleSquadT } from '../wire/battle-squad.js';
 import { Battlefield, BattlefieldT } from '../wire/battlefield.js';
 import { BuildPad, BuildPadT } from '../wire/build-pad.js';
@@ -135,8 +136,18 @@ commanded():boolean {
   return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
 }
 
+drops(index: number, obj?:BattleDrop):BattleDrop|null {
+  const offset = this.bb!.__offset(this.bb_pos, 44);
+  return offset ? (obj || new BattleDrop()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+dropsLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 44);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
 static startBattleView(builder:flatbuffers.Builder) {
-  builder.startObject(20);
+  builder.startObject(21);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -247,6 +258,22 @@ static addCommanded(builder:flatbuffers.Builder, commanded:boolean) {
   builder.addFieldInt8(19, +commanded, +false);
 }
 
+static addDrops(builder:flatbuffers.Builder, dropsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(20, dropsOffset, 0);
+}
+
+static createDropsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startDropsVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
+}
+
 static endBattleView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -272,7 +299,8 @@ unpack(): BattleViewT {
     this.raid(),
     this.buildingsLeft(),
     this.buildings(),
-    this.commanded()
+    this.commanded(),
+    this.bb!.createObjList<BattleDrop, BattleDropT>(this.drops.bind(this), this.dropsLength())
   );
 }
 
@@ -296,6 +324,7 @@ unpackTo(_o: BattleViewT): void {
   _o.buildingsLeft = this.buildingsLeft();
   _o.buildings = this.buildings();
   _o.commanded = this.commanded();
+  _o.drops = this.bb!.createObjList<BattleDrop, BattleDropT>(this.drops.bind(this), this.dropsLength());
 }
 }
 
@@ -318,7 +347,8 @@ constructor(
   public raid: boolean = false,
   public buildingsLeft: number = 0,
   public buildings: number = 0,
-  public commanded: boolean = false
+  public commanded: boolean = false,
+  public drops: (BattleDropT)[] = []
 ){}
 
 
@@ -328,6 +358,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const squads = BattleView.createSquadsVector(builder, builder.createObjectOffsetList(this.squads));
   const points = BattleView.createPointsVector(builder, builder.createObjectOffsetList(this.points));
   const pads = BattleView.createPadsVector(builder, builder.createObjectOffsetList(this.pads));
+  const drops = BattleView.createDropsVector(builder, builder.createObjectOffsetList(this.drops));
 
   BattleView.startBattleView(builder);
   BattleView.addId(builder, this.id);
@@ -348,6 +379,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   BattleView.addBuildingsLeft(builder, this.buildingsLeft);
   BattleView.addBuildings(builder, this.buildings);
   BattleView.addCommanded(builder, this.commanded);
+  BattleView.addDrops(builder, drops);
 
   return BattleView.endBattleView(builder);
 }

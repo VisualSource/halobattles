@@ -9,6 +9,7 @@ import {
   BattleCancelRetreatT,
   BattleEnded,
   type BattlefieldT,
+  BattleLandT,
   BattleOrderKind,
   BattleOrderT,
   BattleRetreatT,
@@ -18,6 +19,7 @@ import {
   CancelProjectT,
   CancelQueueItemT,
   CommandRejected,
+  DropState,
   type EconomyT,
   ExchangeT,
   LobbyState,
@@ -241,6 +243,7 @@ const toBattle = (
     commandPost: q.commandPost,
     goal: q.moving ? { x: q.goalX, y: q.goalY } : null,
     target: q.target,
+    dropship: q.dropship,
   })),
   points: b.points.map((p) => ({
     x: p.x,
@@ -268,7 +271,20 @@ const toBattle = (
   buildingsLeft: b.buildingsLeft,
   buildings: b.buildings,
   commanded: b.commanded,
+  drops: b.drops.map((d) => ({
+    unit: str(d.unit),
+    units: d.units,
+    state: DROP_STATES[d.state] ?? "done",
+    point: d.point < 0 ? null : d.point,
+    aiAt: d.aiAt,
+  })),
 });
+
+const DROP_STATES = {
+  [DropState.Orbit]: "orbit",
+  [DropState.Flying]: "flying",
+  [DropState.Done]: "done",
+} as const;
 
 const toQueueItem = (q: QueueItemT): QueueItem => ({
   id: q.id,
@@ -598,6 +614,15 @@ export class MatchConnection {
           o.cell?.y ?? 0,
           o.target ?? 0,
         ),
+    );
+  }
+
+  /** Sends one of your side's Dropships, by its index in Battle.drops, to Landing Zone point. */
+  battleLand(planet: string, drop: number, point: number) {
+    this.send(
+      Op.BattleLand,
+      "battleOrder",
+      (seq) => new BattleLandT(seq, planet, drop, point),
     );
   }
 

@@ -190,6 +190,7 @@ A draft for review. Requirements in parentheses; "UNSC" units below means the ho
 | ONI Data Mining | Industry | Common | +1 Industry Research |
 | Main Battle Tank | Military | Uncommon (Motor Pool) | unlocks Scorpion |
 | Air Wing | Military | Uncommon (Motor Pool) | unlocks Air Pad, Hornet |
+| Pelican Dropship | Military | Rare (Air Wing) | unlocks Pelican, which lands troops in a Battle under way |
 | Titanium-A Plating | Military | Uncommon | +10% Vehicle and Aircraft Armor |
 | Logistics Command | Logistics | Rare | +10 Command Points |
 | Forerunner Reverse-Engineering | Logistics | Legendary (Forerunner Dig Site) | +1 Tech Slot per Lab, +20% Research, every field |
@@ -204,6 +205,7 @@ A draft for review. Requirements in parentheses; "UNSC" units below means the ho
 | San'Shyuum Archives | Industry | Common | +1 Industry Research |
 | Wraith Fabrication | Military | Uncommon (Summoning Foundry) | unlocks Wraith |
 | Banshee Flight | Military | Uncommon (Ghost Fabrication) | unlocks Summit, Banshee |
+| Phantom Dropship | Military | Rare (Banshee Flight) | unlocks Phantom, which lands troops in a Battle under way |
 | Shield Harmonics | Military | Uncommon | +10% Shield, every unit |
 | Fleet Logistics | Logistics | Rare | +10 Command Points |
 | Forerunner Relic Study | Logistics | Legendary (Relic Shrine) | +1 Tech Slot per Lab, +20% Research, every field |

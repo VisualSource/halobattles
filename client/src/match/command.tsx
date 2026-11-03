@@ -11,6 +11,8 @@ import { label } from "./windows";
 export type Commander = {
   pick: (squads: number[]) => void;
   armAttackMove: () => void;
+  /** The Landing Zone under a screen point, by index, or null. */
+  pointAt: (clientX: number, clientY: number) => number | null;
 };
 
 /**

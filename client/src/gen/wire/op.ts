@@ -34,6 +34,7 @@ export enum Op {
   SetBattleControl = 28,
   SetArmyControl = 29,
   BattleOrder = 30,
+  BattleLand = 31,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,
