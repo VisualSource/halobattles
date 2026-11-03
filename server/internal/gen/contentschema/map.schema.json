@@ -35,11 +35,12 @@
           },
           "battlefield": {
             "title": "Planet Battlefield",
-            "description": "Overrides the Ruleset's Battlefield size and Terrain Preset for this Planet.",
+            "description": "Overrides the Ruleset's Battlefield size, Terrain Preset and Archetype for this Planet.",
             "type": "object",
             "additionalProperties": false,
             "properties": {
               "terrainPreset": { "$ref": "defs.schema.json#/definitions/id" },
+              "archetype": { "description": "Forces this Planet's Battlefield Archetype, over its preset's weights.", "enum": ["open", "river", "ridge", "ruins"] },
               "width": { "type": "integer", "minimum": 16, "maximum": 256 },
               "height": { "type": "integer", "minimum": 16, "maximum": 256 }
             }

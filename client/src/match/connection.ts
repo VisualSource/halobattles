@@ -227,8 +227,8 @@ const toBattle = (
   points: b.points.map((p) => ({
     x: p.x,
     y: p.y,
-    owner: side(p.owner),
-    taker: side(p.taker),
+    owner: p.owner > 1 ? null : side(p.owner), // 255: nobody's
+    taker: p.taker > 1 ? null : side(p.taker),
     progress: p.progress,
   })),
   pads: b.pads.map((p) => ({

@@ -55,6 +55,18 @@
       "description": "The Terrain the generator scatters round the edge of each Control Point's clear ground, as cover for its guards. Every ground Unit Class should be able to cross it. None if left out.",
       "$ref": "defs.schema.json#/definitions/id"
     },
+    "archetypes": {
+      "title": "Archetype Weights",
+      "description": "How often each Battlefield Archetype is picked for a Planet with this preset. Left out: an open field only.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "open": { "type": "number", "minimum": 0 },
+        "river": { "type": "number", "minimum": 0 },
+        "ridge": { "type": "number", "minimum": 0 },
+        "ruins": { "type": "number", "minimum": 0 }
+      }
+    },
     "clear": {
       "title": "Clear",
       "description": "What the generator turns blocked cells into when it cuts a path to connect the map.",

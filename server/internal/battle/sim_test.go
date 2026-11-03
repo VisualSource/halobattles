@@ -52,7 +52,7 @@ func TestDeploymentPlacesEverySquadOnItsOwnCell(t *testing.T) {
 		}
 	}
 	for _, sq := range s.Squads {
-		posts := append([]Cell{s.Field.CommandPost}, s.Field.Points...) // Stack 1 at the Command Post
+		posts := append([]Cell{s.Field.CommandPost}, s.Field.UnitStarts...) // the Stacks in the base
 		near := slices.ContainsFunc(posts, func(p Cell) bool { return dist(p, sq.Cell) <= 6 })
 		switch {
 		case sq.CommandPost && sq.Cell != s.Field.CommandPost:
@@ -63,10 +63,17 @@ func TestDeploymentPlacesEverySquadOnItsOwnCell(t *testing.T) {
 			t.Errorf("defender %d at %v, far from every point %v", sq.ID, sq.Cell, s.Field.Points)
 		}
 	}
+	held := 0
 	for _, p := range s.Points {
-		if p.Owner != Defender {
-			t.Errorf("point %v starts with %v", p.Cell, p.Owner)
+		switch {
+		case p.Owner == Attacker:
+			held++
+		case p.Owner != NoSide:
+			t.Errorf("Landing Zone %v starts with %v; want nobody's but the attacker's", p.Cell, p.Owner)
 		}
+	}
+	if held != 1 {
+		t.Errorf("the attacker holds %d Landing Zones; want the one it landed at", held)
 	}
 }
 
@@ -125,6 +132,7 @@ func clearPoints(s *Sim) {
 
 // stage clears the defenders off the points and puts squad a on point 0.
 func stage(s *Sim, a *Squad) {
+	s.Points[0].Owner, s.Points[0].Taker = Defender, Defender // the defender's, to be taken
 	clearPoints(s)
 	if id := s.ground[s.Field.index(s.Points[0].Cell)]; id != 0 {
 		s.relocate(s.squad(id), Cell{0, 0})
@@ -195,8 +203,8 @@ func TestDestroyingTheCommandPostWins(t *testing.T) {
 	}
 }
 
-// Stack 1 deploys at the Command Post, the rest on the Landing Zones.
-func TestTheDefendersFirstStackDeploysAtTheCommandPost(t *testing.T) {
+// Each Stack deploys round its unit start in the base.
+func TestTheDefendersStacksDeployInTheirBase(t *testing.T) {
 	c := baseContent(t)
 	unsc, cov := kits()
 	cov.Formations = append(cov.Formations, cov.Formations[0])
@@ -207,8 +215,8 @@ func TestTheDefendersFirstStackDeploysAtTheCommandPost(t *testing.T) {
 			continue
 		}
 		want := s.Field.CommandPost
-		if sq.Formation > 0 {
-			want = s.Field.Points[(sq.Formation-1)%len(s.Field.Points)]
+		if sq.Formation < len(s.Field.UnitStarts) {
+			want = s.Field.UnitStarts[sq.Formation]
 		}
 		if !near(sq.Cell, want) {
 			t.Errorf("%s of Stack %d at %v; want near %v", sq.Unit, sq.Formation+1, sq.Cell, want)
@@ -566,7 +574,7 @@ func TestFireGoesForWhatFiresBackFirst(t *testing.T) {
 	if !s.canHit(marines, hall) || !s.canHit(marines, grunts) {
 		t.Skip("not both in range on this Battlefield")
 	}
-	if got := s.targetOf(marines); got != grunts {
-		t.Errorf("the Marines fire at %s; want the armed Grunts before the unarmed %s", got.Unit, hall.Unit)
+	if got := s.targetOf(marines); !got.Armed {
+		t.Errorf("the Marines fire at %s; want an armed enemy before the unarmed %s", got.Unit, hall.Unit)
 	}
 }

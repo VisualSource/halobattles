@@ -63,9 +63,29 @@ func stageNear(t *testing.T, s *Sim) *Squad {
 	return nil
 }
 
+// Squads the base can spare go after an enemy they see.
 func TestDefendersGoAfterAnEnemyTheySee(t *testing.T) {
-	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:grunt", 5, 1}, {"base:grunt", 5, 2}}}})
-	a := stageNear(t, s)
+	var guards []Slot
+	for cell := range 6 {
+		guards = append(guards, Slot{"base:grunt", 5, cell})
+	}
+	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{guards}})
+	a := s.Squads[0]
+	// In a guard's Sight, out of the Command Post's threat radius.
+	g := s.Squads[1]
+	placed := false
+	for y := g.Cell.Y - 7; y <= g.Cell.Y+7 && !placed; y++ {
+		for x := g.Cell.X - 7; x <= g.Cell.X+7 && !placed; x++ {
+			if c := (Cell{x, y}); dist(c, g.Cell) <= 7 && dist(c, s.Field.CommandPost) > threatRadius+2 && s.standable(a, c) {
+				s.relocate(a, c)
+				placed = true
+			}
+		}
+	}
+	s.see()
+	if !placed || !s.visible[Defender][a.ID] {
+		t.Skip("no spot in a guard's Sight away from the Command Post on this Battlefield")
+	}
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Defender}
 	ai.command(v, v.Own(), v.Enemies())
@@ -439,8 +459,8 @@ func TestAScoutFallsBackFromTheEnemyThenRests(t *testing.T) {
 	ai.sighted[marines.ID] = sighting{ghost.Cell.add(Cell{2, 0}), 5, 0}
 	ai.assignRoles(v, v.Own(), nil)
 	p := ai.plans[ghost.ID]
-	if ai.roles[ghost.ID] != fallingBack || p.goal.kind != fallback || !slices.ContainsFunc(s.Points, func(pt Point) bool { return pt.Cell == p.goal.cell }) {
-		t.Fatalf("role %v, goal %+v; want it falling back to a held point", ai.roles[ghost.ID], p.goal)
+	if ai.roles[ghost.ID] != fallingBack || p.goal.kind != fallback || !slices.Contains(home(v), p.goal.cell) {
+		t.Fatalf("role %v, goal %+v; want it falling back to its base or a held point", ai.roles[ghost.ID], p.goal)
 	}
 
 	delete(ai.sighted, marines.ID)

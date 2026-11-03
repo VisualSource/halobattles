@@ -100,8 +100,8 @@ export type Squad = {
 export type ControlPoint = {
   x: number;
   y: number;
-  owner: Side;
-  taker: Side; // taking it while progress > 0
+  owner: Side | null; // a Landing Zone; null is nobody's
+  taker: Side | null; // taking it while progress > 0
   progress: number; // sim ticks the taker has held it alone
 };
 

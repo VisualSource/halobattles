@@ -561,12 +561,14 @@ function Points(props: {
         <span
           key={`${p.x},${p.y}`}
           className="border-line flex items-center gap-1.5 rounded-md border px-2 py-1"
-          title={`Held by the ${p.owner}`}
+          title={p.owner ? `Held by the ${p.owner}` : "Held by nobody"}
         >
           <span
             aria-hidden="true"
             className="size-2.5 rounded-full"
-            style={{ background: colourOf(seatOf(battle, p.owner)) }}
+            style={{
+              background: p.owner ? colourOf(seatOf(battle, p.owner)) : NEUTRAL,
+            }}
           />
           <span className="font-mono">LZ {POINT_NAMES[i]}</span>
           <span className="text-ink-3 w-8 font-mono text-xs">

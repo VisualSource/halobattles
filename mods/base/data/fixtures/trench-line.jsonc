@@ -1,0 +1,19 @@
+// A trench line: cover with gaps to cross it.
+{
+  "$schema": "../../../../schema/content/fixture.schema.json",
+  "id": "trench-line",
+  "kind": "feature",
+  "rotate": true,
+  "key": {
+    "#": {
+      "cover": true
+    },
+    ".": {
+      "clear": true
+    }
+  },
+  "map": [
+    "###.####.###",
+    "............"
+  ]
+}

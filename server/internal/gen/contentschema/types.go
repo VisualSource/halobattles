@@ -31,6 +31,22 @@ type AIWeights struct {
 	Scout *float64 `json:"scout,omitempty,omitzero"`
 }
 
+// How often each Battlefield Archetype is picked for a Planet with this preset.
+// Left out: an open field only.
+type ArchetypeWeights struct {
+	// Open corresponds to the JSON schema field "open".
+	Open *float64 `json:"open,omitempty,omitzero"`
+
+	// Ridge corresponds to the JSON schema field "ridge".
+	Ridge *float64 `json:"ridge,omitempty,omitzero"`
+
+	// River corresponds to the JSON schema field "river".
+	River *float64 `json:"river,omitempty,omitzero"`
+
+	// Ruins corresponds to the JSON schema field "ruins".
+	Ruins *float64 `json:"ruins,omitempty,omitzero"`
+}
+
 // An asset in a Mod's assets/ folder, written `__mod__/path`.
 type Asset string
 
@@ -102,10 +118,6 @@ type BattleRules struct {
 
 // How Battlefields are generated. A map's Planet can override the size and preset.
 type BattlefieldRules struct {
-	// Places on the map's edges an attacker can deploy around; each Battle's seed
-	// picks one. Defaults to 3.
-	AttackerStarts *int `json:"attackerStarts,omitempty,omitzero"`
-
 	// Build pads the generator places: spots a side can capture and build a turret
 	// on.
 	BuildPads int `json:"buildPads"`
@@ -402,6 +414,9 @@ type Content struct {
 	// Factions corresponds to the JSON schema field "factions".
 	Factions map[string]Faction `json:"factions"`
 
+	// Fixtures corresponds to the JSON schema field "fixtures".
+	Fixtures map[string]Fixture `json:"fixtures"`
+
 	// Maps corresponds to the JSON schema field "maps".
 	Maps map[string]GalaxyMap `json:"maps"`
 
@@ -521,6 +536,84 @@ type Faction struct {
 	StartingKit StartingKit `json:"startingKit"`
 }
 
+// A hand-made piece of Battlefield, drawn as ASCII art, that generation stamps in.
+// A base holds the defender's Command Post, building sites and unit starts; a
+// feature is a landmark placed in open space.
+type Fixture struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// The Battlefield Archetypes it can appear in; left out, any.
+	Archetypes []FixtureArchetypesElem `json:"archetypes,omitempty,omitzero"`
+
+	// A base's Faction: it's the base when that Faction defends. A base without one
+	// is a neutral garrison's, and anyone's if their Faction has none.
+	Faction *ID `json:"faction,omitempty,omitzero"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// What each character in map is. A character that's in neither key nor markers
+	// leaves the Battlefield as it is; a marker's cell is made clear.
+	Key map[string]struct {
+		// Clear corresponds to the JSON schema field "clear".
+		Clear *bool `json:"clear,omitempty,omitzero"`
+
+		// Cover corresponds to the JSON schema field "cover".
+		Cover *bool `json:"cover,omitempty,omitzero"`
+
+		// Height corresponds to the JSON schema field "height".
+		Height *int `json:"height,omitempty,omitzero"`
+
+		// Terrain corresponds to the JSON schema field "terrain".
+		Terrain *ID `json:"terrain,omitempty,omitzero"`
+	} `json:"key"`
+
+	// base: the defender's, holding its Command Post; feature: a landmark.
+	Kind FixtureKind `json:"kind"`
+
+	// Its cells, row by row, top first; every row the same length.
+	Map []string `json:"map"`
+
+	// Characters that place something, on an open cell: commandPost (a base's one),
+	// site (a building site), unitStart (where a defending Stack deploys, in order),
+	// pad (a build pad), cover (the preset's point cover).
+	Markers map[string]FixtureMarkersValue `json:"markers,omitempty,omitzero"`
+
+	// Whether generation may flip it.
+	Mirror *bool `json:"mirror,omitempty,omitzero"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Whether generation may turn it a quarter, half or three quarters.
+	Rotate *bool `json:"rotate,omitempty,omitzero"`
+
+	// How often it's picked among those that fit, against the others' weights.
+	// Defaults to 1.
+	Weight *float64 `json:"weight,omitempty,omitzero"`
+}
+
+type FixtureArchetypesElem string
+
+const FixtureArchetypesElemOpen FixtureArchetypesElem = "open"
+const FixtureArchetypesElemRidge FixtureArchetypesElem = "ridge"
+const FixtureArchetypesElemRiver FixtureArchetypesElem = "river"
+const FixtureArchetypesElemRuins FixtureArchetypesElem = "ruins"
+
+type FixtureKind string
+
+const FixtureKindBase FixtureKind = "base"
+const FixtureKindFeature FixtureKind = "feature"
+
+type FixtureMarkersValue string
+
+const FixtureMarkersValueCommandPost FixtureMarkersValue = "commandPost"
+const FixtureMarkersValueCover FixtureMarkersValue = "cover"
+const FixtureMarkersValuePad FixtureMarkersValue = "pad"
+const FixtureMarkersValueSite FixtureMarkersValue = "site"
+const FixtureMarkersValueUnitStart FixtureMarkersValue = "unitStart"
+
 // A galaxy map. Planet ids are local to it.
 type GalaxyMap struct {
 	// Schema corresponds to the JSON schema field "$schema".
@@ -555,6 +648,13 @@ type GalaxyMap struct {
 	// Win corresponds to the JSON schema field "win".
 	Win Win `json:"win"`
 }
+
+type GalaxyMapPlanetsElemBattlefieldArchetype string
+
+const GalaxyMapPlanetsElemBattlefieldArchetypeOpen GalaxyMapPlanetsElemBattlefieldArchetype = "open"
+const GalaxyMapPlanetsElemBattlefieldArchetypeRidge GalaxyMapPlanetsElemBattlefieldArchetype = "ridge"
+const GalaxyMapPlanetsElemBattlefieldArchetypeRiver GalaxyMapPlanetsElemBattlefieldArchetype = "river"
+const GalaxyMapPlanetsElemBattlefieldArchetypeRuins GalaxyMapPlanetsElemBattlefieldArchetype = "ruins"
 
 type GalaxyMapPlanetsElemModel string
 
@@ -593,7 +693,8 @@ type Lane struct {
 type LocalID string
 
 type MapPlanet struct {
-	// Overrides the Ruleset's Battlefield size and Terrain Preset for this Planet.
+	// Overrides the Ruleset's Battlefield size, Terrain Preset and Archetype for this
+	// Planet.
 	Battlefield *PlanetBattlefield `json:"battlefield,omitempty,omitzero"`
 
 	// ID corresponds to the JSON schema field "id".
@@ -649,8 +750,12 @@ type Noise struct {
 	Persistence float64 `json:"persistence"`
 }
 
-// Overrides the Ruleset's Battlefield size and Terrain Preset for this Planet.
+// Overrides the Ruleset's Battlefield size, Terrain Preset and Archetype for this
+// Planet.
 type PlanetBattlefield struct {
+	// Forces this Planet's Battlefield Archetype, over its preset's weights.
+	Archetype *GalaxyMapPlanetsElemBattlefieldArchetype `json:"archetype,omitempty,omitzero"`
+
 	// Height corresponds to the JSON schema field "height".
 	Height *int `json:"height,omitempty,omitzero"`
 
@@ -1062,6 +1167,10 @@ type Terrain struct {
 type TerrainPreset struct {
 	// Schema corresponds to the JSON schema field "$schema".
 	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// How often each Battlefield Archetype is picked for a Planet with this preset.
+	// Left out: an open field only.
+	Archetypes *ArchetypeWeights `json:"archetypes,omitempty,omitzero"`
 
 	// Elevation bands, lowest first. Each covers elevation up to `upTo`; the last
 	// must reach 1.

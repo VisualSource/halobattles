@@ -1,0 +1,30 @@
+// A crashed ship: wreckage no one crosses, with cover along it.
+{
+  "$schema": "../../../../schema/content/fixture.schema.json",
+  "id": "crash-site",
+  "kind": "feature",
+  "rotate": true,
+  "mirror": true,
+  "key": {
+    "#": {
+      "cover": true
+    },
+    ".": {
+      "clear": true
+    },
+    "X": {
+      "terrain": "peak",
+      "height": 2
+    }
+  },
+  "markers": {
+    "c": "cover"
+  },
+  "map": [
+    "..#.....",
+    ".##X#...",
+    "..#XX#..",
+    "...#XX#.",
+    "....#c.."
+  ]
+}

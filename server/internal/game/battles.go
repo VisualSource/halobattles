@@ -30,6 +30,7 @@ type Battle struct {
 	// Sim's Setup, Builders and Log, it plays out the same again.
 	Attack, Defend  battle.Force
 	Seed, FieldSeed uint64 // the Sim's, and its Battlefield's
+	FieldFaction    string // the defender's Faction, whose base the Battlefield has; "" neutral
 	Weights         [2]battle.Weights
 	Funds           [2]map[string]int // each side's at the start; the Sim spends its own
 }
@@ -51,10 +52,13 @@ type BattleEnded struct {
 	Viewers []int
 }
 
-// field is a Planet's Battlefield, generated on its first Battle from the
-// Match seed and the Planet id, and the same for the rest of the Match.
-func (s *State) field(c *cs.Content, planet string) *battle.Field {
-	if f := s.Fields[planet]; f != nil {
+// field is a Planet's Battlefield with faction's base (a neutral
+// garrison's for ""), generated on its first Battle so from the Match seed
+// and the Planet id, and the same for the rest of the Match: the ground
+// stays, and whoever defends shows their own base on it.
+func (s *State) field(c *cs.Content, planet, faction string) *battle.Field {
+	key := planet + "|" + faction
+	if f := s.Fields[key]; f != nil {
 		return f
 	}
 	var override *cs.PlanetBattlefield
@@ -63,11 +67,11 @@ func (s *State) field(c *cs.Content, planet string) *battle.Field {
 			override = mp.Battlefield
 		}
 	}
-	f := battle.Generate(c, c.Rulesets[RulesetID].Battlefield, override, s.fieldSeed(planet))
+	f := battle.GenerateFor(c, c.Rulesets[RulesetID].Battlefield, override, s.fieldSeed(planet), faction)
 	if s.Fields == nil {
 		s.Fields = map[string]*battle.Field{}
 	}
-	s.Fields[planet] = f
+	s.Fields[key] = f
 	return f
 }
 
@@ -105,8 +109,11 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	attack.Boosts, defend.Boosts = s.boosts(c, b.Attacker), s.boosts(c, b.Defender)
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
 	b.Attack, b.Defend, b.Seed, b.FieldSeed = attack, defend, s.Seed+uint64(b.ID), s.fieldSeed(p.ID)
+	if b.Defender != Neutral {
+		b.FieldFaction = s.Players[b.Defender].Faction
+	}
 	b.Weights = [2]battle.Weights{s.aiWeights(c, b.Attacker), s.aiWeights(c, b.Defender)}
-	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID), attack, defend, b.Seed)
+	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID, b.FieldFaction), attack, defend, b.Seed)
 	b.Sim.Controllers = [2]battle.Controller{battle.NewAI(b.Weights[0]), battle.NewAI(b.Weights[1])}
 	b.Sim.Setup = int(delay / tickMs) // the start delay is the defender's setup phase
 	b.Sim.Builders = [2]bool{s.canBuildTurrets(c, b.Attacker), s.canBuildTurrets(c, b.Defender)}

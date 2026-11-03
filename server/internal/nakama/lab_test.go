@@ -166,7 +166,7 @@ func TestTheLabReplaysABattleFromAMatchLog(t *testing.T) {
 		sim.Step()
 	}
 	r := battleReplay{
-		Seed: setup.Seed, FieldSeed: setup.Seed, Planet: "nowhere", Setup: sim.Setup, Builders: sim.Builders,
+		Seed: setup.Seed, FieldSeed: setup.Seed, Faction: setup.Defend.Faction, Planet: "nowhere", Setup: sim.Setup, Builders: sim.Builders,
 		Attack: battle.Force{Formations: setup.Attack.Formations},
 		Defend: battle.Force{Formations: setup.Defend.Formations, Buildings: setup.Defend.Buildings},
 		Weights: [2]battle.Weights{

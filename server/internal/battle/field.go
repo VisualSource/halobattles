@@ -15,18 +15,24 @@ import (
 type Cell struct{ X, Y int }
 
 // Field is a Battlefield: a grid of Terrains and height levels, row by row,
-// its Control Points, and what the generator laid out round them.
+// its Landing Zones (Points), the defender's base, and what the generator
+// laid out round them.
 type Field struct {
-	W, H     int
-	Terrains []string // Terrain ids, sorted; a cell holds an index into this
-	Terrain  []uint8
-	Height   []uint8
-	Points   []Cell
-	Pads     []Cell // build pads
-	Starts   []Cell // attacker starts, on the edges; each Battle's seed picks one
-	Sites    []Cell // building sites, dealt round the points in turn
-	// CommandPost is the defender's objective structure's cell.
+	W, H      int
+	Terrains  []string // Terrain ids, sorted; a cell holds an index into this
+	Terrain   []uint8
+	Height    []uint8
+	Archetype string // the Battlefield Archetype it was shaped by
+	Points    []Cell // Landing Zones
+	Pads      []Cell // build pads
+	// Starts are the Landing Zones an attacker may land at, the farther half
+	// from the base; each Battle's seed picks one.
+	Starts []Cell
+	Sites  []Cell // building sites, the base's
+	// CommandPost is the defender's objective structure's cell, in its base;
+	// UnitStarts are where its Stacks deploy, Stack 1 first.
 	CommandPost Cell
+	UnitStarts  []Cell
 	lane        []bool // main lane cells, for tests
 	side        []bool // side lane cells, for tests
 }
@@ -35,9 +41,20 @@ func (f *Field) index(c Cell) int { return c.Y*f.W + c.X }
 
 func (f *Field) cell(i int) Cell { return Cell{i % f.W, i / f.W} }
 
-// Generate builds a Planet's Battlefield from the Ruleset's defaults and the
-// Planet's own overrides, if any. The same inputs give the same Field.
+// Generate builds a Planet's Battlefield for a neutral garrison.
 func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlefield, seed uint64) *Field {
+	return GenerateFor(c, rules, planet, seed, "")
+}
+
+// GenerateFor builds a Planet's Battlefield from the Ruleset's defaults and
+// the Planet's own overrides, if any, with the defending Faction's base (""
+// for a neutral garrison). The same inputs give the same Field.
+//
+// Each stage draws from its own PCG stream, numbered in the order they were
+// added: 1 elevation, 2 moisture, 3 Landing Zones, 6 (attacker starts,
+// unused since #99), 7 point cover, 8 archetype and base edge, 9 base, 10
+// features, 11 river fords and ruins. A new stage takes the next number.
+func GenerateFor(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlefield, seed uint64, faction string) *Field {
 	presetID, w, h := string(rules.TerrainPreset), rules.Width, rules.Height
 	if planet != nil {
 		if planet.TerrainPreset != nil {
@@ -48,6 +65,21 @@ func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlef
 	preset := c.TerrainPresets[presetID]
 	f := &Field{W: w, H: h, Terrain: make([]uint8, w*h), Height: make([]uint8, w*h)}
 
+	shape := rand.New(rand.NewPCG(seed, 8))
+	f.Archetype = pickArchetype(preset, planet, shape)
+	edge := shape.IntN(4) // the defender's end: its base is in the third by it
+	baseRng, featureRng := rand.New(rand.NewPCG(seed, 9)), rand.New(rand.NewPCG(seed, 10))
+	base, ok := weighted(fixturesFor(c, cs.FixtureKindBase, f.Archetype, faction), baseRng)
+	if !ok {
+		base = plainBase
+	}
+	var features []cs.Fixture
+	for range 1 + featureRng.IntN(3) {
+		if fx, ok := weighted(fixturesFor(c, cs.FixtureKindFeature, f.Archetype, faction), featureRng); ok {
+			features = append(features, fx)
+		}
+	}
+
 	ids := []string{string(preset.Clear.Terrain)}
 	if preset.PointCover != nil {
 		ids = append(ids, string(*preset.PointCover))
@@ -57,6 +89,7 @@ func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlef
 			ids = append(ids, string(t.Terrain))
 		}
 	}
+	ids = append(ids, fixtureTerrains(append([]cs.Fixture{base}, features...)...)...)
 	slices.Sort(ids)
 	f.Terrains = slices.Compact(ids)
 	terrain := func(id cs.ID) uint8 {
@@ -66,11 +99,49 @@ func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlef
 
 	elevation := f.ranked(preset.Noise, newPerlin(rand.New(rand.NewPCG(seed, 1))))
 	moisture := f.ranked(preset.Noise, newPerlin(rand.New(rand.NewPCG(seed, 2))))
+	f.shapeElevation(elevation, f.Archetype, edge, shape)
 	for i := range f.Terrain {
 		b := preset.Bands[slices.IndexFunc(preset.Bands, func(b cs.Band) bool { return elevation[i] <= b.UpTo })]
 		t := b.Terrains[slices.IndexFunc(b.Terrains, func(t cs.BandTerrain) bool { return moisture[i] <= t.UpTo })]
 		f.Terrain[i], f.Height[i] = terrain(t.Terrain), uint8(b.Height)
 	}
+
+	cover := -1
+	if preset.PointCover != nil {
+		cover = int(terrain(*preset.PointCover))
+	}
+	l := newLayout(c, f, string(rules.PathClass), terrain(preset.Clear.Terrain), uint8(preset.Clear.Height), cover)
+	detail := rand.New(rand.NewPCG(seed, 11))
+	switch f.Archetype {
+	case River:
+		l.riverFords(edge, detail)
+	case Ruins:
+		l.ruinBlocks(detail)
+	}
+
+	// The base, in the third of the map by the defender's edge; the features
+	// in open ground between, clear of it and of the edges.
+	taken := make([]bool, w*h)
+	rot, mirror := orient(base, baseRng)
+	g := fixtureGrid(base, rot, mirror)
+	o, ok := l.place(g, taken, func(mid Cell) bool { return f.towardBase(mid, edge) >= 0.72 }, baseRng)
+	if !ok { // too small a map for it: the plain base, wherever it fits
+		base, g = plainBase, fixtureGrid(plainBase, 0, false)
+		o, _ = l.place(g, taken, func(Cell) bool { return true }, baseRng)
+	}
+	got := l.stamp(base, g, o, terrain)
+	l.take(g, o, 4, taken)
+	for _, fx := range features {
+		rot, mirror := orient(fx, featureRng)
+		g := fixtureGrid(fx, rot, mirror)
+		between := func(mid Cell) bool { t := f.towardBase(mid, edge); return t > 0.15 && t < 0.8 }
+		if o, ok := l.place(g, taken, between, featureRng); ok {
+			st := l.stamp(fx, g, o, terrain)
+			got.pads = append(got.pads, st.pads...)
+			l.take(g, o, 3, taken)
+		}
+	}
+	f.CommandPost, f.UnitStarts = got.post, got.starts
 
 	passable := make([]bool, len(f.Terrains))
 	for i, id := range f.Terrains {
@@ -78,21 +149,18 @@ func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlef
 	}
 	open := func(i int) bool { return passable[f.Terrain[i]] }
 	clear := func(i int) { f.Terrain[i], f.Height[i] = terrain(preset.Clear.Terrain), uint8(preset.Clear.Height) }
-
+	// Every edge strip (Retreats leave by them) and the Command Post joined to the main region.
 	main := f.largestRegion(open)
-	for _, strip := range f.edgeStrips(rules.DeployDepth) {
+	strips := f.edgeStrips(rules.DeployDepth)
+	for _, strip := range append(strips[:], []int{f.index(f.CommandPost)}) {
 		if !slices.ContainsFunc(strip, func(i int) bool { return main[i] }) {
 			f.carve(main, strip, open, clear)
 			main = f.largestRegion(open)
 		}
 	}
-	f.Points = f.placePoints(main, rules.ControlPoints, rules.ControlPointSpacing, rand.New(rand.NewPCG(seed, 3)))
 
-	cover := -1
-	if preset.PointCover != nil {
-		cover = int(terrain(*preset.PointCover))
-	}
-	l := newLayout(c, f, string(rules.PathClass), terrain(preset.Clear.Terrain), uint8(preset.Clear.Height), cover)
+	f.Points = f.placeLandingZones(main, rules.ControlPoints, rules.ControlPointSpacing, rules.DeployDepth+3, f.CommandPost, edge, rand.New(rand.NewPCG(seed, 3)))
+	f.Starts = attackerStarts(f.Points, f.CommandPost)
 	area, width := 3, 2
 	if rules.PointArea != nil {
 		area = *rules.PointArea
@@ -100,39 +168,13 @@ func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlef
 	if rules.LaneWidth != nil {
 		width = *rules.LaneWidth
 	}
-	starts := 3
-	if rules.AttackerStarts != nil {
-		starts = *rules.AttackerStarts
-	}
-	f.Starts = l.placeStarts(starts, rules.DeployDepth, rand.New(rand.NewPCG(seed, 6)))
 	l.shapePoints(area, rand.New(rand.NewPCG(seed, 7)))
-	l.mainLanes(f.Starts, area, width)
-	f.Sites = l.placeSites(f.Starts, area, width)
-	f.Pads = l.placePads(rules.BuildPads, area, f.Starts, f.Sites)
+	l.mainLanes([]Cell{f.CommandPost}, area, width) // the base's lane to its nearest Landing Zone
+	f.Sites = got.sites
+	f.Pads = got.pads[:min(len(got.pads), rules.BuildPads)]
+	f.Pads = append(f.Pads, l.placePads(max(0, rules.BuildPads-len(f.Pads)), area, f.Starts, f.Sites)...)
 	f.lane, f.side = l.lane, l.side
-	f.CommandPost = f.placeCommandPost(f.largestRegion(open))
 	return f
-}
-
-// placeCommandPost is the cell nearest the middle, ties to the lowest index,
-// that's in region and holds nothing else.
-// shortcut: the middle, until #99's archetypes place it on the defender's ground.
-func (f *Field) placeCommandPost(region []bool) Cell {
-	taken := map[Cell]bool{}
-	for _, cs := range [][]Cell{f.Points, f.Pads, f.Starts, f.Sites} {
-		for _, c := range cs {
-			taken[c] = true
-		}
-	}
-	mid := Cell{f.W / 2, f.H / 2}
-	best, bestD := mid, -1
-	for i, ok := range region {
-		c := f.cell(i)
-		if d := dist2(c, mid); ok && !taken[c] && (bestD < 0 || d < bestD) {
-			best, bestD = c, d
-		}
-	}
-	return best
 }
 
 func deref(p *int) int {
@@ -275,42 +317,6 @@ func (f *Field) carve(main []bool, strip []int, open func(int) bool, clear func(
 				}
 			}
 		})
-	}
-}
-
-// placePoints picks Control Points in the main region, in the middle half of
-// the map each way, at least spacing apart. Where they don't fit, it tries
-// again with less spacing.
-func (f *Field) placePoints(main []bool, n, spacing int, rng *rand.Rand) []Cell {
-	var candidates []Cell
-	for i, m := range main {
-		c := f.cell(i)
-		if m && c.X >= f.W/4 && c.X < f.W*3/4 && c.Y >= f.H/4 && c.Y < f.H*3/4 {
-			candidates = append(candidates, c)
-		}
-	}
-	if len(candidates) < n {
-		candidates = candidates[:0]
-		for i, m := range main {
-			if m {
-				candidates = append(candidates, f.cell(i))
-			}
-		}
-	}
-	rng.Shuffle(len(candidates), func(i, j int) { candidates[i], candidates[j] = candidates[j], candidates[i] })
-	for s := spacing; ; s-- {
-		var points []Cell
-		for _, c := range candidates {
-			if len(points) == n {
-				break
-			}
-			if !slices.ContainsFunc(points, func(p Cell) bool { return dist2(p, c) < s*s }) {
-				points = append(points, c)
-			}
-		}
-		if len(points) == n || s <= 0 {
-			return points
-		}
 	}
 }
 

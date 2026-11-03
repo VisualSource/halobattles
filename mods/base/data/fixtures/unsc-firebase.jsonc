@@ -1,0 +1,35 @@
+// A UNSC firebase: sandbagged walls, two gates, the Command Post in the middle with four building sites round it.
+{
+  "$schema": "../../../../schema/content/fixture.schema.json",
+  "id": "unsc-firebase",
+  "kind": "base",
+  "faction": "unsc",
+  "rotate": true,
+  "mirror": true,
+  "key": {
+    "#": {
+      "cover": true
+    },
+    ".": {
+      "clear": true
+    }
+  },
+  "markers": {
+    "C": "commandPost",
+    "s": "site",
+    "u": "unitStart",
+    "p": "pad",
+    "c": "cover"
+  },
+  "map": [
+    "..###..#..###..",
+    ".#...s...s...#.",
+    "#..u.......u..#",
+    "#.............#",
+    "...s...C...s...",
+    "#......p......#",
+    "#..c...u...c..#",
+    ".#...........#.",
+    "..###.....###.."
+  ]
+}

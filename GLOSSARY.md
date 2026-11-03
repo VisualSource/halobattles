@@ -141,11 +141,11 @@ Planned (#95): a unit unlocked by a Tech that carries an Army's units into a Bat
 _Avoid_: Transport, Pelican/Phantom as the generic term (those are Faction units)
 
 **Battlefield Archetype**:
-Planned (#95): the shape a Battlefield is generated in, such as a river with crossings or ruins; each Terrain Preset weights the ones it can use.
+The shape a Battlefield is generated in, such as a river with crossings or ruins; each Terrain Preset weights the ones it can use.
 _Avoid_: Map type, biome (a Terrain Preset sets the look), template
 
 **Fixture**:
-Planned (#95): a hand-authored piece of Battlefield, drawn as ASCII art in a Mod, that generation stamps into open space.
+A hand-authored piece of Battlefield, drawn as ASCII art in a Mod, that generation stamps in: a base, holding the defender's Command Post, sites and unit starts, or a feature, a landmark.
 _Avoid_: Prefab, set piece, stamp
 
 **Auto-resolve**:

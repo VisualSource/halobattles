@@ -170,6 +170,8 @@ function defaultSetup(content: ContentLookups): LabSetup {
   const factions = playable(content);
   return {
     preset: "",
+    archetype: "",
+    neutral: false,
     seed: 1,
     sides: [
       kit(factions[0] ?? "", false),
@@ -272,6 +274,7 @@ function Header(props: {
       <span className="text-ink-3">
         {name(setup.sides[0].faction)} attacks {name(setup.sides[1].faction)} ·
         seed <span className="text-ink font-mono">{setup.seed}</span>
+        {st.archetype && ` · ${st.archetype}`}
       </span>
       <span className="flex-1" />
       <fieldset
@@ -412,9 +415,26 @@ function SetupPanel(props: {
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-ink-3 text-xs">Archetype</span>
-          <select disabled className="text-ink-4 min-h-9 rounded-md px-2">
-            <option>From the preset (after #99)</option>
+          <select
+            value={setup.archetype}
+            onChange={(e) => onChange({ ...setup, archetype: e.target.value })}
+            className="min-h-9 rounded-md px-2"
+          >
+            <option value="">From the preset</option>
+            {["open", "river", "ridge", "ruins"].map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
           </select>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={setup.neutral}
+            onChange={(e) => onChange({ ...setup, neutral: e.target.checked })}
+          />
+          <span>Defender is a neutral garrison (its base)</span>
         </label>
         <div className="flex items-end gap-2">
           <label className="flex flex-1 flex-col gap-1">
@@ -778,7 +798,11 @@ function Status(props: { conn: LabConnection; content: ContentLookups }) {
           {battle.points.map((p, i) => (
             <span key={`${p.x},${p.y}`} className="mr-3">
               <span
-                style={{ color: seatColour(p.owner === "attacker" ? 0 : 1) }}
+                style={{
+                  color: p.owner
+                    ? seatColour(p.owner === "attacker" ? 0 : 1)
+                    : "var(--color-ink-4)",
+                }}
               >
                 ●
               </span>{" "}

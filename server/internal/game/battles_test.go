@@ -37,7 +37,7 @@ func TestArrivingAtAGarrisonedPlanetStartsABattle(t *testing.T) {
 	if len(ev.Started) != 1 || b.Sim.Tick != 0 {
 		t.Errorf("events: %d started, sim at tick %d; want the Battle, not yet stepped", len(ev.Started), b.Sim.Tick)
 	}
-	if b.Sim.Field != s.Fields["b"] || len(b.Sim.Squads) != 3 {
+	if b.Sim.Field != s.Fields["b|"] || len(b.Sim.Squads) != 3 {
 		t.Errorf("want b's cached Battlefield and 3 squads (the Command Post too), got %d", len(b.Sim.Squads))
 	}
 	if used, _ := s.commandPoints(c, 0); used != 16 {
@@ -70,7 +70,7 @@ func TestTheStartDelayIsTheSetupThenTheSimStepsOncePerTick(t *testing.T) {
 
 func TestEachPlanetKeepsItsBattlefield(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
-	if s.field(c, "b") != s.field(c, "b") || s.field(c, "b").String() == s.field(c, "d").String() {
+	if s.field(c, "b", "") != s.field(c, "b", "") || s.field(c, "b", "").String() == s.field(c, "d", "").String() {
 		t.Error("want one Battlefield per Planet, cached, and different Planets different")
 	}
 }

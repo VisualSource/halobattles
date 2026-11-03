@@ -11,11 +11,11 @@ import (
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
-// layout shapes a Field round its Control Points once the noise terrain is
-// down (#64): attacker starts on the edges with clear ground to deploy on,
-// clear ground round each point with cover at its edge, main lanes every
-// ground Unit Class can travel joining the points and the starts, building
-// sites at the end of side lanes, and build pads beside the main lanes.
+// layout shapes a Field once the noise terrain is down (#64, #99): river
+// fords and ruin blocks for those archetypes, the fixtures stamped in (see
+// fixtures.go), clear ground round each Landing Zone with cover at its edge,
+// main lanes every ground Unit Class can travel joining the Landing Zones
+// and the base, and build pads beside them.
 type layout struct {
 	f      *Field
 	ground [][]bool // per ground Unit Class, by Terrain index: whether it can cross it
@@ -26,27 +26,20 @@ type layout struct {
 	lane   []bool // main lane cells
 	side   []bool // side lane cells
 	zone   []bool // start zones and point areas: kept free of sites and pads
+	fixed  []bool // fixture cells: hand-made, so lanes go round them and leave them as drawn
+	padAt  []bool // fixtures' pads: a lane never runs over one
 }
 
 const (
-	// startHalf is half the width, in cells, of an attacker start's zone:
-	// room for three formations side by side.
-	startHalf = 9
-	// sitesPerPoint is how many building sites the generator makes for each
-	// Control Point; a Planet with more Building Slots stands the rest by
-	// the points as before.
-	sitesPerPoint = 2
-	// siteReach and padReach are how far from its point, in cells, a
-	// building site or a build pad can be.
-	siteReach = 9
-	padReach  = 8
+	// padReach is how far from its Landing Zone, in cells, a build pad can be.
+	padReach = 8
 	// keepApart is the fewest cells between two sites or pads.
 	keepApart = 3
 )
 
 func newLayout(c *cs.Content, f *Field, pathClass string, clearT, clearH uint8, cover int) *layout {
 	l := &layout{f: f, clearT: clearT, clearH: clearH, cover: cover,
-		lane: make([]bool, f.W*f.H), side: make([]bool, f.W*f.H), zone: make([]bool, f.W*f.H)}
+		lane: make([]bool, f.W*f.H), side: make([]bool, f.W*f.H), zone: make([]bool, f.W*f.H), fixed: make([]bool, f.W*f.H), padAt: make([]bool, f.W*f.H)}
 	crosses := func(class string) []bool {
 		ok := make([]bool, len(f.Terrains))
 		for i, id := range f.Terrains {
@@ -82,64 +75,6 @@ func (l *layout) clear(i int) {
 }
 
 func (l *layout) in(c Cell) bool { return c.X >= 0 && c.Y >= 0 && c.X < l.f.W && c.Y < l.f.H }
-
-// placeStarts picks n attacker starts on the map's edges, each startHalf
-// from a corner: the first at random, then each as far as it can be from
-// those before. Each gets a zone depth deep and 2 × startHalf + 1 wide,
-// cleared to deploy on.
-func (l *layout) placeStarts(n, depth int, rng *rand.Rand) []Cell {
-	f := l.f
-	var edge []Cell
-	for x := startHalf; x < f.W-startHalf; x++ {
-		edge = append(edge, Cell{x, 0}, Cell{x, f.H - 1})
-	}
-	for y := startHalf; y < f.H-startHalf; y++ {
-		edge = append(edge, Cell{0, y}, Cell{f.W - 1, y})
-	}
-	if len(edge) == 0 || n <= 0 {
-		return nil
-	}
-	starts := []Cell{edge[rng.IntN(len(edge))]}
-	for len(starts) < n {
-		best, bestD := Cell{}, -1
-		for _, c := range edge {
-			d := math.MaxInt
-			for _, s := range starts {
-				d = min(d, dist2(c, s))
-			}
-			if d > bestD {
-				best, bestD = c, d
-			}
-		}
-		starts = append(starts, best)
-	}
-	for _, s := range starts {
-		in, side := inward[edgeOf(f, s)], along[edgeOf(f, s)]
-		for a := -startHalf; a <= startHalf; a++ {
-			for d := range depth {
-				if c := s.add(side.scale(a)).add(in.scale(d)); l.in(c) {
-					l.clear(f.index(c))
-					l.zone[f.index(c)] = true
-				}
-			}
-		}
-	}
-	return starts
-}
-
-// edgeOf is the edge a cell on the map's border is on: 0 top, 1 right, 2
-// bottom, 3 left, as the sim numbers them.
-func edgeOf(f *Field, c Cell) int {
-	switch {
-	case c.Y == 0:
-		return 0
-	case c.X == f.W-1:
-		return 1
-	case c.Y == f.H-1:
-		return 2
-	}
-	return 3
-}
 
 // shapePoints clears the ground within radius of each Control Point, level
 // with the point, and scatters the point cover Terrain over about a third
@@ -231,16 +166,19 @@ func (h *cellHeap) Pop() any {
 	return x
 }
 
-// paint marks a path width cells wide, and fixes each cell it covers.
+// paint marks a path width cells wide, and fixes each cell it covers but
+// a fixture's, which stays as it was drawn; never a fixture's pad.
 func (l *layout) paint(path []int, width int, mark []bool, fix func(i int)) {
 	for _, i := range path {
 		c := l.f.cell(i)
 		for dy := range width {
 			for dx := range width {
-				if b := c.add(Cell{dx, dy}); l.in(b) {
+				if b := c.add(Cell{dx, dy}); l.in(b) && !l.padAt[l.f.index(b)] {
 					j := l.f.index(b)
 					mark[j] = true
-					fix(j)
+					if !l.fixed[j] {
+						fix(j)
+					}
 				}
 			}
 		}
@@ -258,6 +196,10 @@ func (l *layout) mainLanes(starts []Cell, area, width int) {
 	f := l.f
 	cost := func(i int) float64 {
 		switch {
+		case l.padAt[i]:
+			return 500
+		case l.fixed[i]:
+			return 50 // round a fixture where there's a way
 		case l.lane[i]:
 			return 0.5
 		case l.all(i):
@@ -336,76 +278,6 @@ func fromStarts(c Cell, starts []Cell) float64 {
 		d = min(d, dist(c, s))
 	}
 	return d
-}
-
-// placeSites picks sitesPerPoint building sites per Control Point, dealt
-// round the points in turn, between its clear ground and siteReach from it.
-// It prefers high ground, then ground vehicles can't reach (a dead end),
-// then ground away from the attacker starts. Each gets a side lane from the
-// nearest main lane, clearing only what the path class can't cross, so it
-// may be infantry's alone.
-func (l *layout) placeSites(starts []Cell, area, width int) []Cell {
-	f := l.f
-	if len(f.Points) == 0 {
-		return nil
-	}
-	byVehicle := l.reachAll()
-	var sites []Cell
-	for k := range sitesPerPoint * len(f.Points) {
-		p := f.Points[k%len(f.Points)]
-		best, bestScore, found := Cell{}, math.Inf(-1), false
-		for y := p.Y - siteReach; y <= p.Y+siteReach; y++ {
-			for x := p.X - siteReach; x <= p.X+siteReach; x++ {
-				c := Cell{x, y}
-				if !l.in(c) {
-					continue
-				}
-				i, d := f.index(c), dist(c, p)
-				if d <= float64(area+1) || d > siteReach || !l.onFoot(i) || l.zone[i] || l.lane[i] || l.near(c, sites, nil) {
-					continue
-				}
-				score := 3*float64(f.Height[i]) + 0.1*fromStarts(c, starts)
-				if !byVehicle[i] {
-					score += 2
-				}
-				if score > bestScore {
-					best, bestScore, found = c, score, true
-				}
-			}
-		}
-		if !found {
-			break // site k stays by point k mod n: later slots stand behind the points
-		}
-		sites = append(sites, best)
-		l.sideLane(best, width)
-	}
-	return sites
-}
-
-// sideLane joins a cell to the nearest main lane cell, one cell wide,
-// clearing only what the path class can't cross.
-func (l *layout) sideLane(c Cell, width int) {
-	f := l.f
-	nearest, nd := -1, math.MaxInt
-	for i, on := range l.lane {
-		if d := dist2(c, f.cell(i)); on && d < nd {
-			nearest, nd = i, d
-		}
-	}
-	if nearest < 0 {
-		return
-	}
-	cost := func(i int) float64 {
-		if l.onFoot(i) {
-			return 1
-		}
-		return 8
-	}
-	l.paint(l.route(c, f.cell(nearest), cost), 1, l.side, func(i int) {
-		if !l.onFoot(i) {
-			l.clear(i)
-		}
-	})
 }
 
 // reachAll marks the cells every ground Unit Class can reach from the

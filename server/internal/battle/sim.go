@@ -199,9 +199,9 @@ func (s *Sim) layer(sq *Squad) []int {
 	return s.ground
 }
 
-// New deploys both sides on the Field. The defender holds every Control
-// Point. A side with nothing that can fight has already lost: the Sim
-// starts Over.
+// New deploys both sides on the Field: the attacker at a Landing Zone it
+// holds, the defender in its base. A side with nothing that can fight has
+// already lost: the Sim starts Over.
 func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed uint64) *Sim {
 	s := &Sim{
 		Field: f, content: c, rules: rules.Battle, toHit: rules.ToHit, pathClass: string(rules.Battlefield.PathClass), deployDepth: rules.Battlefield.DeployDepth,
@@ -211,8 +211,9 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	}
 	foot := s.costsFor(s.pathClass)
 	s.main = f.largestRegion(func(i int) bool { return foot[i] > 0 })
+	// Landing Zones start held by nobody but the one the attacker lands at.
 	for _, p := range f.Points {
-		s.Points = append(s.Points, Point{Cell: p, Owner: Defender, Taker: Defender})
+		s.Points = append(s.Points, Point{Cell: p, Owner: NoSide, Taker: NoSide})
 	}
 	for _, c := range f.Pads { // unowned: the defender takes them in setup
 		s.Pads = append(s.Pads, Pad{Cell: c, Owner: NoSide, Taker: NoSide})
@@ -220,12 +221,16 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	for side := range s.padSeen {
 		s.padSeen[side] = slices.Clone(s.Pads)
 	}
-	// The attacker deploys round one of the Field's starts, which the seed
-	// picks; a Field without any, round the middle of an edge.
+	// The attacker lands at one of the Field's starts, Landing Zones far from
+	// the base, which the seed picks, and holds it; it Retreats off the edge
+	// nearest. A Field without any: round the middle of an edge.
 	var origin Cell
 	if len(f.Starts) > 0 {
 		origin = f.Starts[s.rng.IntN(len(f.Starts))]
-		s.Edge = edgeOf(f, origin)
+		s.Edge = nearestEdge(f, origin)
+		if k := slices.Index(f.Points, origin); k >= 0 {
+			s.Points[k].Owner, s.Points[k].Taker = Attacker, Attacker
+		}
 	} else {
 		s.Edge = s.rng.IntN(4)
 		origin = [4]Cell{{f.W / 2, 0}, {f.W - 1, f.H / 2}, {f.W / 2, f.H - 1}, {0, f.H / 2}}[s.Edge]
@@ -233,18 +238,19 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	in, side := inward[s.Edge], along[s.Edge]
 
 	for k, form := range attack.Formations {
-		centre := (2*k - (len(attack.Formations) - 1)) * 3 // formations 6 cells apart, centred on the edge
+		centre := (2*k - (len(attack.Formations) - 1)) * 3 // formations 6 cells apart, centred on the Landing Zone
 		for _, sl := range form {
 			col, row := sl.Cell%5, sl.Cell/5
-			want := origin.add(side.scale(centre + col - 2)).add(in.scale(max(0, rules.Battlefield.DeployDepth-1-row)))
+			want := origin.add(side.scale(centre + col - 2)).add(in.scale(1 - row))
 			s.addUnit(Attacker, k, sl, want)
 		}
 	}
-	// Stack 1 deploys at the Command Post, the rest on the Landing Zones.
+	// Each Stack deploys round its unit start in the base, Stack 1 at the
+	// first; past the base's starts, round the Command Post.
 	for k, form := range defend.Formations {
 		p := f.CommandPost
-		if k > 0 && len(f.Points) > 0 {
-			p = f.Points[(k-1)%len(f.Points)]
+		if k < len(f.UnitStarts) {
+			p = f.UnitStarts[k]
 		}
 		for _, sl := range form {
 			col, row := sl.Cell%5, sl.Cell/5
@@ -255,16 +261,28 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	s.addCommandPost(f.CommandPost)
 	for slot, id := range defend.Buildings {
 		switch {
-		case id == "" || len(f.Points) == 0:
+		case id == "":
 		case slot < len(f.Sites):
 			s.addBuilding(slot, id, f.Sites[slot])
-		default: // more Building Slots than sites: behind the points, away from the attacker
-			s.addBuilding(slot, id, f.Points[slot%len(f.Points)].add(in.scale(3)))
+		default: // more Building Slots than the base has sites: by the Command Post
+			s.addBuilding(slot, id, f.CommandPost)
 		}
 	}
 	s.see()
 	s.end() // nobody on one side: decided before it starts
 	return s
+}
+
+// nearestEdge is the map edge nearest c: 0 top, 1 right, 2 bottom, 3 left.
+func nearestEdge(f *Field, c Cell) int {
+	d := [4]int{c.Y, f.W - 1 - c.X, f.H - 1 - c.Y, c.X}
+	best := 0
+	for e := range d {
+		if d[e] < d[best] {
+			best = e
+		}
+	}
+	return best
 }
 
 // addUnit deploys a Unit Slot as squads of at most its Unit Class's

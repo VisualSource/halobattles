@@ -441,11 +441,11 @@ export class BattlefieldScene {
         m = { disc, ring, arc, label, progress: 0 };
         this.markers.push(m);
       }
-      const owner = this.look.sideColour[p.owner];
+      const owner = p.owner ? this.look.sideColour[p.owner] : UNHELD;
       (m.disc.material as THREE.MeshBasicMaterial).color.set(owner);
       (m.ring.material as THREE.MeshBasicMaterial).color.set(owner);
       (m.arc.material as THREE.MeshBasicMaterial).color.set(
-        this.look.sideColour[p.taker],
+        p.taker ? this.look.sideColour[p.taker] : UNHELD,
       );
       if (p.progress !== m.progress) {
         m.progress = p.progress;

@@ -203,9 +203,10 @@ const (
 	// assaultValue is what the attacker wants the Command Post; the
 	// defender holding it, holdCommandPost, before its threat; taking a
 	// Landing Zone, landingZone. First pass, untuned (#95).
-	assaultValue    = 4
-	holdCommandPost = 3
-	landingZone     = 1.2
+	assaultValue        = 4
+	holdCommandPost     = 3
+	landingZone         = 1.2
+	attackerLandingZone = 0.3
 	// block is the side, in cells, of the squares the AI tracks looking at.
 	block = 8
 	// scoutShare is the part of a defender's mobile squads sent scouting,
@@ -407,14 +408,16 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			add(goal{kind: defend, cell: cp.Cell}, holdCommandPost)
 		}
 	}
+	// The attacker never stops to hold one, and takes one only in passing:
+	// its squads are for the assault.
 	for _, p := range s.Points {
 		switch {
+		case p.Owner != v.Side && v.Side == Attacker:
+			add(goal{kind: capture, cell: p.Cell}, attackerLandingZone)
 		case p.Owner != v.Side:
 			add(goal{kind: capture, cell: p.Cell}, landingZone)
 		case v.Side == Defender:
 			add(goal{kind: defend, cell: p.Cell}, 1)
-		default:
-			add(goal{kind: defend, cell: p.Cell}, 0.6)
 		}
 	}
 	pad := padValue
@@ -553,6 +556,21 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	ai.think(v, goals, values, threat, need, assigned, chose)
 }
 
+// home is where a side falls back to: the Landing Zones it holds, and for
+// the defender its Command Post.
+func home(v View) []Cell {
+	var at []Cell
+	for _, p := range v.sim.Points {
+		if p.Owner == v.Side {
+			at = append(at, p.Cell)
+		}
+	}
+	if cp := v.sim.commandPost(); v.Side == Defender && cp != nil && cp.alive() {
+		at = append(at, cp.Cell)
+	}
+	return at
+}
+
 // backInTime is whether sq can walk into a pad's range, finish taking it,
 // and walk on to the nearest point its side holds before the setup phase
 // ends. Progress the side has made on the pad counts, so a squad partway
@@ -560,10 +578,8 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 func (ai *AI) backInTime(v View, sq *Squad, pad Cell) bool {
 	s := v.sim
 	back := math.Inf(1)
-	for _, p := range s.Points {
-		if p.Owner == v.Side {
-			back = min(back, dist(pad, p.Cell))
-		}
+	for _, c := range home(v) {
+		back = min(back, dist(pad, c))
 	}
 	take := s.rules.CaptureSeconds
 	for _, p := range s.Pads {
@@ -1085,12 +1101,7 @@ func (ai *AI) prey(v View, sq *Squad, enemies []*Squad) *Squad {
 // safety is where a squad falls back to: the nearest point its side holds,
 // or else the nearest friendly squad, or else where it is.
 func (ai *AI) safety(v View, sq *Squad) Cell {
-	var at []Cell
-	for _, p := range v.sim.Points {
-		if p.Owner == v.Side {
-			at = append(at, p.Cell)
-		}
-	}
+	at := home(v)
 	if len(at) == 0 {
 		for _, o := range ai.own {
 			if o != sq && !o.Building && ai.roles[o.ID] == noRole {

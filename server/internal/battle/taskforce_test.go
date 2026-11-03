@@ -188,7 +188,8 @@ func TestAGuardLeavesAQuietPointForOneUnderThreat(t *testing.T) {
 	a, b := s.Squads[1], s.Squads[2]
 	freeAt(t, s, a, quiet, 0)
 	freeAt(t, s, b, hot, 0)
-	s.commandPost().Members = nil                                                         // gone, so it's down to the points
+	s.commandPost().Members = nil // gone, so it's down to the points
+	s.Points[0].Owner, s.Points[1].Owner = Defender, Defender
 	ai := NewAI(Weights{Aggression: 1, Caution: 1, Cover: 1, Raid: 1, Scout: 0, Mass: 1}) // no scouting: both guard
 	v := View{s, Defender}
 	ai.command(v, v.Own(), nil)

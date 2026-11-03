@@ -93,6 +93,7 @@ function doc(creditsName: string): Content {
     maps: {},
     terrains: {},
     terrainPresets: {},
+    fixtures: {},
     techs: {},
     soundtracks: {},
   };

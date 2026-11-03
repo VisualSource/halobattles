@@ -63,7 +63,6 @@
     "controlPointSpacing": 10,
     "deployDepth": 4,
     "buildPads": 4,
-    "attackerStarts": 3,
     "laneWidth": 2,
     "pointArea": 3
   },

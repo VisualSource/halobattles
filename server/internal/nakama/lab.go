@@ -56,8 +56,10 @@ type labSide struct {
 }
 
 type labSetup struct {
-	Preset string  `json:"preset"` // a Terrain Preset id; "" is the Ruleset's
-	Seed   uint64  `json:"seed"`
+	Preset    string `json:"preset"`              // a Terrain Preset id; "" is the Ruleset's
+	Archetype string `json:"archetype,omitempty"` // a Battlefield Archetype; "" is the preset's pick
+	Neutral   bool   `json:"neutral,omitempty"`   // the defender is a neutral garrison: its base, and turret funds
+	Seed      uint64 `json:"seed"`
 	Attack labSide `json:"attack"`
 	Defend labSide `json:"defend"`
 }
@@ -253,13 +255,20 @@ func (s *labState) start(dispatcher runtime.MatchDispatcher, build func() (*batt
 
 func (s *labState) fromSetup(c *cs.Content, in labSetup) (*battle.Sim, error) {
 	rules := c.Rulesets[game.RulesetID]
-	var override *cs.PlanetBattlefield
+	override := &cs.PlanetBattlefield{}
 	if in.Preset != "" {
 		if _, ok := c.TerrainPresets[in.Preset]; !ok {
 			return nil, fmt.Errorf("unknown Terrain Preset %s", in.Preset)
 		}
 		id := cs.ID(in.Preset)
-		override = &cs.PlanetBattlefield{TerrainPreset: &id}
+		override.TerrainPreset = &id
+	}
+	switch a := cs.GalaxyMapPlanetsElemBattlefieldArchetype(in.Archetype); a {
+	case "":
+	case cs.GalaxyMapPlanetsElemBattlefieldArchetypeOpen, cs.GalaxyMapPlanetsElemBattlefieldArchetypeRiver, cs.GalaxyMapPlanetsElemBattlefieldArchetypeRidge, cs.GalaxyMapPlanetsElemBattlefieldArchetypeRuins:
+		override.Archetype = &a
+	default:
+		return nil, fmt.Errorf("unknown Archetype %s", in.Archetype)
 	}
 	sides := [2]labSide{in.Attack, in.Defend}
 	var forces [2]battle.Force
@@ -282,7 +291,11 @@ func (s *labState) fromSetup(c *cs.Content, in labSetup) (*battle.Sim, error) {
 		}
 	}
 	forces[battle.Defender].Buildings = in.Defend.Buildings
-	f := battle.Generate(c, rules.Battlefield, override, in.Seed)
+	base := in.Defend.Faction
+	if in.Neutral {
+		base = ""
+	}
+	f := battle.GenerateFor(c, rules.Battlefield, override, in.Seed, base)
 	sim := battle.New(c, rules, f, forces[0], forces[1], in.Seed)
 	sim.Setup = rules.Battle.StartDelay * battle.TicksPerSecond
 	for i, sd := range sides {
@@ -295,6 +308,10 @@ func (s *labState) fromSetup(c *cs.Content, in labSetup) (*battle.Sim, error) {
 			}
 			sim.Controllers[i] = s.ai(battle.Side(i), w)
 		}
+	}
+	if in.Neutral && sim.Funds[battle.Defender] == nil { // a garrison buys turrets as in a Match
+		sim.Funds[battle.Defender] = maps.Clone(rules.Battle.NeutralFunds)
+		sim.Builders[battle.Defender] = true
 	}
 	return sim, nil
 }
@@ -312,7 +329,7 @@ func (s *labState) fromReplay(c *cs.Content, in labReplay) (*battle.Sim, error) 
 			override = mp.Battlefield
 		}
 	}
-	sim := battle.New(c, rules, battle.Generate(c, rules.Battlefield, override, r.FieldSeed), r.Attack, r.Defend, r.Seed)
+	sim := battle.New(c, rules, battle.GenerateFor(c, rules.Battlefield, override, r.FieldSeed, r.Faction), r.Attack, r.Defend, r.Seed)
 	sim.Setup, sim.Builders = r.Setup, r.Builders
 	for i := range sim.Funds {
 		sim.Funds[i] = maps.Clone(r.Funds[i])

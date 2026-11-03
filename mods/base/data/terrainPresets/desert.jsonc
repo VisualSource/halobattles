@@ -25,6 +25,7 @@
     },
     { "upTo": 1, "height": 2, "terrains": [{ "upTo": 1, "terrain": "peak" }] }
   ],
+  "archetypes": { "open": 2, "ridge": 2, "ruins": 1 },
   "pointCover": "rough",
   "clear": { "terrain": "sand", "height": 0 }
 }

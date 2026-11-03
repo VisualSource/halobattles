@@ -48,6 +48,9 @@ export interface Content {
   terrainPresets: {
     [k: string]: TerrainPreset;
   };
+  fixtures: {
+    [k: string]: Fixture;
+  };
   techs: {
     [k: string]: Tech;
   };
@@ -356,10 +359,6 @@ export interface BattlefieldRules {
    * Build pads the generator places: spots a side can capture and build a turret on.
    */
   buildPads: number;
-  /**
-   * Places on the map's edges an attacker can deploy around; each Battle's seed picks one. Defaults to 3.
-   */
-  attackerStarts?: number;
   /**
    * Width in cells of the lanes the generator clears between the Control Points and from each attacker start. Defaults to 2.
    */
@@ -938,13 +937,17 @@ export interface Position {
   y: number;
 }
 /**
- * Overrides the Ruleset's Battlefield size and Terrain Preset for this Planet.
+ * Overrides the Ruleset's Battlefield size, Terrain Preset and Archetype for this Planet.
  */
 export interface PlanetBattlefield {
   /**
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   terrainPreset?: string;
+  /**
+   * Forces this Planet's Battlefield Archetype, over its preset's weights.
+   */
+  archetype?: "open" | "river" | "ridge" | "ruins";
   width?: number;
   height?: number;
 }
@@ -1050,6 +1053,7 @@ export interface TerrainPreset {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   pointCover?: string;
+  archetypes?: ArchetypeWeights;
   clear: Clear;
 }
 export interface Noise {
@@ -1087,6 +1091,15 @@ export interface BandTerrain {
   terrain: string;
 }
 /**
+ * How often each Battlefield Archetype is picked for a Planet with this preset. Left out: an open field only.
+ */
+export interface ArchetypeWeights {
+  open?: number;
+  river?: number;
+  ridge?: number;
+  ruins?: number;
+}
+/**
  * What the generator turns blocked cells into when it cuts a path to connect the map.
  */
 export interface Clear {
@@ -1095,6 +1108,74 @@ export interface Clear {
    */
   terrain: string;
   height: number;
+}
+/**
+ * A hand-made piece of Battlefield, drawn as ASCII art, that generation stamps in. A base holds the defender's Command Post, building sites and unit starts; a feature is a landmark placed in open space.
+ */
+export interface Fixture {
+  $schema?: string;
+  /**
+   * Replace an existing definition with this id.
+   */
+  replace?: boolean;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  id: string;
+  /**
+   * base: the defender's, holding its Command Post; feature: a landmark.
+   */
+  kind: "base" | "feature";
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  faction?: string;
+  /**
+   * The Battlefield Archetypes it can appear in; left out, any.
+   */
+  archetypes?: ("open" | "river" | "ridge" | "ruins")[];
+  /**
+   * How often it's picked among those that fit, against the others' weights. Defaults to 1.
+   */
+  weight?: number;
+  /**
+   * Whether generation may turn it a quarter, half or three quarters.
+   */
+  rotate?: boolean;
+  /**
+   * Whether generation may flip it.
+   */
+  mirror?: boolean;
+  /**
+   * What each character in map is. A character that's in neither key nor markers leaves the Battlefield as it is; a marker's cell is made clear.
+   */
+  key: {
+    [k: string]: FixtureCell;
+  };
+  /**
+   * Characters that place something, on an open cell: commandPost (a base's one), site (a building site), unitStart (where a defending Stack deploys, in order), pad (a build pad), cover (the preset's point cover).
+   */
+  markers?: {
+    [k: string]: "commandPost" | "site" | "unitStart" | "pad" | "cover";
+  };
+  /**
+   * Its cells, row by row, top first; every row the same length.
+   *
+   * @minItems 1
+   */
+  map: [string, ...string[]];
+}
+/**
+ * Exactly one of terrain, clear (the preset's clear ground) or cover (its point cover), so a fixture suits any preset; height, if given, sets the height level.
+ */
+export interface FixtureCell {
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  terrain?: string;
+  clear?: boolean;
+  cover?: boolean;
+  height?: number;
 }
 /**
  * Researched by a player and held in a Lab: it unlocks units and buildings, and gives effects, while held. See docs/specs/tech-spec.md.

@@ -29,6 +29,8 @@ export type LabSide = {
 
 export type LabSetup = {
   preset: string;
+  archetype: string; // "" is the preset's pick
+  neutral: boolean; // the defender is a neutral garrison: its base and turret funds
   seed: number;
   sides: [LabSide, LabSide];
 };
@@ -70,6 +72,7 @@ export type LabDecision = {
 
 export type LabState = {
   field: Battlefield | null;
+  archetype: string; // the Battlefield's, as generated
   battle: Battle | null;
   tick: number;
   setupTicks: number;
@@ -181,8 +184,8 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     points: (s.Points ?? []).map((p) => ({
       x: p.Cell.X,
       y: p.Cell.Y,
-      owner: sideOf(p.Owner),
-      taker: sideOf(p.Taker),
+      owner: p.Owner < 0 ? null : sideOf(p.Owner),
+      taker: p.Taker < 0 ? null : sideOf(p.Taker),
       progress: p.Progress,
     })),
     pads,
@@ -194,6 +197,7 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
 export class LabConnection {
   readonly store = createStore<LabState>(() => ({
     field: null,
+    archetype: "",
     battle: null,
     tick: 0,
     setupTicks: 0,
@@ -240,6 +244,8 @@ export class LabConnection {
     });
     this.send(OP.setup, {
       preset: s.preset,
+      archetype: s.archetype,
+      neutral: s.neutral,
       seed: s.seed,
       attack: side(s.sides[0], false),
       defend: side(s.sides[1], true),
@@ -281,6 +287,7 @@ export class LabConnection {
           Terrains: string[];
           Terrain: string;
           Height: string;
+          Archetype: string;
         };
         const field: Battlefield = {
           width: f.W,
@@ -291,6 +298,7 @@ export class LabConnection {
         };
         this.store.setState({
           field,
+          archetype: f.Archetype,
           battle: null,
           log: [],
           thinking: [null, null],

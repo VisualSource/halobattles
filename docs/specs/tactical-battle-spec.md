@@ -19,7 +19,7 @@ Every number below is Ruleset or content data. The values given are base-Mod def
 ### Size and seed
 
 - The default size is **64 × 48 cells**. A Planet can set its own `battlefield.width` and `battlefield.height`.
-- A Battlefield is generated from **the Match seed + the Planet id**, so the same Planet has the same Battlefield for the whole Match and players can learn it. It's generated once, on the Planet's first Battle, and cached for the Match.
+- A Battlefield is generated from **the Match seed + the Planet id**, and the **defending Faction**, whose base it holds (a neutral garrison's base when nobody owns the Planet). The ground is the same for the whole Match, so players can learn it; whoever defends shows their own base on it. Each is generated on the Planet's first Battle with that defender, and cached for the Match.
 - The client never generates terrain. `BattleStarted` carries the finished grid (see [On the wire](#on-the-wire)).
 
 ### Generation
@@ -31,15 +31,20 @@ Generation follows [Red Blob Games: terrain from noise](https://www.redblobgames
 3. Elevation is cut into **bands**, lowest first. The base presets use `water`, `lowland`, `highland` and `peak`, and each band sets its height level.
 4. Moisture splits each band into Terrains, driest first. For example, lowland comes out as rough, open or forest.
 5. A **Terrain Preset** supplies the noise parameters, the bands, and the Terrains in each. A desert Planet comes out mostly sand and rough; an ice Planet turns its lakes into ice you can walk on. A Planet names its preset in `battlefield.terrainPreset`; otherwise the Ruleset's `battlefield.terrainPreset` applies.
-6. **Connectivity:** the largest region the Ruleset's `pathClass` (Infantry) can walk is the main region. Any edge's deployment strip that doesn't touch it gets the fewest blocked cells along a path cleared to the preset's `clear` Terrain. That's a ford through a lake, or a pass through peaks.
-7. **Landing Zones** (Control Points in the code) are placed in the main region (see [Landing Zones](#landing-zones)).
-8. **Layout round the points** (#64). It keeps the noise terrain and shapes it round the points:
-   - **Attacker starts:** `battlefield.attackerStarts` (3) cells on the map's edges, each at least 9 cells from a corner. The first is random; each later one is as far as it can be from those before. Each gets a zone 19 cells wide and `deployDepth` (4) deep, turned to the preset's `clear` Terrain.
-   - **Point areas:** every cell within `battlefield.pointArea` (3) of a point becomes `clear` Terrain, level with the point. Over a band from 1.5 cells inside that edge to 1.5 outside it, about a third of the cells become the preset's `pointCover` Terrain (`rough` in the base presets), so guards inside the capture radius have cover. With the cover only outside the clear ground, guards had none on their points, and Starting Kit attackers won 61% / 60% instead of 54% / 54%.
-   - **Main lanes**, `battlefield.laneWidth` (2) cells wide: the shortest links that join every point (a spanning tree), then a ring round the points (each to the next by angle round their middle), so guards can go round them; then each start to its nearest point. A lane is the cheapest 4-way path, preferring ground every ground Unit Class crosses and existing lanes. A link between two points keeps off the others' ground. Anything on a lane a ground Unit Class can't cross becomes `clear` Terrain, so vehicles and infantry reach every point and start.
-   - **Building sites:** 2 per point, dealt round the points in turn, from just outside a point's clear ground to 9 cells out. They prefer high ground, then ground vehicles can't reach (a dead end), then ground away from the starts. Each gets a 1-cell **side lane** from the nearest main lane that clears only what the path class (Infantry) can't cross, so it may be infantry's alone.
-   - **Build pads:** see [Build pads](#build-pads).
-9. Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
+6. **Archetype** (#99): a [Battlefield Archetype](#archetypes-and-fixtures) shapes the map, picked by the preset's `archetypes` weights or forced by the Planet's `battlefield.archetype`, along with the **defender's edge**:
+   - **open:** the noise as it is;
+   - **river:** a band across the attack sunk to the lowest band (water, or ice), with 2 or 3 fords cleared 3 cells wide;
+   - **ridge:** the line of the attack raised to high ground, or (a valley) the ground either side of it;
+   - **ruins:** a grid of 5-cell blocks, each cover or now and then impassable rubble, with 2-cell streets of clear ground.
+7. **The base:** a base [fixture](#archetypes-and-fixtures) for the defending Faction (its own, else a neutral one; a plain Command Post with sites round it if none fits) is stamped in the third of the map by the defender's edge. It holds the **Command Post**, the **building sites**, the defender's **unit starts**, and any pads it marks. Then 1 to 3 **feature** fixtures go in open ground between, clear of the base; one that doesn't fit is left out.
+8. **Connectivity:** the largest region the Ruleset's `pathClass` (Infantry) can walk is the main region. Any edge's deployment strip that doesn't touch it, and the Command Post, gets the fewest blocked cells along a path cleared to the preset's `clear` Terrain. That's a ford through a lake, or a pass through peaks.
+9. **Landing Zones** (Control Points in the code) are spread over the main region, clear of the base (see [Landing Zones](#landing-zones)). The farther half from the Command Post are where an attacker can land.
+10. **Layout round the Landing Zones** (#64). It keeps the terrain and shapes it round them:
+   - **Landing Zone areas:** every cell within `battlefield.pointArea` (3) of one becomes `clear` Terrain, level with it. Over a band from 1.5 cells inside that edge to 1.5 outside it, about a third of the cells become the preset's `pointCover` Terrain (`rough` in the base presets), so guards inside the capture radius have cover.
+   - **Main lanes**, `battlefield.laneWidth` (2) cells wide: the shortest links that join every Landing Zone (a spanning tree), then a ring round them, so guards can go round; then the base to its nearest Landing Zone. A lane is the cheapest 4-way path, preferring ground every ground Unit Class crosses and existing lanes, and going round fixtures where it can. Anything on a lane a ground Unit Class can't cross becomes `clear` Terrain, except in a fixture, which keeps what it was drawn with; a lane never runs over a fixture's pad.
+   - **Build pads:** a fixture's first, then the rest; see [Build pads](#build-pads).
+11. Each stage draws from its own PCG stream: 1 elevation, 2 moisture, 3 Landing Zones, 7 point cover, 8 archetype and edge, 9 base, 10 features, 11 fords and ruins (6 was the old edge starts). A new stage takes the next number.
+12. Deployment and buildings are placed per Battle9. Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
 
 ### Terrain
 
@@ -81,8 +86,8 @@ Base-Mod Terrains:
 
 ### Deployment
 
-- **Defender:** Stack 1 deploys at the [Command Post](#the-command-post), Stack 2 on Landing Zone A, Stack 3 on B, and so on round the Landing Zones. Building Slot *n* stands on the Battlefield's building site *n*. With more slots than sites, the rest stand 3 cells behind the Landing Zones, away from the attacker's edge.
-- **Attacker:** deploys round one of the Battlefield's attacker starts, which the Battle seed picks, 4 cells deep in from that edge. A player choosing their start is for later.
+- **Defender:** in its base. Stack *n* deploys round the base's unit start *n*; past the base's starts, round the [Command Post](#the-command-post). Building Slot *n* stands on the base's building site *n*. With more slots than sites, the rest stand by the Command Post.
+- **Attacker:** lands at one of the Landing Zones in the farther half from the base, which the Battle seed picks, and holds it from the start. It Retreats off the map edge nearest it. A player choosing where to land is for later (#92, #57).
 - **Formations:** a Stack deploys in the shape of its 3 × 5 slot grid. The front row faces the enemy, and empty slots leave gaps. An attacking Army's slots are laid out the same way, 15 slots per formation, in slot order. A slot that lands on a blocked cell moves to the nearest free passable cell (breadth-first, ties to the lowest cell index).
 
 ## Time and movement
@@ -167,8 +172,8 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 Landing Zones are what the code calls Control Points. Until reinforcements (#57) land on them, holding one changes nothing; both sides still fight over them.
 
-- The generator places **3 Landing Zones** in the main region, in the middle half of the map each way, at least `controlPointSpacing` (10) cells apart. Where they don't fit, the spacing shrinks until they do. This placement is good enough for v1; revisit it with handmade maps or the capital-world variant.
-- The **defender holds all three** when the Battle starts.
+- The generator places **3 Landing Zones** in the main region, at least `deployDepth + 3` cells in from the edges and 14 from the Command Post, at least `controlPointSpacing` (10) cells apart, the first in the half of the map away from the base. Where they don't fit, the spacing shrinks until they do.
+- **Nobody holds them** when the Battle starts, except the one the attacker lands at. The defender takes them like anyone else.
 - **Capture:** a point changes hands after one side has a ground Squad within **2 cells** of it, and the other side has none, for **5 s** in a row. If the lone side leaves or the other side arrives, progress resets.
 - **Aircraft** neither capture nor contest a point, and nor do buildings: only ground Squads hold ground.
 - **Contested:** when both sides are in range, nothing changes.
@@ -409,7 +414,6 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battlefield.controlPoints` | 3 |
 | `battlefield.controlPointSpacing` | 10 cells |
 | `battlefield.deployDepth` | 4 cells |
-| `battlefield.attackerStarts` | 3 |
 | `battlefield.laneWidth` | 2 cells |
 | `battlefield.pointArea` | 3 cells |
 | `battle.startDelay` | 15 s |
@@ -431,12 +435,14 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 - **`terrains`** kind: `cover`, `colour`, and `movement` (a cost per Unit Class).
 - **`terrainPresets`** kind:
   - `noise`: frequency, octaves and persistence;
-  - `pointCover`: an optional Terrain scattered round each Control Point's clear ground as cover;
+  - `pointCover`: an optional Terrain scattered round each Landing Zone's clear ground as cover;
+  - `archetypes`: optional weights for `open`, `river`, `ridge` and `ruins` (none: an open field);
   - `bands`: each with `upTo`, `height`, and its `terrains` by moisture `upTo`;
   - `clear`: the Terrain and height used to cut a path.
 
   The base Mod ships `base:temperate`, `base:desert` and `base:ice`.
-- **Planet** (in a map): an optional `battlefield {terrainPreset, width, height}`.
+- **Planet** (in a map): an optional `battlefield {terrainPreset, archetype, width, height}`.
+- **`fixtures`** kind (#99): a hand-made piece of Battlefield as ASCII art, with `kind` `base` or `feature`, an optional `faction` (a base's), `archetypes`, `weight`, `rotate`, `mirror`, a `key` from characters to a `terrain` (or `clear` or `cover`) and an optional `height`, `markers` (`commandPost`, `site`, `unitStart`, `pad`, `cover`), and the `map` rows. A base has exactly one `commandPost`. The base Mod ships a UNSC firebase, a Covenant outpost and a neutral outpost, plus a crash site, trench line, Forerunner ruin and bridge.
 - **Faction:** an optional `ai` weight block.
 - **Building:** an optional `padTurret` flag: it can be built on a build pad in Battle (it needs a `combat` block).
 - **Unit Class:** an optional `squadSize`, the most members one of its squads has (see [Squads](#squads)); none means one squad per Unit Slot.
@@ -478,6 +484,8 @@ Now in [Objectives](#objectives). As planned:
 - Control Points become **Landing Zones**. The side that holds one can land [reinforcements](#reinforcements) there. Build pads stay as they are.
 
 ### Archetypes and fixtures
+
+Built (#99): now in [Generation](#generation), [Deployment](#deployment) and [Landing Zones](#landing-zones). As planned:
 
 Battlefields get structure from authored content. Noise only dresses the space in between.
 
@@ -537,7 +545,7 @@ Late game: an Army can join a Battle already running (#57).
 1. ~~Squads by Unit Class~~ (#96): now in [Squads](#squads).
 2. ~~The Battle Lab~~ (#97): built.
 3. ~~The Command Post and Landing Zones~~ (#98): now in [Objectives](#objectives).
-4. Archetypes and fixtures.
+4. ~~Archetypes and fixtures~~ (#99): now in [Generation](#generation).
 5. Raids (#66).
 6. Command (#92).
 7. Reinforcements (#57).

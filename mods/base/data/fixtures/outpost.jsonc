@@ -1,0 +1,29 @@
+// A neutral outpost: a garrison's Command Post with its sites, behind low cover.
+{
+  "$schema": "../../../../schema/content/fixture.schema.json",
+  "id": "outpost",
+  "kind": "base",
+  "rotate": true,
+  "mirror": true,
+  "key": {
+    "#": {
+      "cover": true
+    },
+    ".": {
+      "clear": true
+    }
+  },
+  "markers": {
+    "C": "commandPost",
+    "s": "site",
+    "u": "unitStart",
+    "p": "pad"
+  },
+  "map": [
+    ".#.......#.",
+    "#..s...s..#",
+    "...u.C.u...",
+    "#..s.p.s..#",
+    ".#...u...#."
+  ]
+}

@@ -155,8 +155,8 @@ func TestASquadPartwayThroughAPadKeepsTakingIt(t *testing.T) {
 	pad := &s.Pads[0]
 	freeAt(t, s, sq, pad.Cell, int(s.rules.CaptureRadius))
 	back := math.Inf(1)
-	for _, p := range s.Points {
-		back = min(back, dist(pad.Cell, p.Cell))
+	for _, c := range home(v) {
+		back = min(back, dist(pad.Cell, c))
 	}
 	need := ticks(s.rules.CaptureSeconds)
 	pad.Taker, pad.Progress = Defender, need-ticks(1) // 1 s to go

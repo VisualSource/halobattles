@@ -364,8 +364,8 @@ table BattleSquad {
 table ControlPoint {      // shown to players as a Landing Zone
   x: ushort;
   y: ushort;
-  owner: ubyte;            // 0 attacker, 1 defender
-  taker: ubyte;            // the side taking it, while progress > 0
+  owner: ubyte;            // 0 attacker, 1 defender, 255 nobody
+  taker: ubyte;            // the side taking it, while progress > 0; 255 nobody
   progress: ushort;        // sim ticks the taker has held it alone
 }
 

@@ -9,7 +9,10 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 ### Changed
 
 - Battles are won differently: the attacker wins by destroying the defender's Command Post, a new structure on every Battlefield. Wiping out the defence isn't enough; the Command Post still has to fall before time runs out. A defender that Retreats abandons it, and it blows up.
-- An enemy Planet with no units and no buildings is taken on arrival, with no Battle. Holding Control Points no longer wins a Battle; they're now Landing Zones.
+- An enemy Planet with no units and no buildings is taken on arrival, with no Battle.
+- Battlefields have shape: open fields, rivers with fords, ridges and valleys, and ruined cities, with landmarks such as crash sites, trench lines, Forerunner ruins and bridges.
+- The defender fights from a base, a UNSC firebase, a Covenant outpost or a garrison's outpost, holding its Command Post and buildings, far from where the attacker lands.
+- The attacker lands at a Landing Zone and holds it; the others start held by nobody, for either side to take. Holding Control Points no longer wins a Battle; they're now Landing Zones.
 - In Battles, a squad picks off enemies that fire back before buildings.
 - In Battles, units fight in smaller squads: infantry in fours, vehicles and aircraft in pairs. 10 Marines take the field as three squads instead of one.
 

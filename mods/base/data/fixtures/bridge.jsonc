@@ -1,0 +1,29 @@
+// A stream with a bridge over it: one way across, with cover on each side.
+{
+  "$schema": "../../../../schema/content/fixture.schema.json",
+  "id": "bridge",
+  "kind": "feature",
+  "rotate": true,
+  "archetypes": [
+    "river",
+    "open"
+  ],
+  "key": {
+    "#": {
+      "cover": true
+    },
+    ".": {
+      "clear": true
+    },
+    "~": {
+      "terrain": "water"
+    }
+  },
+  "map": [
+    "~~~#.#~~~",
+    "~~~#.#~~~",
+    "~~~#.#~~~",
+    "~~~#.#~~~",
+    "~~~#.#~~~"
+  ]
+}

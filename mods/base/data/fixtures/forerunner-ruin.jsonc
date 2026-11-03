@@ -1,0 +1,34 @@
+// A Forerunner ruin: pillars round a build pad.
+{
+  "$schema": "../../../../schema/content/fixture.schema.json",
+  "id": "forerunner-ruin",
+  "kind": "feature",
+  "rotate": true,
+  "archetypes": [
+    "open",
+    "ridge",
+    "ruins"
+  ],
+  "key": {
+    "#": {
+      "cover": true
+    },
+    ".": {
+      "clear": true
+    },
+    "X": {
+      "terrain": "peak",
+      "height": 2
+    }
+  },
+  "markers": {
+    "p": "pad"
+  },
+  "map": [
+    "X.....X",
+    "..#.#..",
+    "...p...",
+    "..#.#..",
+    "X.....X"
+  ]
+}

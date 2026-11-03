@@ -46,6 +46,7 @@ var kinds = map[string]kind{
 	"maps":           {"map.schema.json", "Map"},
 	"terrains":       {"terrain.schema.json", "Terrain"},
 	"terrainPresets": {"terrain-preset.schema.json", "Terrain Preset"},
+	"fixtures":       {"fixture.schema.json", "Fixture"},
 	"techs":          {"tech.schema.json", "Tech"},
 	"soundtracks":    {"soundtrack.schema.json", "Soundtrack"},
 }
