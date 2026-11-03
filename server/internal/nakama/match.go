@@ -546,7 +546,7 @@ func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 			Id: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender), Started: b.Started,
 			Tick: uint32(b.Tick), Edge: uint8(b.Edge), RetreatAt: uint32(b.RetreatAt),
 			AttackerRetreating: b.Retreating[battle.Attacker], DefenderRetreating: b.Retreating[battle.Defender], Raid: b.Raid,
-			BuildingsLeft: uint8(b.BuildingsLeft), Buildings: uint8(b.Buildings),
+			BuildingsLeft: uint8(b.BuildingsLeft), Buildings: uint8(b.Buildings), Commanded: b.Commanded,
 		}
 		if withField {
 			bv.Field = field(b.Field)
@@ -556,7 +556,7 @@ func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 				Id: uint16(sq.ID), Side: uint8(sq.Side), Unit: sq.Unit, Building: sq.Building,
 				X: uint16(sq.Cell.X), Y: uint16(sq.Cell.Y), Count: uint32(sq.Count), Start: uint32(sq.Start),
 				Shield: float32(max(0, sq.Front.Shield)), Armor: float32(max(0, sq.Front.Armor)), Hp: float32(max(0, sq.Front.HP)),
-				CommandPost: sq.CommandPost,
+				CommandPost: sq.CommandPost, Moving: sq.Moving, GoalX: uint16(sq.Goal.X), GoalY: uint16(sq.Goal.Y), Target: uint16(sq.Target),
 			})
 		}
 		for _, p := range b.Points {
@@ -595,7 +595,7 @@ func armies(as []game.ArmyView) []*wire.ArmyViewT {
 	for _, a := range as { // already sorted by id, as the (key) needs
 		out = append(out, &wire.ArmyViewT{
 			Id: a.ID, Owner: int8(a.Owner), Units: unitSlots(a.Units), From: a.From, To: a.To,
-			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting, Destination: a.Destination, ToStack: uint8(a.ToStack), Path: a.Path, Raid: a.Raid,
+			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting, Destination: a.Destination, ToStack: uint8(a.ToStack), Path: a.Path, Raid: a.Raid, Command: a.Command,
 		})
 	}
 	return out

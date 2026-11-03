@@ -9,6 +9,8 @@ import {
   BattleCancelRetreatT,
   BattleEnded,
   type BattlefieldT,
+  BattleOrderKind,
+  BattleOrderT,
   BattleRetreatT,
   BattleStarted,
   BattleTick,
@@ -38,6 +40,8 @@ import {
   ReorderArmyT,
   type ResearchT,
   SellBuildingT,
+  SetArmyControlT,
+  SetBattleControlT,
   SetFactionT,
   SetMapT,
   SetRallyPointT,
@@ -57,6 +61,7 @@ import {
   type ViewFullT,
   type WinHoldT,
 } from "../gen/wire";
+import { settings } from "../settings";
 import { type CommandKind, createLocalStore, updateLastSeen } from "./local";
 import {
   type Army,
@@ -75,9 +80,17 @@ import {
   reportView,
   reportVolleys,
   type Side,
+  type SquadOrder,
   type View,
   type Volley,
 } from "./store";
+
+const WIRE_KINDS = {
+  move: BattleOrderKind.Move,
+  attack: BattleOrderKind.Attack,
+  attackMove: BattleOrderKind.AttackMove,
+  hold: BattleOrderKind.Hold,
+} as const;
 
 export type SocketLike = Pick<
   Socket,
@@ -187,6 +200,7 @@ const toArmy = (a: ArmyViewT): Army => ({
   toStack: a.toStack,
   path: a.path.map(str),
   raid: a.raid,
+  command: a.command,
 });
 
 const side = (n: number): Side => (n === 0 ? "attacker" : "defender");
@@ -225,6 +239,8 @@ const toBattle = (
     armor: q.armor,
     hp: q.hp,
     commandPost: q.commandPost,
+    goal: q.moving ? { x: q.goalX, y: q.goalY } : null,
+    target: q.target,
   })),
   points: b.points.map((p) => ({
     x: p.x,
@@ -251,6 +267,7 @@ const toBattle = (
   raid: b.raid,
   buildingsLeft: b.buildingsLeft,
   buildings: b.buildings,
+  commanded: b.commanded,
 });
 
 const toQueueItem = (q: QueueItemT): QueueItem => ({
@@ -393,6 +410,7 @@ export class MatchConnection {
 
   /** Waits for the server to drop the Seat before disconnecting. */
   async close() {
+    this.unsubscribe();
     // Leaving on purpose isn't a lost connection: the socket's own close
     // handler calls ondisconnect even with disconnect(false).
     this.socket.ondisconnect = () => {};
@@ -536,6 +554,53 @@ export class MatchConnection {
     );
   }
 
+  // Settings' Battles choice, sent again whenever it changes.
+  private readonly unsubscribe = settings.subscribe((s, prev) => {
+    if (s.battles !== prev.battles) this.sendBattleControl();
+  });
+
+  private sendBattleControl() {
+    const view = this.store.getState().view;
+    if (view && !view.spectating)
+      this.setBattleControl(settings.getState().battles === "command");
+  }
+
+  /** Your default for Battles from now on: command them, or Auto. */
+  setBattleControl(command: boolean) {
+    this.send(
+      Op.SetBattleControl,
+      "battleControl",
+      (seq) => new SetBattleControlT(seq, command),
+    );
+  }
+
+  /** Whether you command one Army's Battle, over your default. */
+  setArmyControl(army: number, command: boolean) {
+    this.send(
+      Op.SetArmyControl,
+      "armyControl",
+      (seq) => new SetArmyControlT(seq, army, command),
+    );
+  }
+
+  /** Orders squads in the Battle on planet, which you command. */
+  battleOrder(planet: string, squads: number[], o: SquadOrder) {
+    this.send(
+      Op.BattleOrder,
+      "battleOrder",
+      (seq) =>
+        new BattleOrderT(
+          seq,
+          planet,
+          WIRE_KINDS[o.kind],
+          squads,
+          o.cell?.x ?? 0,
+          o.cell?.y ?? 0,
+          o.target ?? 0,
+        ),
+    );
+  }
+
   /** A Forfeit: it eliminates you. */
   surrender() {
     this.send(Op.Surrender, "surrender", (seq) => new SurrenderT(seq));
@@ -656,6 +721,7 @@ export class MatchConnection {
           if (b.field) this.fields.set(b.id, b.field);
         this.store.setState({ view });
         this.seedReports(view.battles.values());
+        this.sendBattleControl(); // joining, or back after a drop: the server takes it from here
         this.local.setState((s) => ({
           lastSeen: updateLastSeen(
             s.lastSeen,

@@ -14,6 +14,7 @@ import { useHideHeader } from "../backdrop";
 import type { ContentLookups } from "../content";
 import { GalaxyScene, seatColour } from "../scene/galaxy";
 import { planetIconsQuery } from "../scene/planet-icons";
+import { SettingsButton } from "../settings";
 import { BattlePanel } from "./battle";
 import { BotTag } from "./bot-tag";
 import type { MatchConnection } from "./connection";
@@ -553,6 +554,7 @@ function Hud(props: {
       )}
       <Mode conn={conn} content={content} />
       <Notifications />
+      <SettingsButton />
       {view.spectating ? (
         <Link
           to="/"
@@ -1194,6 +1196,12 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
           `Researched ${tech?.name ?? p.tech}${field ? ` (${field})` : ""} at ${planet(p.planet)}`,
           show(p.planet),
         );
+      }
+      // A Battle you command opens on its own as it comes into your View.
+      for (const b of now.battles.values()) {
+        if (!b.commanded || was.battles.get(b.id)?.commanded) continue;
+        conn.local.setState({ watching: b.id });
+        notify("battle", `You command the Battle at ${planet(b.planet)}`);
       }
     });
     /** A Battle you're a side of: it has a report, running or over. */

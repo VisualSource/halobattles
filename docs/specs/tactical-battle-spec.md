@@ -525,17 +525,25 @@ Battlefields get structure from authored content. Noise only dresses the space i
 
 ### Command
 
-A player can command their side of a Battle instead of the AI (#92). The AI then serves only as the **Auto-resolve**.
+A player can command their side of a Battle instead of the AI (#92). The AI then serves only as the **Auto-resolve**. Built.
 
 - **Choosing:**
-  - Each player sets a default: command their Battles, or auto-resolve them.
-  - An attack order can override the default for that Army.
-  - A Battle you defend uses your default.
-  - Bots always auto-resolve.
-- **The choice is fixed when the Battle starts.** If it starts on Auto, you watch and can't take over. If you're commanding and you disconnect, the AI takes over for the rest of that Battle.
-- **Controls:** RTS-style. Select squads with a click or a drag box, then right-click to move or attack. Other commands, such as guard and scout, are in #92. Retreat and pad turrets work as now.
+  - Each player sets a default, **Command** or **Auto** (the default), in a new full-screen **Settings** dialog (the house Base UI `Dialog`, as the faction picker) opened from a gear in the play screen's header, the main menu's bottom-right corner, and the header on the lobby and results screens (an icon only, there); later settings go there too. It's kept in the browser and sent to the server on joining a Match and on each change, so it carries over between Matches. A change affects only Battles that start after it.
+  - The Army window has the same toggle for that Army, starting from the default. Dragging a Stack uses the default.
+  - A Battle you defend uses your default. Bots always auto-resolve; Teammates and spectators watch.
+- **The choice is fixed when the Battle starts.** If it starts on Auto, you watch and can't take over. If you're commanding and you disconnect, the AI takes over for the rest of that Battle, and reconnecting doesn't hand it back.
+- **When a Battle you command starts,** its window opens on its own, with a toast.
+- **Controls,** RTS-style:
+  - **Selecting:** click a squad, drag a box, Shift to add or take away, Esc to clear. Only your own mobile squads: not buildings or turrets.
+  - **Orders:** right-click the ground to **Move**, an enemy to **Attack** it; **A** then a click to **Attack-move** (move, stopping to fight what it meets); **H** to **Hold**. Several squads sent to one spot keep their shape round it.
+  - **Shown:** selected squads draw a line to where they're going, red to an attack target, and a marker flashes where you clicked.
+  - **The selection strip** in the Battle window lists what's selected (unit, count, health), with Hold and Attack-move buttons, so it all works without the keyboard.
+  - **Setup:** a commanding defender can move squads, and take pads by moving onto them. The attacker's orders wait for the fighting, as now.
+  - Retreat and pad turrets work as now. Guard, scout and control groups are for later.
 - **Squads you haven't ordered** hold their position and fire at whatever comes in range.
-- **Mockup first:** an HTML mockup of the in-Battle controls is agreed before they're built.
+- **Wire:** one `BattleOrder` op (planet, kind, squads, cell, target). The server checks the squads are yours and the Battle is yours to command; orders go into the Battle's log, so replays stay exact.
+- **The Lab** uses the same controls, so "You command" there works, and is where they're tried first.
+- **Mockup first:** an HTML mockup of the Settings window, the Army window's toggle, and a commanded Battle (drag box, selection, order lines, selection strip) is agreed before they're built.
 
 ### Reinforcements
 
@@ -559,7 +567,7 @@ Late game: an Army can join a Battle already running (#57).
 3. ~~The Command Post and Landing Zones~~ (#98): now in [Objectives](#objectives).
 4. ~~Archetypes and fixtures~~ (#99): now in [Generation](#generation).
 5. ~~Raids~~ (#66): built; see [Raids](#raids).
-6. Command (#92).
+6. ~~Command~~ (#92): built; see [Command](#command).
 7. Reinforcements (#57).
 8. 3D drawing (#93).
 

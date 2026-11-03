@@ -19,6 +19,7 @@ type ArmyViewT struct {
 	ToStack     byte         `json:"to_stack"`
 	Path        []string     `json:"path"`
 	Raid        bool         `json:"raid"`
+	Command     bool         `json:"command"`
 }
 
 func (t *ArmyViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -76,6 +77,7 @@ func (t *ArmyViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	ArmyViewAddToStack(builder, t.ToStack)
 	ArmyViewAddPath(builder, pathOffset)
 	ArmyViewAddRaid(builder, t.Raid)
+	ArmyViewAddCommand(builder, t.Command)
 	return ArmyViewEnd(builder)
 }
 
@@ -102,6 +104,7 @@ func (rcv *ArmyView) UnPackTo(t *ArmyViewT) {
 		t.Path[j] = string(rcv.Path(j))
 	}
 	t.Raid = rcv.Raid()
+	t.Command = rcv.Command()
 }
 
 func (rcv *ArmyView) UnPack() *ArmyViewT {
@@ -330,8 +333,20 @@ func (rcv *ArmyView) MutateRaid(n bool) bool {
 	return rcv._tab.MutateBoolSlot(26, n)
 }
 
+func (rcv *ArmyView) Command() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *ArmyView) MutateCommand(n bool) bool {
+	return rcv._tab.MutateBoolSlot(28, n)
+}
+
 func ArmyViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(12)
+	builder.StartObject(13)
 }
 func ArmyViewAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -374,6 +389,9 @@ func ArmyViewStartPathVector(builder *flatbuffers.Builder, numElems int) flatbuf
 }
 func ArmyViewAddRaid(builder *flatbuffers.Builder, raid bool) {
 	builder.PrependBoolSlot(11, raid, false)
+}
+func ArmyViewAddCommand(builder *flatbuffers.Builder, command bool) {
+	builder.PrependBoolSlot(12, command, false)
 }
 func ArmyViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

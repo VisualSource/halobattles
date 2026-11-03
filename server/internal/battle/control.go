@@ -15,6 +15,10 @@ const (
 	CancelRetreat // calls the countdown off, until it runs out
 	// Build starts a pad turret, Building, on pad Target; Squad is ignored.
 	Build
+	// AttackMove goes to Cell like Move, stopping to fight whatever it meets
+	// that it can hit, and going on once nothing is left in range. Last, so
+	// logged orders keep their numbers.
+	AttackMove
 )
 
 // Order is one instruction to one of a side's squads.

@@ -34,6 +34,9 @@ enum Op : int {
   SetTeams = 25,
   SetTeam = 26,
   SetRallyPoint = 27,
+  SetBattleControl = 28,
+  SetArmyControl = 29,
+  BattleOrder = 30,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -209,6 +212,34 @@ table BattleBuildTurret {
   building: string;
 }
 
+// The player's default for their Battles: command them, or Auto. Sent on
+// joining a Match and on each change; a Battle takes it when it starts.
+table SetBattleControl {
+  seq: uint32;
+  command: bool;
+}
+
+// Whether the player commands one Army's Battle, over their default.
+table SetArmyControl {
+  seq: uint32;
+  army: uint32;
+  command: bool;
+}
+
+enum BattleOrderKind : ubyte { Move = 0, Attack = 1, AttackMove = 2, Hold = 3 }
+
+// Orders squads of your side in a Battle you command. A group sent to a
+// cell keeps its shape round it.
+table BattleOrder {
+  seq: uint32;
+  planet: string;
+  kind: BattleOrderKind;
+  squads: [ushort];
+  x: ushort;               // Move and AttackMove
+  y: ushort;
+  target: ushort;          // Attack: the enemy squad
+}
+
 table Exchange {          // any time in play, even in debt
   seq: uint32;
   give: string;            // a Resource
@@ -337,6 +368,7 @@ table ArmyView {
   to_stack: ubyte;         // own only
   path: [string];          // own only: the Planets after to, in order
   raid: bool;              // own only: others don't see a Raid at all
+  command: bool;           // own only: you command its Battle
 }
 
 // A Battle's grid: one Terrain index and one height level per cell, row by
@@ -363,6 +395,10 @@ table BattleSquad {
   armor: float;
   hp: float;
   command_post: bool;      // the defender's Command Post: destroying it wins the Battle
+  moving: bool;            // your own squads': on its way to goal
+  goal_x: ushort;
+  goal_y: ushort;
+  target: ushort;          // your own squads': the enemy it was told to attack, or 0
 }
 
 table ControlPoint {      // shown to players as a Landing Zone
@@ -407,6 +443,7 @@ table BattleView {
   raid: bool;              // a Raid: the attacker has raidTime to destroy the buildings
   buildings_left: ubyte;    // public: the Planet's buildings standing, a Raid's score
   buildings: ubyte;         // and at the start
+  commanded: bool;         // your side is yours to command: the AI doesn't run it
 }
 
 // One squad's fire in one sim tick: every living member's shot at one

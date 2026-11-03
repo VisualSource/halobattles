@@ -20,6 +20,7 @@ const (
 func (s *State) Disconnect(seat int, graceMs int64) {
 	p := &s.Players[seat]
 	p.Disconnected, p.GraceEnds = true, s.Time+graceMs
+	s.handOver(seat) // the AI fights their Battles from here, even if they come back
 }
 
 // AddSpectator lets user watch: a lobby Spectator, at Start.

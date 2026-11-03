@@ -109,18 +109,20 @@ type ArmyView struct {
 	ToStack     int      // own only
 	Path        []string // own only: the Planets after To, in order
 	Raid        bool     // own only: nobody else sees a Raid at all
+	Command     bool     // own only: its owner commands its Battle
 }
 
 // BattleView is a Battle the viewer is a side of, as their side sees it.
 // Others see only the Planet's Locked flag.
 type BattleView struct {
-	ID       uint32
-	Planet   string
-	Attacker int
-	Defender int
-	Started  int64
-	Raid     bool
-	Field    *battle.Field // the same for the whole Battle
+	ID        uint32
+	Planet    string
+	Attacker  int
+	Defender  int
+	Started   int64
+	Raid      bool
+	Commanded bool          // the viewer's side is theirs to command: no AI runs it
+	Field     *battle.Field // the same for the whole Battle
 	battle.Snapshot
 }
 
@@ -245,7 +247,7 @@ func (s *State) view(c *cs.Content, seat int) View {
 			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting,
 		}
 		if ours || all { // a Spectator sees where every Army is going
-			av.Destination, av.ToStack, av.Path, av.Raid = a.destination(), a.ToStack, slices.Clone(a.Path), a.Raid
+			av.Destination, av.ToStack, av.Path, av.Raid, av.Command = a.destination(), a.ToStack, slices.Clone(a.Path), a.Raid, a.Command
 		}
 		v.Armies = append(v.Armies, av)
 	}
@@ -269,7 +271,7 @@ func (b *Battle) view(side battle.Side) BattleView {
 	if side == battle.NoSide {
 		bv.Snapshot = b.Sim.SnapshotAll()
 	} else {
-		bv.Snapshot = b.Sim.Snapshot(side)
+		bv.Snapshot, bv.Commanded = b.Sim.Snapshot(side), b.commanded(side)
 	}
 	return bv
 }

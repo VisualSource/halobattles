@@ -2,6 +2,7 @@ import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { ViewTransition } from "react";
 import { RingBackdrop, useHeaderWanted, useRingWanted } from "../backdrop";
 import { rootContext } from "../session";
+import { SettingsButton } from "../settings";
 
 export const Route = createRootRoute({
   beforeLoad: ({ location }) => rootContext(location.pathname),
@@ -15,11 +16,12 @@ export const Route = createRootRoute({
           {ring && <RingBackdrop />}
           {header && (
             <header
-              className={`border-b px-8 py-4 ${ring ? "border-line/70 bg-bar/55 backdrop-blur-md" : "border-line bg-bar"}`}
+              className={`flex items-center justify-between border-b px-8 py-2.5 ${ring ? "border-line/70 bg-bar/55 backdrop-blur-md" : "border-line bg-bar"}`}
             >
               <h1 className="font-display text-xl font-bold tracking-[0.12em]">
                 HALO BATTLES
               </h1>
+              <SettingsButton quiet />
             </header>
           )}
           <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">

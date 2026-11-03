@@ -79,9 +79,12 @@ type labReplay struct {
 	Replay battleReplay `json:"replay"`
 }
 
+// labOrder is one order to a group of a commanded side's squads, as the
+// match's BattleOrder: a group sent to a cell keeps its shape round it.
 type labOrder struct {
-	Side  battle.Side  `json:"side"`
-	Order battle.Order `json:"order"`
+	Side   battle.Side  `json:"side"`
+	Squads []int        `json:"squads"`
+	Order  battle.Order `json:"order"` // its Squad is ignored
 }
 
 // labFrame is what the page draws after a run of steps: the whole Battle,
@@ -113,6 +116,10 @@ type labState struct {
 	build     func() (*battle.Sim, error) // makes the current Battle again
 	sim       *battle.Sim
 	orders    []battle.Logged // a replay's player orders still to come
+	// A replay's AI takeovers: 1 + the tick each side's AI took over from a
+	// player who left, or 0; and the weights it plays with.
+	handOver  [2]int
+	weights   [2]battle.Weights
 	paused    bool
 	speed     float64
 	acc       float64
@@ -232,7 +239,7 @@ func (s *labState) handle(c *content.Content, op int64, data []byte, dispatcher 
 		case s.sim.Controllers[in.Side] != nil:
 			return errors.New("the AI runs that side: set it to command")
 		}
-		s.sim.Command(in.Side, in.Order)
+		return s.sim.CommandGroup(in.Side, in.Squads, in.Order)
 	default:
 		return fmt.Errorf("unknown Lab message %d", op)
 	}
@@ -336,9 +343,11 @@ func (s *labState) fromReplay(c *cs.Content, in labReplay) (*battle.Sim, error) 
 	sim.Setup, sim.Builders, sim.Raid = r.Setup, r.Builders, r.Raid
 	for i := range sim.Funds {
 		sim.Funds[i] = maps.Clone(r.Funds[i])
-		sim.Controllers[i] = s.ai(battle.Side(i), r.Weights[i])
+		if !r.Commanded[i] {
+			sim.Controllers[i] = s.ai(battle.Side(i), r.Weights[i])
+		}
 	}
-	s.orders = r.Orders
+	s.orders, s.handOver, s.weights = r.Orders, r.HandedOver, r.Weights
 	return sim, nil
 }
 
@@ -365,6 +374,11 @@ func (s *labState) step(n int) {
 	for range n {
 		if s.sim.Over {
 			break
+		}
+		for side, at := range s.handOver {
+			if at > 0 && s.sim.Tick == at-1 && s.sim.Controllers[side] == nil {
+				s.sim.Controllers[side] = s.ai(battle.Side(side), s.weights[side])
+			}
 		}
 		for len(s.orders) > 0 && s.orders[0].Tick <= s.sim.Tick {
 			s.sim.Command(s.orders[0].Side, s.orders[0].Order)

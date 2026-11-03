@@ -1004,7 +1004,8 @@ export class GalaxyScene {
   }
 }
 
-function isTyping(target: EventTarget | null) {
+/** Whether a key event is typing into a field, not a shortcut. */
+export function isTyping(target: EventTarget | null) {
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||

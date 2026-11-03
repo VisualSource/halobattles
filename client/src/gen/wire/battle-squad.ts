@@ -86,8 +86,28 @@ commandPost():boolean {
   return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
 }
 
+moving():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 28);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
+goalX():number {
+  const offset = this.bb!.__offset(this.bb_pos, 30);
+  return offset ? this.bb!.readUint16(this.bb_pos + offset) : 0;
+}
+
+goalY():number {
+  const offset = this.bb!.__offset(this.bb_pos, 32);
+  return offset ? this.bb!.readUint16(this.bb_pos + offset) : 0;
+}
+
+target():number {
+  const offset = this.bb!.__offset(this.bb_pos, 34);
+  return offset ? this.bb!.readUint16(this.bb_pos + offset) : 0;
+}
+
 static startBattleSquad(builder:flatbuffers.Builder) {
-  builder.startObject(12);
+  builder.startObject(16);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -138,12 +158,28 @@ static addCommandPost(builder:flatbuffers.Builder, commandPost:boolean) {
   builder.addFieldInt8(11, +commandPost, +false);
 }
 
+static addMoving(builder:flatbuffers.Builder, moving:boolean) {
+  builder.addFieldInt8(12, +moving, +false);
+}
+
+static addGoalX(builder:flatbuffers.Builder, goalX:number) {
+  builder.addFieldInt16(13, goalX, 0);
+}
+
+static addGoalY(builder:flatbuffers.Builder, goalY:number) {
+  builder.addFieldInt16(14, goalY, 0);
+}
+
+static addTarget(builder:flatbuffers.Builder, target:number) {
+  builder.addFieldInt16(15, target, 0);
+}
+
 static endBattleSquad(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, unitOffset:flatbuffers.Offset, building:boolean, x:number, y:number, count:number, start:number, shield:number, armor:number, hp:number, commandPost:boolean):flatbuffers.Offset {
+static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, unitOffset:flatbuffers.Offset, building:boolean, x:number, y:number, count:number, start:number, shield:number, armor:number, hp:number, commandPost:boolean, moving:boolean, goalX:number, goalY:number, target:number):flatbuffers.Offset {
   BattleSquad.startBattleSquad(builder);
   BattleSquad.addId(builder, id);
   BattleSquad.addSide(builder, side);
@@ -157,6 +193,10 @@ static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, un
   BattleSquad.addArmor(builder, armor);
   BattleSquad.addHp(builder, hp);
   BattleSquad.addCommandPost(builder, commandPost);
+  BattleSquad.addMoving(builder, moving);
+  BattleSquad.addGoalX(builder, goalX);
+  BattleSquad.addGoalY(builder, goalY);
+  BattleSquad.addTarget(builder, target);
   return BattleSquad.endBattleSquad(builder);
 }
 
@@ -173,7 +213,11 @@ unpack(): BattleSquadT {
     this.shield(),
     this.armor(),
     this.hp(),
-    this.commandPost()
+    this.commandPost(),
+    this.moving(),
+    this.goalX(),
+    this.goalY(),
+    this.target()
   );
 }
 
@@ -191,6 +235,10 @@ unpackTo(_o: BattleSquadT): void {
   _o.armor = this.armor();
   _o.hp = this.hp();
   _o.commandPost = this.commandPost();
+  _o.moving = this.moving();
+  _o.goalX = this.goalX();
+  _o.goalY = this.goalY();
+  _o.target = this.target();
 }
 }
 
@@ -207,7 +255,11 @@ constructor(
   public shield: number = 0.0,
   public armor: number = 0.0,
   public hp: number = 0.0,
-  public commandPost: boolean = false
+  public commandPost: boolean = false,
+  public moving: boolean = false,
+  public goalX: number = 0,
+  public goalY: number = 0,
+  public target: number = 0
 ){}
 
 
@@ -226,7 +278,11 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.shield,
     this.armor,
     this.hp,
-    this.commandPost
+    this.commandPost,
+    this.moving,
+    this.goalX,
+    this.goalY,
+    this.target
   );
 }
 }

@@ -153,7 +153,7 @@ A hand-authored piece of Battlefield, drawn as ASCII art in a Mod, that generati
 _Avoid_: Prefab, set piece, stamp
 
 **Auto-resolve**:
-Planned (#95): a side of a Battle run by the AI, because its player chose not to command it or is a Bot. The choice is fixed when the Battle starts.
+A side of a Battle run by the AI (Auto in Settings), because its player chose not to command it, is a Bot, or disconnected while commanding. The choice is fixed when the Battle starts.
 _Avoid_: Simulate, AI control (the AI is a Controller either way), skip
 
 **Battle Lab**:

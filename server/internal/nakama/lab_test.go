@@ -187,6 +187,57 @@ func TestTheLabReplaysABattleFromAMatchLog(t *testing.T) {
 	}
 }
 
+// A commanded side whose player left: the replay runs it with no AI, the
+// player's orders at their ticks, then the AI from the tick it took over.
+func TestTheLabReplaysABattleTheAITookOver(t *testing.T) {
+	h := newLab(t)
+	setup := kitSetup(11)
+	setup.Attack.Command = true
+	c := h.m.content
+	sim, err := h.state.(*labState).fromSetup(&c.Doc, setup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	weights := [2]battle.Weights{
+		battle.WeightsOf(c.Doc.Factions["base:unsc"].Ai), battle.WeightsOf(c.Doc.Factions["base:covenant"].Ai),
+	}
+	for sim.Tick < sim.Setup+10 {
+		sim.Step()
+	}
+	centre := battle.Cell{X: sim.Field.W / 2, Y: sim.Field.H / 2}
+	if err := sim.CommandGroup(battle.Attacker, []int{1, 2, 3}, battle.Order{Kind: battle.AttackMove, Cell: centre}); err != nil {
+		t.Fatal(err)
+	}
+	for range 30 {
+		sim.Step()
+	}
+	handed := sim.Tick + 1
+	sim.Controllers[battle.Attacker] = battle.NewAI(weights[battle.Attacker]) // as handOver does
+	for !sim.Over {
+		sim.Step()
+	}
+	r := battleReplay{
+		Seed: setup.Seed, FieldSeed: setup.Seed, Faction: setup.Defend.Faction, Planet: "nowhere", Setup: sim.Setup, Builders: sim.Builders,
+		Attack:    battle.Force{Formations: setup.Attack.Formations},
+		Defend:    battle.Force{Formations: setup.Defend.Formations, Buildings: setup.Defend.Buildings},
+		Weights:   weights,
+		Orders:    sim.Log,
+		Commanded: [2]bool{true, false}, HandedOver: [2]int{handed, 0},
+	}
+	for name := range c.Doc.Maps {
+		h.loop(labMsg(labReplayOp, labReplay{Map: name, Replay: r}))
+		break
+	}
+	speed, paused := 8.0, false
+	h.loop(labMsg(labControlOp, labControl{Speed: &speed, Paused: &paused}))
+	for i := 0; i < 2000 && !h.frame().Over; i++ {
+		h.loop()
+	}
+	if f := h.frame(); f.Tick != sim.Tick || f.Winner != sim.Winner {
+		t.Errorf("replay ended at tick %d, winner %v; the Battle: %d, %v", f.Tick, f.Winner, sim.Tick, sim.Winner)
+	}
+}
+
 // quietLogger takes Init's Info and Warn lines too.
 type quietLogger struct{ nopLogger }
 

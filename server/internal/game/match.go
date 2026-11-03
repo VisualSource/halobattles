@@ -65,6 +65,9 @@ type Player struct {
 	Disconnected bool
 	GraceEnds    int64
 	Forfeiting   bool // eliminated on the next tick
+	// CommandBattles: they command their Battles rather than leave them to
+	// the AI; the default for each Battle as it starts.
+	CommandBattles bool
 	// Planets seen through Armies, and the Match Time each sighting ends.
 	Sighted map[string]int64
 	// Research: running Projects, at most one per field; each idle field's

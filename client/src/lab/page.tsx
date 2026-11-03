@@ -1,11 +1,18 @@
 import type { Session } from "@heroiclabs/nakama-js";
 import { cn } from "cn";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useStore } from "zustand";
 import { useHideHeader } from "../backdrop";
 import type { ContentLookups } from "../content";
 import { COMMAND_POST, commandPostHealth } from "../match/battle";
-import type { Side, Squad, Volley } from "../match/store";
+import { SelectionStrip, useCommandKeys } from "../match/command";
+import type { Side, Squad, SquadOrder, Volley } from "../match/store";
 import {
   BattlefieldScene,
   type OverlayLine,
@@ -652,6 +659,21 @@ function Field(props: {
   const battle = useStore(conn.store, (s) => s.battle);
   const thinking = useStore(conn.store, (s) => s.thinking);
   const { onPick } = props;
+  // A side with no AI is yours to command from the map.
+  const commandSide: Side | null = !battle
+    ? null
+    : thinking[0] === null
+      ? "attacker"
+      : thinking[1] === null
+        ? "defender"
+        : null;
+  const [picked, setPicked] = useState<number[]>([]);
+  const order = useCallback(
+    (ids: number[], o: SquadOrder) =>
+      commandSide && conn.order(commandSide, ids, o),
+    [conn, commandSide],
+  );
+  useCommandKeys(!!commandSide, picked, scene, order);
 
   useEffect(() => {
     if (!ref.current || !field) return;
@@ -675,6 +697,10 @@ function Field(props: {
       captureTicks: rules.captureSeconds * 5,
     });
     s.onPick = onPick;
+    s.onSelect = (ids) => {
+      setPicked(ids);
+      onPick(ids[0] ?? null); // the card shows the first
+    };
     scene.current = s;
     const onVolleys = (e: Event) => s.fire((e as CustomEvent<Volley[]>).detail);
     conn.events.addEventListener("volleys", onVolleys);
@@ -701,21 +727,39 @@ function Field(props: {
   useEffect(() => {
     scene.current?.select(props.selected);
   }, [props.selected, field]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: field: a new scene takes it too
+  useEffect(() => {
+    const s = scene.current;
+    if (!s) return;
+    s.onOrder = order;
+    s.command(commandSide);
+  }, [commandSide, order, field]);
 
   return (
-    <div className="border-line bg-void relative min-h-0 flex-1 overflow-hidden rounded-lg border">
-      <div ref={ref} className="size-full" />
-      {!field && (
-        <p className="text-ink-3 absolute inset-0 flex items-center justify-center">
-          Set up a Battle and press Run this setup, or load a replay.
-        </p>
-      )}
-      {props.selected !== null && battle && (
-        <SquadCard
-          conn={conn}
-          content={content}
-          id={props.selected}
-          onClose={() => onPick(null)}
+    <div className="border-line flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
+      <div className="bg-void relative min-h-0 flex-1 overflow-hidden">
+        <div ref={ref} className="size-full" />
+        {!field && (
+          <p className="text-ink-3 absolute inset-0 flex items-center justify-center">
+            Set up a Battle and press Run this setup, or load a replay.
+          </p>
+        )}
+        {props.selected !== null && battle && (
+          <SquadCard
+            conn={conn}
+            content={content}
+            id={props.selected}
+            onClose={() => onPick(null)}
+          />
+        )}
+      </div>
+      {commandSide && (
+        <SelectionStrip
+          squads={battle?.squads ?? []}
+          picked={picked}
+          name={(u) => nameOf(content, u)}
+          onAttackMove={() => scene.current?.armAttackMove()}
+          onHold={() => order(picked, { kind: "hold" })}
         />
       )}
     </div>

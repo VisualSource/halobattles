@@ -7,6 +7,8 @@ import {
   ArmyViewT,
   BattleEndedT,
   BattlefieldT,
+  BattleOrder,
+  BattleOrderKind,
   BattleSquadT,
   BattleStartedT,
   BattleTickT,
@@ -38,6 +40,7 @@ import {
   RichnessT,
   SavedProjectT,
   SeatT,
+  SetBattleControl,
   StackT,
   UnitSlotT,
   ViewDeltaT,
@@ -45,8 +48,9 @@ import {
   VolleyT,
   WinHoldT,
 } from "../gen/wire";
+import { settings } from "../settings";
 import { MatchConnection, type SocketLike } from "./connection";
-import { projectDone } from "./store";
+import { projectDone, type View } from "./store";
 
 function fakeSocket() {
   const calls: string[] = [];
@@ -352,6 +356,7 @@ describe("MatchConnection", () => {
             toStack: 2,
             path: ["reach"],
             raid: false,
+            command: false,
           },
         ],
       ]),
@@ -778,6 +783,8 @@ describe("MatchConnection", () => {
           armor: 0,
           hp: 12,
           commandPost: false,
+          goal: null,
+          target: 0,
         },
         {
           id: 2,
@@ -792,6 +799,8 @@ describe("MatchConnection", () => {
           armor: 0,
           hp: 70,
           commandPost: false,
+          goal: null,
+          target: 0,
         },
       ],
       points: [
@@ -814,6 +823,7 @@ describe("MatchConnection", () => {
       raid: false,
       buildingsLeft: 0,
       buildings: 0,
+      commanded: false,
     });
     expect(ticks).toEqual([
       {
@@ -1071,6 +1081,40 @@ describe("MatchConnection", () => {
       [0, "base:marine", 4],
       [2, "base:odst", 1],
     ]);
+  });
+
+  it("sends a BattleOrder for a group, and Settings' Battles choice", async () => {
+    const { socket } = fakeSocket();
+    const sent: { op: number; data: Uint8Array }[] = [];
+    socket.sendMatchState = async (_id, op, data) => {
+      sent.push({ op, data: data as Uint8Array });
+    };
+    const conn = new MatchConnection(socket, { log: false });
+    await conn.open({} as Session, "m1");
+
+    conn.battleOrder("c", [3, 4], { kind: "attackMove", cell: { x: 7, y: 9 } });
+    const o = BattleOrder.getRootAsBattleOrder(
+      new flatbuffers.ByteBuffer(sent[0]?.data ?? new Uint8Array()),
+    ).unpack();
+    expect([o.planet, o.kind, o.squads, o.x, o.y]).toEqual([
+      "c",
+      BattleOrderKind.AttackMove,
+      [3, 4],
+      7,
+      9,
+    ]);
+
+    conn.store.setState({ view: { spectating: false } as View });
+    settings.setState({ battles: "command" });
+    const c = sent.at(-1);
+    expect(c?.op).toBe(Op.SetBattleControl);
+    expect(
+      SetBattleControl.getRootAsSetBattleControl(
+        new flatbuffers.ByteBuffer(c?.data ?? new Uint8Array()),
+      ).command(),
+    ).toBe(true);
+    settings.setState({ battles: "auto" });
+    await conn.close();
   });
 
   it("sends PaydayPaid out as a payday event", async () => {

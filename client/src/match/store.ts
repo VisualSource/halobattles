@@ -78,6 +78,7 @@ export type Army = {
   toStack: number; // own only
   path: string[]; // own only: the Planets after `to`, in order
   raid: boolean; // own only: nobody else sees a Raid at all
+  command: boolean; // own only: you command its Battle
 };
 
 export type Side = "attacker" | "defender";
@@ -96,6 +97,17 @@ export type Squad = {
   armor: number;
   hp: number;
   commandPost: boolean; // the defender's Command Post: destroying it wins the Battle
+  // Your own squads' orders: where it's going, and the enemy it was told to
+  // attack, or 0.
+  goal: { x: number; y: number } | null;
+  target: number;
+};
+
+/** An order to squads in a Battle you command. */
+export type SquadOrder = {
+  kind: "move" | "attack" | "attackMove" | "hold";
+  cell?: { x: number; y: number }; // move and attackMove
+  target?: number; // attack: the enemy squad
 };
 
 export type ControlPoint = {
@@ -160,6 +172,7 @@ export type Battle = {
   raid: boolean; // the attacker is after the buildings, within raidTime
   buildingsLeft: number; // public: the Planet's buildings standing, a Raid's score
   buildings: number; // and at the start
+  commanded: boolean; // your side is yours to command: no AI runs it
 };
 
 /** The public part of every player. */

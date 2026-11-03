@@ -24,6 +24,7 @@ type BattleViewT struct {
 	Raid               bool             `json:"raid"`
 	BuildingsLeft      byte             `json:"buildings_left"`
 	Buildings          byte             `json:"buildings"`
+	Commanded          bool             `json:"commanded"`
 }
 
 func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -92,6 +93,7 @@ func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleViewAddRaid(builder, t.Raid)
 	BattleViewAddBuildingsLeft(builder, t.BuildingsLeft)
 	BattleViewAddBuildings(builder, t.Buildings)
+	BattleViewAddCommanded(builder, t.Commanded)
 	return BattleViewEnd(builder)
 }
 
@@ -131,6 +133,7 @@ func (rcv *BattleView) UnPackTo(t *BattleViewT) {
 	t.Raid = rcv.Raid()
 	t.BuildingsLeft = rcv.BuildingsLeft()
 	t.Buildings = rcv.Buildings()
+	t.Commanded = rcv.Commanded()
 }
 
 func (rcv *BattleView) UnPack() *BattleViewT {
@@ -448,8 +451,20 @@ func (rcv *BattleView) MutateBuildings(n byte) bool {
 	return rcv._tab.MutateByteSlot(40, n)
 }
 
+func (rcv *BattleView) Commanded() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(42))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleView) MutateCommanded(n bool) bool {
+	return rcv._tab.MutateBoolSlot(42, n)
+}
+
 func BattleViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(19)
+	builder.StartObject(20)
 }
 func BattleViewAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -510,6 +525,9 @@ func BattleViewAddBuildingsLeft(builder *flatbuffers.Builder, buildingsLeft byte
 }
 func BattleViewAddBuildings(builder *flatbuffers.Builder, buildings byte) {
 	builder.PrependByteSlot(18, buildings, 0)
+}
+func BattleViewAddCommanded(builder *flatbuffers.Builder, commanded bool) {
+	builder.PrependBoolSlot(19, commanded, false)
 }
 func BattleViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

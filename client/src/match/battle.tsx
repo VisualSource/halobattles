@@ -1,10 +1,18 @@
 import { cn } from "cn";
-import { useEffect, useRef, useState } from "react";
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import { BattlefieldScene, POINT_NAMES } from "../scene/battlefield";
 import { seatColour } from "../scene/galaxy";
 import { amounts } from "./buildings";
+import { type Commander, SelectionStrip, useCommandKeys } from "./command";
 import type { MatchConnection } from "./connection";
 import {
   allied,
@@ -13,6 +21,7 @@ import {
   type BattleReport,
   type Side,
   type Squad,
+  type SquadOrder,
   type View,
   type Volley,
 } from "./store";
@@ -114,6 +123,27 @@ export function BattlePanel(props: {
     return () => window.removeEventListener("keydown", onKey);
   }, [full]);
 
+  // Commanding your side: the picked squads, tagged with their Battle.
+  const commanding =
+    battle?.commanded &&
+    view &&
+    (battle.attacker === view.you || battle.defender === view.you)
+      ? sideOf(view, battle)
+      : null;
+  const [pickedIn, setPicked] = useState<{ id: typeof id; ids: number[] }>({
+    id,
+    ids: [],
+  });
+  const picked = pickedIn.id === id ? pickedIn.ids : [];
+  const commander = useRef<Commander | null>(null);
+  const planet = battle?.planet;
+  const order = useCallback(
+    (ids: number[], o: SquadOrder) =>
+      planet !== undefined && conn.battleOrder(planet, ids, o),
+    [conn, planet],
+  );
+  useCommandKeys(!!commanding, picked, commander, order);
+
   if (id === null) return null;
   const close = () => conn.local.setState({ watching: null });
   const planetName = (p: string) =>
@@ -172,6 +202,14 @@ export function BattlePanel(props: {
         {planetName(battle.planet)}
       </h2>
       {battle.raid && <Tag className="bg-danger-wash text-danger">Raid</Tag>}
+      {commanding ? (
+        <Tag className="bg-ok-wash text-ok">You command</Tag>
+      ) : (
+        !view?.spectating &&
+        (battle.attacker === view?.you || battle.defender === view?.you) && (
+          <Tag className="bg-idle-wash text-idle">Auto</Tag>
+        )
+      )}
       <Tag className="bg-accent-wash text-accent">Locked</Tag>
     </>
   );
@@ -415,7 +453,37 @@ export function BattlePanel(props: {
       battle={battle.id}
       className={full ? "min-h-0 flex-1" : "mx-4 h-95 rounded-md"}
       banner={startsIn > 0 ? `The fighting starts in ${startsIn} s` : undefined}
+      command={
+        commanding
+          ? {
+              side: commanding,
+              map: commander,
+              onSelect: (ids) => setPicked({ id, ids }),
+              onOrder: order,
+            }
+          : undefined
+      }
     />
+  );
+  // Your orders, or the note that the AI has them.
+  const orders = commanding ? (
+    <SelectionStrip
+      squads={battle.squads}
+      picked={picked}
+      name={name}
+      onAttackMove={() => commander.current?.armAttackMove()}
+      onHold={() => order(picked, { kind: "hold" })}
+    />
+  ) : (
+    !watching && (
+      <div className="border-line flex flex-none items-center gap-2.5 border-t px-4 py-3">
+        <span className={label}>Auto</span>
+        <p className="text-ink-2 text-sm">
+          The AI fights this Battle for you. It was set when the Battle started;
+          you can still Retreat.
+        </p>
+      </div>
+    )
   );
 
   if (full) {
@@ -439,7 +507,10 @@ export function BattlePanel(props: {
         </div>
         {timeBar}
         <div className="flex min-h-0 flex-1">
-          {map}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {map}
+            {orders}
+          </div>
           <aside className="border-line bg-panel flex w-105 flex-none flex-col overflow-y-auto border-l">
             {points}
             {pads}
@@ -468,6 +539,8 @@ export function BattlePanel(props: {
       {pads}
       <div className="h-3" />
       {map}
+      <div className="h-3" />
+      {orders}
       {sides}
       {latest}
       <div className="h-3" />
@@ -486,9 +559,23 @@ function BattlefieldView(props: {
   battle: number;
   className: string;
   banner?: string; // shown over the map
+  /** Commanding a side: the map picks and orders its squads. */
+  command?: {
+    side: Side;
+    map: RefObject<Commander | null>;
+    onSelect: (squads: number[]) => void;
+    onOrder: (squads: number[], o: SquadOrder) => void;
+  };
 }) {
   const { conn, content, battle: id } = props;
   const ref = useRef<HTMLDivElement>(null);
+  // The latest handlers, so a new render doesn't rebuild the scene.
+  const command = useRef(props.command);
+  // Before the scene's effect below, which reads it.
+  useLayoutEffect(() => {
+    command.current = props.command;
+  });
+  const side = props.command?.side ?? null;
   const ready = useStore(conn.store, (s) => !!s.view?.battles.get(id)?.field);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: ready re-runs it once the Battlefield arrives
@@ -518,6 +605,10 @@ function BattlefieldView(props: {
       captureRadius: rules.captureRadius,
       captureTicks: rules.captureSeconds * BATTLE_TICKS,
     });
+    scene.onSelect = (ids) => command.current?.onSelect(ids);
+    scene.onOrder = (ids, o) => command.current?.onOrder(ids, o);
+    scene.command(side);
+    if (command.current) command.current.map.current = scene;
     scene.update(battle);
     const unsubscribe = conn.store.subscribe((s, prev) => {
       const next = s.view?.battles.get(id);
@@ -531,9 +622,10 @@ function BattlefieldView(props: {
     return () => {
       unsubscribe();
       conn.events.removeEventListener("battleTick", onTick);
+      if (command.current) command.current.map.current = null;
       scene.dispose();
     };
-  }, [conn, content, id, ready]);
+  }, [conn, content, id, ready, side]);
 
   return (
     <div

@@ -25,7 +25,12 @@ type Battle struct {
 	Defender int   // a Seat, or Neutral
 	Started  int64 // Match Time of the first sim tick, after the start delay
 	ToStack  int   // where the attackers go if they win
-	Sim      *battle.Sim
+	// Commanded: a player gave each side's orders from the start, not the AI.
+	// HandedOver is 1 + the tick the AI took a side over from a player who
+	// left, or 0: a replay attaches it there.
+	Commanded  [2]bool
+	HandedOver [2]int
+	Sim        *battle.Sim
 	// What the Sim was made from, so the Battle can be replayed: with the
 	// Sim's Setup, Builders and Log, it plays out the same again.
 	Attack, Defend  battle.Force
@@ -114,7 +119,12 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	}
 	b.Weights = [2]battle.Weights{s.aiWeights(c, b.Attacker), s.aiWeights(c, b.Defender)}
 	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID, b.FieldFaction), attack, defend, b.Seed)
-	b.Sim.Controllers = [2]battle.Controller{battle.NewAI(b.Weights[0]), battle.NewAI(b.Weights[1])}
+	b.Commanded = [2]bool{s.commands(b.Attacker, a), s.commands(b.Defender, nil)}
+	for side := range b.Sim.Controllers {
+		if !b.Commanded[side] {
+			b.Sim.Controllers[side] = battle.NewAI(b.Weights[side])
+		}
+	}
 	b.Sim.Setup = int(delay / tickMs) // the start delay is the defender's setup phase
 	b.Sim.Builders = [2]bool{s.canBuildTurrets(c, b.Attacker), s.canBuildTurrets(c, b.Defender)}
 	if b.Defender == Neutral { // no economy: a budget for pad turrets instead

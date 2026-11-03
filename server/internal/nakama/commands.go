@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/VisualSource/halobattles/server/internal/battle"
 	"github.com/VisualSource/halobattles/server/internal/game"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -158,6 +159,30 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
 			return s.play.BuildTurret(doc, s.seat(user), string(c.Planet()), int(c.Pad()), string(c.Building()))
 		}
+	case wire.OpSetBattleControl:
+		c := wire.GetRootAsSetBattleControl(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			s.play.SetBattleControl(s.seat(user), c.Command())
+			return nil
+		}
+	case wire.OpSetArmyControl:
+		c := wire.GetRootAsSetArmyControl(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.SetArmyControl(s.seat(user), c.Army(), c.Command())
+		}
+	case wire.OpBattleOrder:
+		c := wire.GetRootAsBattleOrder(data, 0).UnPack()
+		kind, ok := orderKinds[c.Kind]
+		var squads []int
+		for _, id := range c.Squads {
+			squads = append(squads, int(id))
+		}
+		seq, phase, apply = c.Seq, wire.PhasePlay, func(*game.Lobby) error {
+			if !ok {
+				return errors.New("unknown order")
+			}
+			return s.play.BattleOrder(s.seat(user), c.Planet, kind, squads, battle.Cell{X: int(c.X), Y: int(c.Y)}, int(c.Target))
+		}
 	case wire.OpExchange:
 		c := wire.GetRootAsExchange(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
@@ -233,4 +258,10 @@ func (s *matchState) reject(logger runtime.Logger, dispatcher runtime.MatchDispa
 	if err := dispatcher.BroadcastMessage(int64(wire.OpCommandRejected), data, []runtime.Presence{to}, nil, true); err != nil {
 		logger.Error("send CommandRejected: %v", err)
 	}
+}
+
+// orderKinds are the wire's squad orders, as the sim's.
+var orderKinds = map[wire.BattleOrderKind]battle.OrderKind{
+	wire.BattleOrderKindMove: battle.Move, wire.BattleOrderKindAttack: battle.Attack,
+	wire.BattleOrderKindAttackMove: battle.AttackMove, wire.BattleOrderKindHold: battle.Hold,
 }

@@ -1869,6 +1869,7 @@ export function ArmyWindow(props: {
   const id = useStore(conn.local, (s) => s.selectedArmy);
   const view = useStore(conn.store, (s) => s.view);
   const lastSeen = useStore(conn.local, (s) => s.lastSeen);
+  const local = useStore(conn.local);
   const now = useMatchNow(conn.local);
   const army = id === null ? undefined : view?.armies.get(id);
   const map = view && content.maps.get(view.map);
@@ -1972,7 +1973,35 @@ export function ArmyWindow(props: {
           ))}
         </ul>
         {mine && (
+          <div className="border-divider flex items-center gap-3 border-t pt-2.5">
+            <span className={cn(label, "flex-1")}>Its Battle</span>
+            <fieldset className="border-edge m-0 flex overflow-hidden rounded-md border p-0">
+              <legend className="sr-only">Who fights this Army's Battle</legend>
+              {(["auto", "command"] as const).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={army.command === (c === "command")}
+                  disabled={isPending(local, "armyControl")}
+                  onClick={() => conn.setArmyControl(army.id, c === "command")}
+                  className={cn(
+                    "min-h-8 border-0 px-3.5 text-[13px] first:border-r",
+                    army.command === (c === "command")
+                      ? "bg-accent-wash text-accent"
+                      : "text-ink-2 bg-transparent",
+                  )}
+                >
+                  {c === "auto" ? "Auto" : "Command"}
+                </button>
+              ))}
+            </fieldset>
+          </div>
+        )}
+        {mine && (
           <p className="text-ink-4 text-xs">
+            {army.command
+              ? "Its Battle is yours to command. "
+              : "The AI fights its Battle. "}
             Drag the Army onto a Planet to re-order it. It finishes this Lane
             first.
           </p>

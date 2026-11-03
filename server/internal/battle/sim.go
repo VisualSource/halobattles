@@ -84,6 +84,7 @@ type Squad struct {
 	target                 int // an ordered target's id, or 0
 	blocked                int // ticks spent waiting for a cell
 	retreating             bool
+	attackMove             bool     // on an Attack-move: it stops while it has something to hit
 	roles                  []string // the unit's AI role hints: "scout", "skirmisher"
 	exit                   int      // the edge it Retreats off: 0 top, 1 right, 2 bottom, 3 left
 	flashUntil             int      // the tick its muzzle flash fades: till then the enemy sees it
@@ -565,12 +566,15 @@ func (s *Sim) apply(side Side, o Order) {
 	if sq == nil || sq.Side != side || !sq.alive() || sq.retreating {
 		return
 	}
+	if s.setup() && side == Attacker && o.Kind != Attack {
+		return // the attacker can't move yet
+	}
 	switch o.Kind {
-	case Move:
+	case Move, AttackMove:
 		if sq.speed == 0 || o.Cell.X < 0 || o.Cell.Y < 0 || o.Cell.X >= s.Field.W || o.Cell.Y >= s.Field.H {
 			return
 		}
-		sq.goal, sq.blocked, sq.pace = o.Cell, 0, o.Pace
+		sq.goal, sq.blocked, sq.pace, sq.attackMove = o.Cell, 0, o.Pace, o.Kind == AttackMove
 		sq.path = s.Field.path(s.costsFor(sq.class), sq.Cell, o.Cell, nil)
 	case Attack:
 		if o.Target == 0 {
@@ -579,7 +583,7 @@ func (s *Sim) apply(side Side, o Order) {
 			sq.target = t.ID
 		}
 	case Hold:
-		sq.path, sq.target = nil, 0
+		sq.path, sq.target, sq.attackMove = nil, 0, false
 	}
 }
 
@@ -620,8 +624,8 @@ const closeEnough = 3
 // second, or stops if it's close enough to its goal.
 func (s *Sim) move() {
 	for _, sq := range s.Squads {
-		if !sq.alive() || len(sq.path) == 0 {
-			sq.bank = 0
+		if !sq.alive() || len(sq.path) == 0 || sq.attackMove && !sq.retreating && s.targetOf(sq) != nil {
+			sq.bank = 0 // an Attack-move stops to fight
 			continue
 		}
 		c := s.costsFor(sq.class)
@@ -1107,6 +1111,11 @@ type SquadView struct {
 	// CommandPost: the defender's; both sides always see it, an objective
 	// marked on the map.
 	CommandPost bool
+	// Its own side's: whether it's on its way to Goal, and the enemy it was
+	// told to attack, or 0.
+	Moving bool
+	Goal   Cell
+	Target int
 }
 
 // Snapshot is one side's picture of the Battle: its own squads, the enemies
@@ -1149,10 +1158,14 @@ func (s *Sim) snapshot(side Side, all bool) Snapshot {
 	}
 	for _, sq := range s.Squads {
 		if sq.alive() && (all || s.visible[side][sq.ID] || sq.CommandPost) {
-			snap.Squads = append(snap.Squads, SquadView{
+			v := SquadView{
 				ID: sq.ID, Side: sq.Side, Unit: sq.Unit, Building: sq.Building, Cell: sq.Cell,
 				Count: len(sq.Members), Start: sq.Start, Front: sq.Members[0], CommandPost: sq.CommandPost,
-			})
+			}
+			if all || sq.Side == side { // its orders: only its own side sees them
+				v.Moving, v.Goal, v.Target = len(sq.path) > 0, sq.goal, sq.target
+			}
+			snap.Squads = append(snap.Squads, v)
 		}
 	}
 	return snap

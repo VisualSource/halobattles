@@ -7,6 +7,7 @@ import type {
   BuildPad,
   Side,
   Squad,
+  SquadOrder,
   Volley,
 } from "../match/store";
 
@@ -89,6 +90,9 @@ export type LabState = {
 
 const LOG_MAX = 500;
 
+// The sim's OrderKind numbers (server battle/control.go).
+const SIM_KINDS = { move: 0, attack: 1, hold: 2, attackMove: 6 } as const;
+
 const sideOf = (n: number): Side => (n === 0 ? "attacker" : "defender");
 const bytes = (b64: string) =>
   Uint8Array.from(atob(b64 ?? ""), (c) => c.charCodeAt(0));
@@ -103,6 +107,9 @@ type GoSquad = {
   Start: number;
   Front: { Shield: number; Armor: number; HP: number };
   CommandPost: boolean;
+  Moving: boolean;
+  Goal: GoCell;
+  Target: number;
 };
 type GoFrame = {
   tick: number;
@@ -164,6 +171,8 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     armor: q.Front.Armor,
     hp: q.Front.HP,
     commandPost: q.CommandPost,
+    goal: q.Moving ? { x: q.Goal.X, y: q.Goal.Y } : null,
+    target: q.Target,
   }));
   const pads: BuildPad[] = (s.Pads ?? []).map((p) => ({
     x: p.Cell.X,
@@ -198,6 +207,7 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     raid: !!f.raid,
     buildingsLeft: s.BuildingsLeft,
     buildings: s.Buildings,
+    commanded: false, // the Lab page knows which sides it commands
   };
 }
 
@@ -267,6 +277,19 @@ export class LabConnection {
     restart?: boolean;
   }) {
     this.send(OP.control, c);
+  }
+
+  /** Orders squads of a side the Lab has you command. */
+  order(side: Side, squads: number[], o: SquadOrder) {
+    this.send(OP.order, {
+      side: side === "attacker" ? 0 : 1,
+      squads,
+      order: {
+        Kind: SIM_KINDS[o.kind],
+        Cell: { X: o.cell?.x ?? 0, Y: o.cell?.y ?? 0 },
+        Target: o.target ?? 0,
+      },
+    });
   }
 
   /** A Battle from a match log: its battleReplay line, and the log's map. */

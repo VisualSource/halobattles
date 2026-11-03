@@ -130,8 +130,13 @@ buildings():number {
   return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
 }
 
+commanded():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 42);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startBattleView(builder:flatbuffers.Builder) {
-  builder.startObject(19);
+  builder.startObject(20);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -238,6 +243,10 @@ static addBuildings(builder:flatbuffers.Builder, buildings:number) {
   builder.addFieldInt8(18, buildings, 0);
 }
 
+static addCommanded(builder:flatbuffers.Builder, commanded:boolean) {
+  builder.addFieldInt8(19, +commanded, +false);
+}
+
 static endBattleView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -262,7 +271,8 @@ unpack(): BattleViewT {
     this.defenderRetreating(),
     this.raid(),
     this.buildingsLeft(),
-    this.buildings()
+    this.buildings(),
+    this.commanded()
   );
 }
 
@@ -285,6 +295,7 @@ unpackTo(_o: BattleViewT): void {
   _o.raid = this.raid();
   _o.buildingsLeft = this.buildingsLeft();
   _o.buildings = this.buildings();
+  _o.commanded = this.commanded();
 }
 }
 
@@ -306,7 +317,8 @@ constructor(
   public defenderRetreating: boolean = false,
   public raid: boolean = false,
   public buildingsLeft: number = 0,
-  public buildings: number = 0
+  public buildings: number = 0,
+  public commanded: boolean = false
 ){}
 
 
@@ -335,6 +347,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   BattleView.addRaid(builder, this.raid);
   BattleView.addBuildingsLeft(builder, this.buildingsLeft);
   BattleView.addBuildings(builder, this.buildings);
+  BattleView.addCommanded(builder, this.commanded);
 
   return BattleView.endBattleView(builder);
 }

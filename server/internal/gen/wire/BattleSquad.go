@@ -19,6 +19,10 @@ type BattleSquadT struct {
 	Armor       float32 `json:"armor"`
 	Hp          float32 `json:"hp"`
 	CommandPost bool    `json:"command_post"`
+	Moving      bool    `json:"moving"`
+	GoalX       uint16  `json:"goal_x"`
+	GoalY       uint16  `json:"goal_y"`
+	Target      uint16  `json:"target"`
 }
 
 func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -42,6 +46,10 @@ func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleSquadAddArmor(builder, t.Armor)
 	BattleSquadAddHp(builder, t.Hp)
 	BattleSquadAddCommandPost(builder, t.CommandPost)
+	BattleSquadAddMoving(builder, t.Moving)
+	BattleSquadAddGoalX(builder, t.GoalX)
+	BattleSquadAddGoalY(builder, t.GoalY)
+	BattleSquadAddTarget(builder, t.Target)
 	return BattleSquadEnd(builder)
 }
 
@@ -58,6 +66,10 @@ func (rcv *BattleSquad) UnPackTo(t *BattleSquadT) {
 	t.Armor = rcv.Armor()
 	t.Hp = rcv.Hp()
 	t.CommandPost = rcv.CommandPost()
+	t.Moving = rcv.Moving()
+	t.GoalX = rcv.GoalX()
+	t.GoalY = rcv.GoalY()
+	t.Target = rcv.Target()
 }
 
 func (rcv *BattleSquad) UnPack() *BattleSquadT {
@@ -281,8 +293,56 @@ func (rcv *BattleSquad) MutateCommandPost(n bool) bool {
 	return rcv._tab.MutateBoolSlot(26, n)
 }
 
+func (rcv *BattleSquad) Moving() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleSquad) MutateMoving(n bool) bool {
+	return rcv._tab.MutateBoolSlot(28, n)
+}
+
+func (rcv *BattleSquad) GoalX() uint16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
+	if o != 0 {
+		return rcv._tab.GetUint16(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleSquad) MutateGoalX(n uint16) bool {
+	return rcv._tab.MutateUint16Slot(30, n)
+}
+
+func (rcv *BattleSquad) GoalY() uint16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	if o != 0 {
+		return rcv._tab.GetUint16(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleSquad) MutateGoalY(n uint16) bool {
+	return rcv._tab.MutateUint16Slot(32, n)
+}
+
+func (rcv *BattleSquad) Target() uint16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(34))
+	if o != 0 {
+		return rcv._tab.GetUint16(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleSquad) MutateTarget(n uint16) bool {
+	return rcv._tab.MutateUint16Slot(34, n)
+}
+
 func BattleSquadStart(builder *flatbuffers.Builder) {
-	builder.StartObject(12)
+	builder.StartObject(16)
 }
 func BattleSquadAddId(builder *flatbuffers.Builder, id uint16) {
 	builder.PrependUint16Slot(0, id, 0)
@@ -319,6 +379,18 @@ func BattleSquadAddHp(builder *flatbuffers.Builder, hp float32) {
 }
 func BattleSquadAddCommandPost(builder *flatbuffers.Builder, commandPost bool) {
 	builder.PrependBoolSlot(11, commandPost, false)
+}
+func BattleSquadAddMoving(builder *flatbuffers.Builder, moving bool) {
+	builder.PrependBoolSlot(12, moving, false)
+}
+func BattleSquadAddGoalX(builder *flatbuffers.Builder, goalX uint16) {
+	builder.PrependUint16Slot(13, goalX, 0)
+}
+func BattleSquadAddGoalY(builder *flatbuffers.Builder, goalY uint16) {
+	builder.PrependUint16Slot(14, goalY, 0)
+}
+func BattleSquadAddTarget(builder *flatbuffers.Builder, target uint16) {
+	builder.PrependUint16Slot(15, target, 0)
 }
 func BattleSquadEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

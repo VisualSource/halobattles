@@ -10,6 +10,7 @@ import { BUILD, RELEASES, VERSION } from "./changelog";
 import type { ContentLookups } from "./content";
 import { MapGlyph } from "./match/lobby";
 import { matchIdFromInvite } from "./match/phase";
+import { SettingsButton } from "./settings";
 import { Dialog } from "./ui/dialog";
 
 export type OpenMatch = { id: string; map: string; seats: number; max: number };
@@ -77,6 +78,7 @@ export function Menu(props: {
   return (
     <div className="from-scrim/35 via-scrim/25 to-scrim/90 relative flex flex-1 flex-col items-center gap-9 bg-linear-to-b via-45% px-8 pt-16 pb-9">
       <Version />
+      <SettingsButton quiet className="absolute right-2 bottom-1" />
       <h1 className="font-display text-7xl font-bold tracking-[0.16em] [text-shadow:0_2px_24px_rgb(0_0_0/0.6)]">
         HALO BATTLES
       </h1>
