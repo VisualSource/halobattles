@@ -801,6 +801,10 @@ export interface UnitClass {
    */
   air?: boolean;
   /**
+   * The most members one squad of this class has in a Battle: a Unit Slot with more fights as several squads. Defaults to no limit, one squad per Unit Slot.
+   */
+  squadSize?: number;
+  /**
    * Its part in a Battle AI Task Force: lead (goes in first, ahead of the rest), follow (keeps behind the leaders) or hunt (goes for enemies it fights at a better tier than the rest of the force). Defaults to follow.
    */
   taskForceRole?: "lead" | "follow" | "hunt";

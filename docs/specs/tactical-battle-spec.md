@@ -9,7 +9,7 @@ Every number below is Ruleset or content data. The values given are base-Mod def
 ## Overview
 
 - A Battle is a **real-time, server-authoritative simulation** on a square-grid **Battlefield** generated for its Planet. The two sides watch it live in the Battle window, which can go full-screen.
-- Each Unit Slot fights as one **Squad** token. Squads move, take cover, hold high ground and fight over **Control Points**. It is not a fight to the death.
+- Each Unit Slot fights as one or more **Squad** tokens. Squads move, take cover, hold high ground and fight over **Control Points**. It is not a fight to the death.
 - Both sides are run by **Controllers**. In v1 every Controller is the AI, and the only order a player gives is **Retreat**. The AI issues the same orders a player will later, so player control can be added without changing the sim.
 - **Fog of war:** a side sees enemy units only within its Sight.
 - The damage model is unchanged: Shield → Armor → HP layers, Weapon Types, the To-hit roll, Damage rolls and tiers ([ADR 0003](../adr/0003-dice-damage.md)). Position and terrain change **who can hit whom and how easily**, never how damage is worked out.
@@ -73,7 +73,8 @@ Base-Mod Terrains:
 
 ## Squads
 
-- A **Squad** is one Unit Slot in battle: one unit type, a count, and **each member's own Shield, Armor and HP**. It sits in one cell, whatever its count.
+- A **Squad** is a Unit Slot, or part of one, in battle: one unit type, a count, and **each member's own Shield, Armor and HP**. It sits in one cell, whatever its count.
+- **Squad size:** a Unit Slot deploys as squads of at most its Unit Class's `squadSize` members (base Mod: infantry 4, vehicles, aircraft and artillery 2; structures and a class without one, a single squad). 10 Marines fight as squads of 4, 4 and 2. Every squad of a slot keeps the slot's place, so the survivors go back to it together.
 - Squads never split or merge mid-Battle.
 - Each armed or unarmed building is a stationary combatant in one cell, whatever its size; bigger footprints can come with building sites (see [Later](#later)). Unarmed buildings are now targets (see [Buildings](#buildings)).
 - **Occupancy:** one ground Squad or building per cell. An Aircraft Squad can share a cell with one ground Squad, but not with another Aircraft Squad. Squads can't pass through each other; pathfinding routes around them.
@@ -432,6 +433,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 - **Planet** (in a map): an optional `battlefield {terrainPreset, width, height}`.
 - **Faction:** an optional `ai` weight block.
 - **Building:** an optional `padTurret` flag: it can be built on a build pad in Battle (it needs a `combat` block).
+- **Unit Class:** an optional `squadSize`, the most members one of its squads has (see [Squads](#squads)); none means one squad per Unit Slot.
 - **Unit Class:** an optional `taskForceRole`, `lead`, `follow` or `hunt`: its part in a Battle AI Task Force (see [Task Forces](#task-forces)). The base Vehicles lead and Aircraft hunt.
 - **Unit:** an optional `roles` list, `scout` and/or `skirmisher`: hints for which units the Battle AI picks for those jobs first.
 - **`combat` block:** see [Stats](#stats).
@@ -457,10 +459,6 @@ A dev and design tool, never shipped to players.
 - **Replays:** load a Battle from a match log (`HALO_MATCH_LOG`) and replay it.
 - **Command:** either side, or both, can be put under your command instead of the AI. This is the test bed for [Command](#command).
 - **Mockup first:** an HTML mockup of the page is agreed before the page is built.
-
-### Squads by Unit Class
-
-A Unit Slot deploys as several squads, each with at most the Unit Class's squad cap of members. For example, 5 Marines or 2 vehicles, so 10 Marines become 2 squads. Units on the galaxy map don't change. Battles get the 10–20 tokens a side that formations and flanking need.
 
 ### The Command Post
 
@@ -521,12 +519,13 @@ Late game: an Army can join a Battle already running (#57).
   - A commanding player picks where to land. On Auto, the AI picks the Landing Zone nearest its goal.
 - **Who can land:** either side, and Teammates' Armies too, whose units fight under the side's control. Battles stay one player against one.
 - **Without a Dropship,** an Army waits in orbit, as now.
+- **Cost:** none for now, neither Resources nor Command Points. The Dropship's carry capacity is the only limit. Add a cost later if playtests show it's needed.
 - **Determinism:** a landing goes in the input log, so replays stay exact.
 - **Follow-up:** anti-air units shooting down Dropships as they land.
 
 ### Order of work
 
-1. Squads by Unit Class.
+1. ~~Squads by Unit Class~~ (#96): now in [Squads](#squads).
 2. The Battle Lab.
 3. The Command Post and Landing Zones.
 4. Archetypes and fixtures.

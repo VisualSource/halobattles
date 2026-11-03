@@ -14,6 +14,11 @@
       "description": "Flies: ignores cover and high ground both ways, and shares a cell with one ground unit.",
       "type": "boolean"
     },
+    "squadSize": {
+      "description": "The most members one squad of this class has in a Battle: a Unit Slot with more fights as several squads. Defaults to no limit, one squad per Unit Slot.",
+      "type": "integer",
+      "minimum": 1
+    },
     "taskForceRole": {
       "description": "Its part in a Battle AI Task Force: lead (goes in first, ahead of the rest), follow (keeps behind the leaders) or hunt (goes for enemies it fights at a better tier than the rest of the force). Defaults to follow.",
       "enum": ["lead", "follow", "hunt"]

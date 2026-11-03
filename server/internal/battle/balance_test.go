@@ -35,7 +35,7 @@ func TestStartingKitsArePacedAndBalanced(t *testing.T) {
 	if testing.Short() {
 		t.Skip("hundreds of Battles")
 	}
-	c := baseContent(t)
+	c := modContent(t)
 	r := ruleset(c)
 	// Big: three Stacks a side, where spreading over the points and roles
 	// count for more.

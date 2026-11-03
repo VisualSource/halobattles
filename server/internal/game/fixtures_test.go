@@ -22,7 +22,11 @@ var baseMod = sync.OnceValue(func() *cs.Content {
 // Unit Classes and Battle rules, so its Battles run on real Battlefields.
 func withBattles(c *cs.Content) *cs.Content {
 	base := baseMod()
-	c.Terrains, c.TerrainPresets, c.UnitClasses = base.Terrains, base.TerrainPresets, base.UnitClasses
+	c.Terrains, c.TerrainPresets, c.UnitClasses = base.Terrains, base.TerrainPresets, map[string]cs.UnitClass{}
+	for id, uc := range base.UnitClasses {
+		uc.SquadSize = nil // one squad per Unit Slot, as these tests count on
+		c.UnitClasses[id] = uc
+	}
 	r := c.Rulesets[RulesetID]
 	rules := base.Rulesets[RulesetID]
 	r.Battlefield, r.Battle = rules.Battlefield, rules.Battle

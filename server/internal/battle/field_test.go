@@ -12,7 +12,19 @@ import (
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
+// baseContent is the base Mod with one squad per Unit Slot, as the tests of
+// everything but squadSize were written for; modContent is it as shipped.
 func baseContent(t testing.TB) *cs.Content {
+	t.Helper()
+	c := modContent(t)
+	for id, uc := range c.UnitClasses {
+		uc.SquadSize = nil
+		c.UnitClasses[id] = uc
+	}
+	return c
+}
+
+func modContent(t testing.TB) *cs.Content {
 	t.Helper()
 	c, err := content.Load([]string{filepath.Join("..", "..", "..", "mods", "base")})
 	if err != nil {

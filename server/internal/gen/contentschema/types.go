@@ -1160,6 +1160,10 @@ type UnitClass struct {
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
 
+	// The most members one squad of this class has in a Battle: a Unit Slot with more
+	// fights as several squads. Defaults to no limit, one squad per Unit Slot.
+	SquadSize *int `json:"squadSize,omitempty,omitzero"`
+
 	// Its part in a Battle AI Task Force: lead (goes in first, ahead of the rest),
 	// follow (keeps behind the leaders) or hunt (goes for enemies it fights at a
 	// better tier than the rest of the force). Defaults to follow.

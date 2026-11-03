@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../schema/content/unit-class.schema.json",
   "id": "infantry",
-  "name": "Infantry"
+  "name": "Infantry",
+  "squadSize": 4
 }

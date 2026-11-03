@@ -450,3 +450,25 @@ func TestPadTurretsAreGoneAfterTheBattle(t *testing.T) {
 		}
 	}
 }
+
+// A garrison slot split into capped squads holds as one slot again.
+func TestSplitSquadsGoBackToTheirSlotTogether(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	inf := c.UnitClasses["base:infantry"]
+	five := 5
+	inf.SquadSize = &five
+	c.UnitClasses["base:infantry"] = inf
+	_ = s.OrderArmy(0, "a", marines(1), "b", 0) // a lone Marine against b's 6 Grunts
+
+	s.Advance(c, 30_000)
+	b := onlyBattle(t, s)
+	if n := len(b.Sim.Squads); n != 3 {
+		t.Fatalf("%d squads; want the Marine and the Grunts as 5 and 1", n)
+	}
+	for at := int64(60_000); s.Planets["b"].Locked && at < 600_000; at += 1_000 {
+		s.Advance(c, at)
+	}
+	if st := s.Planets["b"].Stacks[0]; s.Planets["b"].Owner != Neutral || len(st) != 1 || st[0].Unit != "base:grunt" || st[0].Count < 1 {
+		t.Errorf("b's Stack %+v; want the surviving Grunts back in one slot", st)
+	}
+}

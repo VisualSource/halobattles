@@ -8,6 +8,8 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ### Changed
 
+- In Battles, units fight in smaller squads: infantry in fours, vehicles and aircraft in pairs. 10 Marines take the field as three squads instead of one.
+
 ### Fixed
 
 ## 0.4.0 - 2026-11-02

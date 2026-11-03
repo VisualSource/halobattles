@@ -26,6 +26,7 @@ type UnitClass = {
   name: string;
   air?: boolean;
   taskForceRole?: "lead" | "follow" | "hunt";
+  squadSize?: number;
   /** Its battle defaults, once edited. */
   _stats?: Stats;
   /** Its movement cost by Terrain file, once edited; undefined: can't cross. */
@@ -150,6 +151,28 @@ export function ClassesPage(props: {
                   />
                   Flies
                 </label>
+                <Field name="Squad size">
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    placeholder="no limit"
+                    title="The most members one squad has in a Battle; a bigger Unit Slot fights as several"
+                    className={`${input} w-24 font-mono`}
+                    value={c.squadSize ?? ""}
+                    // Empty is no limit, so it's left out of the file.
+                    onChange={(e) =>
+                      set(({ squadSize: _, ...x }) =>
+                        e.target.valueAsNumber >= 1
+                          ? {
+                              ...x,
+                              squadSize: Math.floor(e.target.valueAsNumber),
+                            }
+                          : x,
+                      )
+                    }
+                  />
+                </Field>
                 <div className="flex flex-col gap-0.5">
                   <span className={label}>Task Force role</span>
                   <Choice

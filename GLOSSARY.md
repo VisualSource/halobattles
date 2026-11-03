@@ -117,7 +117,7 @@ The noise settings and thresholds a Battlefield is generated from, e.g. temperat
 _Avoid_: Biome (reserved, see Planet Type), map type
 
 **Squad**:
-A Unit Slot as it fights in a Battle: one token on one cell, tracking each member's own layers.
+A Unit Slot, or part of one, as it fights in a Battle: one token on one cell, tracking each member's own layers. A Unit Slot bigger than its Unit Class's squad size fights as several.
 _Avoid_: Stack (a Stack holds up to 15 Unit Slots), unit, token
 
 **Control Point**:
@@ -170,7 +170,7 @@ _Avoid_: General, strategist
 
 **Task Force**:
 A few of one side's Squads the Commander gives one goal, which gather and then go in together at the slowest one's pace.
-_Avoid_: Group, squad (a Squad is one Unit Slot), Stack (that's the galaxy's)
+_Avoid_: Group, squad (a Squad is one token, a Unit Slot or part of one), Stack (that's the galaxy's)
 
 **Unit Variant**:
 A unit type made from another (its parent) by changing some of its stats, e.g. the Flame Hog from the Warthog; in a Match it is a unit type like any other.

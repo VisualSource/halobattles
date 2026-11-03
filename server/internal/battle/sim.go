@@ -268,18 +268,27 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	return s
 }
 
+// addUnit deploys a Unit Slot as squads of at most its Unit Class's
+// squadSize members, each placed as near want as it can stand. All keep the
+// slot's formation and cell, so survivors go back to it together.
 func (s *Sim) addUnit(side Side, formation int, sl Slot, want Cell) {
 	cb := s.content.Units[sl.Unit].Combat
-	sq := &Squad{Side: side, Unit: sl.Unit, Armed: true, Formation: formation, Slot: sl.Cell}
-	for _, r := range s.content.Units[sl.Unit].Roles {
-		sq.roles = append(sq.roles, string(r))
+	size := sl.Count
+	if n := s.content.UnitClasses[string(cb.UnitClass)].SquadSize; n != nil {
+		size = *n
 	}
-	s.stats(sq, &cb)
-	sq.Members = make([]Layers, sl.Count)
-	for i := range sq.Members {
-		sq.Members[i] = sq.layers(&cb)
+	for left := sl.Count; left > 0; left -= size {
+		sq := &Squad{Side: side, Unit: sl.Unit, Armed: true, Formation: formation, Slot: sl.Cell}
+		for _, r := range s.content.Units[sl.Unit].Roles {
+			sq.roles = append(sq.roles, string(r))
+		}
+		s.stats(sq, &cb)
+		sq.Members = make([]Layers, min(left, size))
+		for i := range sq.Members {
+			sq.Members[i] = sq.layers(&cb)
+		}
+		s.place(sq, want)
 	}
-	s.place(sq, want)
 }
 
 func (s *Sim) addBuilding(slot int, id string, want Cell) {
