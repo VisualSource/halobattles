@@ -81,17 +81,18 @@ const Spectating = -2
 
 // PlanetView is a Planet in vision. Other players' queues stay hidden.
 type PlanetView struct {
-	ID        string
-	Owner     int
-	Capital   bool
-	Locked    bool
-	Buildings []string
-	Stacks    [StacksPerPlanet]Stack
-	Queue     []QueueItem // only on the viewer's own Planets
-	UnitQueue []QueueItem // every unit queue, by slot then order; own only
-	Rally     int         // own only
-	Richness  map[string]string
-	Labs      map[int][]string // the Techs each Lab holds, by Building Slot
+	ID         string
+	Owner      int
+	Capital    bool
+	Locked     bool
+	Buildings  []string
+	Stacks     [StacksPerPlanet]Stack
+	Queue      []QueueItem // only on the viewer's own Planets
+	UnitQueue  []QueueItem // every unit queue, by slot then order; own only
+	Rally      int         // own only
+	RallyPoint string      // own only
+	Richness   map[string]string
+	Labs       map[int][]string // the Techs each Lab holds, by Building Slot
 }
 
 // ArmyView is an Army in vision. Other players' show only the current hop,
@@ -218,7 +219,7 @@ func (s *State) view(c *cs.Content, seat int) View {
 			for _, slot := range slices.Sorted(maps.Keys(p.UnitQueues)) {
 				pv.UnitQueue = append(pv.UnitQueue, p.UnitQueues[slot]...)
 			}
-			pv.Rally = p.Rally
+			pv.Rally, pv.RallyPoint = p.Rally, p.RallyPoint
 		}
 		for slot, techs := range p.Techs { // public, so a raid on a Lab can be planned
 			if c.Buildings[p.Buildings[slot]].TechSlots != nil && len(techs) > 0 {

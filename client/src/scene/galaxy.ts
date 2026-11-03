@@ -134,6 +134,13 @@ export class GalaxyScene {
   private readonly planets = new Map<string, PlanetObject>();
   private readonly armies = new Map<number, THREE.Mesh>();
   private readonly preview: THREE.Line;
+  /** From your selected Planet to its Rally Point, dashed in your colour. */
+  private readonly rallyLine: THREE.Line<
+    THREE.BufferGeometry,
+    THREE.LineDashedMaterial
+  >;
+  /** What the rally line was last drawn for, so following an Army doesn't redraw it each frame. */
+  private rallyDrawn = "";
   private readonly ring: THREE.Mesh;
   /** Around the Planet under a drag: green to move, red to attack. */
   private readonly dropRing: THREE.Mesh<
@@ -200,6 +207,11 @@ export class GalaxyScene {
       new THREE.LineBasicMaterial({ color: "#facc15" }),
     );
     this.scene.add(this.preview);
+    this.rallyLine = new THREE.Line(
+      new THREE.BufferGeometry(),
+      new THREE.LineDashedMaterial({ dashSize: 7, gapSize: 6 }),
+    );
+    this.scene.add(this.rallyLine);
 
     this.renderer.setPixelRatio(window.devicePixelRatio);
     container.style.position = "relative";
@@ -431,8 +443,29 @@ export class GalaxyScene {
       mesh.scale.setScalar(id === selectedArmy ? 1.6 : 1);
     }
 
-    // Preview the route what's being dragged would take to the hovered Planet.
     const view = this.stores.store.getState().view;
+    const rally = selected ? view?.planets.get(selected) : undefined;
+    const to =
+      rally?.owner === view?.you && rally?.rallyPoint
+        ? this.planets.get(rally.rallyPoint)
+        : undefined;
+    const drawn = obj && to ? `${selected}>${rally?.rallyPoint}` : "";
+    if (drawn !== this.rallyDrawn) {
+      this.rallyDrawn = drawn;
+      this.rallyLine.geometry.dispose();
+      this.rallyLine.geometry = new THREE.BufferGeometry().setFromPoints(
+        obj && to
+          ? [
+              obj.mesh.position.clone().setY(1.5),
+              to.mesh.position.clone().setY(1.5),
+            ]
+          : [],
+      );
+      this.rallyLine.computeLineDistances();
+      this.rallyLine.material.color.set(seatColour(view?.you ?? 0));
+    }
+
+    // Preview the route what's being dragged would take to the hovered Planet.
     const dragged = this.ordering?.moved ? this.ordering : null;
     const army =
       dragged?.army === undefined ? undefined : view?.armies.get(dragged.army);

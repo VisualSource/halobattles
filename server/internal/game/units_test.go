@@ -102,6 +102,70 @@ func TestTrainedUnitsJoinTheRallyStackOneAtATime(t *testing.T) {
 	}
 }
 
+func TestTrainedUnitsLeaveForTheRallyPoint(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	if err := s.SetRallyPoint(0, "a", "b"); err == nil {
+		t.Error("a Rally Point on a Planet you don't own was set")
+	}
+	if err := s.SetRallyPoint(0, "a", "a"); err == nil {
+		t.Error("a Planet was made its own Rally Point")
+	}
+	s.Planets["b"].Owner = 0
+	_ = s.SetRallyStack(0, "b", 1)
+	if err := s.SetRallyPoint(0, "a", "b"); err != nil {
+		t.Fatal(err)
+	}
+	marines := func() (n int) {
+		for _, st := range s.Planets["a"].Stacks {
+			for _, sl := range st {
+				if sl.Unit == "base:marine" {
+					n += sl.Count
+				}
+			}
+		}
+		return n
+	}
+	before := marines()
+	_ = s.QueueUnit(c, 0, "a", 0, "base:marine", 1)
+
+	s.Advance(c, 0)
+	s.Advance(c, 15_000)
+	if marines() != before {
+		t.Errorf("a has %d Marines, want %d: the trained one gone", marines(), before)
+	}
+	if len(s.Armies) != 1 {
+		t.Fatalf("Armies = %+v, want one Marine on its way", s.Armies)
+	}
+	for _, a := range s.Armies {
+		if a.destination() != "b" || a.ToStack != 1 || a.Units[0] != (UnitSlot{Unit: "base:marine", Count: 1}) {
+			t.Errorf("Army = %+v, want 1 Marine bound for b's Rally Stack 2", a)
+		}
+	}
+
+	var ev Events
+	s.capture(s.Planets["b"], 1, &ev)
+	if p := s.Planets["a"].RallyPoint; p != "" {
+		t.Errorf("Rally Point = %q after losing it, want none", p)
+	}
+}
+
+func TestARallyPointNeverSendsUnitsIntoABattle(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	s.Planets["b"].Owner, s.Planets["c"].Owner = 1, 0 // b, the enemy's, sits between a and c
+	if err := s.SetRallyPoint(0, "a", "c"); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.QueueUnit(c, 0, "a", 0, "base:marine", 1)
+	s.Advance(c, 0)
+	s.Advance(c, 15_000)
+	if len(s.Armies) != 0 {
+		t.Errorf("Armies = %+v, want the Marine kept home rather than attacking b", s.Armies)
+	}
+	if len(s.Planets["a"].UnitQueues) != 0 {
+		t.Error("the Marine didn't finish")
+	}
+}
+
 // fill gives a Stack n Unit Slots of filler units, keeping what it has.
 func fill(st *Stack, n int) {
 	for i := 0; len(*st) < n; i++ {

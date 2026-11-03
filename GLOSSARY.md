@@ -92,6 +92,10 @@ _Avoid_: Rout, recall
 The Stack on a Planet that newly trained units join.
 _Avoid_: Spawn stack
 
+**Rally Point**:
+A Planet chosen as where another Planet's newly trained units go; they leave as an Army as soon as they're trained.
+_Avoid_: Rally Stack (that's where trained units land on their own Planet), waypoint
+
 **Capital**:
 The start Planet a player is assigned when the Match starts; losing it eliminates them. An unused start is no one's Capital.
 _Avoid_: Homeworld, HQ

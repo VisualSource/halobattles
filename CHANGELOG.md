@@ -9,6 +9,8 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 - Join a full lobby to watch the Match, or switch between a Seat and watching. Beaten players can stay and watch the rest, and Bots play on while someone watches.
 - Teams: the Host can turn them on in the lobby, and each player picks a Team. Teammates share vision, pass through each other's Planets, and win together.
 - 8 player colours, so no two players on a big map share one.
+- An Armies tab beside your Planets lists every Army on the move and every Stack with units in it; click one to select it, double-click to jump there.
+- Rally Points: set one in a Planet's Stacks to send every unit trained there straight on to another of your Planets.
 
 ### Fixed
 

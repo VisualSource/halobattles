@@ -297,6 +297,7 @@ describe("MatchConnection", () => {
             queue: [],
             unitQueue: [],
             rallyStack: 0,
+            rallyPoint: "",
             richness: new Map([
               ["base:credits", "poor"],
               ["base:materials", "rich"],
@@ -316,6 +317,7 @@ describe("MatchConnection", () => {
             queue: [],
             unitQueue: [],
             rallyStack: 0,
+            rallyPoint: "",
             richness: new Map(),
             labs: new Map(),
           },

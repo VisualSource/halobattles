@@ -117,8 +117,15 @@ labsLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+rallyPoint():string|null
+rallyPoint(optionalEncoding:flatbuffers.Encoding):string|Uint8Array|null
+rallyPoint(optionalEncoding?:any):string|Uint8Array|null {
+  const offset = this.bb!.__offset(this.bb_pos, 26);
+  return offset ? this.bb!.__string(this.bb_pos + offset, optionalEncoding) : null;
+}
+
 static startPlanetView(builder:flatbuffers.Builder) {
-  builder.startObject(11);
+  builder.startObject(12);
 }
 
 static addId(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset) {
@@ -237,13 +244,17 @@ static startLabsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addRallyPoint(builder:flatbuffers.Builder, rallyPointOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(11, rallyPointOffset, 0);
+}
+
 static endPlanetView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   builder.requiredField(offset, 4) // id
   return offset;
 }
 
-static createPlanetView(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset, owner:number, capital:boolean, locked:boolean, buildingsOffset:flatbuffers.Offset, stacksOffset:flatbuffers.Offset, queueOffset:flatbuffers.Offset, unitQueueOffset:flatbuffers.Offset, rallyStack:number, richnessOffset:flatbuffers.Offset, labsOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createPlanetView(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset, owner:number, capital:boolean, locked:boolean, buildingsOffset:flatbuffers.Offset, stacksOffset:flatbuffers.Offset, queueOffset:flatbuffers.Offset, unitQueueOffset:flatbuffers.Offset, rallyStack:number, richnessOffset:flatbuffers.Offset, labsOffset:flatbuffers.Offset, rallyPointOffset:flatbuffers.Offset):flatbuffers.Offset {
   PlanetView.startPlanetView(builder);
   PlanetView.addId(builder, idOffset);
   PlanetView.addOwner(builder, owner);
@@ -256,6 +267,7 @@ static createPlanetView(builder:flatbuffers.Builder, idOffset:flatbuffers.Offset
   PlanetView.addRallyStack(builder, rallyStack);
   PlanetView.addRichness(builder, richnessOffset);
   PlanetView.addLabs(builder, labsOffset);
+  PlanetView.addRallyPoint(builder, rallyPointOffset);
   return PlanetView.endPlanetView(builder);
 }
 
@@ -271,7 +283,8 @@ unpack(): PlanetViewT {
     this.bb!.createObjList<QueueItem, QueueItemT>(this.unitQueue.bind(this), this.unitQueueLength()),
     this.rallyStack(),
     this.bb!.createObjList<Richness, RichnessT>(this.richness.bind(this), this.richnessLength()),
-    this.bb!.createObjList<Lab, LabT>(this.labs.bind(this), this.labsLength())
+    this.bb!.createObjList<Lab, LabT>(this.labs.bind(this), this.labsLength()),
+    this.rallyPoint()
   );
 }
 
@@ -288,6 +301,7 @@ unpackTo(_o: PlanetViewT): void {
   _o.rallyStack = this.rallyStack();
   _o.richness = this.bb!.createObjList<Richness, RichnessT>(this.richness.bind(this), this.richnessLength());
   _o.labs = this.bb!.createObjList<Lab, LabT>(this.labs.bind(this), this.labsLength());
+  _o.rallyPoint = this.rallyPoint();
 }
 }
 
@@ -303,7 +317,8 @@ constructor(
   public unitQueue: (QueueItemT)[] = [],
   public rallyStack: number = 0,
   public richness: (RichnessT)[] = [],
-  public labs: (LabT)[] = []
+  public labs: (LabT)[] = [],
+  public rallyPoint: string|Uint8Array|null = null
 ){}
 
 
@@ -315,6 +330,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const unitQueue = PlanetView.createUnitQueueVector(builder, builder.createObjectOffsetList(this.unitQueue));
   const richness = PlanetView.createRichnessVector(builder, builder.createObjectOffsetList(this.richness));
   const labs = PlanetView.createLabsVector(builder, builder.createObjectOffsetList(this.labs));
+  const rallyPoint = (this.rallyPoint !== null ? builder.createString(this.rallyPoint!) : 0);
 
   return PlanetView.createPlanetView(builder,
     id,
@@ -327,7 +343,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     unitQueue,
     this.rallyStack,
     richness,
-    labs
+    labs,
+    rallyPoint
   );
 }
 }

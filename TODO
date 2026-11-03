@@ -6,14 +6,19 @@ Battle Fix:
     [] pick starting location
 
 Problem:
-    [] logistices needs something saying what tech/building it needs to for it to work
-    [] hide unit build options when the required building is not bulit
     [] https://browserrts.com/ for 3d version of battles
 
     [] allow to queue building even if you don't have the resources
-    [] give units the building info treatmeant
 
     1. Start the game with the tunnel hostname (use your own hostname):
+
+
+    [] transferable techs
+    [] the 1 grunts locking issue
+    [] logging for matches
+    [] easy bot overwell player
+    [] 
+
 
 
 TUNNEL_HOST=play.example.com VITE_NAKAMA_SAME_ORIGIN=true mise run dev

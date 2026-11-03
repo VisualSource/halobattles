@@ -33,6 +33,7 @@ enum Op : int {
   TakeSeat = 24,
   SetTeams = 25,
   SetTeam = 26,
+  SetRallyPoint = 27,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -151,6 +152,12 @@ table SetRallyStack {     // owner only
   seq: uint32;
   planet: string;
   stack: ubyte;
+}
+
+table SetRallyPoint {     // owner only
+  seq: uint32;
+  planet: string;
+  to: string;              // another of your Planets; "" keeps trained units home
 }
 
 table ArmyUnits {
@@ -299,6 +306,7 @@ table PlanetView {
   rally_stack: ubyte;      // where trained units go; own Planets only
   richness: [Richness];    // per Resource; a Resource left out is none
   labs: [Lab];             // the Techs each Lab holds; public, like its buildings
+  rally_point: string;     // where trained units leave for; own Planets only
 }
 
 table Lab {

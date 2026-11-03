@@ -25,7 +25,7 @@ import { CommandIcon, ResourceIcon } from "./resources";
 import { laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import { ConfirmDialog } from "./status";
-import { allied, teamName, winnerName } from "./store";
+import { allied, teamName, type View, winnerName } from "./store";
 import { finishedProjects } from "./tech";
 import { formatAge, useMatchNow, useWallNow } from "./time";
 import { notify } from "./toasts";
@@ -33,6 +33,7 @@ import {
   ArmyWindow,
   PlanetWindow,
   StacksWindow,
+  Strength,
   sendStack,
   toStackAt,
   useDismiss,
@@ -156,6 +157,7 @@ function PlanetList(props: { conn: MatchConnection; content: ContentLookups }) {
   const view = useStore(conn.store, (s) => s.view);
   const selected = useStore(conn.local, (s) => s.selected);
   const [open, setOpen] = useState(true);
+  const [tab, setTab] = useState<"planets" | "armies">("planets");
   const map = view ? content.maps.get(view.map) : undefined;
   const icons = useQuery(planetIconsQuery(map, 96)).data; // shown at 40px, sharp at 2x
   if (!view || !map) return null;
@@ -180,21 +182,41 @@ function PlanetList(props: { conn: MatchConnection; content: ContentLookups }) {
         className={`border-edge bg-panel/95 absolute top-1/2 z-10 flex -translate-y-1/2 flex-col overflow-hidden border shadow-[0_12px_32px_#000a] ${open ? "right-4 h-[min(30rem,calc(100%-2rem))] w-72 rounded-lg" : "right-0 h-32 w-8 rounded-l-lg border-r-0"}`}
       >
         {open ? (
-          <button
-            type="button"
-            aria-expanded
-            title="Collapse"
-            onClick={toggle}
-            className="bg-bar border-line flex h-10 flex-none items-center gap-2 rounded-none border-0 border-b px-3 text-left"
+          <div
+            role="tablist"
+            className="bg-bar border-line flex h-10 flex-none border-b"
           >
-            <h2 className="font-display flex-1 text-base font-semibold">
-              Planets
-            </h2>
-            <span className="text-ink-3 font-mono text-sm">{mine.length}</span>
-            <span aria-hidden="true" className="text-ink-3">
-              ›
-            </span>
-          </button>
+            {(
+              [
+                ["planets", "Planets", mine.length],
+                ["armies", "Armies", armyCount(view)],
+              ] as const
+            ).map(([id, name, n]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                onClick={() => setTab(id)}
+                className={`font-display flex flex-1 items-center justify-center gap-1.5 rounded-none border-0 border-b-2 bg-transparent text-base font-semibold ${tab === id ? "border-accent text-ink" : "text-ink-3 border-transparent"}`}
+              >
+                {name}
+                <span className="text-ink-3 font-mono text-xs font-normal">
+                  {n}
+                </span>
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-expanded
+              aria-label="Collapse"
+              title="Collapse"
+              onClick={toggle}
+              className="border-line text-ink-3 w-8 rounded-none border-0 border-l bg-transparent"
+            >
+              <span aria-hidden="true">›</span>
+            </button>
+          </div>
         ) : (
           <button
             type="button"
@@ -207,7 +229,10 @@ function PlanetList(props: { conn: MatchConnection; content: ContentLookups }) {
             <span aria-hidden="true">‹</span>
           </button>
         )}
-        {open && (
+        {open && tab === "armies" && (
+          <ArmiesList conn={conn} content={content} />
+        )}
+        {open && tab === "planets" && (
           <ul className="min-h-0 flex-1 overflow-y-auto">
             {mine.map(({ mp, p }) => {
               if (!p) return null;
@@ -269,6 +294,130 @@ function PlanetList(props: { conn: MatchConnection; content: ContentLookups }) {
         )}
       </section>
     </ViewTransition>
+  );
+}
+
+/** How many rows the Armies tab has: your Armies, and your non-empty Stacks. */
+function armyCount(view: View | null) {
+  if (!view) return 0;
+  let n = [...view.armies.values()].filter((a) => a.owner === view.you).length;
+  for (const p of view.planets.values())
+    if (p.owner === view.you) n += p.stacks.filter((s) => s.length).length;
+  return n;
+}
+
+/**
+ * Your forces: each Army on the move, then each non-empty Stack by Planet.
+ * Click selects; double-click (or Enter) jumps the map there.
+ */
+function ArmiesList(props: { conn: MatchConnection; content: ContentLookups }) {
+  const { conn, content } = props;
+  const view = useStore(conn.store, (s) => s.view);
+  const selectedArmy = useStore(conn.local, (s) => s.selectedArmy);
+  const now = useMatchNow(conn.local);
+  const map = view ? content.maps.get(view.map) : undefined;
+  if (!view || !map) return null;
+  const name = (id: string) => map.planets.find((p) => p.id === id)?.name ?? id;
+  const lanes = laneTimes(map, content.rules);
+  const count = (units: { count: number }[]) =>
+    units.reduce((n, u) => n + u.count, 0);
+  const jump = (planet: string) => conn.local.setState({ focus: { planet } });
+  const armies = [...view.armies.values()]
+    .filter((a) => a.owner === view.you)
+    .sort((a, b) => a.arrives - b.arrives || a.id - b.id);
+  const stacks = map.planets
+    .filter((mp) => view.planets.get(mp.id)?.owner === view.you)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap((mp) => {
+      const p = view.planets.get(mp.id);
+      return (p?.stacks ?? []).flatMap((units, i) =>
+        units.length ? [{ planet: mp.id, locked: !!p?.locked, i, units }] : [],
+      );
+    });
+  const row =
+    "flex min-w-0 flex-1 items-center gap-2.5 rounded-none border-0 py-2 pl-3 text-left";
+  const item = "border-divider flex items-center gap-2 border-b pr-3";
+  const group = cn(label, "text-ink-4 px-3 pt-2 pb-1");
+  const colour = seatColour(view.you ?? 0);
+
+  return (
+    <ul className="min-h-0 flex-1 overflow-y-auto">
+      {armies.length > 0 && <li className={group}>On the move</li>}
+      {armies.map((a) => {
+        // When it reaches its destination: this hop, then the rest of its route.
+        let at = a.waiting ? now : a.arrives;
+        [a.to, ...a.path].forEach((p, i, route) => {
+          if (i > 0) at += lanes.get(route[i - 1] ?? "")?.get(p) ?? 0;
+        });
+        return (
+          <li
+            key={`army-${a.id}`}
+            className={`${item} ${selectedArmy === a.id ? "bg-highlight" : "hover:bg-item"}`}
+          >
+            <button
+              type="button"
+              title="Double-click to jump to it"
+              aria-current={selectedArmy === a.id}
+              onClick={() => conn.local.setState({ selectedArmy: a.id })}
+              onDoubleClick={() => jump(a.to)}
+              onKeyDown={(e) => e.key === "Enter" && jump(a.to)}
+              className={`${row} bg-transparent`}
+            >
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate font-semibold">
+                  {a.waiting
+                    ? `Orbiting ${name(a.to)}`
+                    : `To ${name(a.destination)}`}
+                </span>
+                <span className="text-ink-3 truncate text-xs">
+                  {a.waiting
+                    ? `waiting to go on to ${name(a.destination)}`
+                    : `from ${name(a.from)}`}
+                </span>
+              </span>
+              <span className="flex flex-col items-end gap-0.5 font-mono text-xs">
+                <span className="text-ink-2">{count(a.units)} units</span>
+                {!a.waiting && (
+                  <span className="text-ink-3">
+                    {Math.max(0, Math.ceil((at - now) / 1000))} s
+                  </span>
+                )}
+              </span>
+            </button>
+            <Strength content={content} units={a.units} colour={colour} />
+          </li>
+        );
+      })}
+      {stacks.length > 0 && <li className={group}>In Stacks</li>}
+      {stacks.map((s) => (
+        <li key={`${s.planet}/${s.i}`} className={`${item} hover:bg-item`}>
+          <button
+            type="button"
+            title="Double-click to jump to it"
+            onClick={() => conn.local.setState({ selected: s.planet })}
+            onDoubleClick={() => jump(s.planet)}
+            onKeyDown={(e) => e.key === "Enter" && jump(s.planet)}
+            className={`${row} bg-transparent`}
+          >
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate font-semibold" title={name(s.planet)}>
+                {name(s.planet)}
+              </span>
+              <span className="text-ink-3 text-xs">
+                Stack {s.i + 1}
+                {s.locked && <span className="text-danger"> · In Battle</span>}
+              </span>
+            </span>
+          </button>
+          <Strength content={content} units={s.units} colour={colour} />
+        </li>
+      ))}
+      {armies.length + stacks.length === 0 && (
+        <li className="text-ink-3 px-3 py-6 text-center text-sm">
+          No units yet.
+        </li>
+      )}
+    </ul>
   );
 }
 

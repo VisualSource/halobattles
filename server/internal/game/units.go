@@ -135,6 +135,20 @@ func (s *State) SetRallyStack(seat int, planet string, stack int) error {
 	return nil
 }
 
+// SetRallyPoint sends planet's trained units on to another of seat's
+// Planets, into its Rally Stack; to "" keeps them home.
+func (s *State) SetRallyPoint(seat int, planet, to string) error {
+	p, err := s.ownedPlanet(seat, planet)
+	if err != nil {
+		return err
+	}
+	if t := s.Planets[to]; to != "" && (t == nil || t.Owner != seat || to == planet) {
+		return fmt.Errorf("pick another of your Planets, not %s", to)
+	}
+	p.RallyPoint = to
+	return nil
+}
+
 // slotLimit is the most of a unit one Unit Slot holds; 0 is no limit.
 func slotLimit(c *cs.Content, unit string) int {
 	if l := c.Units[unit].SlotLimit; l != nil {

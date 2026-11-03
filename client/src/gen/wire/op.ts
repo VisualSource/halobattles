@@ -30,6 +30,7 @@ export enum Op {
   TakeSeat = 24,
   SetTeams = 25,
   SetTeam = 26,
+  SetRallyPoint = 27,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,

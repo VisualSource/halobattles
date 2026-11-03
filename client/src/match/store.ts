@@ -56,6 +56,7 @@ export type PlanetView = {
   queue: QueueItem[]; // construction, in order; only on your own Planets
   unitQueue: QueueItem[]; // every unit queue, by slot then order; own only
   rallyStack: number; // where trained units go; own only
+  rallyPoint: string; // the Planet trained units leave for, "" for none; own only
   richness: Map<string, string>; // per Resource; a Resource left out is none
   labs: Map<number, string[]>; // the Techs each Lab holds, by Building Slot
 };

@@ -276,7 +276,12 @@ func (s *State) capture(p *Planet, to int, ev *Events) {
 		s.loseLab(p, i)
 		p.Buildings[i] = ""
 	}
-	p.Owner, p.Queue, p.UnitQueues, p.Rally = to, nil, nil, 0
+	p.Owner, p.Queue, p.UnitQueues, p.Rally, p.RallyPoint = to, nil, nil, 0, ""
+	for _, q := range s.Planets { // the loser's Rally Points on it go
+		if q.Owner == from && q.RallyPoint == p.ID {
+			q.RallyPoint = ""
+		}
+	}
 	viewers := []int{}
 	for seat := range s.Players {
 		if seat == from || s.sees(seat, p.ID) {

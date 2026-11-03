@@ -14,6 +14,7 @@ import type { ContentLookups } from "../content";
 import type { Building, Unit } from "../gen/content";
 import { progress, seatColour } from "../scene/galaxy";
 import { InfoButton, InfoPopover } from "../ui/popover";
+import { Select } from "../ui/select";
 import { Tooltip } from "../ui/tooltip";
 import {
   amounts,
@@ -78,7 +79,7 @@ const outputOf = (b: Producer, richness: Map<string, string>) => {
     out.set(
       r,
       (out.get(r) ?? 0) +
-        Math.floor(n * (RICHNESS[richness.get(r) ?? ""] ?? 0)),
+      Math.floor(n * (RICHNESS[richness.get(r) ?? ""] ?? 0)),
     );
   return Object.fromEntries(out);
 };
@@ -665,7 +666,7 @@ function Threat(props: {
  * A Stack's or an Army's strength, on Threat's scale so it compares with a
  * target's: in its owner's colour if it's yours, else Threat's by level.
  */
-function Strength(props: {
+export function Strength(props: {
   content: ContentLookups;
   units: UnitSlot[];
   colour?: string;
@@ -928,10 +929,10 @@ function BuildingsTab(props: {
                         researching={
                           planet.owner === view?.you
                             ? (view?.research.projects ?? [])
-                                .filter(
-                                  (p) => p.planet === planet.id && p.slot === i,
-                                )
-                                .map((p) => p.tech)
+                              .filter(
+                                (p) => p.planet === planet.id && p.slot === i,
+                              )
+                              .map((p) => p.tech)
                             : []
                         }
                         slots={b.techSlots}
@@ -1295,6 +1296,39 @@ function UnitsTab(props: {
   );
 }
 
+/** Where this Planet's trained units go: home, or on to a Rally Point. */
+function RallyPoint(props: {
+  conn: MatchConnection;
+  content: ContentLookups;
+  planet: PlanetView;
+}) {
+  const { conn, content, planet } = props;
+  const view = useStore(conn.store, (s) => s.view);
+  const local = useStore(conn.local);
+  const map = view ? content.maps.get(view.map) : undefined;
+  const others = (map?.planets ?? [])
+    .filter(
+      (p) => p.id !== planet.id && view?.planets.get(p.id)?.owner === view?.you,
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return (
+    <div className="mx-3 mt-2 flex items-center gap-2 text-sm">
+      <span className={cn(label, "flex-none")}>Rally To</span>
+      <Select
+        label="Rally Point"
+        className="flex-1"
+        value={planet.rallyPoint}
+        disabled={isPending(local, "rally")}
+        onChange={(to) => conn.setRallyPoint(planet.id, to)}
+        options={[
+          { value: "", label: "None" },
+          ...others.map((p) => ({ value: p.id, label: p.name })),
+        ]}
+      />
+    </div>
+  );
+}
+
 /** One unit queue per production building. */
 function BuildQueue(props: {
   conn: MatchConnection;
@@ -1308,11 +1342,11 @@ function BuildQueue(props: {
       const b = content.buildings.get(id);
       return b?.trains?.length
         ? [
-            {
-              title: b.name,
-              items: planet.unitQueue.filter((q) => q.slot === slot),
-            },
-          ]
+          {
+            title: b.name,
+            items: planet.unitQueue.filter((q) => q.slot === slot),
+          },
+        ]
         : [];
     }),
   ];
@@ -1487,13 +1521,7 @@ export function StacksWindow(props: {
         </>
       }
     >
-      {editable && (
-        <p className="text-ink-4 mx-3 mt-2 text-xs">
-          Drag a slot to any cell, in this Stack or another. Right-click one to
-          split it in half or move it. Drag a Stack's pile on the map onto a
-          Planet to send it.
-        </p>
-      )}
+      {sel.mine && <RallyPoint conn={conn} content={content} planet={planet} />}
       <DragDropProvider
         // No drop animation: the grid already shows the slot in its new cell,
         // and animating the old element there slid it in from the wrong row.
@@ -1532,7 +1560,15 @@ export function StacksWindow(props: {
                     Stack {i + 1}
                   </span>
                   {rally && (
-                    <Tag className="bg-accent-wash text-accent">Rally</Tag>
+                    <Tooltip side="right" content="Newly trained units are placed in this Stack.">
+                      <button
+                        type="button"
+                        aria-label="Rally Stack: newly trained units are placed in this Stack"
+                        className="bg-accent-wash text-accent cursor-default rounded border-0 px-1.5 py-px text-[11px]"
+                      >
+                        Rally
+                      </button>
+                    </Tooltip>
                   )}
                   <span className="flex-1" />
                   {sel.mine && !rally && (

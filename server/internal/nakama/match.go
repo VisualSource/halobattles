@@ -631,7 +631,7 @@ func planets(ps []game.PlanetView) []*wire.PlanetViewT {
 		for _, st := range p.Stacks {
 			pv.Stacks = append(pv.Stacks, &wire.StackT{Slots: unitSlots(st)})
 		}
-		pv.Queue, pv.UnitQueue, pv.RallyStack = queueItems(p.Queue), queueItems(p.UnitQueue), uint8(p.Rally)
+		pv.Queue, pv.UnitQueue, pv.RallyStack, pv.RallyPoint = queueItems(p.Queue), queueItems(p.UnitQueue), uint8(p.Rally), p.RallyPoint
 		for _, r := range slices.Sorted(maps.Keys(p.Richness)) { // sorted, as the (key) needs
 			pv.Richness = append(pv.Richness, &wire.RichnessT{Resource: r, Level: p.Richness[r]})
 		}

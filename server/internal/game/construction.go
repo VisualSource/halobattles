@@ -3,6 +3,7 @@ package game
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
@@ -165,19 +166,44 @@ func (p *Player) refund(cost map[string]int, percent int) {
 
 // build runs every queue. Queues pause while their Planet is Locked; debt
 // only stops queuing what costs a Resource in debt, since that can't be paid.
+// In a fixed order: a Rally Point's Army takes the next id.
 func (s *State) build(c *cs.Content, now int64) {
-	for _, p := range s.Planets {
+	for _, id := range slices.Sorted(maps.Keys(s.Planets)) {
+		p := s.Planets[id]
 		run := p.Owner != Neutral && !p.Locked
 		p.Queue = runQueue(p.Queue, run, now, func(q QueueItem) bool {
 			p.Buildings[q.Slot] = q.Building
 			delete(p.Techs, q.Slot) // a new building never inherits a lost Lab's Techs
 			return true
 		})
-		for slot, q := range p.UnitQueues {
-			p.setUnitQueue(slot, runQueue(q, run, now, func(q QueueItem) bool {
-				return p.addUnits(c, p.Rally, q.Unit, 1)
+		for _, slot := range slices.Sorted(maps.Keys(p.UnitQueues)) {
+			p.setUnitQueue(slot, runQueue(p.UnitQueues[slot], run, now, func(q QueueItem) bool {
+				if !p.addUnits(c, p.Rally, q.Unit, 1) {
+					return false
+				}
+				s.rallyOut(p, q.Unit)
+				return true
 			}))
 		}
+	}
+}
+
+// rallyOut sends one just-trained unit on to p's Rally Point, if it has one
+// and the way there enters no enemy Planet. Otherwise, or if it overflowed
+// out of the Rally Stack, it stays.
+func (s *State) rallyOut(p *Planet, unit string) {
+	if p.RallyPoint == "" {
+		return
+	}
+	route, _, ok := Route(s.Lanes, s.ownerFor(p.Owner), p.Owner, p.ID, p.RallyPoint)
+	for _, id := range route {
+		if !s.passable(p.Owner, s.Planets[id]) {
+			return
+		}
+	}
+	if ok {
+		// shortcut: one Army per trained unit, so a long queue streams arrows; batch them if playtests find it cluttered.
+		_ = s.OrderArmy(p.Owner, p.ID, []ArmyUnits{{Stack: p.Rally, Unit: unit, Count: 1}}, p.RallyPoint, s.Planets[p.RallyPoint].Rally)
 	}
 }
 

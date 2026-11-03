@@ -19,6 +19,7 @@ type PlanetViewT struct {
 	RallyStack byte          `json:"rally_stack"`
 	Richness   []*RichnessT  `json:"richness"`
 	Labs       []*LabT       `json:"labs"`
+	RallyPoint string        `json:"rally_point"`
 }
 
 func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -107,6 +108,10 @@ func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		}
 		labsOffset = builder.EndVector(labsLength)
 	}
+	rallyPointOffset := flatbuffers.UOffsetT(0)
+	if t.RallyPoint != "" {
+		rallyPointOffset = builder.CreateString(t.RallyPoint)
+	}
 	PlanetViewStart(builder)
 	PlanetViewAddId(builder, idOffset)
 	PlanetViewAddOwner(builder, t.Owner)
@@ -119,6 +124,7 @@ func (t *PlanetViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	PlanetViewAddRallyStack(builder, t.RallyStack)
 	PlanetViewAddRichness(builder, richnessOffset)
 	PlanetViewAddLabs(builder, labsOffset)
+	PlanetViewAddRallyPoint(builder, rallyPointOffset)
 	return PlanetViewEnd(builder)
 }
 
@@ -168,6 +174,7 @@ func (rcv *PlanetView) UnPackTo(t *PlanetViewT) {
 		rcv.Labs(&x, j)
 		t.Labs[j] = x.UnPack()
 	}
+	t.RallyPoint = string(rcv.RallyPoint())
 }
 
 func (rcv *PlanetView) UnPack() *PlanetViewT {
@@ -437,8 +444,16 @@ func (rcv *PlanetView) LabsLength() int {
 	return 0
 }
 
+func (rcv *PlanetView) RallyPoint() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
 func PlanetViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(12)
 }
 func PlanetViewAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -490,6 +505,9 @@ func PlanetViewAddLabs(builder *flatbuffers.Builder, labs flatbuffers.UOffsetT) 
 }
 func PlanetViewStartLabsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
+}
+func PlanetViewAddRallyPoint(builder *flatbuffers.Builder, rallyPoint flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(11, flatbuffers.UOffsetT(rallyPoint), 0)
 }
 func PlanetViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

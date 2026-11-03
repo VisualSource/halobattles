@@ -34,6 +34,7 @@ const (
 	OpTakeSeat             Op = 24
 	OpSetTeams             Op = 25
 	OpSetTeam              Op = 26
+	OpSetRallyPoint        Op = 27
 	OpLobbyState           Op = 100
 	OpCommandRejected      Op = 101
 	OpViewFull             Op = 102
@@ -75,6 +76,7 @@ var EnumNamesOp = map[Op]string{
 	OpTakeSeat:             "TakeSeat",
 	OpSetTeams:             "SetTeams",
 	OpSetTeam:              "SetTeam",
+	OpSetRallyPoint:        "SetRallyPoint",
 	OpLobbyState:           "LobbyState",
 	OpCommandRejected:      "CommandRejected",
 	OpViewFull:             "ViewFull",
@@ -116,6 +118,7 @@ var EnumValuesOp = map[string]Op{
 	"TakeSeat":             OpTakeSeat,
 	"SetTeams":             OpSetTeams,
 	"SetTeam":              OpSetTeam,
+	"SetRallyPoint":        OpSetRallyPoint,
 	"LobbyState":           OpLobbyState,
 	"CommandRejected":      OpCommandRejected,
 	"ViewFull":             OpViewFull,

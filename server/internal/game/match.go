@@ -39,7 +39,8 @@ type Planet struct {
 	Queue     []QueueItem // construction, in order; only the first runs
 	// UnitQueues has a queue per production building, by Building Slot.
 	UnitQueues map[int][]QueueItem
-	Rally      int // the Stack trained units join
+	Rally      int    // the Stack trained units join
+	RallyPoint string // the Planet trained units leave for; "" keeps them here
 	// Techs are what each Lab holds, by its Building Slot; they count only
 	// while that slot still has a Lab.
 	Techs map[int][]string

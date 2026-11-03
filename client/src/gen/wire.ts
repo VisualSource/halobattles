@@ -49,6 +49,7 @@ export { Seat, SeatT } from './wire/seat.js';
 export { SellBuilding, SellBuildingT } from './wire/sell-building.js';
 export { SetFaction, SetFactionT } from './wire/set-faction.js';
 export { SetMap, SetMapT } from './wire/set-map.js';
+export { SetRallyPoint, SetRallyPointT } from './wire/set-rally-point.js';
 export { SetRallyStack, SetRallyStackT } from './wire/set-rally-stack.js';
 export { SetReady, SetReadyT } from './wire/set-ready.js';
 export { SetStartingResources, SetStartingResourcesT } from './wire/set-starting-resources.js';

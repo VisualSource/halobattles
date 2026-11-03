@@ -39,6 +39,7 @@ import {
   SellBuildingT,
   SetFactionT,
   SetMapT,
+  SetRallyPointT,
   SetRallyStackT,
   SetReadyT,
   SetStartingResourcesT,
@@ -163,6 +164,7 @@ const toPlanet = (p: PlanetViewT): PlanetView => ({
   queue: p.queue.map(toQueueItem),
   unitQueue: p.unitQueue.map(toQueueItem),
   rallyStack: p.rallyStack,
+  rallyPoint: str(p.rallyPoint ?? ""),
   richness: new Map(p.richness.map((r) => [str(r.resource), str(r.level)])),
   labs: new Map(p.labs.map((l) => [l.slot, l.techs.map(str)])),
 });
@@ -559,6 +561,15 @@ export class MatchConnection {
       Op.SetRallyStack,
       "rally",
       (seq) => new SetRallyStackT(seq, planet, stack),
+    );
+  }
+
+  /** Sends planet's trained units on to another of your Planets; "" keeps them. */
+  setRallyPoint(planet: string, to: string) {
+    this.send(
+      Op.SetRallyPoint,
+      "rally",
+      (seq) => new SetRallyPointT(seq, planet, to),
     );
   }
 

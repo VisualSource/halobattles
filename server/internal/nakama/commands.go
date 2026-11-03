@@ -172,6 +172,11 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
 			return s.play.SetRallyStack(s.seat(user), string(c.Planet()), int(c.Stack()))
 		}
+	case wire.OpSetRallyPoint:
+		c := wire.GetRootAsSetRallyPoint(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.SetRallyPoint(s.seat(user), string(c.Planet()), string(c.To()))
+		}
 	case wire.OpSetStartingResources:
 		c := wire.GetRootAsSetStartingResources(data, 0).UnPack()
 		amounts := map[string]int{}

@@ -101,7 +101,7 @@ func (s *State) eliminate(seat int, ev *Events) {
 	s.Players[seat].Eliminated = true
 	for _, p := range s.Planets {
 		if p.Owner == seat {
-			p.Owner, p.Queue, p.UnitQueues, p.Rally, p.Techs = Neutral, nil, nil, 0, nil
+			p.Owner, p.Queue, p.UnitQueues, p.Rally, p.RallyPoint, p.Techs = Neutral, nil, nil, 0, "", nil
 		}
 	}
 	for id, a := range s.Armies {

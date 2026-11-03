@@ -49,6 +49,7 @@ The full rules and numbers are in the [economy spec](economy-spec.md) (Economy v
 - Arriving units (trained, an Army landing, a Battle's survivors) top up the Stack's slots of their type, up to the limit, then take new slots in the first free cells. Survivors go back to the slot they fought from.
 - Moving units between Stacks on the same Planet is instant, in any count. A Stack's Unit Slots sit in a grid, and a slot can be moved to any cell of any of the Planet's Stacks. Moved onto a slot of the same unit, it merges, up to the limit. Moved onto another unit's slot, a whole slot swaps places with it. Splitting a slot puts half its units in a new slot in the same Stack.
 - Trained units join the Planet's **Rally Stack**. By default it is the first Stack, and the player can change it.
+- A Planet may have a **Rally Point**: another of its owner's Planets. Each unit trained there then leaves at once as its own Army for the Rally Point's Rally Stack, by the usual route; one that overflowed out of the Rally Stack, or whose way there has no route or enters an enemy Planet, stays: a Rally Point never starts a Battle. It sends on only units trained there, so Rally Points don't chain. It clears when either Planet changes hands, and only its owner sees it. Bots don't use them.
 - **Overflow:** units that find no room spill into the Planet's other Stacks. If nothing fits:
   - a trained unit stays finished at the head of its queue, which blocks that building's queue;
   - an arriving Army waits in orbit until the player makes room or re-orders it;
