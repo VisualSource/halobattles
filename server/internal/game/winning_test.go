@@ -23,7 +23,8 @@ func TestLosingYourCapitalEliminatesYou(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ev := s.Advance(c, 30_000) // onto Seat 1's empty Capital: a Battle with no defenders
+	s.Advance(c, 30_000) // onto Seat 1's empty Capital: a Battle against its Command Post alone
+	ev := fight(t, s, c)
 
 	if !s.Players[1].Eliminated || !slices.Equal(ev.Eliminated, []int{1}) {
 		t.Fatalf("eliminated %v, Seat 1 %+v", ev.Eliminated, s.Players[1])

@@ -75,6 +75,7 @@ The full rules and numbers are in the [economy spec](economy-spec.md) (Economy v
 - **Neutral Planets** start with a garrison set in map data, which may be empty.
   - An empty neutral Planet is captured on arrival, with no Battle.
   - A garrisoned one starts a Battle against the neutral side, which has no AI.
+- **An enemy Planet with nothing on it**, no units in its Stacks and no buildings, is captured on arrival with no Battle. A unit or a building there is a defence: it's fought for.
 
 ## Battles
 

@@ -481,9 +481,34 @@ func TestARetreatingDefenderLeavesItsBuildingsBehind(t *testing.T) {
 		t.Errorf("winner %v by %q, want the attacker as the defender left", s.Winner, s.Reason)
 	}
 	for _, sq := range s.Squads {
-		if sq.Building && (sq.Escaped || !sq.alive()) {
+		switch {
+		case sq.CommandPost && sq.alive():
+			t.Error("the Command Post still stands; a defender that Retreats abandons it")
+		case sq.Building && !sq.CommandPost && (sq.Escaped || !sq.alive()):
 			t.Errorf("building %s escaped or died; it should stay", sq.Unit)
 		}
+	}
+}
+
+// Wiping out the defence doesn't win: the Command Post must still go.
+func TestEliminatingTheDefenceDoesntWinAlone(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	s := newSim(c, unsc, cov, 3)
+	s.Controllers = [2]Controller{}
+	for _, sq := range s.Squads {
+		if sq.Side == Defender && !sq.CommandPost {
+			sq.Members = nil
+		}
+	}
+	s.end()
+	if s.Over {
+		t.Fatalf("over by %q with the Command Post standing", s.Reason)
+	}
+	s.commandPost().Members = nil
+	s.end()
+	if !s.Over || s.Winner != Attacker || s.Reason != Destroyed {
+		t.Errorf("winner %v by %q; want the attacker, by the Command Post", s.Winner, s.Reason)
 	}
 }
 

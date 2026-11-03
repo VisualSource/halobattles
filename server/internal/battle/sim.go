@@ -1034,7 +1034,6 @@ func (s *Sim) presence(c Cell) [2]bool {
 func (s *Sim) end() {
 	// Pad turrets don't keep an attacker in the fight.
 	attackers := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Attacker && sq.alive() && sq.OnPad == 0 })
-	defenders := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Defender && sq.alive() && sq.Armed })
 	cp := s.commandPost()
 	left := func(side Side) bool {
 		return s.Retreating[side] && !slices.ContainsFunc(s.Squads, func(sq *Squad) bool {
@@ -1046,10 +1045,14 @@ func (s *Sim) end() {
 		s.Over, s.Winner, s.Reason = true, Defender, Retreated
 	case !attackers:
 		s.Over, s.Winner, s.Reason = true, Defender, Eliminated
+	// A defender that Retreats abandons the Battle: its Command Post blows.
 	case left(Defender):
+		if cp != nil {
+			cp.Members = nil
+		}
 		s.Over, s.Winner, s.Reason = true, Attacker, Retreated
-	case !defenders:
-		s.Over, s.Winner, s.Reason = true, Attacker, Eliminated
+	// Otherwise the attacker wins only by destroying the Command Post: a
+	// defence wiped out leaves it standing to be destroyed.
 	case cp != nil && !cp.alive():
 		s.Over, s.Winner, s.Reason = true, Attacker, Destroyed
 	case s.Tick-s.Setup >= s.rules.TimeCap*TicksPerSecond: // fighting time only

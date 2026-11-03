@@ -175,14 +175,11 @@ Landing Zones are what the code calls Control Points. Until reinforcements (#57)
 
 ### Winning
 
-- **Attacker wins** by:
-  - **destroying the Command Post**;
-  - **elimination**: the defender has no Squads and no armed buildings left. The Command Post doesn't count: it's unarmed.
+- **Attacker wins** only by **destroying the Command Post**. Wiping out the defence leaves it standing to be destroyed, and the time cap still runs. A defender that Retreats abandons the Battle: once its Retreat is over, its Command Post blows up and the attacker wins. An empty Planet, enemy or neutral, with no units and no buildings, is captured with no Battle at all.
 - **Defender wins** by:
   - the **time cap, 3 min** of fighting, counted after the start delay;
   - **elimination**: the attacker has no Squads left;
   - the attacker **Retreating** ([Retreat](#retreat-in-battle)).
-- The attacker also wins when the defender Retreats.
 - **Mutual wipe-out**, or both sides finishing a Retreat on the same tick: the defender keeps the Planet, as before.
 - An attacker win captures the Planet; a defender win sends the attacker into Retreat. A beaten defender's surviving units, whether escaped or still on the field, Retreat too, unless they're a neutral garrison, which loses them. All of this follows the game-design spec's [Ending](game-design-spec.md#ending) rules.
 
@@ -396,7 +393,7 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
 - Two evenly matched forces should fight for about **1–3 minutes**.
 - The two Starting Kits should stay roughly even, with a lean to the defender allowed: either one attacking wins 40–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights. A heavy lean to the defender is as much a problem as one to the attacker.
 - A Go test checks both over 100 seeds per matchup. When last tuned (Battlefield layout, #64): about 77 s per Battle; UNSC attacking wins 54%, Covenant attacking 54%. Three Stacks a side, still skipped under #40: 50% / 54%.
-- **During v3 (#95) the test is skipped**, since the AI and the rules are changing; `HALO_BALANCE=1` runs it to measure. After the Command Post (#98), Starting Kit attackers win 70% / 66%. Balance is tuned once every v3 sub-issue is in.
+- **During v3 (#95) the test is skipped**, since the AI and the rules are changing; `HALO_BALANCE=1` runs it to measure. After the Command Post (#98), Starting Kit attackers win 69% / 63%. Balance is tuned once every v3 sub-issue is in.
 - The test covers **big Battles** too (three Starting Kit Stacks a side), skipped under #40 until the map generation rework (#64) settles; the current figures are in the line above. They were 73% / 67% before roles, the paused hold timer, guard posts, and cover for any positive weight, and 64% / 54% before focus fire.
 - Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 
@@ -475,7 +472,7 @@ Built (#97). A dev and design tool, never shipped to players.
 Now in [Objectives](#objectives). As planned:
 
 - Every Battlefield has a **Command Post** on the defender's side, neutral garrisons included. It's an objective structure that exists only for the Battle and takes no Building Slot. The defender's buildings form a base around it.
-- **The attacker wins** by destroying the Command Post, or by eliminating the defence as now.
+- **The attacker wins** by destroying the Command Post, and only that; a defender that Retreats blows its own.
 - **The defender wins** at the time cap, by eliminating the attacker, or when the attacker Retreats.
 - **The hold timer is dropped.**
 - Control Points become **Landing Zones**. The side that holds one can land [reinforcements](#reinforcements) there. Build pads stay as they are.

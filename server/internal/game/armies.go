@@ -231,7 +231,10 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 			a.Path = nil // taken by an enemy: the move ends here
 		}
 		switch {
-		case p.Owner == Neutral && p.empty():
+		case p.Owner == Neutral && p.empty(),
+			// An enemy Planet with no units and no buildings has nothing to
+			// fight with: taken without a Battle.
+			!s.Allied(a.Owner, p.Owner) && p.empty() && !slices.ContainsFunc(p.Buildings, func(b string) bool { return b != "" }):
 			s.capture(p, a.Owner, ev)
 		case p.Owner != a.Owner && s.Allied(a.Owner, p.Owner):
 			// A Teammate took it first: it can't land, so it heads home, as a
