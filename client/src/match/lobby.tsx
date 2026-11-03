@@ -1,3 +1,4 @@
+import { Switch } from "@base-ui/react/switch";
 import { Link } from "@tanstack/react-router";
 import { cn } from "cn";
 import { type FormEvent, type ReactNode, useState } from "react";
@@ -54,7 +55,8 @@ export function LobbyScreen(props: {
         aria-hidden="true"
         className="bg-ground/70 fixed inset-0 -z-10 backdrop-blur-md"
       />
-      <div className="mx-auto flex w-full max-w-300 flex-1 flex-col gap-6 p-8">
+      {/* h-0 flex-1: exactly the screen below the header, so the columns scroll, not the page. */}
+      <div className="mx-auto flex h-0 min-h-0 w-full max-w-300 flex-1 flex-col gap-6 p-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
             <p className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
@@ -75,8 +77,8 @@ export function LobbyScreen(props: {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-start gap-6">
-          <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
+        <div className="flex min-h-0 flex-1 gap-6">
+          <div className="flex min-h-0 min-w-0 flex-[999_1_560px] flex-col gap-6">
             <Seats
               lobby={lobby}
               content={content}
@@ -98,66 +100,76 @@ export function LobbyScreen(props: {
               pending={isPending(local, "seat")}
               conn={conn}
             />
-            {/* Kept while spectating, disabled, so switching doesn't move the lobby. */}
-            <section className="border-line bg-panel flex flex-col gap-4 rounded-[10px] border p-5">
-              <h2 className={sectionTitle}>YOUR FACTION</h2>
-              <FactionButton
-                faction={me && content.factions.get(me.faction)}
-                pending={!me || isPending(local, "faction")}
-                onClick={() => setDialog("faction")}
-              />
-              {(!isHost || !me) && (
-                <p className="text-ink-3 text-sm">
-                  {me
-                    ? "Changing your Faction clears your ready flag."
-                    : "Take a Seat to pick a Faction."}
-                </p>
-              )}
-            </section>
           </div>
 
-          <section className="border-line bg-panel flex min-w-0 flex-[1_1_320px] flex-col gap-5 rounded-[10px] border p-5">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className={sectionTitle}>MATCH SETTINGS</h2>
-              {!isHost && <span className="text-ink-3 text-xs">Host only</span>}
-            </div>
-            <div className="flex flex-col gap-2">
-              <span className="text-ink-2 text-sm font-semibold">Map</span>
-              {map && (
-                <MapRow
-                  map={map}
-                  disabled={!isHost || isPending(local, "map")}
-                  trailing={
-                    isHost && <span className="text-ink-3 text-sm">Change</span>
-                  }
-                  onClick={() => setDialog("map")}
+          {/* Stretched to the row; the panel inside keeps its own height and scrolls past it. */}
+          <div className="flex min-h-0 min-w-0 flex-[1_1_320px] flex-col gap-6">
+            <section className="border-line bg-panel flex min-h-0 flex-col overflow-hidden rounded-[10px] border">
+              {/* Header and body, like Seats: the header stays while the body scrolls. */}
+              <div className="border-line flex flex-none items-center justify-between gap-2 border-b px-5 py-4">
+                <h2 className={sectionTitle}>MATCH SETTINGS</h2>
+                {!isHost && (
+                  <span className="text-ink-3 text-xs">Host only</span>
+                )}
+              </div>
+              <div className="flex min-h-0 flex-col gap-5 overflow-y-auto p-5">
+                <div className="flex flex-col gap-2">
+                  <span className="text-ink-2 text-sm font-semibold">Map</span>
+                  {map && (
+                    <MapRow
+                      map={map}
+                      disabled={!isHost || isPending(local, "map")}
+                      trailing={
+                        isHost && (
+                          <span className="text-ink-3 text-sm">Change</span>
+                        )
+                      }
+                      onClick={() => setDialog("map")}
+                    />
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span
+                    id="lobby-teams"
+                    className="text-ink-2 text-sm font-semibold"
+                  >
+                    Teams
+                  </span>
+                  <Switch.Root
+                    aria-labelledby="lobby-teams"
+                    checked={lobby.teams}
+                    disabled={!isHost || isPending(local, "teams")}
+                    onCheckedChange={(on) => conn.setTeams(on)}
+                    className="bg-line data-checked:bg-accent flex h-6 w-10 flex-none items-center rounded-full border-0 p-0.5 transition-colors data-disabled:cursor-default data-disabled:opacity-50"
+                  >
+                    <Switch.Thumb className="bg-ink size-5 rounded-full transition-transform data-checked:translate-x-4" />
+                  </Switch.Root>
+                </div>
+                <StartingResources
+                  conn={conn}
+                  content={content}
+                  current={lobby.startingResources}
+                  disabled={!isHost}
+                  pending={isPending(local, "startingResources")}
                 />
-              )}
-            </div>
-            <label className="flex items-center justify-between gap-3">
-              <span className="flex flex-col gap-0.5">
-                <span className="text-ink-2 text-sm font-semibold">Teams</span>
-                <span className="text-ink-3 text-sm">
-                  Teammates share vision, pass through each other's Planets and
-                  win together.
-                </span>
-              </span>
-              <input
-                type="checkbox"
-                checked={lobby.teams}
-                disabled={!isHost || isPending(local, "teams")}
-                onChange={(e) => conn.setTeams(e.target.checked)}
-                className="accent-accent size-5.5 flex-none"
-              />
-            </label>
-            <StartingResources
-              conn={conn}
-              content={content}
-              current={lobby.startingResources}
-              disabled={!isHost}
-              pending={isPending(local, "startingResources")}
-            />
-          </section>
+              </div>
+            </section>
+            {me && (
+              <section className="border-line bg-panel flex flex-none flex-col gap-4 rounded-[10px] border p-5">
+                <h2 className={sectionTitle}>YOUR FACTION</h2>
+                <FactionButton
+                  faction={content.factions.get(me.faction)}
+                  pending={isPending(local, "faction")}
+                  onClick={() => setDialog("faction")}
+                />
+                {!isHost && (
+                  <p className="text-ink-3 text-sm">
+                    Changing your Faction clears your ready flag.
+                  </p>
+                )}
+              </section>
+            )}
+          </div>
         </div>
       </div>
 
@@ -295,11 +307,12 @@ function Seats(props: {
     (props.map?.starts.length ?? 0) - lobby.seats.length,
   );
   return (
-    <section className="border-line bg-panel overflow-hidden rounded-[10px] border">
+    <section className="border-line bg-panel flex min-h-0 flex-col overflow-hidden rounded-[10px] border">
       <h2 className={cn(sectionTitle, "border-line border-b px-5 py-4")}>
         SEATS
       </h2>
-      <ol>
+      {/* The list scrolls, so a big map's Seats never push the page. */}
+      <ol className="min-h-0 overflow-y-auto">
         {lobby.seats.map((s, i) => {
           const host = s.user === lobby.host;
           const me = s.user === props.userId;
@@ -418,7 +431,7 @@ function Spectators(props: {
 }) {
   const { lobby, conn } = props;
   return (
-    <section className="border-line bg-panel overflow-hidden rounded-[10px] border">
+    <section className="border-line bg-panel flex-none overflow-hidden rounded-[10px] border">
       <div className="border-line flex items-center gap-3 border-b px-5 py-3">
         <h2 className={cn(sectionTitle, "flex-1")}>
           SPECTATORS{" "}

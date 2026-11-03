@@ -10,7 +10,8 @@ export const Route = createRootRoute({
     const header = useHeaderWanted();
     return (
       <>
-        <div className="isolate flex min-h-screen flex-col max-lg:hidden">
+        {/* Exactly the screen: a page that needs more scrolls inside main, never the document. */}
+        <div className="isolate flex h-screen flex-col max-lg:hidden">
           {ring && <RingBackdrop />}
           {header && (
             <header
@@ -21,7 +22,7 @@ export const Route = createRootRoute({
               </h1>
             </header>
           )}
-          <main className="flex flex-1 flex-col">
+          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             {/* The router navigates in a React transition, so every page
                 change (menu, lobby, play, results) cross-fades. */}
             <ViewTransition>

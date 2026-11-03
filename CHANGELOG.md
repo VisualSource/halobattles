@@ -6,30 +6,34 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ### Added
 
-- Join a full lobby to watch the Match, or switch between a Seat and watching. Beaten players can stay and watch the rest, and Bots play on while someone watches.
-- Teams: the Host can turn them on in the lobby, and each player picks a Team. Teammates share vision, pass through each other's Planets, and win together.
-- 8 player colours, so no two players on a big map share one.
-- An Armies tab beside your Planets lists every Army on the move and every Stack with units in it; click one to select it, double-click to jump there.
-- Rally Points: set one in a Planet's Stacks to send every unit trained there straight on to another of your Planets.
+### Changed
 
 ### Fixed
-
-- The Forerunner no longer show up as a Faction to play or give a Bot: they only guard neutral Planets.
 
 ## 0.4.0 - 2026-11-02
 
 ### Added
 
+- Join a full lobby to watch the Match, or switch between a Seat and watching. Beaten players can stay and watch the rest, and Bots play on while someone watches.
+- Teams: the Host can turn them on in the lobby, and each player picks a Team. Teammates share vision, pass through each other's Planets, and win together.
+- 8 player colours, so no two players on a big map share one.
+- An Armies tab beside your Planets lists every Army on the move and every Stack with units in it; click one to select it, double-click to jump there.
+- Rally Points: set one in a Planet's Stacks to send every unit trained there straight on to another of your Planets.
 - The main menu shows the game's version: click it to read this changelog.
 - Planets come in more looks: terrestrial, desert, ice, lava, barren, and gas giants with or without rings, each in colours of its own.
 - Servers can keep a log of each Match, to look back at what Bots and Battles did.
 
 ### Changed
 
+- The lobby fits the screen: the Seats list and Match Settings scroll inside their own cards, and the page no longer scrolls.
+- Your Faction sits under Match Settings in the lobby, and is hidden while you're watching.
+- The lobby's Teams setting is a switch.
+- Hover a Stack's Rally badge to see what it means: newly trained units are placed there.
 - The Stacks above a Planet stand out from the Planet and its glow.
 
 ### Fixed
 
+- The Forerunner no longer show up as a Faction to play or give a Bot: they only guard neutral Planets.
 - An Easy Bot no longer sends lone Grunts into your Planet one after another, keeping it Locked.
 - Bots gather their units for one target at a time, instead of passing them from Planet to Planet.
 - A Bot that takes your last Capital now wins the Match; it used to end as abandoned.
