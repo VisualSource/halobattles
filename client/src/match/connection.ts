@@ -222,6 +222,7 @@ const toBattle = (
     shield: q.shield,
     armor: q.armor,
     hp: q.hp,
+    commandPost: q.commandPost,
   })),
   points: b.points.map((p) => ({
     x: p.x,
@@ -240,8 +241,6 @@ const toBattle = (
     building: str(p.building),
     readyAt: p.readyAt,
   })),
-  hold: b.hold,
-  holdPaused: b.holdPaused,
   retreatAt: b.retreatAt,
   retreating: {
     attacker: b.attackerRetreating,

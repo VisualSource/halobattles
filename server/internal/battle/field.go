@@ -25,8 +25,10 @@ type Field struct {
 	Pads     []Cell // build pads
 	Starts   []Cell // attacker starts, on the edges; each Battle's seed picks one
 	Sites    []Cell // building sites, dealt round the points in turn
-	lane     []bool // main lane cells, for tests
-	side     []bool // side lane cells, for tests
+	// CommandPost is the defender's objective structure's cell.
+	CommandPost Cell
+	lane        []bool // main lane cells, for tests
+	side        []bool // side lane cells, for tests
 }
 
 func (f *Field) index(c Cell) int { return c.Y*f.W + c.X }
@@ -108,7 +110,29 @@ func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlef
 	f.Sites = l.placeSites(f.Starts, area, width)
 	f.Pads = l.placePads(rules.BuildPads, area, f.Starts, f.Sites)
 	f.lane, f.side = l.lane, l.side
+	f.CommandPost = f.placeCommandPost(f.largestRegion(open))
 	return f
+}
+
+// placeCommandPost is the cell nearest the middle, ties to the lowest index,
+// that's in region and holds nothing else.
+// shortcut: the middle, until #99's archetypes place it on the defender's ground.
+func (f *Field) placeCommandPost(region []bool) Cell {
+	taken := map[Cell]bool{}
+	for _, cs := range [][]Cell{f.Points, f.Pads, f.Starts, f.Sites} {
+		for _, c := range cs {
+			taken[c] = true
+		}
+	}
+	mid := Cell{f.W / 2, f.H / 2}
+	best, bestD := mid, -1
+	for i, ok := range region {
+		c := f.cell(i)
+		if d := dist2(c, mid); ok && !taken[c] && (bestD < 0 || d < bestD) {
+			best, bestD = c, d
+		}
+	}
+	return best
 }
 
 func deref(p *int) int {

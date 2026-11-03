@@ -56,28 +56,26 @@ type BandTerrain struct {
 
 // How a Battle runs on its Battlefield.
 type BattleRules struct {
-	// How near, in cells, a ground Squad must be to a Control Point to hold or take
+	// How near, in cells, a ground Squad must be to a Landing Zone to hold or take
 	// it.
 	CaptureRadius float64 `json:"captureRadius"`
 
-	// How long one side alone must be in range to take a Control Point.
+	// How long one side alone must be in range to take a Landing Zone.
 	CaptureSeconds float64 `json:"captureSeconds"`
 
 	// Battle stats per Unit Class id, for any a unit or building doesn't set. Every
 	// Unit Class needs one.
 	ClassDefaults map[string]ClassStats `json:"classDefaults"`
 
+	// The defender's objective structure, on every Battlefield: destroying it wins
+	// the Battle for the attacker. It never fires.
+	CommandPost CommandPost `json:"commandPost"`
+
 	// Extra Sight, in cells, per height level a ground unit stands on.
 	HeightSight float64 `json:"heightSight"`
 
 	// Added to the To-hit roll of a ground attack from a higher height level.
 	HighGroundToHit int `json:"highGroundToHit"`
-
-	// How many Control Points the attacker must hold to start the hold timer.
-	HoldPoints int `json:"holdPoints"`
-
-	// How long the attacker must hold them to win.
-	HoldSeconds float64 `json:"holdSeconds"`
 
 	// What a neutral garrison has to spend on pad turrets in each Battle, having no
 	// economy.
@@ -378,6 +376,22 @@ const CombatTiersValueAdvantage CombatTiersValue = "advantage"
 const CombatTiersValueDisadvantage CombatTiersValue = "disadvantage"
 const CombatTiersValueNone CombatTiersValue = "none"
 const CombatTiersValueNormal CombatTiersValue = "normal"
+
+// The defender's objective structure, on every Battlefield: destroying it wins the
+// Battle for the attacker. It never fires.
+type CommandPost struct {
+	// Armor corresponds to the JSON schema field "armor".
+	Armor int `json:"armor"`
+
+	// Hp corresponds to the JSON schema field "hp".
+	Hp int `json:"hp"`
+
+	// Shield corresponds to the JSON schema field "shield".
+	Shield int `json:"shield"`
+
+	// UnitClass corresponds to the JSON schema field "unitClass".
+	UnitClass ID `json:"unitClass"`
+}
 
 // The merged content document the server serves: kind, then id, then definition,
 // with every Patch applied.

@@ -81,8 +81,13 @@ hp():number {
   return offset ? this.bb!.readFloat32(this.bb_pos + offset) : 0.0;
 }
 
+commandPost():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 26);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startBattleSquad(builder:flatbuffers.Builder) {
-  builder.startObject(11);
+  builder.startObject(12);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -129,12 +134,16 @@ static addHp(builder:flatbuffers.Builder, hp:number) {
   builder.addFieldFloat32(10, hp, 0.0);
 }
 
+static addCommandPost(builder:flatbuffers.Builder, commandPost:boolean) {
+  builder.addFieldInt8(11, +commandPost, +false);
+}
+
 static endBattleSquad(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, unitOffset:flatbuffers.Offset, building:boolean, x:number, y:number, count:number, start:number, shield:number, armor:number, hp:number):flatbuffers.Offset {
+static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, unitOffset:flatbuffers.Offset, building:boolean, x:number, y:number, count:number, start:number, shield:number, armor:number, hp:number, commandPost:boolean):flatbuffers.Offset {
   BattleSquad.startBattleSquad(builder);
   BattleSquad.addId(builder, id);
   BattleSquad.addSide(builder, side);
@@ -147,6 +156,7 @@ static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, un
   BattleSquad.addShield(builder, shield);
   BattleSquad.addArmor(builder, armor);
   BattleSquad.addHp(builder, hp);
+  BattleSquad.addCommandPost(builder, commandPost);
   return BattleSquad.endBattleSquad(builder);
 }
 
@@ -162,7 +172,8 @@ unpack(): BattleSquadT {
     this.start(),
     this.shield(),
     this.armor(),
-    this.hp()
+    this.hp(),
+    this.commandPost()
   );
 }
 
@@ -179,6 +190,7 @@ unpackTo(_o: BattleSquadT): void {
   _o.shield = this.shield();
   _o.armor = this.armor();
   _o.hp = this.hp();
+  _o.commandPost = this.commandPost();
 }
 }
 
@@ -194,7 +206,8 @@ constructor(
   public start: number = 0,
   public shield: number = 0.0,
   public armor: number = 0.0,
-  public hp: number = 0.0
+  public hp: number = 0.0,
+  public commandPost: boolean = false
 ){}
 
 
@@ -212,7 +225,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.start,
     this.shield,
     this.armor,
-    this.hp
+    this.hp,
+    this.commandPost
   );
 }
 }

@@ -23,20 +23,24 @@ func marines(n int) [][]Slot {
 	return [][]Slot{f}
 }
 
-func TestTheCommanderSpreadsSquadsOverThePoints(t *testing.T) {
+// A force bigger than one Task Force splits: past forceCap squads on the
+// Command Post, a second force comes in on its own bearing, or squads go on
+// to other goals.
+func TestTheCommanderSplitsABigForce(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(6)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Attacker}
 	ai.command(v, v.Own(), nil)
 
-	points := map[Cell]bool{}
+	goals := map[goal]bool{}
 	for _, p := range ai.plans {
-		if p.goal.kind == capture {
-			points[p.goal.cell] = true
-		}
+		goals[p.goal] = true
 	}
-	if len(points) < 2 {
-		t.Errorf("6 squads went for %d point(s); want them spread", len(points))
+	if len(ai.forces) < 2 && len(goals) < 2 {
+		t.Errorf("6 squads in %d Task Force(s) on %d goal(s); want them split", len(ai.forces), len(goals))
+	}
+	if !goals[goal{kind: assault, cell: s.commandPost().Cell, target: s.commandPost().ID}] {
+		t.Errorf("goals %v; want the Command Post assaulted", goals)
 	}
 }
 
@@ -314,6 +318,7 @@ func TestTheCommanderSendsSquadsAfterWhatTheyreGoodAgainst(t *testing.T) {
 	for i := range s.Points {
 		s.Points[i].Owner = Attacker // nothing to capture: it's down to whom to fight
 	}
+	s.commandPost().Members = nil // nor to assault
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Attacker}
 	ai.command(v, v.Own(), v.Enemies())
@@ -456,7 +461,7 @@ func TestSpareSquadsSkirmishBetweenThePoints(t *testing.T) {
 	}
 	f = append(f, Slot{"base:banshee", 1, 7})
 	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{f}})
-	banshee := s.Squads[len(s.Squads)-1]
+	banshee := s.Squads[slices.IndexFunc(s.Squads, func(sq *Squad) bool { return sq.Unit == "base:banshee" })]
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Defender}
 	ai.look(v, v.Own())

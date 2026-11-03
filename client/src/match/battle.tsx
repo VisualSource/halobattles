@@ -157,6 +157,7 @@ export function BattlePanel(props: {
     ]),
   );
   const name = (unit: string | undefined) =>
+    (unit === COMMAND_POST ? "Command Post" : undefined) ??
     content.units.get(unit ?? "")?.name ??
     content.buildings.get(unit ?? "")?.name ??
     unit ??
@@ -210,7 +211,7 @@ export function BattlePanel(props: {
   const points = (
     <Points
       battle={battle}
-      holdSeconds={rules.holdSeconds}
+      commandPost={rules.commandPost}
       captureSeconds={rules.captureSeconds}
     />
   );
@@ -545,17 +546,17 @@ function BattlefieldView(props: {
   );
 }
 
-/** Each Control Point's holder and capture progress, and the hold timer. */
+/** Each Landing Zone's holder and capture progress, and the Command Post's health. */
 function Points(props: {
   battle: Battle;
-  holdSeconds: number;
+  commandPost: { armor: number; hp: number };
   captureSeconds: number;
 }) {
   const { battle } = props;
-  const hold = battle.hold / BATTLE_TICKS;
+  const health = commandPostHealth(battle, props.commandPost);
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 pt-3 text-sm">
-      <span className={label}>Points</span>
+      <span className={label}>Landing Zones</span>
       {battle.points.map((p, i) => (
         <span
           key={`${p.x},${p.y}`}
@@ -567,7 +568,7 @@ function Points(props: {
             className="size-2.5 rounded-full"
             style={{ background: colourOf(seatOf(battle, p.owner)) }}
           />
-          <span className="font-mono">{POINT_NAMES[i]}</span>
+          <span className="font-mono">LZ {POINT_NAMES[i]}</span>
           <span className="text-ink-3 w-8 font-mono text-xs">
             {p.progress > 0
               ? `${Math.round((p.progress / BATTLE_TICKS / Math.max(props.captureSeconds, 0.2)) * 100)}%`
@@ -577,18 +578,38 @@ function Points(props: {
       ))}
       <span className="flex-1" />
       <span
-        className={`font-mono whitespace-nowrap ${battle.holdPaused ? "text-accent" : "text-ink-3"}`}
-        title={
-          battle.holdPaused
-            ? "A defender stands on a held point: the hold waits"
-            : undefined
-        }
+        className="flex items-center gap-2 whitespace-nowrap"
+        title="The attacker wins by destroying the defender's Command Post"
       >
-        Hold {clock(hold)} / {clock(props.holdSeconds)}
-        {battle.holdPaused ? " · paused" : ""}
+        <span className={label}>Command Post</span>
+        <span className="bg-line h-2 w-24 overflow-hidden rounded">
+          <span
+            className="block h-full"
+            style={{
+              width: `${health * 100}%`,
+              background: colourOf(battle.defender),
+            }}
+          />
+        </span>
+        <span className="text-ink-3 w-9 text-right font-mono text-xs">
+          {Math.round(health * 100)}%
+        </span>
       </span>
     </div>
   );
+}
+
+/** The Command Post squad's unit id (server battle.CommandPostID): no unit or building has it. */
+export const COMMAND_POST = "commandPost";
+
+/** The Command Post's Armor and HP left, of the Ruleset's; 0 once it's destroyed. */
+export function commandPostHealth(
+  battle: Battle,
+  full: { armor: number; hp: number },
+) {
+  const cp = battle.squads.find((q) => q.commandPost);
+  if (!cp) return 0;
+  return Math.max(0, cp.armor + cp.hp) / Math.max(1, full.armor + full.hp);
 }
 
 /**
@@ -631,7 +652,10 @@ function Report(props: {
           ? `You held ${planetName} against ${enemy(r.attacker)}.`
           : `${enemy(r.attacker)} took ${planetName} from you.`;
   const name = (unit: string) =>
-    content.units.get(unit)?.name ?? content.buildings.get(unit)?.name ?? unit;
+    (unit === COMMAND_POST ? "Command Post" : undefined) ??
+    content.units.get(unit)?.name ??
+    content.buildings.get(unit)?.name ??
+    unit;
 
   return (
     <Floating

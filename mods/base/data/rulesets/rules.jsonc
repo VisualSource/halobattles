@@ -77,13 +77,13 @@
     "neutralFunds": { "credits": 400, "materials": 100, "alloys": 40 },
     "captureRadius": 2,
     "captureSeconds": 5,
-    "holdPoints": 2,
-    "holdSeconds": 30,
     "highGroundToHit": 2,
     "heightSight": 1,
     "retreatCountdown": 10,
     // Buildings without a combat block: targets that never fire.
     "structure": { "unitClass": "structure", "shield": 0, "armor": 20, "hp": 30 },
+    // First pass, untuned (#95: balance once v3 is in).
+    "commandPost": { "unitClass": "structure", "shield": 0, "armor": 60, "hp": 150 },
     "classDefaults": {
       "infantry": { "speed": 1.5, "range": 5, "fireInterval": 1.5, "sight": 8 },
       "vehicle": { "speed": 2.5, "range": 7, "fireInterval": 2, "sight": 9 },

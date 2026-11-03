@@ -94,6 +94,7 @@ export type Squad = {
   shield: number; // the front member's layers: it takes the hits
   armor: number;
   hp: number;
+  commandPost: boolean; // the defender's Command Post: destroying it wins the Battle
 };
 
 export type ControlPoint = {
@@ -153,8 +154,6 @@ export type Battle = {
   squads: Squad[]; // your own, and enemies in Sight
   points: ControlPoint[];
   pads: BuildPad[];
-  hold: number; // sim ticks the attacker has held enough points
-  holdPaused: boolean; // a defender stands on one of them: the hold waits
   retreatAt: number; // the tick your side's Retreat countdown ends; 0 is none
   retreating: Record<Side, boolean>; // public: you see a side turn and run
 };

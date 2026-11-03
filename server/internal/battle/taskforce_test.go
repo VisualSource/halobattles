@@ -104,25 +104,25 @@ func TestAGoalThatNeedsMoreThanACapGetsTaskForcesOnDifferentBearings(t *testing.
 	}
 }
 
-func TestADefenderRetakingWhileTheHoldTimerRunsGoesStraightIn(t *testing.T) {
+func TestADefenderWhoseCommandPostIsUnderFireGoesStraightIn(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:grunt", 5, 1}}}})
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Defender}
 	far := s.Points[0].Cell
-	own := v.Own()
+	own := slices.DeleteFunc(v.Own(), func(sq *Squad) bool { return sq.Building }) // the Grunts, not the Command Post
 	freeAt(t, s, own[0], far, 20)
 	freeAt(t, s, own[1], own[0].Cell, 1)
 	g := goal{kind: capture, cell: far}
 
-	ai.form(v, []goal{g}, [][]*Squad{v.Own()})
-	if tf := ai.forceOf[v.Own()[0].ID]; tf == nil || tf.going {
+	ai.form(v, []goal{g}, [][]*Squad{own})
+	if tf := ai.forceOf[own[0].ID]; tf == nil || tf.going {
 		t.Fatalf("Task Force %+v; want it gathering first while there's time", tf)
 	}
 	ai = NewAI(WeightsOf(nil))
-	s.Hold = 1
-	ai.form(v, []goal{g}, [][]*Squad{v.Own()})
-	if tf := ai.forceOf[v.Own()[0].ID]; tf == nil || !tf.going {
-		t.Errorf("Task Force %+v; want it straight in while the attacker's hold timer runs", tf)
+	s.commandPost().Members[0].Armor-- // hit: its Armor goes before its HP
+	ai.form(v, []goal{g}, [][]*Squad{own})
+	if tf := ai.forceOf[own[0].ID]; tf == nil || !tf.going {
+		t.Errorf("Task Force %+v; want it straight in while the Command Post is under fire", tf)
 	}
 }
 
@@ -188,6 +188,7 @@ func TestAGuardLeavesAQuietPointForOneUnderThreat(t *testing.T) {
 	a, b := s.Squads[1], s.Squads[2]
 	freeAt(t, s, a, quiet, 0)
 	freeAt(t, s, b, hot, 0)
+	s.commandPost().Members = nil                                                         // gone, so it's down to the points
 	ai := NewAI(Weights{Aggression: 1, Caution: 1, Cover: 1, Raid: 1, Scout: 0, Mass: 1}) // no scouting: both guard
 	v := View{s, Defender}
 	ai.command(v, v.Own(), nil)

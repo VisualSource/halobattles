@@ -37,8 +37,8 @@ func TestArrivingAtAGarrisonedPlanetStartsABattle(t *testing.T) {
 	if len(ev.Started) != 1 || b.Sim.Tick != 0 {
 		t.Errorf("events: %d started, sim at tick %d; want the Battle, not yet stepped", len(ev.Started), b.Sim.Tick)
 	}
-	if b.Sim.Field != s.Fields["b"] || len(b.Sim.Squads) != 2 {
-		t.Errorf("want b's cached Battlefield and 2 squads, got %d squads", len(b.Sim.Squads))
+	if b.Sim.Field != s.Fields["b"] || len(b.Sim.Squads) != 3 {
+		t.Errorf("want b's cached Battlefield and 3 squads (the Command Post too), got %d", len(b.Sim.Squads))
 	}
 	if used, _ := s.commandPoints(c, 0); used != 16 {
 		t.Errorf("Command Points used = %d, want 16: attackers count until the Battle ends", used)
@@ -462,8 +462,8 @@ func TestSplitSquadsGoBackToTheirSlotTogether(t *testing.T) {
 
 	s.Advance(c, 30_000)
 	b := onlyBattle(t, s)
-	if n := len(b.Sim.Squads); n != 3 {
-		t.Fatalf("%d squads; want the Marine and the Grunts as 5 and 1", n)
+	if n := len(b.Sim.Squads); n != 4 {
+		t.Fatalf("%d squads; want the Marine, the Grunts as 5 and 1, and the Command Post", n)
 	}
 	for at := int64(60_000); s.Planets["b"].Locked && at < 600_000; at += 1_000 {
 		s.Advance(c, at)

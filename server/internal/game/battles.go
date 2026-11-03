@@ -176,7 +176,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	for _, sq := range b.Sim.Squads {
 		n := len(sq.Members)
 		switch {
-		case sq.OnPad > 0: // a pad turret lasts only the Battle
+		case sq.OnPad > 0 || sq.CommandPost: // a pad turret and the Command Post last only the Battle
 		case sq.Building:
 			if n == 0 {
 				s.loseLab(p, sq.Slot)

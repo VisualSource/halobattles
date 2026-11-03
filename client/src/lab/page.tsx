@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { useHideHeader } from "../backdrop";
 import type { ContentLookups } from "../content";
+import { COMMAND_POST, commandPostHealth } from "../match/battle";
 import type { Side, Squad, Volley } from "../match/store";
 import {
   BattlefieldScene,
@@ -184,7 +185,10 @@ const playable = (content: ContentLookups) =>
     .sort();
 
 const nameOf = (content: ContentLookups, id: string) =>
-  content.units.get(id)?.name ?? content.buildings.get(id)?.name ?? id;
+  (id === COMMAND_POST ? "Command Post" : undefined) ??
+  content.units.get(id)?.name ??
+  content.buildings.get(id)?.name ??
+  id;
 
 function Segmented<T extends string | number>(props: {
   value: T;
@@ -760,7 +764,6 @@ const goalText = (g: {
 
 function Status(props: { conn: LabConnection; content: ContentLookups }) {
   const battle = useStore(props.conn.store, (s) => s.battle);
-  const holdSeconds = props.content.rules.battle.holdSeconds;
   if (!battle) return <div className="h-18 flex-none" />;
   const left = (side: Side) => {
     const qs = battle.squads.filter((q) => q.side === side && !q.building);
@@ -779,15 +782,21 @@ function Status(props: { conn: LabConnection; content: ContentLookups }) {
               >
                 ●
               </span>{" "}
-              {POINT_NAMES[i]}
+              LZ {POINT_NAMES[i]}
               {p.progress > 0 && (
                 <span className="text-ink-3"> ({p.taker} taking)</span>
               )}
             </span>
           ))}
-          <span className="text-ink-3 font-mono">
-            hold {clock(battle.hold / 5)} / {clock(holdSeconds)}
-            {battle.holdPaused && " · paused"}
+          <span className="font-mono">
+            Command Post{" "}
+            {Math.round(
+              commandPostHealth(
+                battle,
+                props.content.rules.battle.commandPost,
+              ) * 100,
+            )}
+            %
           </span>
         </span>
       </div>

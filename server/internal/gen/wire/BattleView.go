@@ -18,8 +18,6 @@ type BattleViewT struct {
 	Squads             []*BattleSquadT  `json:"squads"`
 	Points             []*ControlPointT `json:"points"`
 	Pads               []*BuildPadT     `json:"pads"`
-	Hold               uint32           `json:"hold"`
-	HoldPaused         bool             `json:"hold_paused"`
 	RetreatAt          uint32           `json:"retreat_at"`
 	AttackerRetreating bool             `json:"attacker_retreating"`
 	DefenderRetreating bool             `json:"defender_retreating"`
@@ -85,8 +83,6 @@ func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleViewAddSquads(builder, squadsOffset)
 	BattleViewAddPoints(builder, pointsOffset)
 	BattleViewAddPads(builder, padsOffset)
-	BattleViewAddHold(builder, t.Hold)
-	BattleViewAddHoldPaused(builder, t.HoldPaused)
 	BattleViewAddRetreatAt(builder, t.RetreatAt)
 	BattleViewAddAttackerRetreating(builder, t.AttackerRetreating)
 	BattleViewAddDefenderRetreating(builder, t.DefenderRetreating)
@@ -123,8 +119,6 @@ func (rcv *BattleView) UnPackTo(t *BattleViewT) {
 		rcv.Pads(&x, j)
 		t.Pads[j] = x.UnPack()
 	}
-	t.Hold = rcv.Hold()
-	t.HoldPaused = rcv.HoldPaused()
 	t.RetreatAt = rcv.RetreatAt()
 	t.AttackerRetreating = rcv.AttackerRetreating()
 	t.DefenderRetreating = rcv.DefenderRetreating()
@@ -373,30 +367,6 @@ func (rcv *BattleView) PadsLength() int {
 	return 0
 }
 
-func (rcv *BattleView) Hold() uint32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
-	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
-	}
-	return 0
-}
-
-func (rcv *BattleView) MutateHold(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(26, n)
-}
-
-func (rcv *BattleView) HoldPaused() bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
-	if o != 0 {
-		return rcv._tab.GetBool(o + rcv._tab.Pos)
-	}
-	return false
-}
-
-func (rcv *BattleView) MutateHoldPaused(n bool) bool {
-	return rcv._tab.MutateBoolSlot(28, n)
-}
-
 func (rcv *BattleView) RetreatAt() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
 	if o != 0 {
@@ -477,12 +447,6 @@ func BattleViewAddPads(builder *flatbuffers.Builder, pads flatbuffers.UOffsetT) 
 }
 func BattleViewStartPadsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
-}
-func BattleViewAddHold(builder *flatbuffers.Builder, hold uint32) {
-	builder.PrependUint32Slot(11, hold, 0)
-}
-func BattleViewAddHoldPaused(builder *flatbuffers.Builder, holdPaused bool) {
-	builder.PrependBoolSlot(12, holdPaused, false)
 }
 func BattleViewAddRetreatAt(builder *flatbuffers.Builder, retreatAt uint32) {
 	builder.PrependUint32Slot(13, retreatAt, 0)

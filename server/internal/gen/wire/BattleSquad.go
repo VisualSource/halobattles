@@ -7,17 +7,18 @@ import (
 )
 
 type BattleSquadT struct {
-	Id       uint16  `json:"id"`
-	Side     byte    `json:"side"`
-	Unit     string  `json:"unit"`
-	Building bool    `json:"building"`
-	X        uint16  `json:"x"`
-	Y        uint16  `json:"y"`
-	Count    uint32  `json:"count"`
-	Start    uint32  `json:"start"`
-	Shield   float32 `json:"shield"`
-	Armor    float32 `json:"armor"`
-	Hp       float32 `json:"hp"`
+	Id          uint16  `json:"id"`
+	Side        byte    `json:"side"`
+	Unit        string  `json:"unit"`
+	Building    bool    `json:"building"`
+	X           uint16  `json:"x"`
+	Y           uint16  `json:"y"`
+	Count       uint32  `json:"count"`
+	Start       uint32  `json:"start"`
+	Shield      float32 `json:"shield"`
+	Armor       float32 `json:"armor"`
+	Hp          float32 `json:"hp"`
+	CommandPost bool    `json:"command_post"`
 }
 
 func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -40,6 +41,7 @@ func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleSquadAddShield(builder, t.Shield)
 	BattleSquadAddArmor(builder, t.Armor)
 	BattleSquadAddHp(builder, t.Hp)
+	BattleSquadAddCommandPost(builder, t.CommandPost)
 	return BattleSquadEnd(builder)
 }
 
@@ -55,6 +57,7 @@ func (rcv *BattleSquad) UnPackTo(t *BattleSquadT) {
 	t.Shield = rcv.Shield()
 	t.Armor = rcv.Armor()
 	t.Hp = rcv.Hp()
+	t.CommandPost = rcv.CommandPost()
 }
 
 func (rcv *BattleSquad) UnPack() *BattleSquadT {
@@ -266,8 +269,20 @@ func (rcv *BattleSquad) MutateHp(n float32) bool {
 	return rcv._tab.MutateFloat32Slot(24, n)
 }
 
+func (rcv *BattleSquad) CommandPost() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleSquad) MutateCommandPost(n bool) bool {
+	return rcv._tab.MutateBoolSlot(26, n)
+}
+
 func BattleSquadStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(12)
 }
 func BattleSquadAddId(builder *flatbuffers.Builder, id uint16) {
 	builder.PrependUint16Slot(0, id, 0)
@@ -301,6 +316,9 @@ func BattleSquadAddArmor(builder *flatbuffers.Builder, armor float32) {
 }
 func BattleSquadAddHp(builder *flatbuffers.Builder, hp float32) {
 	builder.PrependFloat32Slot(10, hp, 0.0)
+}
+func BattleSquadAddCommandPost(builder *flatbuffers.Builder, commandPost bool) {
+	builder.PrependBoolSlot(11, commandPost, false)
 }
 func BattleSquadEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

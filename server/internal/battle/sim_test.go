@@ -38,8 +38,8 @@ func TestDeploymentPlacesEverySquadOnItsOwnCell(t *testing.T) {
 	unsc, cov := kits()
 	unsc.Formations = append(unsc.Formations, unsc.Formations[0])
 	s := newSim(c, unsc, cov, 1)
-	if len(s.Squads) != 8 {
-		t.Fatalf("%d squads, want 8", len(s.Squads))
+	if len(s.Squads) != 9 {
+		t.Fatalf("%d squads, want 9, the Command Post with them", len(s.Squads))
 	}
 	seen := map[Cell]bool{}
 	for _, sq := range s.Squads {
@@ -52,9 +52,12 @@ func TestDeploymentPlacesEverySquadOnItsOwnCell(t *testing.T) {
 		}
 	}
 	for _, sq := range s.Squads {
-		near := slices.ContainsFunc(s.Field.Points, func(p Cell) bool { return dist(p, sq.Cell) <= 6 })
+		posts := append([]Cell{s.Field.CommandPost}, s.Field.Points...) // Stack 1 at the Command Post
+		near := slices.ContainsFunc(posts, func(p Cell) bool { return dist(p, sq.Cell) <= 6 })
 		switch {
-		case sq.Side == Defender && sq.Building && !slices.ContainsFunc(s.Field.Sites, func(c Cell) bool { return dist(c, sq.Cell) <= 2 }):
+		case sq.CommandPost && sq.Cell != s.Field.CommandPost:
+			t.Errorf("the Command Post at %v, off its cell %v", sq.Cell, s.Field.CommandPost)
+		case sq.Side == Defender && sq.Building && !sq.CommandPost && !slices.ContainsFunc(s.Field.Sites, func(c Cell) bool { return dist(c, sq.Cell) <= 2 }):
 			t.Errorf("building %d at %v, off every site %v", sq.ID, sq.Cell, s.Field.Sites)
 		case sq.Side == Defender && !sq.Building && !near:
 			t.Errorf("defender %d at %v, far from every point %v", sq.ID, sq.Cell, s.Field.Points)
@@ -169,26 +172,47 @@ func TestContestedPointDoesNotChangeHands(t *testing.T) {
 	}
 }
 
-func TestHoldingEnoughPointsWins(t *testing.T) {
+func TestDestroyingTheCommandPostWins(t *testing.T) {
 	c := baseContent(t)
 	unsc, cov := kits()
 	s := newSim(c, unsc, cov, 3)
 	s.Controllers = [2]Controller{}
-	clearPoints(s)
-	for i := range s.rules.HoldPoints {
+	cp := s.commandPost()
+	if cp == nil || cp.Side != Defender || !cp.Building || cp.Armed || cp.Cell != s.Field.CommandPost {
+		t.Fatalf("Command Post %+v; want the defender's, unarmed, at the Field's cell %v", cp, s.Field.CommandPost)
+	}
+	for i := range s.Points { // holding every Landing Zone wins nothing
 		s.Points[i].Owner = Attacker
 	}
-	for range ticks(s.rules.HoldSeconds) - 1 {
-		s.capture()
-		s.end()
-	}
-	if s.Over {
-		t.Fatalf("over early: %v by %s", s.Winner, s.Reason)
-	}
-	s.capture()
 	s.end()
-	if !s.Over || s.Winner != Attacker || s.Reason != HeldPoints {
-		t.Errorf("over %v, winner %v, reason %q", s.Over, s.Winner, s.Reason)
+	if s.Over {
+		t.Fatalf("over on Landing Zones alone: %v by %s", s.Winner, s.Reason)
+	}
+	cp.Members = nil
+	s.end()
+	if !s.Over || s.Winner != Attacker || s.Reason != Destroyed {
+		t.Errorf("over %v, winner %v, reason %q; want the attacker's win", s.Over, s.Winner, s.Reason)
+	}
+}
+
+// Stack 1 deploys at the Command Post, the rest on the Landing Zones.
+func TestTheDefendersFirstStackDeploysAtTheCommandPost(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	cov.Formations = append(cov.Formations, cov.Formations[0])
+	s := newSim(c, unsc, cov, 3)
+	near := func(a, b Cell) bool { return dist(a, b) <= 4 }
+	for _, sq := range s.Squads {
+		if sq.Side != Defender || sq.Building {
+			continue
+		}
+		want := s.Field.CommandPost
+		if sq.Formation > 0 {
+			want = s.Field.Points[(sq.Formation-1)%len(s.Field.Points)]
+		}
+		if !near(sq.Cell, want) {
+			t.Errorf("%s of Stack %d at %v; want near %v", sq.Unit, sq.Formation+1, sq.Cell, want)
+		}
 	}
 }
 
@@ -492,34 +516,32 @@ func TestASquadInTheWayIsCostlyNotAWall(t *testing.T) {
 	}
 }
 
-func TestADefenderOnAHeldPointPausesTheHoldTimer(t *testing.T) {
+// A squad fires on an enemy that fires back before an unarmed building,
+// even one it's better against with fewer left.
+func TestFireGoesForWhatFiresBackFirst(t *testing.T) {
 	c := baseContent(t)
 	unsc, cov := kits()
 	s := newSim(c, unsc, cov, 3)
 	s.Controllers = [2]Controller{}
-	clearPoints(s)
-	for i := range s.rules.HoldPoints {
-		s.Points[i].Owner = Attacker
+	marines := s.Squads[0]
+	var grunts, hall *Squad
+	for _, sq := range s.Squads {
+		switch sq.Unit {
+		case "base:grunt":
+			grunts = sq
+		case "base:hall":
+			hall = sq
+		}
 	}
-	for range 10 {
-		s.capture()
+	// Better against the building, so the matchup alone would pick it.
+	marines.tiers = map[string]string{hall.class: Advantage, grunts.class: Normal}
+	freeAt(t, s, marines, hall.Cell, 2)
+	freeAt(t, s, grunts, marines.Cell, 3)
+	s.see()
+	if !s.canHit(marines, hall) || !s.canHit(marines, grunts) {
+		t.Skip("not both in range on this Battlefield")
 	}
-	if s.Hold != 10 || s.HoldPaused {
-		t.Fatalf("hold %d, paused %v; want 10 ticks running", s.Hold, s.HoldPaused)
-	}
-
-	d := s.Squads[2] // the Grunts walk onto a held point
-	freeAt(t, s, d, s.Points[0].Cell, 1)
-	for range 20 {
-		s.capture()
-	}
-	if s.Hold != 10 || !s.HoldPaused || s.Points[0].Owner != Attacker {
-		t.Errorf("hold %d, paused %v, point 0 %v; want the timer waiting at 10 and the point still the attacker's", s.Hold, s.HoldPaused, s.Points[0].Owner)
-	}
-
-	clearPoints(s) // they leave
-	s.capture()
-	if s.Hold != 11 || s.HoldPaused {
-		t.Errorf("hold %d, paused %v; want it running on from where it stopped", s.Hold, s.HoldPaused)
+	if got := s.targetOf(marines); got != grunts {
+		t.Errorf("the Marines fire at %s; want the armed Grunts before the unarmed %s", got.Unit, hall.Unit)
 	}
 }

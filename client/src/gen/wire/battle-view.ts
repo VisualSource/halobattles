@@ -100,16 +100,6 @@ padsLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
-hold():number {
-  const offset = this.bb!.__offset(this.bb_pos, 26);
-  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
-}
-
-holdPaused():boolean {
-  const offset = this.bb!.__offset(this.bb_pos, 28);
-  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
-}
-
 retreatAt():number {
   const offset = this.bb!.__offset(this.bb_pos, 30);
   return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
@@ -209,14 +199,6 @@ static startPadsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
-static addHold(builder:flatbuffers.Builder, hold:number) {
-  builder.addFieldInt32(11, hold, 0);
-}
-
-static addHoldPaused(builder:flatbuffers.Builder, holdPaused:boolean) {
-  builder.addFieldInt8(12, +holdPaused, +false);
-}
-
 static addRetreatAt(builder:flatbuffers.Builder, retreatAt:number) {
   builder.addFieldInt32(13, retreatAt, 0);
 }
@@ -248,8 +230,6 @@ unpack(): BattleViewT {
     this.bb!.createObjList<BattleSquad, BattleSquadT>(this.squads.bind(this), this.squadsLength()),
     this.bb!.createObjList<ControlPoint, ControlPointT>(this.points.bind(this), this.pointsLength()),
     this.bb!.createObjList<BuildPad, BuildPadT>(this.pads.bind(this), this.padsLength()),
-    this.hold(),
-    this.holdPaused(),
     this.retreatAt(),
     this.attackerRetreating(),
     this.defenderRetreating()
@@ -269,8 +249,6 @@ unpackTo(_o: BattleViewT): void {
   _o.squads = this.bb!.createObjList<BattleSquad, BattleSquadT>(this.squads.bind(this), this.squadsLength());
   _o.points = this.bb!.createObjList<ControlPoint, ControlPointT>(this.points.bind(this), this.pointsLength());
   _o.pads = this.bb!.createObjList<BuildPad, BuildPadT>(this.pads.bind(this), this.padsLength());
-  _o.hold = this.hold();
-  _o.holdPaused = this.holdPaused();
   _o.retreatAt = this.retreatAt();
   _o.attackerRetreating = this.attackerRetreating();
   _o.defenderRetreating = this.defenderRetreating();
@@ -290,8 +268,6 @@ constructor(
   public squads: (BattleSquadT)[] = [],
   public points: (ControlPointT)[] = [],
   public pads: (BuildPadT)[] = [],
-  public hold: number = 0,
-  public holdPaused: boolean = false,
   public retreatAt: number = 0,
   public attackerRetreating: boolean = false,
   public defenderRetreating: boolean = false
@@ -317,8 +293,6 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   BattleView.addSquads(builder, squads);
   BattleView.addPoints(builder, points);
   BattleView.addPads(builder, pads);
-  BattleView.addHold(builder, this.hold);
-  BattleView.addHoldPaused(builder, this.holdPaused);
   BattleView.addRetreatAt(builder, this.retreatAt);
   BattleView.addAttackerRetreating(builder, this.attackerRetreating);
   BattleView.addDefenderRetreating(builder, this.defenderRetreating);

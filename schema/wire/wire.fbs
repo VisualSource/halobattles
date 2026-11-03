@@ -358,9 +358,10 @@ table BattleSquad {
   shield: float;           // the front member's layers: it takes the hits
   armor: float;
   hp: float;
+  command_post: bool;      // the defender's Command Post: destroying it wins the Battle
 }
 
-table ControlPoint {
+table ControlPoint {      // shown to players as a Landing Zone
   x: ushort;
   y: ushort;
   owner: ubyte;            // 0 attacker, 1 defender
@@ -394,8 +395,8 @@ table BattleView {
   squads: [BattleSquad];
   points: [ControlPoint];
   pads: [BuildPad];
-  hold: uint32;            // sim ticks the attacker has held enough points
-  hold_paused: bool;       // the attacker holds enough points, but a defender stands on one
+  hold: uint32 (deprecated);      // the hold timer, gone with the Command Post (#98)
+  hold_paused: bool (deprecated);
   retreat_at: uint32;      // the tick your side's Retreat countdown ends; 0 is none
   attacker_retreating: bool; // public: you see a side turn and run
   defender_retreating: bool;

@@ -98,6 +98,7 @@ type GoSquad = {
   Count: number;
   Start: number;
   Front: { Shield: number; Armor: number; HP: number };
+  CommandPost: boolean;
 };
 type GoFrame = {
   tick: number;
@@ -124,8 +125,6 @@ type GoFrame = {
           ReadyAt: number;
         }[]
       | null;
-    Hold: number;
-    HoldPaused: boolean;
     Retreating: [boolean, boolean];
   };
   volleys?: {
@@ -157,6 +156,7 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     shield: q.Front.Shield,
     armor: q.Front.Armor,
     hp: q.Front.HP,
+    commandPost: q.CommandPost,
   }));
   const pads: BuildPad[] = (s.Pads ?? []).map((p) => ({
     x: p.Cell.X,
@@ -186,8 +186,6 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
       progress: p.Progress,
     })),
     pads,
-    hold: s.Hold,
-    holdPaused: s.HoldPaused,
     retreatAt: 0,
     retreating: { attacker: s.Retreating[0], defender: s.Retreating[1] },
   };

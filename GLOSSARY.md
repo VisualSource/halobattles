@@ -121,7 +121,7 @@ A Unit Slot, or part of one, as it fights in a Battle: one token on one cell, tr
 _Avoid_: Stack (a Stack holds up to 15 Unit Slots), unit, token
 
 **Control Point**:
-A Battlefield location the two sides fight over; holding enough of them long enough wins the Battle for the attacker.
+The code's name for a Landing Zone: a Battlefield location the two sides fight over.
 _Avoid_: Objective, flag, capture point
 
 **Sight**:
@@ -129,11 +129,11 @@ How far a unit sees on a Battlefield, in cells; a side sees the union of its uni
 _Avoid_: Vision (Vision is galaxy-level), range (that's how far it fires)
 
 **Command Post**:
-Planned (#95): the defender's objective structure on a Battlefield, which exists only for that Battle; destroying it wins the Battle for the attacker.
+The defender's objective structure on a Battlefield, which exists only for that Battle; destroying it wins the Battle for the attacker.
 _Avoid_: HQ, base, Capital (a Capital is a Planet)
 
 **Landing Zone**:
-Planned (#95): what a Control Point becomes, a spot where the side holding it can land reinforcements.
+What players call a Control Point: a spot the two sides fight over, where (once reinforcements are in) the side holding it can land them.
 _Avoid_: Drop zone, LZ in docs, beachhead
 
 **Dropship**:
@@ -153,7 +153,7 @@ Planned (#95): a side of a Battle run by the AI, because its player chose not to
 _Avoid_: Simulate, AI control (the AI is a Controller either way), skip
 
 **Battle Lab**:
-Planned (#95): a dev-only page for setting up, running, stepping and replaying Battles, with the AI's thinking shown.
+A dev-only page for setting up, running, stepping and replaying Battles, with the AI's thinking shown.
 _Avoid_: Sandbox (a map is named that), test page, simulator
 
 **Controller**:

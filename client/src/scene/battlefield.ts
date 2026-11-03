@@ -246,7 +246,7 @@ export class BattlefieldScene {
         t.to.copy(at);
         t.t0 = now;
       }
-      t.label.element.textContent = String(sq.count);
+      t.label.element.textContent = sq.commandPost ? "CP" : String(sq.count);
       t.label.element.style.opacity = sq.count < sq.start ? "0.85" : "1";
     }
     for (const [id, t] of this.tokens) {
@@ -379,6 +379,7 @@ export class BattlefieldScene {
       new THREE.MeshBasicMaterial({ color: this.look.sideColour[sq.side] }),
     );
     mesh.position.set(at.x, at.y, this.look.flies(sq) ? 1.2 : 1);
+    if (sq.commandPost) mesh.scale.setScalar(1.8); // the objective: bigger than any building
     mesh.renderOrder = 3;
     const el = document.createElement("div");
     el.className =
@@ -433,7 +434,7 @@ export class BattlefieldScene {
         const el = document.createElement("div");
         el.className =
           "font-display font-bold text-base text-white [text-shadow:0_0_4px_#000,0_0_2px_#000]";
-        el.textContent = POINT_NAMES[i] ?? "?";
+        el.textContent = `LZ ${POINT_NAMES[i] ?? "?"}`;
         const label = new CSS2DObject(el);
         group.add(label);
         this.scene.add(group);

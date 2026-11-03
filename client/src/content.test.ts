@@ -65,12 +65,11 @@ const rules: Ruleset = {
     neutralFunds: { "base:credits": 400 },
     captureRadius: 2,
     captureSeconds: 5,
-    holdPoints: 2,
-    holdSeconds: 30,
     highGroundToHit: 2,
     heightSight: 1,
     retreatCountdown: 10,
     structure: { unitClass: "base:structure", shield: 0, armor: 20, hp: 30 },
+    commandPost: { unitClass: "base:structure", shield: 0, armor: 60, hp: 150 },
     classDefaults: {},
   },
 };

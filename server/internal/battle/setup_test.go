@@ -1,6 +1,9 @@
 package battle
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 // setupSim is a Starting Kit Battle with a 15 s setup phase.
 func setupSim(t *testing.T, builds bool) *Sim {
@@ -133,5 +136,37 @@ func TestAPadOutOfSightShowsAsLastSeen(t *testing.T) {
 	s.see()
 	if got := s.PadsFor(Attacker)[0]; got.Owner != Defender {
 		t.Errorf("the attacker, beside it, sees pad %+v; want it as it is", got)
+	}
+}
+
+// A squad partway through taking a pad finishes it: the progress made counts,
+// and it's in range already, though a fresh start couldn't make it in time.
+func TestASquadPartwayThroughAPadKeepsTakingIt(t *testing.T) {
+	s := setupSim(t, true)
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Defender}
+	var sq *Squad
+	for _, q := range s.Squads {
+		if q.Side == Defender && !q.Building {
+			sq = q
+			break
+		}
+	}
+	pad := &s.Pads[0]
+	freeAt(t, s, sq, pad.Cell, int(s.rules.CaptureRadius))
+	back := math.Inf(1)
+	for _, p := range s.Points {
+		back = min(back, dist(pad.Cell, p.Cell))
+	}
+	need := ticks(s.rules.CaptureSeconds)
+	pad.Taker, pad.Progress = Defender, need-ticks(1) // 1 s to go
+	// Time to walk back and take the last second, but not to start afresh.
+	s.Tick = s.Setup - int(math.Ceil((back/sq.speed+1.5)*TicksPerSecond))
+	if !ai.backInTime(v, sq, pad.Cell) {
+		t.Errorf("a squad in range with 1 s of the pad to go gave up on it")
+	}
+	pad.Taker, pad.Progress = NoSide, 0
+	if ai.backInTime(v, sq, pad.Cell) {
+		t.Errorf("a fresh 5 s capture fits in %d ticks; want it not to", s.Setup-s.Tick)
 	}
 }

@@ -387,21 +387,13 @@ export interface BattleRules {
    */
   timeCap: number;
   /**
-   * How near, in cells, a ground Squad must be to a Control Point to hold or take it.
+   * How near, in cells, a ground Squad must be to a Landing Zone to hold or take it.
    */
   captureRadius: number;
   /**
-   * How long one side alone must be in range to take a Control Point.
+   * How long one side alone must be in range to take a Landing Zone.
    */
   captureSeconds: number;
-  /**
-   * How many Control Points the attacker must hold to start the hold timer.
-   */
-  holdPoints: number;
-  /**
-   * How long the attacker must hold them to win.
-   */
-  holdSeconds: number;
   /**
    * Added to the To-hit roll of a ground attack from a higher height level.
    */
@@ -415,6 +407,7 @@ export interface BattleRules {
    */
   heightSight: number;
   structure: Structure;
+  commandPost: CommandPost;
   /**
    * Battle stats per Unit Class id, for any a unit or building doesn't set. Every Unit Class needs one.
    */
@@ -432,6 +425,18 @@ export interface ResourceMap2 {
  * What a building without a combat block is in a Battle: a target that never fires.
  */
 export interface Structure {
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  unitClass: string;
+  shield: number;
+  armor: number;
+  hp: number;
+}
+/**
+ * The defender's objective structure, on every Battlefield: destroying it wins the Battle for the attacker. It never fires.
+ */
+export interface CommandPost {
   /**
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */

@@ -539,7 +539,7 @@ func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 	for _, b := range bs { // already sorted by id, as the (key) needs
 		bv := &wire.BattleViewT{
 			Id: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender), Started: b.Started,
-			Tick: uint32(b.Tick), Edge: uint8(b.Edge), Hold: uint32(b.Hold), HoldPaused: b.HoldPaused, RetreatAt: uint32(b.RetreatAt),
+			Tick: uint32(b.Tick), Edge: uint8(b.Edge), RetreatAt: uint32(b.RetreatAt),
 			AttackerRetreating: b.Retreating[battle.Attacker], DefenderRetreating: b.Retreating[battle.Defender],
 		}
 		if withField {
@@ -550,6 +550,7 @@ func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 				Id: uint16(sq.ID), Side: uint8(sq.Side), Unit: sq.Unit, Building: sq.Building,
 				X: uint16(sq.Cell.X), Y: uint16(sq.Cell.Y), Count: uint32(sq.Count), Start: uint32(sq.Start),
 				Shield: float32(max(0, sq.Front.Shield)), Armor: float32(max(0, sq.Front.Armor)), Hp: float32(max(0, sq.Front.HP)),
+				CommandPost: sq.CommandPost,
 			})
 		}
 		for _, p := range b.Points {

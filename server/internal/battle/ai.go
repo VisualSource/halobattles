@@ -44,6 +44,7 @@ const (
 	patrol                   // a skirmisher's next stop on its round
 	fallback                 // get clear of the enemy: back to a held point or a friend
 	takePad                  // take a build pad the side doesn't hold
+	assault                  // destroy the defender's Command Post
 )
 
 // role is a job the Commander gives a squad on top of the usual goals.
@@ -144,7 +145,7 @@ type Decision struct {
 }
 
 var (
-	goalNames = [...]string{"capture", "defend", "kill", "raid", "scout", "patrol", "fallback", "takePad"}
+	goalNames = [...]string{"capture", "defend", "kill", "raid", "scout", "patrol", "fallback", "takePad", "assault"}
 	roleNames = [...]string{"", "scouting", "skirmish", "fallingBack"}
 )
 
@@ -199,6 +200,12 @@ const (
 	// against 2 for holding one of its own.
 	padValue      = 1.2
 	setupPadValue = 5
+	// assaultValue is what the attacker wants the Command Post; the
+	// defender holding it, holdCommandPost, before its threat; taking a
+	// Landing Zone, landingZone. First pass, untuned (#95).
+	assaultValue    = 4
+	holdCommandPost = 3
+	landingZone     = 1.2
 	// block is the side, in cells, of the squares the AI tracks looking at.
 	block = 8
 	// scoutShare is the part of a defender's mobile squads sent scouting,
@@ -388,17 +395,26 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		values = append(values, value)
 	}
 	w := ai.weights
-	retake := 3.0
-	if v.Side == Defender && s.Hold > 0 {
-		retake = 5 // the attacker's hold timer is running: a point back stops it
+	// The Command Post decides the Battle; Landing Zones count for little
+	// until reinforcements land on them (#57).
+	cp := s.commandPost()
+	if cp != nil && cp.alive() {
+		if v.Side == Attacker {
+			add(goal{kind: assault, cell: cp.Cell, target: cp.ID}, assaultValue)
+		} else if s.setup() {
+			add(goal{kind: defend, cell: cp.Cell}, 1) // the attacker can't move yet: pads first
+		} else {
+			add(goal{kind: defend, cell: cp.Cell}, holdCommandPost)
+		}
 	}
 	for _, p := range s.Points {
-		if p.Owner != v.Side {
-			add(goal{kind: capture, cell: p.Cell}, retake)
-		} else if v.Side == Defender {
-			add(goal{kind: defend, cell: p.Cell}, 2)
-		} else {
-			add(goal{kind: defend, cell: p.Cell}, 1.2)
+		switch {
+		case p.Owner != v.Side:
+			add(goal{kind: capture, cell: p.Cell}, landingZone)
+		case v.Side == Defender:
+			add(goal{kind: defend, cell: p.Cell}, 1)
+		default:
+			add(goal{kind: defend, cell: p.Cell}, 0.6)
 		}
 	}
 	pad := padValue
@@ -411,6 +427,9 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		}
 	}
 	for _, e := range enemies {
+		if e.CommandPost {
+			continue // its own goal, above
+		}
 		if e.Building {
 			add(goal{kind: raid, cell: e.Cell, target: e.ID}, 1.2*w.Raid)
 		} else {
@@ -418,7 +437,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		}
 	}
 	for _, id := range slices.Sorted(maps.Keys(ai.seen)) {
-		if !s.visible[v.Side][id] {
+		if !s.visible[v.Side][id] && (cp == nil || id != cp.ID) {
 			add(goal{kind: raid, cell: ai.seen[id], target: id}, w.Raid)
 		}
 	}
@@ -459,7 +478,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	need, members := make([]float64, len(goals)), make([]float64, len(goals))
 	for i, g := range goals {
 		need[i] = margin * w.Mass * threat[i]
-		if g.kind == defend {
+		if g.kind == defend && v.Side == Defender { // an attacker holding a Landing Zone under fire isn't worth more for it
 			// Worth leaving a quiet point for. Against Task Forces, at 2 the
 			// attacker won 59% of Starting Kit Battles; at 3, 51%.
 			values[i] *= 1 + 3*threat[i]/max(1, strength)
@@ -534,8 +553,10 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	ai.think(v, goals, values, threat, need, assigned, chose)
 }
 
-// backInTime is whether sq can walk to a pad, take it, and walk on to the
-// nearest point its side holds before the setup phase ends.
+// backInTime is whether sq can walk into a pad's range, finish taking it,
+// and walk on to the nearest point its side holds before the setup phase
+// ends. Progress the side has made on the pad counts, so a squad partway
+// through doesn't give up on it.
 func (ai *AI) backInTime(v View, sq *Squad, pad Cell) bool {
 	s := v.sim
 	back := math.Inf(1)
@@ -544,8 +565,14 @@ func (ai *AI) backInTime(v View, sq *Squad, pad Cell) bool {
 			back = min(back, dist(pad, p.Cell))
 		}
 	}
-	walk := (dist(sq.Cell, pad) + back) / max(sq.speed, 0.1)
-	return walk+s.rules.CaptureSeconds <= float64(s.Setup-s.Tick)/TicksPerSecond
+	take := s.rules.CaptureSeconds
+	for _, p := range s.Pads {
+		if p.Cell == pad && p.Taker == v.Side {
+			take -= float64(p.Progress) / TicksPerSecond
+		}
+	}
+	walk := (max(0, dist(sq.Cell, pad)-s.rules.CaptureRadius) + back) / max(sq.speed, 0.1)
+	return walk+take <= float64(s.Setup-s.Tick)/TicksPerSecond
 }
 
 // walkBeat sends an idle guard to the next stop on its beat round its point,
@@ -1155,7 +1182,7 @@ func (s *Sim) coverAt(c Cell) int {
 func (ai *AI) want(v View, sq *Squad, g goal) facts {
 	w := ai.weightsOf(sq)
 	switch g.kind {
-	case kill, raid:
+	case kill, raid, assault:
 		want := inRange
 		if t := v.sim.squad(g.target); t != nil && v.sim.standoff(sq, t) > 0 {
 			want |= atStandoff // it kites this one
