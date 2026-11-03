@@ -184,7 +184,8 @@ A draft for review. Requirements in parentheses; "UNSC" units below means the ho
 
 | Tech | Field | Rarity | Does |
 |---|---|---|---|
-| Motor Pool | Military | Common | unlocks Vehicle Depot, Warthog |
+| Motor Pool | Military | Common | unlocks Vehicle Depot, Jackrabbit |
+| Hog Wild | Military | Common (Motor Pool) | unlocks Warthog |
 | Marine Training Program | Military | Common | +10% Infantry HP |
 | ONI Data Mining | Industry | Common | +1 Industry Research |
 | Main Battle Tank | Military | Uncommon (Motor Pool) | unlocks Scorpion |
@@ -197,10 +198,11 @@ A draft for review. Requirements in parentheses; "UNSC" units below means the ho
 
 | Tech | Field | Rarity | Does |
 |---|---|---|---|
-| Ghost Fabrication | Military | Common | unlocks Summoning Foundry, Ghost |
+| Summoning Foundry | Military | Common | unlocks Summoning Foundry, Revenant |
+| Ghost Fabrication | Military | Common (Summoning Foundry) | unlocks Ghost |
 | Unggoy Conscription | Military | Common | −10% Infantry build time |
 | San'Shyuum Archives | Industry | Common | +1 Industry Research |
-| Wraith Fabrication | Military | Uncommon (Ghost Fabrication) | unlocks Wraith |
+| Wraith Fabrication | Military | Uncommon (Summoning Foundry) | unlocks Wraith |
 | Banshee Flight | Military | Uncommon (Ghost Fabrication) | unlocks Summit, Banshee |
 | Shield Harmonics | Military | Uncommon | +10% Shield, every unit |
 | Fleet Logistics | Logistics | Rare | +10 Command Points |

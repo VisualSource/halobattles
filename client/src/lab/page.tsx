@@ -172,6 +172,7 @@ function defaultSetup(content: ContentLookups): LabSetup {
     preset: "",
     archetype: "",
     neutral: false,
+    raid: false,
     seed: 1,
     sides: [
       kit(factions[0] ?? "", false),
@@ -435,6 +436,14 @@ function SetupPanel(props: {
             onChange={(e) => onChange({ ...setup, neutral: e.target.checked })}
           />
           <span>Defender is a neutral garrison (its base)</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={setup.raid}
+            onChange={(e) => onChange({ ...setup, raid: e.target.checked })}
+          />
+          <span>Raid: the attacker is after the buildings</span>
         </label>
         <div className="flex items-end gap-2">
           <label className="flex flex-1 flex-col gap-1">

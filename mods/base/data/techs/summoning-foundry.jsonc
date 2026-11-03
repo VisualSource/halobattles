@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "summoning-foundry",
+  "name": "Summoning Foundry",
+  "faction": "covenant",
+  "field": "military",
+  "rarity": "common",
+  "cost": 300,
+  "unlocks": { "buildings": ["summoning-foundry"], "units": ["revenant"] }
+}

@@ -6,7 +6,13 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ### Added
 
+- Raids: drag a Stack of raiders (scouts, infiltrators and shock troops, up to 10 Command Points) onto a Planet's raid slot to send it after the buildings there. Nobody else sees a Raid coming. The raiders have 100 s to destroy every building, then head home; the Planet never changes hands, but what they destroy stays destroyed. A Raid that finds no buildings turns back, and tells you so.
+- The UNSC M121 Jackrabbit, a light scout vehicle built at the Vehicle Depot.
+
 ### Changed
+
+- New scouts: the Jackrabbit replaces the Warthog as the UNSC's scout, and the Revenant, now with real stats, replaces the Ghost as the Covenant's. ODSTs, Elites, Jackal Snipers and Spectres can raid.
+- The Warthog now needs the Hog Wild Tech, after Motor Pool. The Summoning Foundry has its own Tech, which Ghost and Wraith Fabrication need.
 
 - Battles are won differently: the attacker wins by destroying the defender's Command Post, a new structure on every Battlefield. Wiping out the defence isn't enough; the Command Post still has to fall before time runs out. A defender that Retreats abandons it, and it blows up.
 - An enemy Planet with no units and no buildings is taken on arrival, with no Battle.

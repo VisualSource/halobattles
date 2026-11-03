@@ -59,8 +59,13 @@ toStack():number {
   return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
 }
 
+raid():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 14);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startOrderArmy(builder:flatbuffers.Builder) {
-  builder.startObject(5);
+  builder.startObject(6);
 }
 
 static addSeq(builder:flatbuffers.Builder, seq:number) {
@@ -95,18 +100,23 @@ static addToStack(builder:flatbuffers.Builder, toStack:number) {
   builder.addFieldInt8(4, toStack, 0);
 }
 
+static addRaid(builder:flatbuffers.Builder, raid:boolean) {
+  builder.addFieldInt8(5, +raid, +false);
+}
+
 static endOrderArmy(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createOrderArmy(builder:flatbuffers.Builder, seq:number, fromPlanetOffset:flatbuffers.Offset, unitsOffset:flatbuffers.Offset, toPlanetOffset:flatbuffers.Offset, toStack:number):flatbuffers.Offset {
+static createOrderArmy(builder:flatbuffers.Builder, seq:number, fromPlanetOffset:flatbuffers.Offset, unitsOffset:flatbuffers.Offset, toPlanetOffset:flatbuffers.Offset, toStack:number, raid:boolean):flatbuffers.Offset {
   OrderArmy.startOrderArmy(builder);
   OrderArmy.addSeq(builder, seq);
   OrderArmy.addFromPlanet(builder, fromPlanetOffset);
   OrderArmy.addUnits(builder, unitsOffset);
   OrderArmy.addToPlanet(builder, toPlanetOffset);
   OrderArmy.addToStack(builder, toStack);
+  OrderArmy.addRaid(builder, raid);
   return OrderArmy.endOrderArmy(builder);
 }
 
@@ -116,7 +126,8 @@ unpack(): OrderArmyT {
     this.fromPlanet(),
     this.bb!.createObjList<ArmyUnits, ArmyUnitsT>(this.units.bind(this), this.unitsLength()),
     this.toPlanet(),
-    this.toStack()
+    this.toStack(),
+    this.raid()
   );
 }
 
@@ -127,6 +138,7 @@ unpackTo(_o: OrderArmyT): void {
   _o.units = this.bb!.createObjList<ArmyUnits, ArmyUnitsT>(this.units.bind(this), this.unitsLength());
   _o.toPlanet = this.toPlanet();
   _o.toStack = this.toStack();
+  _o.raid = this.raid();
 }
 }
 
@@ -136,7 +148,8 @@ constructor(
   public fromPlanet: string|Uint8Array|null = null,
   public units: (ArmyUnitsT)[] = [],
   public toPlanet: string|Uint8Array|null = null,
-  public toStack: number = 0
+  public toStack: number = 0,
+  public raid: boolean = false
 ){}
 
 
@@ -150,7 +163,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     fromPlanet,
     units,
     toPlanet,
-    this.toStack
+    this.toStack,
+    this.raid
   );
 }
 }

@@ -6,6 +6,7 @@
   "cost": {},
   "buildTime": 30,
   "commandPoints": 1,
+  "roles": ["shock"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "plasma",

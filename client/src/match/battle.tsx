@@ -149,6 +149,7 @@ export function BattlePanel(props: {
   }
 
   const rules = content.rules.battle;
+  const limit = battle.raid ? rules.raidTime : rules.timeCap; // a Raid has its own, shorter
   const seconds = fighting(content, battle.tick) / BATTLE_TICKS;
   const unitOf = new Map(
     [...(report?.squads.values() ?? []), ...battle.squads].map((q) => [
@@ -167,8 +168,10 @@ export function BattlePanel(props: {
   const title = (
     <>
       <h2 className={windowTitle}>
-        {sideName(view, battle.attacker)} attacks {planetName(battle.planet)}
+        {sideName(view, battle.attacker)} {battle.raid ? "raids" : "attacks"}{" "}
+        {planetName(battle.planet)}
       </h2>
+      {battle.raid && <Tag className="bg-danger-wash text-danger">Raid</Tag>}
       <Tag className="bg-accent-wash text-accent">Locked</Tag>
     </>
   );
@@ -185,7 +188,7 @@ export function BattlePanel(props: {
         ) : (
           <>
             {clock(seconds)}
-            <span className="text-ink-3"> / {clock(rules.timeCap)}</span>
+            <span className="text-ink-3"> / {clock(limit)}</span>
           </>
         )}
       </span>
@@ -204,7 +207,7 @@ export function BattlePanel(props: {
     <div className="bg-well h-0.75 flex-none">
       <div
         className="bg-accent h-full transition-[width] duration-200"
-        style={{ width: `${Math.min(1, seconds / rules.timeCap) * 100}%` }}
+        style={{ width: `${Math.min(1, seconds / limit) * 100}%` }}
       />
     </div>
   );
@@ -366,6 +369,7 @@ export function BattlePanel(props: {
     1,
     Math.ceil((battle.retreatAt - battle.tick) / BATTLE_TICKS),
   );
+  const raided = battle.raid && mySide === "defender"; // nothing to save by leaving
   const nowhere =
     mySide === "defender" &&
     ![...(view?.planets.values() ?? [])].some(
@@ -375,7 +379,9 @@ export function BattlePanel(props: {
     <div className="border-line flex flex-none items-center gap-3 border-t px-4 py-3">
       <button
         type="button"
-        disabled={watching || retreatSent || running || (nowhere && !counting)}
+        disabled={
+          watching || retreatSent || running || raided || (nowhere && !counting)
+        }
         onClick={() => conn.retreat(battle.planet, counting)}
         className="border-edge bg-raised min-h-11 w-52 flex-none rounded-md px-4 text-sm disabled:opacity-50"
       >
@@ -394,9 +400,11 @@ export function BattlePanel(props: {
               ? "Your squads are heading off the field, holding fire. Whatever gets away Retreats to your nearest Planet."
               : counting
                 ? "Your side fights on until the countdown ends, then turns and runs."
-                : nowhere
-                  ? "You have no other Planet to Retreat to."
-                  : `${planetName(battle.planet)} is Locked: its queues are paused and its Stacks are frozen until the Battle ends.`}
+                : raided
+                  ? "There's nothing to save by leaving a Raid: hold out, or wipe the raiders out."
+                  : nowhere
+                    ? "You have no other Planet to Retreat to."
+                    : `${planetName(battle.planet)} is Locked: its queues are paused and its Stacks are frozen until the Battle ends.`}
       </p>
     </div>
   );
@@ -579,24 +587,39 @@ function Points(props: {
         </span>
       ))}
       <span className="flex-1" />
-      <span
-        className="flex items-center gap-2 whitespace-nowrap"
-        title="The attacker wins by destroying the defender's Command Post"
-      >
-        <span className={label}>Command Post</span>
-        <span className="bg-line h-2 w-24 overflow-hidden rounded">
-          <span
-            className="block h-full"
-            style={{
-              width: `${health * 100}%`,
-              background: colourOf(battle.defender),
-            }}
-          />
+      {battle.raid ? (
+        <span
+          className="flex items-center gap-2 whitespace-nowrap"
+          title="The raiders win by destroying every building before the time is up"
+        >
+          <span className={label}>Buildings</span>
+          <span className="font-mono">
+            {battle.buildingsLeft} left of {battle.buildings}
+          </span>
+          <span className="text-ink-3 font-mono text-xs">
+            {battle.buildings - battle.buildingsLeft} destroyed
+          </span>
         </span>
-        <span className="text-ink-3 w-9 text-right font-mono text-xs">
-          {Math.round(health * 100)}%
+      ) : (
+        <span
+          className="flex items-center gap-2 whitespace-nowrap"
+          title="The attacker wins by destroying the defender's Command Post"
+        >
+          <span className={label}>Command Post</span>
+          <span className="bg-line h-2 w-24 overflow-hidden rounded">
+            <span
+              className="block h-full"
+              style={{
+                width: `${health * 100}%`,
+                background: colourOf(battle.defender),
+              }}
+            />
+          </span>
+          <span className="text-ink-3 w-9 text-right font-mono text-xs">
+            {Math.round(health * 100)}%
+          </span>
         </span>
-      </span>
+      )}
     </div>
   );
 }
@@ -636,9 +659,18 @@ function Report(props: {
   const left = (side: Side) => count(side, (q) => q.count);
   const enemy = (seat: number | null) =>
     seat === null ? "the neutral garrison" : sideName(view, seat);
+  const destroyed = r.raid ? r.raid.of - r.raid.left : 0;
+  const buildings = `${destroyed} building${destroyed === 1 ? "" : "s"}`;
   // A Battle you weren't a side of (watched, or a Teammate's) has no "you".
-  const outcome =
-    view?.spectating || (r.attacker !== you && r.defender !== you)
+  const outcome = r.raid
+    ? r.attacker === you
+      ? `Your Raid on ${planetName} destroyed ${buildings} of ${r.raid.of}. ${
+          left("attacker") > 0
+            ? `${left("attacker")} survivor${left("attacker") === 1 ? " is" : "s are"} heading home.`
+            : "None survived."
+        }`
+      : `${enemy(r.attacker)} raided ${planetName}, destroying ${buildings} of ${r.raid.of}.`
+    : view?.spectating || (r.attacker !== you && r.defender !== you)
       ? r.winner === r.attacker
         ? `${enemy(r.attacker)} took ${planetName} from ${enemy(r.defender)}.`
         : `${enemy(r.defender)} held ${planetName} against ${enemy(r.attacker)}.`

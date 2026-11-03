@@ -22,5 +22,5 @@
     },
     "fireInterval": 2
   },
-  "roles": ["skirmisher"]
+  "roles": ["skirmisher", "infiltration"]
 }

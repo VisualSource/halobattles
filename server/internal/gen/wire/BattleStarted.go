@@ -14,6 +14,7 @@ type BattleStartedT struct {
 	Defender  int8          `json:"defender"`
 	Started   int64         `json:"started"`
 	Field     *BattlefieldT `json:"field"`
+	Raid      bool          `json:"raid"`
 }
 
 func (t *BattleStartedT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -33,6 +34,7 @@ func (t *BattleStartedT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT
 	BattleStartedAddDefender(builder, t.Defender)
 	BattleStartedAddStarted(builder, t.Started)
 	BattleStartedAddField(builder, fieldOffset)
+	BattleStartedAddRaid(builder, t.Raid)
 	return BattleStartedEnd(builder)
 }
 
@@ -44,6 +46,7 @@ func (rcv *BattleStarted) UnPackTo(t *BattleStartedT) {
 	t.Defender = rcv.Defender()
 	t.Started = rcv.Started()
 	t.Field = rcv.Field(nil).UnPack()
+	t.Raid = rcv.Raid()
 }
 
 func (rcv *BattleStarted) UnPack() *BattleStartedT {
@@ -171,8 +174,20 @@ func (rcv *BattleStarted) Field(obj *Battlefield) *Battlefield {
 	return nil
 }
 
+func (rcv *BattleStarted) Raid() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleStarted) MutateRaid(n bool) bool {
+	return rcv._tab.MutateBoolSlot(18, n)
+}
+
 func BattleStartedStart(builder *flatbuffers.Builder) {
-	builder.StartObject(7)
+	builder.StartObject(8)
 }
 func BattleStartedAddMatchTime(builder *flatbuffers.Builder, matchTime int64) {
 	builder.PrependInt64Slot(0, matchTime, 0)
@@ -194,6 +209,9 @@ func BattleStartedAddStarted(builder *flatbuffers.Builder, started int64) {
 }
 func BattleStartedAddField(builder *flatbuffers.Builder, field flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(field), 0)
+}
+func BattleStartedAddRaid(builder *flatbuffers.Builder, raid bool) {
+	builder.PrependBoolSlot(7, raid, false)
 }
 func BattleStartedEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

@@ -46,6 +46,7 @@ enum Op : int {
   BattleEnded = 108,
   PlayerEliminated = 109,
   MatchEnded = 110,
+  RaidTurnedBack = 111,
 }
 
 enum Phase : byte { Lobby, Play, Results }
@@ -172,6 +173,7 @@ table OrderArmy {         // owner only
   units: [ArmyUnits];      // from any of its Stacks
   to_planet: string;
   to_stack: ubyte;
+  raid: bool;              // a Raid: every unit can raid, within the Ruleset's raidCap
 }
 
 table ReorderArmy {       // owner only; finishes its current Lane hop first
@@ -179,6 +181,7 @@ table ReorderArmy {       // owner only; finishes its current Lane hop first
   army: uint32;
   to_planet: string;
   to_stack: ubyte;
+  raid: bool;              // a Raid stays one only if this is set; else it's an Attack
 }
 
 table Surrender {         // any Seat, in play: a Forfeit
@@ -333,6 +336,7 @@ table ArmyView {
   destination: string;     // own only
   to_stack: ubyte;         // own only
   path: [string];          // own only: the Planets after to, in order
+  raid: bool;              // own only: others don't see a Raid at all
 }
 
 // A Battle's grid: one Terrain index and one height level per cell, row by
@@ -400,6 +404,9 @@ table BattleView {
   retreat_at: uint32;      // the tick your side's Retreat countdown ends; 0 is none
   attacker_retreating: bool; // public: you see a side turn and run
   defender_retreating: bool;
+  raid: bool;              // a Raid: the attacker has raidTime to destroy the buildings
+  buildings_left: ubyte;    // public: the Planet's buildings standing, a Raid's score
+  buildings: ubyte;         // and at the start
 }
 
 // One squad's fire in one sim tick: every living member's shot at one
@@ -523,6 +530,12 @@ table ViewDelta {
   research: Research;      // absent when unchanged
 }
 
+// Sent to a Raid's owner: it found no buildings at planet and is heading home.
+table RaidTurnedBack {
+  match_time: long;
+  planet: string;
+}
+
 // Sent to everyone who can see the Planet, and its previous owner.
 table PlanetCaptured {
   match_time: long;
@@ -540,6 +553,7 @@ table BattleStarted {
   defender: byte = -1;
   started: long;
   field: Battlefield;
+  raid: bool;
 }
 
 // Sent to each side on a sim tick with fire it may know about.

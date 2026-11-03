@@ -41,5 +41,6 @@ export enum Op {
   BattleTick = 107,
   BattleEnded = 108,
   PlayerEliminated = 109,
-  MatchEnded = 110
+  MatchEnded = 110,
+  RaidTurnedBack = 111
 }

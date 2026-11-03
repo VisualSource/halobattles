@@ -12,6 +12,7 @@ type OrderArmyT struct {
 	Units      []*ArmyUnitsT `json:"units"`
 	ToPlanet   string        `json:"to_planet"`
 	ToStack    byte          `json:"to_stack"`
+	Raid       bool          `json:"raid"`
 }
 
 func (t *OrderArmyT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -45,6 +46,7 @@ func (t *OrderArmyT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	OrderArmyAddUnits(builder, unitsOffset)
 	OrderArmyAddToPlanet(builder, toPlanetOffset)
 	OrderArmyAddToStack(builder, t.ToStack)
+	OrderArmyAddRaid(builder, t.Raid)
 	return OrderArmyEnd(builder)
 }
 
@@ -60,6 +62,7 @@ func (rcv *OrderArmy) UnPackTo(t *OrderArmyT) {
 	}
 	t.ToPlanet = string(rcv.ToPlanet())
 	t.ToStack = rcv.ToStack()
+	t.Raid = rcv.Raid()
 }
 
 func (rcv *OrderArmy) UnPack() *OrderArmyT {
@@ -166,8 +169,20 @@ func (rcv *OrderArmy) MutateToStack(n byte) bool {
 	return rcv._tab.MutateByteSlot(12, n)
 }
 
+func (rcv *OrderArmy) Raid() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *OrderArmy) MutateRaid(n bool) bool {
+	return rcv._tab.MutateBoolSlot(14, n)
+}
+
 func OrderArmyStart(builder *flatbuffers.Builder) {
-	builder.StartObject(5)
+	builder.StartObject(6)
 }
 func OrderArmyAddSeq(builder *flatbuffers.Builder, seq uint32) {
 	builder.PrependUint32Slot(0, seq, 0)
@@ -186,6 +201,9 @@ func OrderArmyAddToPlanet(builder *flatbuffers.Builder, toPlanet flatbuffers.UOf
 }
 func OrderArmyAddToStack(builder *flatbuffers.Builder, toStack byte) {
 	builder.PrependByteSlot(4, toStack, 0)
+}
+func OrderArmyAddRaid(builder *flatbuffers.Builder, raid bool) {
+	builder.PrependBoolSlot(5, raid, false)
 }
 func OrderArmyEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

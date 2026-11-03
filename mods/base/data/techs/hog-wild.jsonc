@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../schema/content/tech.schema.json",
+  "id": "hog-wild",
+  "name": "Hog Wild",
+  "faction": "unsc",
+  "field": "military",
+  "rarity": "common",
+  "cost": 300,
+  "requires": { "techs": ["motor-pool"] },
+  "unlocks": { "units": ["warthog"] }
+}

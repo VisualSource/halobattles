@@ -56,12 +56,13 @@ type labSide struct {
 }
 
 type labSetup struct {
-	Preset    string `json:"preset"`              // a Terrain Preset id; "" is the Ruleset's
-	Archetype string `json:"archetype,omitempty"` // a Battlefield Archetype; "" is the preset's pick
-	Neutral   bool   `json:"neutral,omitempty"`   // the defender is a neutral garrison: its base, and turret funds
-	Seed      uint64 `json:"seed"`
-	Attack labSide `json:"attack"`
-	Defend labSide `json:"defend"`
+	Preset    string  `json:"preset"`              // a Terrain Preset id; "" is the Ruleset's
+	Archetype string  `json:"archetype,omitempty"` // a Battlefield Archetype; "" is the preset's pick
+	Raid      bool    `json:"raid,omitempty"`      // the attacker Raids: after the buildings, within raidTime
+	Neutral   bool    `json:"neutral,omitempty"`   // the defender is a neutral garrison: its base, and turret funds
+	Seed      uint64  `json:"seed"`
+	Attack    labSide `json:"attack"`
+	Defend    labSide `json:"defend"`
 }
 
 type labControl struct {
@@ -88,6 +89,7 @@ type labOrder struct {
 type labFrame struct {
 	Tick      int                 `json:"tick"`
 	Setup     int                 `json:"setup"` // the setup ticks
+	Raid      bool                `json:"raid,omitempty"`
 	Over      bool                `json:"over"`
 	Winner    battle.Side         `json:"winner"`
 	Reason    string              `json:"reason,omitempty"`
@@ -298,6 +300,7 @@ func (s *labState) fromSetup(c *cs.Content, in labSetup) (*battle.Sim, error) {
 	f := battle.GenerateFor(c, rules.Battlefield, override, in.Seed, base)
 	sim := battle.New(c, rules, f, forces[0], forces[1], in.Seed)
 	sim.Setup = rules.Battle.StartDelay * battle.TicksPerSecond
+	sim.Raid = in.Raid
 	for i, sd := range sides {
 		sim.Funds[i] = maps.Clone(sd.Funds)
 		sim.Builders[i] = buildsTurrets(c, sd.Faction)
@@ -330,7 +333,7 @@ func (s *labState) fromReplay(c *cs.Content, in labReplay) (*battle.Sim, error) 
 		}
 	}
 	sim := battle.New(c, rules, battle.GenerateFor(c, rules.Battlefield, override, r.FieldSeed, r.Faction), r.Attack, r.Defend, r.Seed)
-	sim.Setup, sim.Builders = r.Setup, r.Builders
+	sim.Setup, sim.Builders, sim.Raid = r.Setup, r.Builders, r.Raid
 	for i := range sim.Funds {
 		sim.Funds[i] = maps.Clone(r.Funds[i])
 		sim.Controllers[i] = s.ai(battle.Side(i), r.Weights[i])
@@ -380,7 +383,7 @@ func (s *labState) sendFrame(dispatcher runtime.MatchDispatcher) {
 	sim := s.sim
 	fr := labFrame{Paused: s.paused, Speed: s.speed, Volleys: s.volleys, Decisions: s.decisions}
 	if sim != nil {
-		fr.Tick, fr.Setup, fr.Over, fr.Winner, fr.Reason = sim.Tick, sim.Setup, sim.Over, sim.Winner, sim.Reason
+		fr.Tick, fr.Setup, fr.Raid, fr.Over, fr.Winner, fr.Reason = sim.Tick, sim.Setup, sim.Raid, sim.Over, sim.Winner, sim.Reason
 		fr.Snapshot = sim.SnapshotAll()
 		fr.Thinking = s.think
 	}

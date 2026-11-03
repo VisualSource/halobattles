@@ -77,6 +77,7 @@ export type Army = {
   destination: string; // own only
   toStack: number; // own only
   path: string[]; // own only: the Planets after `to`, in order
+  raid: boolean; // own only: nobody else sees a Raid at all
 };
 
 export type Side = "attacker" | "defender";
@@ -156,6 +157,9 @@ export type Battle = {
   pads: BuildPad[];
   retreatAt: number; // the tick your side's Retreat countdown ends; 0 is none
   retreating: Record<Side, boolean>; // public: you see a side turn and run
+  raid: boolean; // the attacker is after the buildings, within raidTime
+  buildingsLeft: number; // public: the Planet's buildings standing, a Raid's score
+  buildings: number; // and at the start
 };
 
 /** The public part of every player. */
@@ -340,6 +344,7 @@ export type BattleReport = {
   damage: { attacker: number; defender: number }; // dealt by each side
   winner?: number | null; // set when it ends; null is neutral
   endedAt?: number; // Match Time
+  raid?: { left: number; of: number }; // a Raid's buildings, as last seen
 };
 
 const other = (s: Side): Side => (s === "attacker" ? "defender" : "attacker");
@@ -360,6 +365,7 @@ export function reportView(
     ...r,
     squads,
     ticks: Math.max(r?.ticks ?? 0, b.tick),
+    raid: b.raid ? { left: b.buildingsLeft, of: b.buildings } : undefined,
   };
 }
 

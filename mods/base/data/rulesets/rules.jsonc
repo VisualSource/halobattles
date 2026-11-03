@@ -70,6 +70,10 @@
     // Seconds to open the Battle before the fighting starts.
     "startDelay": 15,
     "timeCap": 180,
+    // A Raid: 100 s to find and destroy the buildings, with up to 10 Command Points.
+    "raidTime": 100,
+    "raidCap": 10,
+    "raidRoles": ["scout", "infiltration", "shock"],
     "padBuildSeconds": 10,
     // A neutral garrison's budget for pad turrets, having no economy: two
     // turrets' worth (each costs 200 Credits and 50 Materials).

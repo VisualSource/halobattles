@@ -265,6 +265,11 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		s.sendTo(logger, dispatcher, wire.OpPlanetCaptured, finish(t), c.Viewers...)
 		s.sendToPresences(logger, dispatcher, wire.OpPlanetCaptured, finish(t), watchers)
 	}
+	for _, r := range ev.TurnedBack { // a Raid is its owner's alone, and Spectators'
+		t := &wire.RaidTurnedBackT{MatchTime: s.play.Time, Planet: r.Planet}
+		s.sendTo(logger, dispatcher, wire.OpRaidTurnedBack, finish(t), r.Seat)
+		s.sendToPresences(logger, dispatcher, wire.OpRaidTurnedBack, finish(t), watchers)
+	}
 	for _, b := range ev.Started {
 		if s.log != nil {
 			s.battles[b.ID] = b
@@ -272,7 +277,7 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		}
 		t := &wire.BattleStartedT{
 			MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender),
-			Started: b.Started, Field: field(b.Sim.Field),
+			Started: b.Started, Field: field(b.Sim.Field), Raid: b.Sim.Raid,
 		}
 		s.sendTo(logger, dispatcher, wire.OpBattleStarted, finish(t), append(s.team(b.Attacker), s.team(b.Defender)...)...)
 		s.sendToPresences(logger, dispatcher, wire.OpBattleStarted, finish(t), watchers)
@@ -540,7 +545,8 @@ func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 		bv := &wire.BattleViewT{
 			Id: b.ID, Planet: b.Planet, Attacker: int8(b.Attacker), Defender: int8(b.Defender), Started: b.Started,
 			Tick: uint32(b.Tick), Edge: uint8(b.Edge), RetreatAt: uint32(b.RetreatAt),
-			AttackerRetreating: b.Retreating[battle.Attacker], DefenderRetreating: b.Retreating[battle.Defender],
+			AttackerRetreating: b.Retreating[battle.Attacker], DefenderRetreating: b.Retreating[battle.Defender], Raid: b.Raid,
+			BuildingsLeft: uint8(b.BuildingsLeft), Buildings: uint8(b.Buildings),
 		}
 		if withField {
 			bv.Field = field(b.Field)
@@ -589,7 +595,7 @@ func armies(as []game.ArmyView) []*wire.ArmyViewT {
 	for _, a := range as { // already sorted by id, as the (key) needs
 		out = append(out, &wire.ArmyViewT{
 			Id: a.ID, Owner: int8(a.Owner), Units: unitSlots(a.Units), From: a.From, To: a.To,
-			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting, Destination: a.Destination, ToStack: uint8(a.ToStack), Path: a.Path,
+			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting, Destination: a.Destination, ToStack: uint8(a.ToStack), Path: a.Path, Raid: a.Raid,
 		})
 	}
 	return out

@@ -84,6 +84,10 @@ _Avoid_: Maintenance
 The periodic moment when every player receives their net income in one lump sum.
 _Avoid_: Income tick, week, turn
 
+**Raid**:
+An order that sends a Stack of raiders (units with the scout, infiltration or shock role) after an enemy Planet's buildings: hidden on the way, it fights a Battle to destroy them within a time limit, then Retreats home. It never takes the Planet.
+_Avoid_: Strike, sabotage
+
 **Retreat**:
 The move of an Army to its owner's nearest Planet, passing through other Planets without stopping or fighting; forced on a defeated attacker, or ordered by either side mid-Battle.
 _Avoid_: Rout, recall

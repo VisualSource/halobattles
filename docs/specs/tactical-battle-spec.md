@@ -418,6 +418,8 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battlefield.pointArea` | 3 cells |
 | `battle.startDelay` | 15 s |
 | `battle.timeCap` | 180 s |
+| `battle.raidTime` | 100 s |
+| `battle.raidCap` | 10 Command Points |
 | `battle.captureRadius` | 2 cells |
 | `battle.captureSeconds` | 5 |
 | `battle.commandPost` | Structure class, 0 Shield, 60 Armor, 150 HP |
@@ -503,13 +505,23 @@ Battlefields get structure from authored content. Noise only dresses the space i
 
 ### Raids
 
-**Raid** is a galaxy order alongside Attack (#66).
+**Raid** is a galaxy order alongside Attack (#66). Built.
 
-- **The goal:** a raiding Army fights a Battle whose aim is to destroy the Planet's buildings within a time limit (first pass: 90 s).
-- **Damage is permanent:** buildings destroyed in a Raid are gone from the Planet afterwards.
-- **No capture:** the raiders Retreat home when the time is up, and the Planet never changes hands.
-- **The defender** wins by wiping out the raiders or by outlasting the timer, but the damage stays either way.
-- **Not decided yet:** cloaked movement, and ways to spot raiders, stay open in #66.
+- **Raiders:** a unit with one of the Ruleset's `battle.raidRoles` (`scout`, `infiltration` and `shock` in the base Mod) can raid. A Stack can raid only if every unit in it can, and its Command Points are at most the Ruleset's `battle.raidCap` (10). In the base Mod:
+  - UNSC: the ODST (`infiltration`) and a new M121 Jackrabbit, a light scout vehicle from the Vehicle Depot (`scout`). The Warthog loses `scout`.
+  - Covenant: the Elite and the Jackal Sniper (`infiltration`), the Spectre (`shock`), and the Revenant (`scout`). The Ghost loses `scout`.
+- **Ordering:** while a Stack that can raid is dragged on the galaxy map, each Planet it could raid shows a **raid slot** left of its name: "raid" and an empty Stack oval, lit like a Stack pile when the drag is over it. Dropping the Stack there orders a Raid. Any Planet that isn't yours or a Teammate's can be raided. A Raid can be re-ordered like any Army and stays a Raid; dropped on a Planet's ordinary target it becomes an Attack. The slot gets an HTML mockup first.
+- **Hidden:** a raiding Army is seen only by its owner and spectators, all the way to its target, even past Planets the defender can see. The defender learns of it when the Battle starts.
+- **Arrival:** at a Planet with no buildings, there's no Battle; the raiders Retreat home, and their owner is told why. The raid slot doesn't show on a Planet you can see has no buildings.
+- **The Battle:** the same Battlefield, Landing Zone and setup phase as an Attack.
+  - **The goal** is destroying the Planet's buildings within `battle.raidTime` (100 s) of fighting; the raiders need time to find them.
+  - **The ends:** the raiders win by destroying every building. The defender wins by wiping them out, or when the time is up; the raiders may also Retreat, as now.
+  - **The Command Post** stands, but isn't a raid target, and destroying it decides nothing.
+  - **The defender can't Retreat:** there's nothing to save by leaving.
+- **Afterwards:** buildings destroyed are gone from the Planet, whoever won, and the Planet never changes hands. The surviving raiders go home as an ordinary, visible Retreating Army.
+- **The AI:** raiders get no assault or Landing Zone goals, and their raid goals are worth what an assault is (4 × the Raid weight). The defender gets a defend goal on each of its buildings, worth more under threat, besides holding the Command Post. Bots don't order Raids yet.
+- **Shown:** the Battle panel shows "Raid", the time left, and the buildings left and destroyed, a count public to both sides; the report says how many were destroyed. A Raid's marker is dimmed for its owner. The Lab's setup has a Raid option.
+- **Later** (#101): a Tech and a detector building that spot Raids coming to your Planets within a number of hops of it, larger Raids easier to spot; and taking Techs by raiding a Lab.
 
 ### Command
 
@@ -546,7 +558,7 @@ Late game: an Army can join a Battle already running (#57).
 2. ~~The Battle Lab~~ (#97): built.
 3. ~~The Command Post and Landing Zones~~ (#98): now in [Objectives](#objectives).
 4. ~~Archetypes and fixtures~~ (#99): now in [Generation](#generation).
-5. Raids (#66).
+5. ~~Raids~~ (#66): built; see [Raids](#raids).
 6. Command (#92).
 7. Reinforcements (#57).
 8. 3D drawing (#93).

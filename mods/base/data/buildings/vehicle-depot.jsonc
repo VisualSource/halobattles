@@ -8,6 +8,6 @@
   "buildTime": 45,
   "upkeep": { "credits": 25 },
   "yield": {},
-  "trains": ["warthog", "scorpion"],
+  "trains": ["warthog", "jackrabbit", "scorpion"],
   "commandPointBonus": 0
 }

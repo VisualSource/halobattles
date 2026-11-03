@@ -31,6 +31,7 @@ import {
   QueueBuilding,
   QueueItemT,
   QueueUnit,
+  RaidTurnedBackT,
   RemoveBot,
   ResearchFieldT,
   ResearchT,
@@ -350,6 +351,7 @@ describe("MatchConnection", () => {
             destination: "reach",
             toStack: 2,
             path: ["reach"],
+            raid: false,
           },
         ],
       ]),
@@ -809,6 +811,9 @@ describe("MatchConnection", () => {
       ],
       retreatAt: 60,
       retreating: { attacker: false, defender: true },
+      raid: false,
+      buildingsLeft: 0,
+      buildings: 0,
     });
     expect(ticks).toEqual([
       {
@@ -1013,6 +1018,18 @@ describe("MatchConnection", () => {
     const r = conn.local.getState().reports.get(5);
     expect(r).toMatchObject({ ticks: 15, winner: 0 });
     expect(r?.squads.get(1)).toMatchObject({ count: 4, start: 10 });
+  });
+
+  it("sends RaidTurnedBack out as a raidTurnedBack event", async () => {
+    const { conn, send } = await playing();
+    const got: unknown[] = [];
+    conn.events.addEventListener("raidTurnedBack", (e) =>
+      got.push((e as CustomEvent).detail),
+    );
+
+    send(Op.RaidTurnedBack, pack(new RaidTurnedBackT(30000n, "c")));
+
+    expect(got).toEqual([{ planet: "c" }]);
   });
 
   it("sends PlanetCaptured out as a captured event", async () => {

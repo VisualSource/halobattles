@@ -100,6 +100,16 @@ type BattleRules struct {
 	// Seconds a turret takes to build on a build pad.
 	PadBuildSeconds float64 `json:"padBuildSeconds"`
 
+	// The most Command Points a raiding Stack can hold.
+	RaidCap int `json:"raidCap"`
+
+	// The unit roles that can Raid: a Stack raids only if every unit has one.
+	RaidRoles []RulesetBattleRaidRolesElem `json:"raidRoles"`
+
+	// Seconds of fighting a Raid has to destroy the Planet's buildings; then the
+	// raiders go home.
+	RaidTime int `json:"raidTime"`
+
 	// Seconds from ordering a Retreat until the side turns and heads off the field;
 	// it fights on meanwhile, and can call it off.
 	RetreatCountdown float64 `json:"retreatCountdown"`
@@ -976,6 +986,13 @@ type Ruleset struct {
 	UnitSlotsPerStack int `json:"unitSlotsPerStack"`
 }
 
+type RulesetBattleRaidRolesElem string
+
+const RulesetBattleRaidRolesElemInfiltration RulesetBattleRaidRolesElem = "infiltration"
+const RulesetBattleRaidRolesElemScout RulesetBattleRaidRolesElem = "scout"
+const RulesetBattleRaidRolesElemShock RulesetBattleRaidRolesElem = "shock"
+const RulesetBattleRaidRolesElemSkirmisher RulesetBattleRaidRolesElem = "skirmisher"
+
 type Seconds int
 
 // An album of music a Mod brings, played in order during a Match, with its artist
@@ -1245,7 +1262,8 @@ type Unit struct {
 
 	// Hints for the Battle AI: which roles it picks this unit for first. A scout
 	// roams to look and falls back from the enemy; a skirmisher patrols between
-	// points and hunts what it's good against.
+	// points and hunts what it's good against. A scout, infiltration or shock unit
+	// can Raid.
 	Roles []UnitRolesElem `json:"roles,omitempty,omitzero"`
 
 	// The most of this unit one Unit Slot holds; more take another slot. Unset is no
@@ -1301,7 +1319,9 @@ const UnitClassTaskForceRoleLead UnitClassTaskForceRole = "lead"
 
 type UnitRolesElem string
 
+const UnitRolesElemInfiltration UnitRolesElem = "infiltration"
 const UnitRolesElemScout UnitRolesElem = "scout"
+const UnitRolesElemShock UnitRolesElem = "shock"
 const UnitRolesElemSkirmisher UnitRolesElem = "skirmisher"
 
 // A kind of damage, with a multiplier for each layer it hits.

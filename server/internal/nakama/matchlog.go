@@ -101,8 +101,9 @@ type battleReplay struct {
 	Defender  int               `json:"defender"`
 	Winner    int               `json:"winner"`
 	Seed      uint64            `json:"seed"`
-	FieldSeed uint64            `json:"fieldSeed"` // battle.GenerateFor's, with the map Planet's battlefield override
+	FieldSeed uint64            `json:"fieldSeed"`         // battle.GenerateFor's, with the map Planet's battlefield override
 	Faction   string            `json:"faction,omitempty"` // the defender's, whose base the Battlefield has; "" neutral
+	Raid      bool              `json:"raid,omitempty"`
 	Attack    battle.Force      `json:"attack"`
 	Defend    battle.Force      `json:"defend"`
 	Weights   [2]battle.Weights `json:"weights"` // each side's Battle AI
@@ -116,7 +117,7 @@ type battleReplay struct {
 func replay(b *game.Battle, winner int) battleReplay {
 	return battleReplay{
 		Battle: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender, Winner: winner,
-		Seed: b.Seed, FieldSeed: b.FieldSeed, Faction: b.FieldFaction, Attack: b.Attack, Defend: b.Defend, Weights: b.Weights, Funds: b.Funds,
+		Seed: b.Seed, FieldSeed: b.FieldSeed, Faction: b.FieldFaction, Raid: b.Sim.Raid, Attack: b.Attack, Defend: b.Defend, Weights: b.Weights, Funds: b.Funds,
 		Setup: b.Sim.Setup, Builders: b.Sim.Builders, Ticks: b.Sim.Tick, Orders: b.Sim.Log,
 	}
 }

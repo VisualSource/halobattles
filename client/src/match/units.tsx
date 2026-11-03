@@ -17,6 +17,21 @@ const TIERS = {
   none: { label: "Can't hit", chip: "border-edge text-ink-4 line-through" },
 } as const;
 
+/** Whether units can Raid: every one with one of the Ruleset's raidRoles, within its raidCap. */
+export function canRaid(
+  content: ContentLookups,
+  units: { unit: string; count: number }[],
+) {
+  let cp = 0;
+  for (const u of units) {
+    const def = content.units.get(u.unit);
+    if (!def?.roles?.some((r) => content.rules.battle.raidRoles.includes(r)))
+      return false;
+    cp += def.commandPoints * u.count;
+  }
+  return cp <= content.rules.battle.raidCap;
+}
+
 /** How a unit fares against each Unit Class, in content's order; a class
  * its tiers leave out is normal. */
 export function matchups(content: ContentLookups, u: Unit) {

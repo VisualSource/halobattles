@@ -399,7 +399,8 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	// The Command Post decides the Battle; Landing Zones count for little
 	// until reinforcements land on them (#57).
 	cp := s.commandPost()
-	if cp != nil && cp.alive() {
+	raider := s.Raid && v.Side == Attacker // after the buildings, not the Command Post or the Landing Zones
+	if cp != nil && cp.alive() && !raider {
 		if v.Side == Attacker {
 			add(goal{kind: assault, cell: cp.Cell, target: cp.ID}, assaultValue)
 		} else if s.setup() {
@@ -412,6 +413,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	// its squads are for the assault.
 	for _, p := range s.Points {
 		switch {
+		case raider:
 		case p.Owner != v.Side && v.Side == Attacker:
 			add(goal{kind: capture, cell: p.Cell}, attackerLandingZone)
 		case p.Owner != v.Side:
@@ -429,20 +431,45 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			add(goal{kind: takePad, cell: p.Cell}, pad)
 		}
 	}
+	if s.Raid && v.Side == Defender {
+		for _, sq := range own {
+			if sq.planetBuilding() {
+				add(goal{kind: defend, cell: sq.Cell}, 1) // worth more under threat, as a Landing Zone is
+			}
+		}
+	}
+	// A raider's buildings are worth what an assault is; others, in sight,
+	// 1.2 × the Raid weight, and as last seen 1 ×.
+	raidValue := func(e *Squad, inSight bool) float64 {
+		switch {
+		case raider && e.planetBuilding():
+			return assaultValue * w.Raid
+		case inSight:
+			return 1.2 * w.Raid
+		}
+		return w.Raid
+	}
 	for _, e := range enemies {
 		if e.CommandPost {
 			continue // its own goal, above
 		}
 		if e.Building {
-			add(goal{kind: raid, cell: e.Cell, target: e.ID}, 1.2*w.Raid)
+			add(goal{kind: raid, cell: e.Cell, target: e.ID}, raidValue(e, true))
 		} else {
 			add(goal{kind: kill, cell: e.Cell, target: e.ID}, 1.5*w.Aggression)
 		}
 	}
+	known := false // a raider knows where a building is
 	for _, id := range slices.Sorted(maps.Keys(ai.seen)) {
+		b := s.squad(id)
+		known = known || b.planetBuilding()
 		if !s.visible[v.Side][id] && (cp == nil || id != cp.ID) {
-			add(goal{kind: raid, cell: ai.seen[id], target: id}, w.Raid)
+			add(goal{kind: raid, cell: ai.seen[id], target: id}, raidValue(b, false))
 		}
+	}
+	if raider && !known && cp != nil {
+		// The buildings stand in the base: look for them round the Command Post.
+		add(goal{kind: scout, cell: cp.Cell}, assaultValue*w.Raid)
 	}
 	if len(enemies) == 0 {
 		// Toward where the enemy comes from, or else the middle of the map.

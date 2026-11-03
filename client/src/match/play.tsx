@@ -29,6 +29,7 @@ import { allied, teamName, type View, winnerName } from "./store";
 import { finishedProjects } from "./tech";
 import { formatAge, useMatchNow, useWallNow } from "./time";
 import { notify } from "./toasts";
+import { canRaid } from "./units";
 import {
   ArmyWindow,
   PlanetWindow,
@@ -83,10 +84,11 @@ export function PlayScreen(props: {
       { store: conn.store, local: conn.local },
       {
         lanes: laneTimes(map, content.rules),
-        sendStack: (from, stack, to, toStack) =>
-          sendStack(conn, from, stack, to, toStack),
-        moveArmy: (army, to, toStack) =>
-          conn.reorderArmy(army, to, toStack ?? toStackAt(conn, to)),
+        sendStack: (from, stack, to, toStack, raid) =>
+          sendStack(conn, from, stack, to, toStack, raid),
+        moveArmy: (army, to, toStack, raid) =>
+          conn.reorderArmy(army, to, toStack ?? toStackAt(conn, to), raid),
+        canRaid: (units) => canRaid(content, units),
       },
     );
     return () => scene.dispose();
@@ -1219,6 +1221,14 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
               ? `${who(to)} took ${planet(id)} from you`
               : `${who(to)} took ${planet(id)}`;
         notify("captured", text, show(id));
+      },
+      raidTurnedBack: (e) => {
+        const { planet: id } = detail<{ planet: string }>(e);
+        notify(
+          "battle",
+          `Your Raid found no buildings at ${planet(id)} and is heading home`,
+          show(id),
+        );
       },
       battleStarted: (e) => {
         const { battle, planet: id } = detail<{

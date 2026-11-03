@@ -33,6 +33,7 @@ import {
   QueueBuildingT,
   type QueueItemT,
   QueueUnitT,
+  RaidTurnedBack,
   RemoveBotT,
   ReorderArmyT,
   type ResearchT,
@@ -185,6 +186,7 @@ const toArmy = (a: ArmyViewT): Army => ({
   destination: str(a.destination),
   toStack: a.toStack,
   path: a.path.map(str),
+  raid: a.raid,
 });
 
 const side = (n: number): Side => (n === 0 ? "attacker" : "defender");
@@ -246,6 +248,9 @@ const toBattle = (
     attacker: b.attackerRetreating,
     defender: b.defenderRetreating,
   },
+  raid: b.raid,
+  buildingsLeft: b.buildingsLeft,
+  buildings: b.buildings,
 });
 
 const toQueueItem = (q: QueueItemT): QueueItem => ({
@@ -352,7 +357,8 @@ const toDelta = (t: ViewDeltaT, fields: Map<number, Battlefield>): Delta => ({
  * "payday" the Map of what each Resource changed by, "captured" a Planet
  * that changed hands, as {planet, from, to} (Seats; null is neutral),
  * "battleStarted" {battle, planet}, "battleTick" {battle, tick, volleys},
- * "battleEnded" {battle, planet, winner}, "eliminated" {seat}, and
+ * "battleEnded" {battle, planet, winner}, "raidTurnedBack" {planet} for a Raid
+ * that found no buildings, "eliminated" {seat}, and
  * "matchEnded" {winner, reason}.
  */
 export class MatchConnection {
@@ -512,20 +518,21 @@ export class MatchConnection {
     units: { stack: number; unit: string; count: number }[],
     to: string,
     toStack: number,
+    raid = false,
   ) {
     const list = units.map((u) => new ArmyUnitsT(u.stack, u.unit, u.count));
     this.send(
       Op.OrderArmy,
       "order",
-      (seq) => new OrderArmyT(seq, from, list, to, toStack),
+      (seq) => new OrderArmyT(seq, from, list, to, toStack, raid),
     );
   }
 
-  reorderArmy(army: number, to: string, toStack: number) {
+  reorderArmy(army: number, to: string, toStack: number, raid = false) {
     this.send(
       Op.ReorderArmy,
       "order",
-      (seq) => new ReorderArmyT(seq, army, to, toStack),
+      (seq) => new ReorderArmyT(seq, army, to, toStack, raid),
     );
   }
 
@@ -702,6 +709,17 @@ export class MatchConnection {
               from: t.from < 0 ? null : t.from,
               to: t.to,
             },
+          }),
+        );
+        return;
+      }
+      case Op.RaidTurnedBack: {
+        const t = RaidTurnedBack.getRootAsRaidTurnedBack(bb).unpack();
+        this.debug("RaidTurnedBack", t);
+        this.syncClock(Number(t.matchTime));
+        this.events.dispatchEvent(
+          new CustomEvent("raidTurnedBack", {
+            detail: { planet: str(t.planet) },
           }),
         );
         return;

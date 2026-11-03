@@ -39,6 +39,7 @@ export { Project, ProjectT } from './wire/project.js';
 export { QueueBuilding, QueueBuildingT } from './wire/queue-building.js';
 export { QueueItem, QueueItemT } from './wire/queue-item.js';
 export { QueueUnit, QueueUnitT } from './wire/queue-unit.js';
+export { RaidTurnedBack, RaidTurnedBackT } from './wire/raid-turned-back.js';
 export { RemoveBot, RemoveBotT } from './wire/remove-bot.js';
 export { ReorderArmy, ReorderArmyT } from './wire/reorder-army.js';
 export { Research, ResearchT } from './wire/research.js';

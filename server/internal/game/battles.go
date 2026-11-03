@@ -121,6 +121,7 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 		b.Funds[battle.Defender] = c.Rulesets[RulesetID].Battle.NeutralFunds
 		b.Sim.Funds[battle.Defender] = maps.Clone(b.Funds[battle.Defender])
 	}
+	b.Sim.Raid = a.Raid // after the buildings: the Planet never changes hands
 	p.Locked = true
 	delete(s.Armies, a.ID)
 	if s.Battles == nil {
@@ -173,11 +174,13 @@ func (s *State) fightBattles(c *cs.Content, now int64, ev *Events) {
 // winning attacker captures the Planet and moves in; a beaten one Retreats,
 // with any squads that escaped the field. A beaten defender's survivors
 // Retreat too, on the field or escaped, unless it's a neutral garrison, which
-// has nowhere to go; a holding defender's go back to their slots.
+// has nowhere to go; a holding defender's go back to their slots. A Raid
+// takes nothing: the raiders go home, and the defenders back to their slots.
 func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	p := s.Planets[b.Planet]
 	// Eliminated mid-Battle: their Armies are gone, and the Planet holds.
 	attackerWins := b.Sim.Winner == battle.Attacker && !s.Players[b.Attacker].Eliminated
+	takes := attackerWins && !b.Sim.Raid // a Raid never takes the Planet
 	var attackers, defenders Stack
 	var stacks [StacksPerPlanet]Stack
 	for _, sq := range b.Sim.Squads {
@@ -192,7 +195,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 		case n == 0:
 		case sq.Side == battle.Attacker:
 			attackers = attackers.add(sq.Unit, n, 0)
-		case attackerWins:
+		case takes:
 			defenders = defenders.add(sq.Unit, n, 0)
 		default:
 			for range n {
@@ -218,7 +221,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	if len(attackers) > 0 && !s.Players[b.Attacker].Eliminated {
 		s.LastID++
 		a := &Army{ID: s.LastID, Owner: b.Attacker, Units: attackers, From: p.ID, To: p.ID, ToStack: b.ToStack}
-		if attackerWins {
+		if takes {
 			s.capture(p, b.Attacker, ev)
 			a.Waiting = true
 			s.Armies[a.ID] = a
@@ -256,6 +259,8 @@ func (s *State) RetreatFromBattle(seat int, planet string, cancel bool) error {
 		return nil
 	case b.Sim.RetreatAt[side] != 0:
 		return errors.New("you're already Retreating")
+	case side == battle.Defender && b.Sim.Raid:
+		return errors.New("there's nothing to save by leaving a Raid")
 	case side == battle.Defender && s.retreatRoute(planet, seat) == nil:
 		return errors.New("you have no other Planet to Retreat to")
 	}
@@ -313,7 +318,7 @@ func (s *State) retreat(a *Army, at int64) bool {
 	if path == nil {
 		return false
 	}
-	a.Path = path[1:]
+	a.Path, a.Raid = path[1:], false // seen on the way home, whatever it was
 	a.hop(s.Lanes, at)
 	return true
 }

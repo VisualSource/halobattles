@@ -42,6 +42,9 @@ type Events struct {
 	Started  []*Battle
 	Ticks    []BattleTick // only ticks with volleys
 	Ended    []BattleEnded
+	// TurnedBack are Raids that found no buildings and headed home, for
+	// their owners: nobody else saw them.
+	TurnedBack []RaidTurnedBack
 	// Eliminated are the Seats eliminated this tick.
 	Eliminated []int
 	MatchEnded *Result

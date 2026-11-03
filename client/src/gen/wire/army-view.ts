@@ -98,8 +98,13 @@ pathLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+raid():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 26);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startArmyView(builder:flatbuffers.Builder) {
-  builder.startObject(11);
+  builder.startObject(12);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -170,12 +175,16 @@ static startPathVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addRaid(builder:flatbuffers.Builder, raid:boolean) {
+  builder.addFieldInt8(11, +raid, +false);
+}
+
 static endArmyView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createArmyView(builder:flatbuffers.Builder, id:number, owner:number, unitsOffset:flatbuffers.Offset, fromOffset:flatbuffers.Offset, toOffset:flatbuffers.Offset, departed:bigint, arrives:bigint, waiting:boolean, destinationOffset:flatbuffers.Offset, toStack:number, pathOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createArmyView(builder:flatbuffers.Builder, id:number, owner:number, unitsOffset:flatbuffers.Offset, fromOffset:flatbuffers.Offset, toOffset:flatbuffers.Offset, departed:bigint, arrives:bigint, waiting:boolean, destinationOffset:flatbuffers.Offset, toStack:number, pathOffset:flatbuffers.Offset, raid:boolean):flatbuffers.Offset {
   ArmyView.startArmyView(builder);
   ArmyView.addId(builder, id);
   ArmyView.addOwner(builder, owner);
@@ -188,6 +197,7 @@ static createArmyView(builder:flatbuffers.Builder, id:number, owner:number, unit
   ArmyView.addDestination(builder, destinationOffset);
   ArmyView.addToStack(builder, toStack);
   ArmyView.addPath(builder, pathOffset);
+  ArmyView.addRaid(builder, raid);
   return ArmyView.endArmyView(builder);
 }
 
@@ -203,7 +213,8 @@ unpack(): ArmyViewT {
     this.waiting(),
     this.destination(),
     this.toStack(),
-    this.bb!.createScalarList<string>(this.path.bind(this), this.pathLength())
+    this.bb!.createScalarList<string>(this.path.bind(this), this.pathLength()),
+    this.raid()
   );
 }
 
@@ -220,6 +231,7 @@ unpackTo(_o: ArmyViewT): void {
   _o.destination = this.destination();
   _o.toStack = this.toStack();
   _o.path = this.bb!.createScalarList<string>(this.path.bind(this), this.pathLength());
+  _o.raid = this.raid();
 }
 }
 
@@ -235,7 +247,8 @@ constructor(
   public waiting: boolean = false,
   public destination: string|Uint8Array|null = null,
   public toStack: number = 0,
-  public path: (string)[] = []
+  public path: (string)[] = [],
+  public raid: boolean = false
 ){}
 
 
@@ -257,7 +270,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.waiting,
     destination,
     this.toStack,
-    path
+    path,
+    this.raid
   );
 }
 }

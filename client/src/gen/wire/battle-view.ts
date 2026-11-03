@@ -115,8 +115,23 @@ defenderRetreating():boolean {
   return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
 }
 
+raid():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 36);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
+buildingsLeft():number {
+  const offset = this.bb!.__offset(this.bb_pos, 38);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+}
+
+buildings():number {
+  const offset = this.bb!.__offset(this.bb_pos, 40);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+}
+
 static startBattleView(builder:flatbuffers.Builder) {
-  builder.startObject(16);
+  builder.startObject(19);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -211,6 +226,18 @@ static addDefenderRetreating(builder:flatbuffers.Builder, defenderRetreating:boo
   builder.addFieldInt8(15, +defenderRetreating, +false);
 }
 
+static addRaid(builder:flatbuffers.Builder, raid:boolean) {
+  builder.addFieldInt8(16, +raid, +false);
+}
+
+static addBuildingsLeft(builder:flatbuffers.Builder, buildingsLeft:number) {
+  builder.addFieldInt8(17, buildingsLeft, 0);
+}
+
+static addBuildings(builder:flatbuffers.Builder, buildings:number) {
+  builder.addFieldInt8(18, buildings, 0);
+}
+
 static endBattleView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -232,7 +259,10 @@ unpack(): BattleViewT {
     this.bb!.createObjList<BuildPad, BuildPadT>(this.pads.bind(this), this.padsLength()),
     this.retreatAt(),
     this.attackerRetreating(),
-    this.defenderRetreating()
+    this.defenderRetreating(),
+    this.raid(),
+    this.buildingsLeft(),
+    this.buildings()
   );
 }
 
@@ -252,6 +282,9 @@ unpackTo(_o: BattleViewT): void {
   _o.retreatAt = this.retreatAt();
   _o.attackerRetreating = this.attackerRetreating();
   _o.defenderRetreating = this.defenderRetreating();
+  _o.raid = this.raid();
+  _o.buildingsLeft = this.buildingsLeft();
+  _o.buildings = this.buildings();
 }
 }
 
@@ -270,7 +303,10 @@ constructor(
   public pads: (BuildPadT)[] = [],
   public retreatAt: number = 0,
   public attackerRetreating: boolean = false,
-  public defenderRetreating: boolean = false
+  public defenderRetreating: boolean = false,
+  public raid: boolean = false,
+  public buildingsLeft: number = 0,
+  public buildings: number = 0
 ){}
 
 
@@ -296,6 +332,9 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   BattleView.addRetreatAt(builder, this.retreatAt);
   BattleView.addAttackerRetreating(builder, this.attackerRetreating);
   BattleView.addDefenderRetreating(builder, this.defenderRetreating);
+  BattleView.addRaid(builder, this.raid);
+  BattleView.addBuildingsLeft(builder, this.buildingsLeft);
+  BattleView.addBuildings(builder, this.buildings);
 
   return BattleView.endBattleView(builder);
 }

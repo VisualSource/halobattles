@@ -98,6 +98,10 @@ const flashSeconds = 3
 // Retreated off it.
 func (sq *Squad) alive() bool { return len(sq.Members) > 0 && !sq.Escaped }
 
+// planetBuilding is whether it's one of the Planet's buildings: not a pad
+// turret or the Command Post. A Raid is after these.
+func (sq *Squad) planetBuilding() bool { return sq.Building && sq.OnPad == 0 && !sq.CommandPost }
+
 // Pad is a build pad: a spot whoever holds it can build a turret on. One
 // with a turret can't change hands until the turret is destroyed.
 type Pad struct {
@@ -124,6 +128,7 @@ const (
 	Destroyed  = "commandPost" // the attacker destroyed the Command Post
 	TimeUp     = "time"
 	Retreated  = "retreat"
+	Raided     = "raided" // a Raid destroyed every Planet building
 )
 
 // Logged is a player's order and the tick it came in before, so a Battle can
@@ -157,9 +162,13 @@ type Sim struct {
 	// neutral garrison can, a player once a Tech unlocks one of their
 	// Faction's. Its AI takes pads in setup only if so.
 	Builders [2]bool
-	Over     bool
-	Winner   Side
-	Reason   string
+	// Raid: the attacker wins by destroying every Planet building within
+	// raidTime, the Command Post decides nothing, and the defender can't
+	// Retreat. Set before the first Step.
+	Raid   bool
+	Over   bool
+	Winner Side
+	Reason string
 	// RetreatAt is the tick each side's Retreat countdown ends, or 0; once it
 	// has, the side is Retreating and can't call it off.
 	RetreatAt  [2]int
@@ -542,7 +551,7 @@ func (s *Sim) apply(side Side, o Order) {
 		s.padSeen[side][o.Target] = *p // its own build shows at once
 		return
 	case Retreat:
-		if s.RetreatAt[side] == 0 {
+		if s.RetreatAt[side] == 0 && !(s.Raid && side == Defender) { // a raided defender has nothing to save by leaving
 			s.RetreatAt[side] = max(s.Tick, s.Setup) + max(1, ticks(s.rules.RetreatCountdown)) // ordered in setup: from the first fighting tick
 		}
 		return
@@ -1063,6 +1072,12 @@ func (s *Sim) end() {
 		s.Over, s.Winner, s.Reason = true, Defender, Retreated
 	case !attackers:
 		s.Over, s.Winner, s.Reason = true, Defender, Eliminated
+	case s.Raid && !slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.planetBuilding() && sq.alive() }):
+		s.Over, s.Winner, s.Reason = true, Attacker, Raided
+	case s.Raid:
+		if s.Tick-s.Setup >= s.rules.RaidTime*TicksPerSecond {
+			s.Over, s.Winner, s.Reason = true, Defender, TimeUp
+		}
 	// A defender that Retreats abandons the Battle: its Command Post blows.
 	case left(Defender):
 		if cp != nil {
@@ -1105,6 +1120,9 @@ type Snapshot struct {
 	Pads       []Pad   // as the side last saw them: see PadsFor
 	RetreatAt  int     // the tick the side's own Retreat countdown ends, or 0
 	Retreating [2]bool // public: you see the enemy turn and run
+	// The Planet's buildings standing, and at the start: public in a Raid,
+	// its score.
+	BuildingsLeft, Buildings int
 }
 
 func (s *Sim) Snapshot(side Side) Snapshot { return s.snapshot(side, false) }
@@ -1117,6 +1135,14 @@ func (s *Sim) snapshot(side Side, all bool) Snapshot {
 	snap := Snapshot{
 		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: slices.Clone(s.Pads),
 		Retreating: s.Retreating,
+	}
+	for _, sq := range s.Squads {
+		if sq.planetBuilding() {
+			snap.Buildings++
+			if sq.alive() {
+				snap.BuildingsLeft++
+			}
+		}
 	}
 	if !all {
 		snap.Pads, snap.RetreatAt = s.PadsFor(side), s.RetreatAt[side]

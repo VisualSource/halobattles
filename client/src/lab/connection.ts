@@ -31,6 +31,7 @@ export type LabSetup = {
   preset: string;
   archetype: string; // "" is the preset's pick
   neutral: boolean; // the defender is a neutral garrison: its base and turret funds
+  raid: boolean; // the attacker Raids: after the buildings, within raidTime
   seed: number;
   sides: [LabSide, LabSide];
 };
@@ -106,6 +107,7 @@ type GoSquad = {
 type GoFrame = {
   tick: number;
   setup: number;
+  raid?: boolean;
   over: boolean;
   winner: number;
   reason?: string;
@@ -129,6 +131,8 @@ type GoFrame = {
         }[]
       | null;
     Retreating: [boolean, boolean];
+    BuildingsLeft: number;
+    Buildings: number;
   };
   volleys?: {
     Actor: number;
@@ -191,6 +195,9 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     pads,
     retreatAt: 0,
     retreating: { attacker: s.Retreating[0], defender: s.Retreating[1] },
+    raid: !!f.raid,
+    buildingsLeft: s.BuildingsLeft,
+    buildings: s.Buildings,
   };
 }
 
@@ -246,6 +253,7 @@ export class LabConnection {
       preset: s.preset,
       archetype: s.archetype,
       neutral: s.neutral,
+      raid: s.raid,
       seed: s.seed,
       attack: side(s.sides[0], false),
       defend: side(s.sides[1], true),

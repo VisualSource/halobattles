@@ -124,11 +124,17 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 			units = append(units, game.ArmyUnits{Stack: int(u.Stack), Unit: u.Unit, Count: int(u.Count)})
 		}
 		seq, phase, apply = c.Seq, wire.PhasePlay, func(*game.Lobby) error {
+			if c.Raid {
+				return s.play.OrderRaid(doc, s.seat(user), c.FromPlanet, units, c.ToPlanet, int(c.ToStack))
+			}
 			return s.play.OrderArmy(s.seat(user), c.FromPlanet, units, c.ToPlanet, int(c.ToStack))
 		}
 	case wire.OpReorderArmy:
 		c := wire.GetRootAsReorderArmy(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			if c.Raid() {
+				return s.play.ReorderRaid(doc, s.seat(user), c.Army(), string(c.ToPlanet()), int(c.ToStack()))
+			}
 			return s.play.ReorderArmy(s.seat(user), c.Army(), string(c.ToPlanet()), int(c.ToStack()))
 		}
 	case wire.OpSurrender:

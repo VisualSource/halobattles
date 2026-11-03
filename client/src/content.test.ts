@@ -61,6 +61,9 @@ const rules: Ruleset = {
   battle: {
     startDelay: 30,
     timeCap: 180,
+    raidTime: 100,
+    raidCap: 10,
+    raidRoles: ["scout"],
     padBuildSeconds: 10,
     neutralFunds: { "base:credits": 400 },
     captureRadius: 2,

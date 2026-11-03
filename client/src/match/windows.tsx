@@ -79,7 +79,7 @@ const outputOf = (b: Producer, richness: Map<string, string>) => {
     out.set(
       r,
       (out.get(r) ?? 0) +
-      Math.floor(n * (RICHNESS[richness.get(r) ?? ""] ?? 0)),
+        Math.floor(n * (RICHNESS[richness.get(r) ?? ""] ?? 0)),
     );
   return Object.fromEntries(out);
 };
@@ -929,10 +929,10 @@ function BuildingsTab(props: {
                         researching={
                           planet.owner === view?.you
                             ? (view?.research.projects ?? [])
-                              .filter(
-                                (p) => p.planet === planet.id && p.slot === i,
-                              )
-                              .map((p) => p.tech)
+                                .filter(
+                                  (p) => p.planet === planet.id && p.slot === i,
+                                )
+                                .map((p) => p.tech)
                             : []
                         }
                         slots={b.techSlots}
@@ -1342,11 +1342,11 @@ function BuildQueue(props: {
       const b = content.buildings.get(id);
       return b?.trains?.length
         ? [
-          {
-            title: b.name,
-            items: planet.unitQueue.filter((q) => q.slot === slot),
-          },
-        ]
+            {
+              title: b.name,
+              items: planet.unitQueue.filter((q) => q.slot === slot),
+            },
+          ]
         : [];
     }),
   ];
@@ -1560,7 +1560,10 @@ export function StacksWindow(props: {
                     Stack {i + 1}
                   </span>
                   {rally && (
-                    <Tooltip side="right" content="Newly trained units are placed in this Stack.">
+                    <Tooltip
+                      side="right"
+                      content="Newly trained units are placed in this Stack."
+                    >
                       <button
                         type="button"
                         aria-label="Rally Stack: newly trained units are placed in this Stack"
@@ -1833,6 +1836,7 @@ export function sendStack(
   stack: number,
   to: string,
   toStack = toStackAt(conn, to),
+  raid = false,
 ) {
   const units =
     conn.store.getState().view?.planets.get(from)?.stacks[stack] ?? [];
@@ -1842,6 +1846,7 @@ export function sendStack(
     units.map((u) => ({ stack, ...u })),
     to,
     toStack,
+    raid,
   );
 }
 
