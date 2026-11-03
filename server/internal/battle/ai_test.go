@@ -474,6 +474,28 @@ func TestAScoutFallsBackFromTheEnemyThenRests(t *testing.T) {
 	}
 }
 
+// Seed 246130: a Warthog scouted the whole Battle while its base fell.
+func TestAScoutComesHomeOnceTheEnemyIsFoundElsewhere(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(1)},
+		Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:ghost", 2, 1}, {"base:grunt", 5, 2}}}})
+	marines, ghost := s.Squads[0], s.Squads[2]
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Defender}
+	ai.look(v, v.Own())
+	ai.assignRoles(v, v.Own(), nil)
+	if ai.roles[ghost.ID] != scouting {
+		t.Fatalf("roles %v; want the Ghosts scouting", ai.roles)
+	}
+	ai.sighted[marines.ID] = sighting{s.Field.CommandPost, 5, s.Tick} // at the base, nowhere near the scout
+	if ai.inContact(v, ghost) {
+		t.Skip("the scout starts in contact")
+	}
+	ai.assignRoles(v, v.Own(), nil)
+	if r := ai.roles[ghost.ID]; r != noRole {
+		t.Errorf("role %v with the enemy found; want it back to the usual goals", r)
+	}
+}
+
 func TestSpareSquadsSkirmishBetweenThePoints(t *testing.T) {
 	var f []Slot
 	for cell := range 7 {

@@ -418,7 +418,7 @@ func (f *Field) placeLandingZones(main []bool, n, spacing, margin int, post Cell
 				points = append(points, c)
 			}
 		}
-		if len(points) >= n || s <= 0 {
+		if len(points) >= n || s <= 1 { // at 1 every distinct cell fits; 0 would take far[0] twice
 			return points
 		}
 	}

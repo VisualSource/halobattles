@@ -13,6 +13,7 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 - Battlefields have shape: open fields, rivers with fords, ridges and valleys, and ruined cities, with landmarks such as crash sites, trench lines, Forerunner ruins and bridges.
 - The defender fights from a base, a UNSC firebase, a Covenant outpost or a garrison's outpost, holding its Command Post and buildings, far from where the attacker lands.
 - The attacker lands at a Landing Zone and holds it; the others start held by nobody, for either side to take. Holding Control Points no longer wins a Battle; they're now Landing Zones.
+- A defender's scout comes home to fight once the enemy is found, instead of roaming the map while its base is attacked.
 - In Battles, a squad picks off enemies that fire back before buildings.
 - In Battles, units fight in smaller squads: infantry in fours, vehicles and aircraft in pairs. 10 Marines take the field as three squads instead of one.
 

@@ -41,7 +41,8 @@ func (f *Field) index(c Cell) int { return c.Y*f.W + c.X }
 
 func (f *Field) cell(i int) Cell { return Cell{i % f.W, i / f.W} }
 
-// Generate builds a Planet's Battlefield for a neutral garrison.
+// Generate builds a Planet's Battlefield for a neutral garrison: the
+// tests' shorthand, since the game and the Lab call GenerateFor.
 func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlefield, seed uint64) *Field {
 	return GenerateFor(c, rules, planet, seed, "")
 }

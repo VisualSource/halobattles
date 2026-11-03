@@ -87,7 +87,7 @@ func (l *layout) shapePoints(radius int, rng *rand.Rand) {
 		for y := p.Y - radius - 2; y <= p.Y+radius+2; y++ {
 			for x := p.X - radius - 2; x <= p.X+radius+2; x++ {
 				c := Cell{x, y}
-				if !l.in(c) {
+				if !l.in(c) || l.fixed[f.index(c)] { // a fixture keeps what it was drawn with
 					continue
 				}
 				i, d := f.index(c), dist(c, p)

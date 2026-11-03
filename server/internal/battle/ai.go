@@ -927,6 +927,13 @@ func (ai *AI) assignRoles(v View, own, enemies []*Squad) map[int]bool {
 				ai.rested[sq.ID] = v.Tick()
 				continue
 			}
+		case r == scouting && len(ai.sighted) > 0 && !ai.inContact(v, sq):
+			// The enemy's found: back to the usual goals. Scouting on, a
+			// Warthog roamed empty corners while its base fell (seed 246130).
+			delete(ai.roles, sq.ID)
+			delete(ai.plans, sq.ID)
+			ai.rested[sq.ID] = v.Tick()
+			continue
 		case !ai.inContact(v, sq):
 		case r == skirmish && ai.prey(v, sq, enemies) != nil:
 			e := ai.prey(v, sq, enemies)
@@ -976,7 +983,7 @@ func (ai *AI) assignRoles(v View, own, enemies []*Squad) map[int]bool {
 	// A small force sends one scout out once: after it has fallen back, the
 	// points need every squad more.
 	scoutedOnce := len(ai.rested) > 0 && len(mobile) < minForRepeat
-	if v.Side == Defender && len(mobile) >= minForScouts && w.Scout > 0 && !scoutedOnce {
+	if v.Side == Defender && len(mobile) >= minForScouts && w.Scout > 0 && !scoutedOnce && len(ai.sighted) == 0 {
 		scouts = min(max(1, int(math.Round(float64(len(mobile))*scoutShare*w.Scout))), maxScouts, len(mobile)-1)
 	}
 	if want := scouts - count(scouting); want > 0 {
