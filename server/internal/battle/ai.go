@@ -127,8 +127,9 @@ type AI struct {
 	round   map[int]int        // a skirmisher's place on its patrol
 	// Trace, if set, hears each change in what a squad has been told to do,
 	// for a Match log.
-	Trace  func(Decision)
-	traced map[int]Decision
+	Trace    func(Decision)
+	traced   map[int]Decision
+	thinking *Thinking // kept for the Battle Lab once Think is called
 }
 
 // Decision is what the Commander has a squad do: its goal, and any role.
@@ -472,6 +473,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		limit := float64(s.rules.TimeCap * TicksPerSecond)
 		caution *= max(0, 1-float64(s.Tick-s.Setup)/limit)
 	}
+	chose := map[int]Choice{}
 	busy := map[int]bool{} // setup is for taking pads: jobs wait for the fighting
 	if !s.setup() {
 		busy = ai.assignRoles(v, own, enemies)
@@ -481,6 +483,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			continue
 		}
 		best, bestScore := -1, math.Inf(-1)
+		var bestWhy factors
 		current := ai.plans[sq.ID]
 		for i, g := range goals {
 			if g.target != 0 && s.tier(sq, s.squad(g.target)) == None {
@@ -489,27 +492,31 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			if g.kind == takePad && s.setup() && (!s.Builders[v.Side] || !ai.backInTime(v, sq, g.cell)) {
 				continue // no use to it yet, or it would still be out when the fighting starts
 			}
-			score := values[i] / (1 + dist(sq.Cell, g.cell)/distScale)
+			f := factors{value: values[i], dist: 1 + dist(sq.Cell, g.cell)/distScale, crowd: 1, matchup: 1, fear: 1, stick: 1}
 			if !g.kind.forms() || len(on[i]) >= minForce && members[i] >= need[i] {
-				score /= 1 + assigned[i] // spread out, once a Task Force has what it needs
+				f.crowd = 1 + assigned[i] // spread out, once a Task Force has what it needs
 			}
 			if g.target != 0 {
-				score *= matchup[s.tier(sq, s.squad(g.target))] // go after what it's good against
+				f.matchup = matchup[s.tier(sq, s.squad(g.target))] // go after what it's good against
 			}
 			if g.kind != defend { // a threatened point is the one to hold, not to shy from
-				score /= 1 + caution*threat[i]/max(1, strength)
+				f.fear = 1 + caution*threat[i]/max(1, strength)
 			}
 			if current != nil && current.goal.same(g) {
-				score *= stickiness
+				f.stick = stickiness
 			}
+			score := f.value / f.dist / f.crowd * f.matchup / f.fear * f.stick
 			if score > bestScore { // ties keep the earlier goal
-				best, bestScore = i, score
+				best, bestScore, bestWhy = i, score, f
 			}
 		}
 		if best < 0 {
 			continue
 		}
 		assigned[best]++
+		if ai.thinking != nil {
+			chose[sq.ID] = Choice{Squad: sq.ID, Goal: best, Score: bestScore, Why: bestWhy.why()}
+		}
 		if goals[best].kind.forms() {
 			on[best] = append(on[best], sq)
 			members[best] += float64(len(sq.Members))
@@ -524,6 +531,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	for _, tf := range ai.forces {
 		ai.pickTarget(v, tf, enemies)
 	}
+	ai.think(v, goals, values, threat, need, assigned, chose)
 }
 
 // backInTime is whether sq can walk to a pad, take it, and walk on to the

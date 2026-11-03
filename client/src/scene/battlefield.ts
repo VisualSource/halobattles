@@ -66,6 +66,14 @@ const UNHELD = "#9ca3af";
 /** Control Points by index, as the Battle window names them. */
 export const POINT_NAMES = "ABCDEFGH";
 
+/** A line drawn over the Battlefield, cell to cell: the Battle Lab's AI overlays. */
+export type OverlayLine = {
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  colour: string;
+  dashed?: boolean;
+};
+
 type Effect = { obj: THREE.Line | THREE.Mesh; t0: number; ms: number };
 
 /**
@@ -133,6 +141,18 @@ export class BattlefieldScene {
   private zoom = 1; // 1 shows the whole map; smaller is closer
   private fit = 1; // world units top to bottom that show the whole map
   private drag: { x: number; y: number } | null = null;
+  private pressed: { x: number; y: number } | null = null;
+  // Whose Sight clears the fog: a side, both (null), or no fog at all (false).
+  private fogOf: Side | null | false;
+  private lastSquads: Squad[] = [];
+  private readonly overlays = new THREE.Group();
+  private readonly ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.55, 0.7, 24),
+    new THREE.MeshBasicMaterial({ color: "#f2f5f7" }),
+  );
+  private selected: number | null = null;
+  /** Hears a click on the map: the squad under it, or null. */
+  onPick?: (squad: number | null) => void;
 
   constructor(
     private readonly container: HTMLElement,
@@ -140,6 +160,11 @@ export class BattlefieldScene {
     private readonly look: BattlefieldLook,
   ) {
     this.scene.background = new THREE.Color("#04070a");
+    this.fogOf = look.you;
+    this.overlays.position.z = 1.2;
+    this.ring.visible = false;
+    this.ring.position.z = 1.3;
+    this.scene.add(this.overlays, this.ring);
     this.camera.position.z = 50;
     this.centre = new THREE.Vector2(field.width / 2, -field.height / 2);
 
@@ -234,7 +259,46 @@ export class BattlefieldScene {
     }
     this.drawPoints(battle.points);
     this.drawPads(battle.pads);
+    this.lastSquads = battle.squads;
     this.drawFog(battle.squads);
+  }
+
+  /** Whose Sight clears the fog: a side, both sides (null), or none: no fog (false). */
+  setFog(of: Side | null | false) {
+    this.fogOf = of;
+    this.drawFog(this.lastSquads);
+  }
+
+  /** Replaces the overlay lines. */
+  overlay(lines: OverlayLine[]) {
+    for (const obj of this.overlays.children) {
+      const line = obj as THREE.Line;
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    }
+    this.overlays.clear();
+    for (const l of lines) {
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(l.from.x + 0.5, -(l.from.y + 0.5), 0),
+          new THREE.Vector3(l.to.x + 0.5, -(l.to.y + 0.5), 0),
+        ]),
+        l.dashed
+          ? new THREE.LineDashedMaterial({
+              color: l.colour,
+              dashSize: 0.8,
+              gapSize: 0.5,
+            })
+          : new THREE.LineBasicMaterial({ color: l.colour }),
+      );
+      if (l.dashed) line.computeLineDistances();
+      this.overlays.add(line);
+    }
+  }
+
+  /** Rings a squad, following it; null rings none. */
+  select(squad: number | null) {
+    this.selected = squad;
   }
 
   /** A tick's fire: a tracer from each shooter you can see to its target. */
@@ -482,9 +546,9 @@ export class BattlefieldScene {
   private drawFog(squads: Squad[]) {
     const { width: w, height: h, heights } = this.field;
     const data = this.fog.image.data as Uint8Array;
-    const alpha = new Float32Array(w * h).fill(FOG);
+    const alpha = new Float32Array(w * h).fill(this.fogOf === false ? 0 : FOG);
     for (const sq of squads) {
-      if (this.look.you && sq.side !== this.look.you) continue;
+      if (this.fogOf && sq.side !== this.fogOf) continue;
       const r = this.look.sight(sq, heights[sq.y * w + sq.x] ?? 0);
       for (
         let y = Math.max(0, Math.floor(sq.y - r));
@@ -515,6 +579,11 @@ export class BattlefieldScene {
       tok.mesh.position.x = at.x;
       tok.mesh.position.y = at.y;
     }
+    const sel =
+      this.selected === null ? undefined : this.tokens.get(this.selected);
+    this.ring.visible = !!sel;
+    if (sel)
+      this.ring.position.set(sel.mesh.position.x, sel.mesh.position.y, 1.3);
     for (let i = this.effects.length - 1; i >= 0; i--) {
       const e = this.effects[i];
       if (!e) continue;
@@ -570,6 +639,7 @@ export class BattlefieldScene {
   private readonly onDown = (e: PointerEvent) => {
     this.renderer.domElement.setPointerCapture(e.pointerId);
     this.drag = { x: e.clientX, y: e.clientY };
+    this.pressed = { x: e.clientX, y: e.clientY };
   };
 
   private readonly onMove = (e: PointerEvent) => {
@@ -581,7 +651,28 @@ export class BattlefieldScene {
     this.place();
   };
 
-  private readonly onUp = () => {
+  private readonly onUp = (e: PointerEvent) => {
     this.drag = null;
+    const p = this.pressed;
+    this.pressed = null;
+    // A click, not a pan: the nearest squad within a cell, if any.
+    if (!this.onPick || !p || Math.hypot(e.clientX - p.x, e.clientY - p.y) > 4)
+      return;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const wx =
+      this.camera.left +
+      ((e.clientX - rect.left) / rect.width) *
+        (this.camera.right - this.camera.left);
+    const wy =
+      this.camera.top -
+      ((e.clientY - rect.top) / rect.height) *
+        (this.camera.top - this.camera.bottom);
+    let best: number | null = null;
+    let bestD = 0.8;
+    for (const [id, t] of this.tokens) {
+      const d = Math.hypot(t.mesh.position.x - wx, t.mesh.position.y - wy);
+      if (d < bestD) [best, bestD] = [id, d];
+    }
+    this.onPick(best);
   };
 }

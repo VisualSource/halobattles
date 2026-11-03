@@ -41,6 +41,8 @@ Nakama 3.41.0 (Go plugin .so)  ──  Postgres 16 (accounts only; no Match stat
   - `end`: the Result.
 
   Unset, nothing is written. In the Pterodactyl image only `/home/container` is writable, so the folder goes under it.
+  A Battle Lab replay (below) is built from a `battle` line plus the `match` line's map, with the same content: a log from before a content change (a Unit Class's `squadSize`, say) may replay differently.
+- **The Battle Lab** (#97), a dev tool: with `HALO_DEV=1` the server also registers a `battle_lab` match type and a `lab_create` RPC; without it, neither exists. A Lab match runs one Battle for one page, `/lab` in a dev build of the client, and talks JSON on its own opcodes (see `server/internal/nakama/lab.go`), not FlatBuffers. Never set `HALO_DEV` on a public server: the Lab has no limits on who creates one.
 - **Later, not MVP:**
   - Plugins: wazero v1.12.0 links into the plugin with no conflicts. It enforces a memory cap and a context-deadline CPU cutoff, but has no fuel metering, so it would need a per-call deadline well under one tick.
   - Saving Matches: periodic `nk.StorageWrite` snapshots (the only thing that survives a crash), `MatchTerminate` and `RegisterShutdown` (only with `shutdown_grace_sec > 0`), and resuming via `MatchCreate` with a new Match id.

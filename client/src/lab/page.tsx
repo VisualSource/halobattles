@@ -1,0 +1,990 @@
+import type { Session } from "@heroiclabs/nakama-js";
+import { cn } from "cn";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useStore } from "zustand";
+import { useHideHeader } from "../backdrop";
+import type { ContentLookups } from "../content";
+import type { Side, Squad, Volley } from "../match/store";
+import {
+  BattlefieldScene,
+  type OverlayLine,
+  POINT_NAMES,
+} from "../scene/battlefield";
+import { seatColour } from "../scene/galaxy";
+import {
+  LabConnection,
+  type LabDecision,
+  type LabSetup,
+  type LabSide,
+  type Thinking,
+} from "./connection";
+
+// The Battle Lab (docs/specs/tactical-battle-spec.md#the-battle-lab): a dev
+// page for setting up a Battle, running and stepping it, and seeing what each
+// side's AI is thinking.
+
+const SIDES = ["attacker", "defender"] as const;
+const SPEEDS = [0.5, 1, 2, 4, 8];
+const FORCE_COLOURS = [
+  "#f0a93b",
+  "#5fb3e8",
+  "#7fdca0",
+  "#b48cf0",
+  "#f0c27a",
+  "#e0735c",
+];
+const title = "font-display text-sm font-semibold tracking-[0.08em] text-ink-2";
+const tag = "font-mono text-[11px] tracking-[0.08em] text-ink-3";
+const button =
+  "border-edge min-h-9 rounded-md border bg-transparent px-3 disabled:opacity-40";
+
+type Fog = "none" | Side;
+
+export function LabPage(props: { session: Session; content: ContentLookups }) {
+  const { content } = props;
+  useHideHeader();
+  // Each mount opens its own Lab match and closes it on unmount (StrictMode
+  // mounts twice in dev).
+  const [conn, setConn] = useState<LabConnection | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  useEffect(() => {
+    const c = new LabConnection();
+    let live = true;
+    c.open(props.session).then(
+      () => live && setConn(c),
+      (e) =>
+        live &&
+        setFailed(
+          `Couldn't open the Lab: ${e?.message ?? e}. Is the server running with HALO_DEV=1?`,
+        ),
+    );
+    return () => {
+      live = false;
+      setConn(null);
+      void c.close();
+    };
+  }, [props.session]);
+
+  const [setup, setSetup] = useState<LabSetup>(() => defaultSetup(content));
+  const [fog, setFog] = useState<Fog>("none");
+  const [show, setShow] = useState({ forces: true, targets: true });
+  const [aiSide, setAiSide] = useState<0 | 1>(0);
+  const [selected, setSelected] = useState<number | null>(null);
+
+  if (!conn) {
+    return (
+      <p className="text-ink-2 p-8">{failed ?? "Opening the Battle Lab…"}</p>
+    );
+  }
+  return (
+    <div className="bg-ground text-ink flex h-screen flex-col text-sm">
+      <Header conn={conn} content={content} setup={setup} />
+      <div className="flex min-h-0 flex-1">
+        <SetupPanel
+          content={content}
+          setup={setup}
+          onChange={setSetup}
+          onRun={() => conn.setup(setup)}
+        />
+        <main className="flex min-w-0 flex-1 flex-col gap-2.5 p-3.5">
+          <div className="flex flex-wrap items-center gap-4">
+            <fieldset
+              aria-label="Fog"
+              className="m-0 flex items-center gap-1.5 border-0 p-0"
+            >
+              <span className={tag}>FOG</span>
+              <Segmented
+                value={fog}
+                options={[
+                  ["none", "None"],
+                  ["attacker", "Attacker's"],
+                  ["defender", "Defender's"],
+                ]}
+                onChange={setFog}
+              />
+            </fieldset>
+            <fieldset
+              aria-label="Overlays"
+              className="m-0 flex items-center gap-3 border-0 p-0"
+            >
+              <span className={tag}>SHOW</span>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={show.forces}
+                  onChange={(e) =>
+                    setShow({ ...show, forces: e.target.checked })
+                  }
+                />
+                Task Forces
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={show.targets}
+                  onChange={(e) =>
+                    setShow({ ...show, targets: e.target.checked })
+                  }
+                />
+                Targets
+              </label>
+            </fieldset>
+          </div>
+          <Field
+            conn={conn}
+            content={content}
+            fog={fog}
+            show={show}
+            selected={selected}
+            onPick={setSelected}
+          />
+          <Status conn={conn} content={content} />
+        </main>
+        <AiPanel
+          conn={conn}
+          content={content}
+          side={aiSide}
+          onSide={setAiSide}
+          selected={selected}
+          onSelect={setSelected}
+        />
+      </div>
+    </div>
+  );
+}
+
+function defaultSetup(content: ContentLookups): LabSetup {
+  const kit = (faction: string, defend: boolean): LabSide => {
+    const f = content.factions.get(faction);
+    const units = new Map<string, number>();
+    for (const e of f?.startingKit.stacks.flat() ?? [])
+      units.set(e.unit, (units.get(e.unit) ?? 0) + e.count);
+    return {
+      faction,
+      units: [...units].map(([unit, count]) => ({ unit, count })),
+      buildings: defend ? [...(f?.startingKit.buildings ?? [])] : [],
+      command: false,
+    };
+  };
+  const factions = playable(content);
+  return {
+    preset: "",
+    seed: 1,
+    sides: [
+      kit(factions[0] ?? "", false),
+      kit(factions[1] ?? factions[0] ?? "", true),
+    ],
+  };
+}
+
+const playable = (content: ContentLookups) =>
+  [...content.factions]
+    .filter(([, f]) => !f.hidden)
+    .map(([id]) => id)
+    .sort();
+
+const nameOf = (content: ContentLookups, id: string) =>
+  content.units.get(id)?.name ?? content.buildings.get(id)?.name ?? id;
+
+function Segmented<T extends string | number>(props: {
+  value: T;
+  options: [T, ReactNode][];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="border-edge flex overflow-hidden rounded-md border">
+      {props.options.map(([v, label]) => (
+        <button
+          key={String(v)}
+          type="button"
+          aria-pressed={props.value === v}
+          onClick={() => props.onChange(v)}
+          className={cn(
+            "min-h-8 rounded-none border-0 px-2.5",
+            props.value === v ? "bg-accent-wash text-accent" : "bg-transparent",
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** "1:05" */
+const clock = (s: number) =>
+  `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
+
+function Header(props: {
+  conn: LabConnection;
+  content: ContentLookups;
+  setup: LabSetup;
+}) {
+  const { conn, content, setup } = props;
+  const st = useStore(conn.store);
+  const [log, setLog] = useState<{
+    map: string;
+    battles: { label: string; data: unknown }[];
+  } | null>(null);
+  const [pick, setPick] = useState(0);
+  const fighting = (st.tick - st.setupTicks) / 5;
+  const name = (f: string) => content.factions.get(f)?.name ?? f;
+
+  async function loadLog(file: File) {
+    let map = "";
+    const battles: { label: string; data: unknown }[] = [];
+    for (const line of (await file.text()).split("\n")) {
+      if (!line.trim()) continue;
+      let l: { kind: string; time: number; data: Record<string, unknown> };
+      try {
+        l = JSON.parse(line);
+      } catch {
+        continue; // a line cut off by a server still writing, or killed
+      }
+      if (l.kind === "match") map = String(l.data.map);
+      if (l.kind === "battle") {
+        const d = l.data;
+        battles.push({
+          label: `${Math.round(l.time / 1000)} s · ${d.planet} · Seat ${d.attacker} attacks ${Number(d.defender) < 0 ? "neutral" : `Seat ${d.defender}`} · winner ${d.winner}`,
+          data: d,
+        });
+      }
+    }
+    setLog({ map, battles });
+    setPick(0);
+  }
+
+  return (
+    <header className="border-line bg-bar flex flex-wrap items-center gap-4 border-b px-5 py-2.5">
+      <div className="flex items-baseline gap-2.5">
+        <span className="font-display text-lg font-bold tracking-[0.06em]">
+          BATTLE LAB
+        </span>
+        <span className="border-accent text-accent rounded border px-1.5 font-mono text-[11px]">
+          DEV
+        </span>
+      </div>
+      <span aria-hidden="true" className="bg-line h-6 w-px" />
+      <span className="text-ink-3">
+        {name(setup.sides[0].faction)} attacks {name(setup.sides[1].faction)} ·
+        seed <span className="text-ink font-mono">{setup.seed}</span>
+      </span>
+      <span className="flex-1" />
+      <fieldset
+        aria-label="Run controls"
+        className="m-0 flex items-center gap-1.5 border-0 p-0"
+      >
+        <button
+          type="button"
+          disabled={!st.field}
+          onClick={() => conn.control({ restart: true })}
+          className={button}
+        >
+          Restart
+        </button>
+        <button
+          type="button"
+          disabled={!st.field || st.over}
+          onClick={() => conn.control({ paused: !st.paused })}
+          className="bg-accent text-accent-ink min-h-9 min-w-16 rounded-md border-0 font-semibold disabled:opacity-40"
+        >
+          {st.paused ? "Run" : "Pause"}
+        </button>
+        <button
+          type="button"
+          disabled={!st.field || st.over}
+          onClick={() => conn.control({ step: 1 })}
+          className={cn(button, "bg-raised")}
+        >
+          Step +1
+        </button>
+        <Segmented
+          value={st.speed}
+          options={SPEEDS.map((s) => [s, s === 0.5 ? "½×" : `${s}×`])}
+          onChange={(speed) => conn.control({ speed })}
+        />
+      </fieldset>
+      <div className="flex flex-col items-end font-mono leading-tight">
+        <span>
+          {st.tick < st.setupTicks
+            ? `setup ${clock((st.setupTicks - st.tick) / 5)}`
+            : clock(fighting)}
+          <span className="text-ink-4">
+            {" "}
+            / {clock(content.rules.battle.timeCap)}
+          </span>
+        </span>
+        <span className="text-ink-3 text-[11px]">
+          tick {st.tick}
+          {st.over && ` · over: ${st.winner} wins (${st.reason})`}
+        </span>
+      </div>
+      <label className={cn(button, "flex cursor-pointer items-center")}>
+        Load replay…
+        <input
+          type="file"
+          accept=".jsonl,application/x-ndjson,application/json"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void loadLog(f);
+            e.target.value = "";
+          }}
+        />
+      </label>
+      {log && (
+        <div className="flex w-full items-center gap-2">
+          <span className={tag}>REPLAY · {log.map}</span>
+          <select
+            aria-label="Battle from the log"
+            value={pick}
+            onChange={(e) => setPick(Number(e.target.value))}
+            className="min-h-8 min-w-0 flex-1 rounded-md px-2"
+          >
+            {log.battles.map((b, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: a log's Battles in order
+              <option key={i} value={i}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={log.battles.length === 0}
+            onClick={() => conn.replay(log.map, log.battles[pick]?.data)}
+            className={cn(button, "bg-raised")}
+          >
+            Replay it
+          </button>
+          <button type="button" onClick={() => setLog(null)} className={button}>
+            Close
+          </button>
+        </div>
+      )}
+      {st.error && <p className="text-danger w-full">{st.error}</p>}
+    </header>
+  );
+}
+
+function SetupPanel(props: {
+  content: ContentLookups;
+  setup: LabSetup;
+  onChange: (s: LabSetup) => void;
+  onRun: () => void;
+}) {
+  const { content, setup, onChange } = props;
+  const factions = playable(content);
+  const setSide = (i: 0 | 1, side: LabSide) =>
+    onChange({
+      ...setup,
+      sides: (i === 0 ? [side, setup.sides[1]] : [setup.sides[0], side]) as [
+        LabSide,
+        LabSide,
+      ],
+    });
+  return (
+    <aside
+      aria-label="Setup"
+      className="border-line bg-panel flex w-80 flex-none flex-col gap-4 overflow-y-auto border-r p-4"
+    >
+      <section className="flex flex-col gap-2.5">
+        <h2 className={title}>BATTLEFIELD</h2>
+        <label className="flex flex-col gap-1">
+          <span className="text-ink-3 text-xs">Terrain Preset</span>
+          <select
+            value={setup.preset}
+            onChange={(e) => onChange({ ...setup, preset: e.target.value })}
+            className="min-h-9 rounded-md px-2"
+          >
+            <option value="">
+              The Ruleset's ({content.rules.battlefield.terrainPreset})
+            </option>
+            {[...content.terrainPresets.keys()].sort().map((id) => (
+              <option key={id} value={id}>
+                {id}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-ink-3 text-xs">Archetype</span>
+          <select disabled className="text-ink-4 min-h-9 rounded-md px-2">
+            <option>From the preset (after #99)</option>
+          </select>
+        </label>
+        <div className="flex items-end gap-2">
+          <label className="flex flex-1 flex-col gap-1">
+            <span className="text-ink-3 text-xs">Seed</span>
+            <input
+              type="number"
+              min={0}
+              value={setup.seed}
+              onChange={(e) =>
+                onChange({
+                  ...setup,
+                  seed: Math.max(0, Math.floor(e.target.valueAsNumber || 0)),
+                })
+              }
+              className="min-h-9 rounded-md px-2 font-mono"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                ...setup,
+                seed: Math.floor(Math.random() * 1_000_000),
+              })
+            }
+            className={cn(button, "bg-raised")}
+          >
+            Random
+          </button>
+        </div>
+      </section>
+      {([0, 1] as const).map((i) => {
+        const side = setup.sides[i];
+        const units = [...content.units]
+          .filter(([, u]) => u.faction === side.faction)
+          .sort(([a], [b]) => (a < b ? -1 : 1));
+        return (
+          <section
+            key={i}
+            className="border-divider flex flex-col gap-2 border-t pt-3.5"
+          >
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="size-2.5 rounded-sm"
+                style={{ background: seatColour(i) }}
+              />
+              <h2 className={cn(title, "flex-1")}>
+                {i === 0 ? "ATTACKER" : "DEFENDER"}
+              </h2>
+              <Segmented
+                value={side.command ? "you" : "ai"}
+                options={[
+                  ["ai", "AI"],
+                  ["you", "You command"],
+                ]}
+                onChange={(v) => setSide(i, { ...side, command: v === "you" })}
+              />
+            </div>
+            <select
+              aria-label="Faction"
+              value={side.faction}
+              onChange={(e) =>
+                setSide(i, { ...side, faction: e.target.value, units: [] })
+              }
+              className="min-h-9 rounded-md px-2"
+            >
+              {factions.map((f) => (
+                <option key={f} value={f}>
+                  {content.factions.get(f)?.name ?? f}
+                </option>
+              ))}
+            </select>
+            <ul className="flex flex-col gap-1">
+              {side.units.map((u, k) => {
+                const set = (count: number) =>
+                  setSide(i, {
+                    ...side,
+                    units:
+                      count > 0
+                        ? side.units.map((x, j) =>
+                            j === k ? { ...x, count } : x,
+                          )
+                        : side.units.filter((_, j) => j !== k),
+                  });
+                return (
+                  <li
+                    // biome-ignore lint/suspicious/noArrayIndexKey: rows can repeat a unit
+                    key={k}
+                    className="bg-item flex items-center gap-2 rounded-md py-1 pr-1.5 pl-2.5"
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      {nameOf(content, u.unit)}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Fewer"
+                      onClick={() => set(u.count - 1)}
+                      className="border-edge size-7 rounded border bg-transparent p-0"
+                    >
+                      −
+                    </button>
+                    <span className="w-7 text-center font-mono">{u.count}</span>
+                    <button
+                      type="button"
+                      aria-label="More"
+                      onClick={() => set(u.count + 1)}
+                      className="border-edge size-7 rounded border bg-transparent p-0"
+                    >
+                      +
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <select
+              aria-label="Add a unit"
+              value=""
+              onChange={(e) =>
+                e.target.value &&
+                setSide(i, {
+                  ...side,
+                  units: [...side.units, { unit: e.target.value, count: 1 }],
+                })
+              }
+              className="text-ink-2 min-h-8 rounded-md border-dashed px-2"
+            >
+              <option value="">+ Unit</option>
+              {units.map(([id, u]) => (
+                <option key={id} value={id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+            {i === 1 && (
+              <p className="text-ink-3 text-xs">
+                Buildings:{" "}
+                {side.buildings.length
+                  ? side.buildings.map((b) => nameOf(content, b)).join(", ")
+                  : "none"}{" "}
+                (the Starting Kit's)
+              </p>
+            )}
+            <p className="text-ink-3 text-xs">
+              AI weights:{" "}
+              {content.factions.get(side.faction)?.name ?? side.faction}'s
+            </p>
+          </section>
+        );
+      })}
+      <span className="flex-1" />
+      <button
+        type="button"
+        onClick={props.onRun}
+        className="bg-accent text-accent-ink font-display min-h-11 flex-none rounded-lg border-0 font-bold tracking-[0.1em]"
+      >
+        RUN THIS SETUP
+      </button>
+    </aside>
+  );
+}
+
+/** Each Task Force's line from its stage to its goal, and each target line. */
+function overlays(
+  thinking: (Thinking | null)[],
+  squads: Squad[],
+  show: { forces: boolean; targets: boolean },
+): OverlayLine[] {
+  const at = new Map(squads.map((s) => [s.id, s]));
+  const out: OverlayLine[] = [];
+  for (const th of thinking) {
+    for (const [i, tf] of (th?.forces ?? []).entries()) {
+      const colour = FORCE_COLOURS[i % FORCE_COLOURS.length] ?? "#f0a93b";
+      if (show.forces) {
+        out.push({
+          from: { x: tf.stage.X, y: tf.stage.Y },
+          to: { x: tf.cell.X, y: tf.cell.Y },
+          colour,
+          dashed: true,
+        });
+      }
+      const target = tf.firesOn ? at.get(tf.firesOn) : undefined;
+      if (show.targets && target) {
+        for (const m of tf.members) {
+          const sq = at.get(m);
+          if (sq) out.push({ from: sq, to: target, colour: "#f08a7a" });
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function Field(props: {
+  conn: LabConnection;
+  content: ContentLookups;
+  fog: Fog;
+  show: { forces: boolean; targets: boolean };
+  selected: number | null;
+  onPick: (id: number | null) => void;
+}) {
+  const { conn, content } = props;
+  const ref = useRef<HTMLDivElement>(null);
+  const scene = useRef<BattlefieldScene | null>(null);
+  const field = useStore(conn.store, (s) => s.field);
+  const battle = useStore(conn.store, (s) => s.battle);
+  const thinking = useStore(conn.store, (s) => s.thinking);
+  const { onPick } = props;
+
+  useEffect(() => {
+    if (!ref.current || !field) return;
+    const rules = content.rules.battle;
+    const statsOf = (unit: string) =>
+      content.units.get(unit)?.combat ?? content.buildings.get(unit)?.combat;
+    const classOf = (unit: string) =>
+      statsOf(unit)?.unitClass ?? rules.structure.unitClass;
+    const flies = (sq: Squad) =>
+      !!content.unitClasses.get(classOf(sq.unit))?.air;
+    const s = new BattlefieldScene(ref.current, field, {
+      terrainColour: (t) => content.terrains.get(t)?.colour ?? "#555555",
+      sideColour: { attacker: seatColour(0), defender: seatColour(1) },
+      you: null,
+      sight: (sq, height) =>
+        (statsOf(sq.unit)?.sight ??
+          rules.classDefaults[classOf(sq.unit)]?.sight ??
+          0) + (flies(sq) ? 0 : rules.heightSight * height),
+      flies,
+      captureRadius: rules.captureRadius,
+      captureTicks: rules.captureSeconds * 5,
+    });
+    s.onPick = onPick;
+    scene.current = s;
+    const onVolleys = (e: Event) => s.fire((e as CustomEvent<Volley[]>).detail);
+    conn.events.addEventListener("volleys", onVolleys);
+    return () => {
+      conn.events.removeEventListener("volleys", onVolleys);
+      s.dispose();
+      scene.current = null;
+    };
+  }, [conn, content, field, onPick]);
+
+  useEffect(() => {
+    if (battle) scene.current?.update(battle);
+  }, [battle]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: field: a new scene takes the setting too
+  useEffect(() => {
+    scene.current?.setFog(props.fog === "none" ? false : props.fog);
+  }, [props.fog, field]);
+  useEffect(() => {
+    scene.current?.overlay(
+      overlays(thinking, battle?.squads ?? [], props.show),
+    );
+  }, [thinking, battle, props.show]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: field: a new scene takes the selection too
+  useEffect(() => {
+    scene.current?.select(props.selected);
+  }, [props.selected, field]);
+
+  return (
+    <div className="border-line bg-void relative min-h-0 flex-1 overflow-hidden rounded-lg border">
+      <div ref={ref} className="size-full" />
+      {!field && (
+        <p className="text-ink-3 absolute inset-0 flex items-center justify-center">
+          Set up a Battle and press Run this setup, or load a replay.
+        </p>
+      )}
+      {props.selected !== null && battle && (
+        <SquadCard
+          conn={conn}
+          content={content}
+          id={props.selected}
+          onClose={() => onPick(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** The selected squad: what it is, the goal it took and why, its Task Force. */
+function SquadCard(props: {
+  conn: LabConnection;
+  content: ContentLookups;
+  id: number;
+  onClose: () => void;
+}) {
+  const battle = useStore(props.conn.store, (s) => s.battle);
+  const thinking = useStore(props.conn.store, (s) => s.thinking);
+  const sq = battle?.squads.find((s) => s.id === props.id);
+  if (!sq) return null;
+  const th = thinking[sq.side === "attacker" ? 0 : 1];
+  const choice = th?.choices?.find((c) => c.squad === sq.id);
+  const goal = choice && th?.goals?.[choice.goal];
+  const tfIndex = th?.forces?.findIndex((f) => f.members.includes(sq.id)) ?? -1;
+  const tf = tfIndex >= 0 ? th?.forces?.[tfIndex] : undefined;
+  return (
+    <div className="border-edge bg-panel absolute top-3 right-3 flex w-64 flex-col gap-1 rounded-lg border px-3 py-2.5 shadow-[0_12px_32px_#000a]">
+      <div className="flex items-center gap-1.5">
+        <span
+          aria-hidden="true"
+          className="size-2 rounded-full"
+          style={{ background: seatColour(sq.side === "attacker" ? 0 : 1) }}
+        />
+        <strong className="min-w-0 flex-1 truncate">
+          {nameOf(props.content, sq.unit)} #{sq.id}
+        </strong>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={props.onClose}
+          className="text-ink-3 size-6 border-0 bg-transparent p-0"
+        >
+          ✕
+        </button>
+      </div>
+      <span className="text-ink-3">
+        {sq.count} of {sq.start} left · at ({sq.x},{sq.y})
+      </span>
+      {goal ? (
+        <>
+          <span>
+            Goal <strong className="text-accent">{goalText(goal)}</strong> ·
+            score {choice.score.toFixed(2)}
+          </span>
+          <span className="text-ink-3 text-xs">Why: {choice.why}</span>
+        </>
+      ) : (
+        <span className="text-ink-3">
+          {th ? "No goal this pass (a role, or setup)." : "Commanded: no AI."}
+        </span>
+      )}
+      {tf && (
+        <span className="text-ink-3 text-xs">
+          In TF {tfIndex + 1} · {tf.going ? "going in" : "gathering"} at (
+          {tf.stage.X},{tf.stage.Y})
+        </span>
+      )}
+    </div>
+  );
+}
+
+const goalText = (g: {
+  goal: string;
+  cell: { X: number; Y: number };
+  target?: number;
+}) =>
+  g.target ? `${g.goal} #${g.target}` : `${g.goal} (${g.cell.X},${g.cell.Y})`;
+
+function Status(props: { conn: LabConnection; content: ContentLookups }) {
+  const battle = useStore(props.conn.store, (s) => s.battle);
+  const holdSeconds = props.content.rules.battle.holdSeconds;
+  if (!battle) return <div className="h-18 flex-none" />;
+  const left = (side: Side) => {
+    const qs = battle.squads.filter((q) => q.side === side && !q.building);
+    const start = qs.reduce((n, q) => n + q.start, 0);
+    return start ? qs.reduce((n, q) => n + q.count, 0) / start : 0;
+  };
+  return (
+    <div className="flex h-18 flex-none gap-2.5">
+      <div className="border-line bg-panel flex flex-1 flex-col gap-1 rounded-lg border px-3 py-2">
+        <span className={tag}>OBJECTIVE</span>
+        <span>
+          {battle.points.map((p, i) => (
+            <span key={`${p.x},${p.y}`} className="mr-3">
+              <span
+                style={{ color: seatColour(p.owner === "attacker" ? 0 : 1) }}
+              >
+                ●
+              </span>{" "}
+              {POINT_NAMES[i]}
+              {p.progress > 0 && (
+                <span className="text-ink-3"> ({p.taker} taking)</span>
+              )}
+            </span>
+          ))}
+          <span className="text-ink-3 font-mono">
+            hold {clock(battle.hold / 5)} / {clock(holdSeconds)}
+            {battle.holdPaused && " · paused"}
+          </span>
+        </span>
+      </div>
+      <div className="border-line bg-panel flex flex-1 flex-col gap-1 rounded-lg border px-3 py-2">
+        <span className={tag}>STRENGTH LEFT</span>
+        {SIDES.map((side, i) => (
+          <div key={side} className="flex items-center gap-2 text-xs">
+            <span className="w-16 capitalize">{side}</span>
+            <span className="bg-line h-2 flex-1 overflow-hidden rounded">
+              <span
+                className="block h-full"
+                style={{
+                  width: `${left(side) * 100}%`,
+                  background: seatColour(i),
+                }}
+              />
+            </span>
+            <span className="w-9 text-right font-mono">
+              {Math.round(left(side) * 100)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AiPanel(props: {
+  conn: LabConnection;
+  content: ContentLookups;
+  side: 0 | 1;
+  onSide: (s: 0 | 1) => void;
+  selected: number | null;
+  onSelect: (id: number | null) => void;
+}) {
+  const { conn, content, side } = props;
+  const th = useStore(conn.store, (s) => s.thinking[side]);
+  const log = useStore(conn.store, (s) => s.log);
+  const [onlySelected, setOnlySelected] = useState(true);
+  const filtered = log.filter(
+    (d: LabDecision) =>
+      d.side === side &&
+      (!onlySelected || props.selected === null || d.squad === props.selected),
+  );
+  const goals = [...(th?.goals ?? [])].sort(
+    (a, b) => b.squads - a.squads || b.value - a.value,
+  );
+  return (
+    <aside
+      aria-label="What the AI is thinking"
+      className="border-line bg-panel flex w-90 flex-none flex-col border-l"
+    >
+      <div
+        role="tablist"
+        aria-label="AI side"
+        className="border-line flex border-b"
+      >
+        {(["Attacker AI", "Defender AI"] as const).map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            role="tab"
+            aria-selected={side === i}
+            onClick={() => props.onSide(i as 0 | 1)}
+            className={cn(
+              "min-h-10 flex-1 rounded-none border-0 border-b-2 bg-transparent",
+              side === i ? "border-accent" : "text-ink-3 border-transparent",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {!th ? (
+        <p className="text-ink-3 p-4">
+          No AI on this side: it's yours to command, or nothing is running.
+        </p>
+      ) : (
+        <>
+          <section className="border-divider flex max-h-56 flex-none flex-col gap-2 overflow-y-auto border-b px-3.5 py-3">
+            <h2 className={title}>TASK FORCES</h2>
+            {(th.forces ?? []).length === 0 && (
+              <p className="text-ink-3">None formed.</p>
+            )}
+            {(th.forces ?? []).map((tf, i) => (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: two Task Forces can share a goal
+                key={`${tf.goal}-${tf.cell.X}-${tf.cell.Y}-${tf.target}-${i}`}
+                className="bg-item flex flex-col gap-0.5 rounded-md px-2.5 py-2"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className="h-0.75 w-2.5"
+                    style={{
+                      background: FORCE_COLOURS[i % FORCE_COLOURS.length],
+                    }}
+                  />
+                  <strong>TF {i + 1}</strong>
+                  <span className="flex-1" />
+                  <span className="text-ink-3 font-mono text-xs">
+                    {tf.going ? "going in" : "gathering"}
+                  </span>
+                </div>
+                <span className="text-ink-2">
+                  {goalText(tf)}
+                  {tf.firesOn ? ` · fires on #${tf.firesOn}` : ""}
+                </span>
+                <span className="text-ink-3 text-xs">
+                  {tf.members.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => props.onSelect(m)}
+                      className="text-accent mr-1.5 border-0 bg-transparent p-0"
+                    >
+                      #{m}
+                    </button>
+                  ))}
+                  · stage ({tf.stage.X},{tf.stage.Y})
+                </span>
+              </div>
+            ))}
+          </section>
+          <section className="border-divider flex max-h-56 flex-none flex-col gap-1.5 overflow-y-auto border-b px-3.5 py-3">
+            <h2 className={title}>
+              COMMANDER'S GOALS{" "}
+              <span className="text-ink-3 font-sans text-xs font-normal tracking-normal">
+                · tick {th.tick}
+              </span>
+            </h2>
+            <table className="text-xs">
+              <thead className="text-ink-3 text-left">
+                <tr>
+                  <th className="font-normal">Goal</th>
+                  <th className="text-right font-normal">Worth</th>
+                  <th className="text-right font-normal">Threat</th>
+                  <th className="text-right font-normal">Squads</th>
+                </tr>
+              </thead>
+              <tbody>
+                {goals.map((g) => (
+                  <tr key={`${g.goal}-${g.cell.X}-${g.cell.Y}-${g.target}`}>
+                    <td className="py-0.5">{goalText(g)}</td>
+                    <td className="text-right font-mono">
+                      {g.value.toFixed(2)}
+                    </td>
+                    <td className="text-right font-mono">
+                      {g.threat.toFixed(0)}
+                    </td>
+                    <td className="text-right font-mono">{g.squads}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </>
+      )}
+      <section className="flex min-h-0 flex-1 flex-col gap-2 px-3.5 py-3">
+        <div className="flex items-center gap-2">
+          <h2 className={cn(title, "flex-1")}>DECISIONS</h2>
+          <label className="text-ink-3 flex items-center gap-1.5 text-xs">
+            <input
+              type="checkbox"
+              checked={onlySelected}
+              onChange={(e) => setOnlySelected(e.target.checked)}
+            />
+            {props.selected === null
+              ? "Selected squad only"
+              : `#${props.selected} only`}
+          </label>
+        </div>
+        <ol className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto font-mono text-xs">
+          {filtered.map((d, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: the log only grows at the front
+            <li key={`${d.tick}-${d.squad}-${i}`}>
+              <button
+                type="button"
+                onClick={() => props.onSelect(d.squad)}
+                className="bg-well grid w-full grid-cols-[40px_minmax(0,1fr)] gap-2 rounded border-0 px-1.5 py-1 text-left"
+              >
+                <span className="text-ink-4">{d.tick}</span>
+                <span className="truncate">
+                  #{d.squad} {nameOf(content, d.unit)} →{" "}
+                  {d.target
+                    ? `${d.goal} #${d.target}`
+                    : `${d.goal} (${d.cell.X},${d.cell.Y})`}
+                  {d.role ? ` (${d.role})` : ""}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+        <span className="text-ink-3 text-xs">
+          Click a squad on the map, or a line here, to select it.
+        </span>
+      </section>
+    </aside>
+  );
+}

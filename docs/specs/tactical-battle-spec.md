@@ -446,7 +446,7 @@ Why: Battles have 2–6 tokens a side on a 64×48 grid, the maps read as haphaza
 
 ### The Battle Lab
 
-A dev and design tool, never shipped to players.
+Built (#97). A dev and design tool, never shipped to players.
 
 - **Where:** a `/lab` route in the game client, present only in dev builds. It reuses the client's sign-in, socket and Battlefield drawing.
 - **How it runs:** a `battle_lab` Nakama match type that is registered only when the server starts with `HALO_DEV=1`. The page creates one, then sends it setup and control messages. The match loop steps the sim at the chosen speed and sends back the state and the AI's decision trace. The same logic is testable from Go.
@@ -457,7 +457,8 @@ A dev and design tool, never shipped to players.
   - each Task Force's goal, route and target drawn on the map;
   - a decision log that can be filtered by squad.
 - **Replays:** load a Battle from a match log (`HALO_MATCH_LOG`) and replay it.
-- **Command:** either side, or both, can be put under your command instead of the AI. This is the test bed for [Command](#command).
+- **Command:** either side, or both, can be put under your command instead of the AI. This is the test bed for [Command](#command). Until #92 there are no controls to give orders, so a commanded side's squads hold and fire.
+- **The AI's reasons:** each Commander pass, a side's AI records every goal it listed (its worth, the threat seen near it, the strength it needs), the goal each squad took with its score broken into factors (worth, distance, others on it, matchup, threat, already on it), and its Task Forces.
 - **Mockup first:** an HTML mockup of the page is agreed before the page is built.
 
 ### The Command Post
@@ -526,7 +527,7 @@ Late game: an Army can join a Battle already running (#57).
 ### Order of work
 
 1. ~~Squads by Unit Class~~ (#96): now in [Squads](#squads).
-2. The Battle Lab.
+2. ~~The Battle Lab~~ (#97): built.
 3. The Command Post and Landing Zones.
 4. Archetypes and fixtures.
 5. Raids (#66).

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LabRouteImport } from './routes/lab'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as MatchMatchIdIndexRouteImport } from './routes/match.$matchId.index'
 import { Route as MatchMatchIdLobbyRouteImport } from './routes/match.$matchId.lobby'
@@ -19,6 +20,11 @@ import { Route as MatchMatchIdResultsRouteImport } from './routes/match.$matchId
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabRoute = LabRouteImport.update({
+  id: '/lab',
+  path: '/lab',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
@@ -49,6 +55,7 @@ const MatchMatchIdResultsRoute = MatchMatchIdResultsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/lab': typeof LabRoute
   '/match/$matchId': typeof MatchMatchIdRouteWithChildren
   '/match/$matchId/lobby': typeof MatchMatchIdLobbyRoute
   '/match/$matchId/play': typeof MatchMatchIdPlayRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/lab': typeof LabRoute
   '/match/$matchId/lobby': typeof MatchMatchIdLobbyRoute
   '/match/$matchId/play': typeof MatchMatchIdPlayRoute
   '/match/$matchId/results': typeof MatchMatchIdResultsRoute
@@ -65,6 +73,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/lab': typeof LabRoute
   '/match/$matchId': typeof MatchMatchIdRouteWithChildren
   '/match/$matchId/lobby': typeof MatchMatchIdLobbyRoute
   '/match/$matchId/play': typeof MatchMatchIdPlayRoute
@@ -75,6 +84,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/lab'
     | '/match/$matchId'
     | '/match/$matchId/lobby'
     | '/match/$matchId/play'
@@ -83,6 +93,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/lab'
     | '/match/$matchId/lobby'
     | '/match/$matchId/play'
     | '/match/$matchId/results'
@@ -90,6 +101,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/lab'
     | '/match/$matchId'
     | '/match/$matchId/lobby'
     | '/match/$matchId/play'
@@ -99,6 +111,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LabRoute: typeof LabRoute
   MatchMatchIdRoute: typeof MatchMatchIdRouteWithChildren
 }
 
@@ -109,6 +122,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lab': {
+      id: '/lab'
+      path: '/lab'
+      fullPath: '/lab'
+      preLoaderRoute: typeof LabRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/match/$matchId': {
@@ -169,6 +189,7 @@ const MatchMatchIdRouteWithChildren = MatchMatchIdRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LabRoute: LabRoute,
   MatchMatchIdRoute: MatchMatchIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
