@@ -128,6 +128,34 @@ _Avoid_: Objective, flag, capture point
 How far a unit sees on a Battlefield, in cells; a side sees the union of its units' Sight, and everything else is fog.
 _Avoid_: Vision (Vision is galaxy-level), range (that's how far it fires)
 
+**Command Post**:
+Planned (#95): the defender's objective structure on a Battlefield, which exists only for that Battle; destroying it wins the Battle for the attacker.
+_Avoid_: HQ, base, Capital (a Capital is a Planet)
+
+**Landing Zone**:
+Planned (#95): what a Control Point becomes, a spot where the side holding it can land reinforcements.
+_Avoid_: Drop zone, LZ in docs, beachhead
+
+**Dropship**:
+Planned (#95): a unit unlocked by a Tech that carries an Army's units into a Battle already running, as reinforcements.
+_Avoid_: Transport, Pelican/Phantom as the generic term (those are Faction units)
+
+**Battlefield Archetype**:
+Planned (#95): the shape a Battlefield is generated in, such as a river with crossings or ruins; each Terrain Preset weights the ones it can use.
+_Avoid_: Map type, biome (a Terrain Preset sets the look), template
+
+**Fixture**:
+Planned (#95): a hand-authored piece of Battlefield, drawn as ASCII art in a Mod, that generation stamps into open space.
+_Avoid_: Prefab, set piece, stamp
+
+**Auto-resolve**:
+Planned (#95): a side of a Battle run by the AI, because its player chose not to command it or is a Bot. The choice is fixed when the Battle starts.
+_Avoid_: Simulate, AI control (the AI is a Controller either way), skip
+
+**Battle Lab**:
+Planned (#95): a dev-only page for setting up, running, stepping and replaying Battles, with the AI's thinking shown.
+_Avoid_: Sandbox (a map is named that), test page, simulator
+
 **Controller**:
 What drives one side of a Battle: it reads that side's fog-filtered view and issues orders. The AI is a Controller, and a player will be one later.
 _Avoid_: AI player, brain, Bot (a Bot plays a whole Seat; the Battle AI drives one side of one Battle)

@@ -436,6 +436,107 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 - **Unit:** an optional `roles` list, `scout` and/or `skirmisher`: hints for which units the Battle AI picks for those jobs first.
 - **`combat` block:** see [Stats](#stats).
 
+## Tactical Battles v3
+
+Planned (#95), not built. Each part below is its own issue. As each one lands it replaces the matching section above, and this section shrinks. Research: [procedural RTS map generation](../research/procedural-rts-map-generation.md), [RTS bots that are fun to fight](../research/rts-bot-ai-fun.md).
+
+Why: Battles have 2–6 tokens a side on a 64×48 grid, the maps read as haphazard, and three Control Points don't feel like a military objective. Before changing any of that, we need a way to see what the AI is thinking.
+
+### The Battle Lab
+
+A dev and design tool, never shipped to players.
+
+- **Where:** a `/lab` route in the game client, present only in dev builds. It reuses the client's sign-in, socket and Battlefield drawing.
+- **How it runs:** a `battle_lab` Nakama match type that is registered only when the server starts with `HALO_DEV=1`. The page creates one, then sends it setup and control messages. The match loop steps the sim at the chosen speed and sends back the state and the AI's decision trace. The same logic is testable from Go.
+- **Setup:** the Terrain Preset or archetype, the seed, and each side's units, Faction and AI weights.
+- **Running:** pause, step, speed, and restart on the same seed.
+- **Viewing:**
+  - fog for both sides, the attacker only, or the defender only;
+  - each Task Force's goal, route and target drawn on the map;
+  - a decision log that can be filtered by squad.
+- **Replays:** load a Battle from a match log (`HALO_MATCH_LOG`) and replay it.
+- **Command:** either side, or both, can be put under your command instead of the AI. This is the test bed for [Command](#command).
+- **Mockup first:** an HTML mockup of the page is agreed before the page is built.
+
+### Squads by Unit Class
+
+A Unit Slot deploys as several squads, each with at most the Unit Class's squad cap of members. For example, 5 Marines or 2 vehicles, so 10 Marines become 2 squads. Units on the galaxy map don't change. Battles get the 10–20 tokens a side that formations and flanking need.
+
+### The Command Post
+
+- Every Battlefield has a **Command Post** on the defender's side, neutral garrisons included. It's an objective structure that exists only for the Battle and takes no Building Slot. The defender's buildings form a base around it.
+- **The attacker wins** by destroying the Command Post, or by eliminating the defence as now.
+- **The defender wins** at the time cap, by eliminating the attacker, or when the attacker Retreats.
+- **The hold timer is dropped.**
+- Control Points become **Landing Zones**. The side that holds one can land [reinforcements](#reinforcements) there. Build pads stay as they are.
+
+### Archetypes and fixtures
+
+Battlefields get structure from authored content. Noise only dresses the space in between.
+
+- **Archetypes** set a Battlefield's shape. Each Terrain Preset gives weights for the ones it can use. The first four:
+  - an open field;
+  - a river with 2–3 crossings;
+  - a ridge line or a valley;
+  - ruins: a city grid of blocks and streets.
+- **Fixtures** are hand-authored pieces stamped into open space. Examples: a firebase, a bridge, a crash site, a Forerunner structure, a trench line. Each is a JSONC file in the Mod, drawn as ASCII art:
+  - a key maps each character to a Terrain or a height;
+  - markers place cover, pads and building sites;
+  - it says which archetypes and presets can use it, and whether it may be rotated or mirrored.
+- Generation stamps a weighted few fixtures, each stage in a new PCG stream (8 and up). The existing streams keep their numbers, so seeds keep their maps where nothing else changed.
+- **Later:** an editor page for fixtures; a [3D drawing](#later) of the Battlefield (#93), with the 2D view kept as the overview.
+
+### Raids
+
+**Raid** is a galaxy order alongside Attack (#66).
+
+- **The goal:** a raiding Army fights a Battle whose aim is to destroy the Planet's buildings within a time limit (first pass: 90 s).
+- **Damage is permanent:** buildings destroyed in a Raid are gone from the Planet afterwards.
+- **No capture:** the raiders Retreat home when the time is up, and the Planet never changes hands.
+- **The defender** wins by wiping out the raiders or by outlasting the timer, but the damage stays either way.
+- **Not decided yet:** cloaked movement, and ways to spot raiders, stay open in #66.
+
+### Command
+
+A player can command their side of a Battle instead of the AI (#92). The AI then serves only as the **Auto-resolve**.
+
+- **Choosing:**
+  - Each player sets a default: command their Battles, or auto-resolve them.
+  - An attack order can override the default for that Army.
+  - A Battle you defend uses your default.
+  - Bots always auto-resolve.
+- **The choice is fixed when the Battle starts.** If it starts on Auto, you watch and can't take over. If you're commanding and you disconnect, the AI takes over for the rest of that Battle.
+- **Controls:** RTS-style. Select squads with a click or a drag box, then right-click to move or attack. Other commands, such as guard and scout, are in #92. Retreat and pad turrets work as now.
+- **Squads you haven't ordered** hold their position and fire at whatever comes in range.
+- **Mockup first:** an HTML mockup of the in-Battle controls is agreed before they're built.
+
+### Reinforcements
+
+Late game: an Army can join a Battle already running (#57).
+
+- **The Dropship:** a Tech unlocks a Dropship unit. It doesn't fight, and it carries a set number of units, given in its content.
+- **Landing:**
+  - An Army with a Dropship that reaches a Planet Locked by a Battle lands its units after a delay.
+  - They come in at their side's edge, or at a Landing Zone their side holds.
+  - A commanding player picks where to land. On Auto, the AI picks the Landing Zone nearest its goal.
+- **Who can land:** either side, and Teammates' Armies too, whose units fight under the side's control. Battles stay one player against one.
+- **Without a Dropship,** an Army waits in orbit, as now.
+- **Determinism:** a landing goes in the input log, so replays stay exact.
+- **Follow-up:** anti-air units shooting down Dropships as they land.
+
+### Order of work
+
+1. Squads by Unit Class.
+2. The Battle Lab.
+3. The Command Post and Landing Zones.
+4. Archetypes and fixtures.
+5. Raids (#66).
+6. Command (#92).
+7. Reinforcements (#57).
+8. 3D drawing (#93).
+
+Related, later: the EaW-style battle view for laying out a Planet's defence ahead of time (#91). Measured in the Lab: big Battles favouring the attacker (#40), and an AI that chooses to Retreat (#61).
+
 ## Later
 
 Not in v1, but kept in mind:
