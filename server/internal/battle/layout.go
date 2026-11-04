@@ -371,6 +371,54 @@ func (l *layout) placePads(n, area int, starts, sites []Cell) []Cell {
 	return pads
 }
 
+// placeSites adds building sites past the base's until there are n, spread
+// over the defender's side of the map: each the reachable cell farthest
+// from the Command Post and every site and pad so far, off the lanes, the
+// Landing Zone areas, the fixtures and the edge strips Retreats leave by.
+// Ties go to the lowest cell index.
+func (l *layout) placeSites(n, edge, margin int, pads []Cell) []Cell {
+	f := l.f
+	reached := l.reachAll()
+	sites := slices.Clone(f.Sites)
+	for len(sites) < n {
+		best, bestD := -1, 0
+		for i := range reached {
+			c := f.cell(i)
+			if c.X < margin || c.Y < margin || c.X >= f.W-margin || c.Y >= f.H-margin {
+				continue
+			}
+			if !reached[i] || l.zone[i] || l.fixed[i] || l.lane[i] || l.side[i] || f.towardBase(c, edge) < 0.35 || l.near(c, pads, sites) || l.besideLane(c) {
+				continue
+			}
+			d := dist2(c, f.CommandPost)
+			for _, s := range sites {
+				d = min(d, dist2(c, s))
+			}
+			if d > bestD {
+				best, bestD = i, d
+			}
+		}
+		if best < 0 {
+			break
+		}
+		sites = append(sites, f.cell(best))
+	}
+	return sites
+}
+
+// besideLane is whether c touches a lane, main or side, so a building
+// there would narrow it.
+func (l *layout) besideLane(c Cell) bool {
+	for y := c.Y - 1; y <= c.Y+1; y++ {
+		for x := c.X - 1; x <= c.X+1; x++ {
+			if b := (Cell{x, y}); l.in(b) && (l.lane[l.f.index(b)] || l.side[l.f.index(b)]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func abs(n int) int {
 	if n < 0 {
 		return -n

@@ -48,6 +48,9 @@ type Planet struct {
 	Income            map[string]int
 	Richness          map[string]string // per Resource; missing is none
 	CommandPointBonus int
+	// Layout is where its owner has placed its buildings and Stacks for a
+	// Battle here. A capture keeps the sites and clears the Stacks'.
+	Layout battle.Layout
 }
 
 type Player struct {

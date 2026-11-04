@@ -150,6 +150,24 @@ export type Battlefield = {
   heights: number[];
 };
 
+export type Cell = { x: number; y: number };
+
+/** Your Planet's defence layout: the Battlefield you'd defend it on, and where your buildings and Stacks start. */
+export type DefenceLayout = {
+  planet: string;
+  field: Battlefield;
+  commandPost: Cell;
+  sites: Cell[]; // the base's building sites
+  points: Cell[]; // Landing Zones
+  landings: Cell[]; // the ones an attacker may land at
+  pads: Cell[];
+  reach: number; // a Stack starts this near the Command Post or a building
+  buildingSites: (number | null)[]; // per Building Slot: its site; null by the Command Post, or empty
+  stackStarts: Cell[];
+  setSites: (number | null)[]; // the layout as set, per Building Slot; null is its default
+  setStarts: Map<number, Cell>;
+};
+
 /** One squad's fire in one sim tick, added up. */
 export type Volley = {
   actor: number; // 0: a shooter your side can't see

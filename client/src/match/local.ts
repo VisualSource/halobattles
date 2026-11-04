@@ -1,5 +1,5 @@
 import { createStore } from "zustand/vanilla";
-import type { BattleReport, PlanetView } from "./store";
+import type { BattleReport, DefenceLayout, PlanetView } from "./store";
 
 // Client-only state. Pending commands are keyed by seq; a control shows as
 // pending while its kind is in here.
@@ -28,7 +28,8 @@ export type CommandKind =
   | "research"
   | "battleControl"
   | "battleCommand"
-  | "battleOrder";
+  | "battleOrder"
+  | "layout";
 
 export type LocalState = {
   pending: Map<number, CommandKind>;
@@ -43,6 +44,8 @@ export type LocalState = {
   /** Your Battles, running and over, by id. In memory only: lost on reload. */
   reports: Map<number, BattleReport>;
   clockOffset: number; // Match Time = performance.now() + clockOffset
+  /** The last defence layout the server sent: the open Layout window's. */
+  layout: DefenceLayout | null;
 };
 
 export const createLocalStore = () =>
@@ -56,6 +59,7 @@ export const createLocalStore = () =>
     lastSeen: new Map(),
     reports: new Map(),
     clockOffset: 0,
+    layout: null,
   }));
 
 export type LocalStore = ReturnType<typeof createLocalStore>;

@@ -244,7 +244,10 @@ export function Tag(props: { className: string; children: ReactNode }) {
 }
 
 /** The Planet the selection points at: live, or as last seen. */
-function useSelectedPlanet(conn: MatchConnection, content: ContentLookups) {
+export function useSelectedPlanet(
+  conn: MatchConnection,
+  content: ContentLookups,
+) {
   const selected = useStore(conn.local, (s) => s.selected);
   const view = useStore(conn.store, (s) => s.view);
   const lastSeen = useStore(conn.local, (s) => s.lastSeen);
@@ -278,6 +281,8 @@ export function PlanetWindow(props: {
   content: ContentLookups;
   stacksOpen: boolean;
   onOpenStacks: () => void;
+  layoutOpen: boolean;
+  onOpenLayout: () => void;
 }) {
   const { conn, content } = props;
   const sel = useSelectedPlanet(conn, content);
@@ -314,21 +319,50 @@ export function PlanetWindow(props: {
       }
       tools={
         planet && (
-          <button
-            type="button"
-            aria-pressed={props.stacksOpen}
-            onClick={props.onOpenStacks}
-            className="border-edge bg-raised flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <g fill="none" stroke="var(--color-ink-2)" strokeWidth="1.5">
-                <rect x="1" y="1" width="12" height="3" rx="1" />
-                <rect x="1" y="5.5" width="12" height="3" rx="1" />
-                <rect x="1" y="10" width="12" height="3" rx="1" />
-              </g>
-            </svg>
-            Stacks
-          </button>
+          <>
+            <button
+              type="button"
+              aria-pressed={props.stacksOpen}
+              onClick={props.onOpenStacks}
+              className="border-edge bg-raised flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                aria-hidden="true"
+              >
+                <g fill="none" stroke="var(--color-ink-2)" strokeWidth="1.5">
+                  <rect x="1" y="1" width="12" height="3" rx="1" />
+                  <rect x="1" y="5.5" width="12" height="3" rx="1" />
+                  <rect x="1" y="10" width="12" height="3" rx="1" />
+                </g>
+              </svg>
+              Stacks
+            </button>
+            {mine && (
+              <button
+                type="button"
+                aria-pressed={props.layoutOpen}
+                onClick={props.onOpenLayout}
+                className="border-edge bg-raised flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  aria-hidden="true"
+                >
+                  <g fill="none" stroke="var(--color-ink-2)" strokeWidth="1.5">
+                    <rect x="1" y="1" width="12" height="12" rx="1" />
+                    <rect x="8" y="3" width="3" height="3" />
+                    <circle cx="4.5" cy="9.5" r="1.5" />
+                  </g>
+                </svg>
+                Layout
+              </button>
+            )}
+          </>
         )
       }
     >

@@ -53,6 +53,7 @@ type labSide struct {
 	Funds      map[string]int          `json:"funds,omitempty"`     // to buy pad turrets with; nil: none
 	Command    bool                    `json:"command"`
 	Boosts     map[string]battle.Boost `json:"boosts,omitempty"`
+	Layout     battle.Layout           `json:"layout"` // the defender's
 }
 
 type labSetup struct {
@@ -127,7 +128,9 @@ type labState struct {
 	volleys   []battle.Volley
 	decisions []labDecision
 	think     [2]*battle.Thinking
-	dirty     bool // send a frame this tick
+	defend    battle.Force // the defender's, for its layout
+	reach     float64      // the Ruleset's startReach
+	dirty     bool         // send a frame this tick
 }
 
 func (m *labMatch) MatchInit(context.Context, runtime.Logger, *sql.DB, runtime.NakamaModule, map[string]interface{}) (interface{}, int, string) {
@@ -323,7 +326,8 @@ func (s *labState) fromSetup(c *cs.Content, in labSetup) (*battle.Sim, error) {
 			return nil, fmt.Errorf("unknown building %q", b)
 		}
 	}
-	forces[battle.Defender].Buildings = in.Defend.Buildings
+	forces[battle.Defender].Buildings, forces[battle.Defender].Layout = in.Defend.Buildings, in.Defend.Layout
+	s.defend, s.reach = forces[battle.Defender], rules.Battle.StartReach
 	base := in.Defend.Faction
 	if in.Neutral {
 		base = ""
@@ -364,6 +368,7 @@ func (s *labState) fromReplay(c *cs.Content, in labReplay) (*battle.Sim, error) 
 		}
 	}
 	sim := battle.New(c, rules, battle.GenerateFor(c, rules.Battlefield, override, r.FieldSeed, r.Faction), r.Attack, r.Defend, r.Seed)
+	s.defend, s.reach = r.Defend, rules.Battle.StartReach
 	sim.Setup, sim.Builders, sim.Raid = r.Setup, r.Builders, r.Raid
 	for i := range sim.Funds {
 		sim.Funds[i] = maps.Clone(r.Funds[i])
@@ -416,8 +421,19 @@ func (s *labState) step(n int) {
 	}
 }
 
+// labField is the Battle's Field, and where the defender's layout put each
+// building (an index into Sites, or -1) and Stack.
+type labField struct {
+	*battle.Field
+	BuildingSites []int
+	StackStarts   []battle.Cell
+	Reach         float64
+}
+
 func (s *labState) sendField(dispatcher runtime.MatchDispatcher) {
-	s.send(dispatcher, labFieldOp, s.sim.Field, nil)
+	f := s.sim.Field
+	sites, starts := f.Deploy(s.defend.Buildings, len(s.defend.Formations), s.defend.Layout, s.reach)
+	s.send(dispatcher, labFieldOp, labField{Field: f, BuildingSites: sites, StackStarts: starts, Reach: s.reach}, nil)
 }
 
 func (s *labState) sendFrame(dispatcher runtime.MatchDispatcher) {

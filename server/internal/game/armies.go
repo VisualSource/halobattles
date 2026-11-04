@@ -364,6 +364,7 @@ func (s *State) capture(p *Planet, to int, ev *Events) {
 		p.Buildings[i] = ""
 	}
 	p.Owner, p.Queue, p.UnitQueues, p.Rally, p.RallyPoint = to, nil, nil, 0, ""
+	p.Layout.Starts = nil
 	for _, q := range s.Planets { // the loser's Rally Points on it go
 		if q.Owner == from && q.RallyPoint == p.ID {
 			q.RallyPoint = ""

@@ -51,6 +51,7 @@ type matchState struct {
 	matchID   string
 	log       *matchLog               // nil unless HALO_MATCH_LOG is set
 	battles   map[uint32]*game.Battle // running Battles, for the log's replays
+	reply     []byte                  // a DefenceLayout for the command being handled's sender
 }
 
 // lobbyFactions are the Factions players and Bots can pick: every one not hidden.

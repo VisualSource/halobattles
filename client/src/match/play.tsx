@@ -19,6 +19,7 @@ import { BattlePanel } from "./battle";
 import { BotTag } from "./bot-tag";
 import type { MatchConnection } from "./connection";
 import { moneyOf, presets, quote } from "./exchange";
+import { LayoutWindow } from "./layout";
 import { isPending } from "./local";
 import { inMatch } from "./phase";
 import { ResearchButton, ResearchPanel } from "./research";
@@ -74,6 +75,7 @@ export function PlayScreen(props: {
   const map = mapId ? content.maps.get(mapId) : undefined;
   const container = useRef<HTMLDivElement>(null);
   const [stacksOpen, setStacksOpen] = useState(true);
+  const [layoutOpen, setLayoutOpen] = useState(false);
   // Open, and the field whose Tech picker to open with, if any.
   const [research, setResearch] = useState<{ pick?: string } | null>(null);
 
@@ -136,12 +138,21 @@ export function PlayScreen(props: {
           content={content}
           stacksOpen={stacksOpen}
           onOpenStacks={() => setStacksOpen(true)}
+          layoutOpen={layoutOpen}
+          onOpenLayout={() => setLayoutOpen(true)}
         />
         {stacksOpen && (
           <StacksWindow
             conn={conn}
             content={content}
             onClose={() => setStacksOpen(false)}
+          />
+        )}
+        {layoutOpen && (
+          <LayoutWindow
+            conn={conn}
+            content={content}
+            onClose={() => setLayoutOpen(false)}
           />
         )}
         <ArmyWindow conn={conn} content={content} />

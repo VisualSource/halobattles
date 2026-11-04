@@ -38,6 +38,8 @@ enum Op : int {
   SetBattleCommand = 29,
   BattleOrder = 30,
   BattleLand = 31,
+  RequestDefenceLayout = 32,
+  SetDefenceLayout = 33,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -51,6 +53,7 @@ enum Op : int {
   PlayerEliminated = 109,
   MatchEnded = 110,
   RaidTurnedBack = 111,
+  DefenceLayout = 112,
 }
 
 enum Phase : byte { Lobby, Play, Results }
@@ -229,6 +232,33 @@ table SetBattleCommand {
 }
 
 enum BattleOrderKind : ubyte { Move = 0, Attack = 1, AttackMove = 2, Hold = 3 }
+
+struct Cell {
+  x: ushort;
+  y: ushort;
+}
+
+// Asks for your Planet's defence layout; it comes back as a DefenceLayout.
+table RequestDefenceLayout {
+  seq: uint32;
+  planet: string;
+}
+
+// A Stack's start in a defence layout.
+table LayoutStart {
+  stack: ubyte;
+  x: ushort;
+  y: ushort;
+}
+
+// Sets your Planet's defence layout, whole; empty lists reset it. It's
+// answered with a DefenceLayout.
+table SetDefenceLayout {
+  seq: uint32;
+  planet: string;
+  sites: [byte];           // per Building Slot: the base site it stands on; -1 its default
+  starts: [LayoutStart];
+}
 
 // Sends one of your side's Dropships in orbit over the Battle on planet to a
 // Landing Zone your side holds; you must command the Battle.
@@ -652,4 +682,21 @@ table MatchEnded {
 table PaydayPaid {
   match_time: long;
   net: [Amount];
+}
+
+// Your Planet's defence layout: the Battlefield you'd defend it on, and
+// where your buildings and Stacks start on it.
+table DefenceLayout {
+  planet: string;
+  field: Battlefield;
+  command_post: Cell;
+  sites: [Cell];           // the base's building sites
+  points: [Cell];          // Landing Zones
+  landings: [Cell];        // the ones an attacker may land at
+  pads: [Cell];
+  reach: float;            // a Stack starts this near the Command Post or a building
+  building_sites: [byte];  // per Building Slot: the site it stands on; -1 by the Command Post, or empty
+  stack_starts: [Cell];    // where each Stack deploys
+  set_sites: [byte];       // the layout as set: per Building Slot, -1 is its default
+  set_starts: [LayoutStart];
 }

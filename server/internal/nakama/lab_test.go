@@ -344,3 +344,23 @@ func TestAFailedLabBuildKeepsTheRunningBattle(t *testing.T) {
 		t.Errorf("after the failed build: tick %d, thinking %v; want the Battle running on with its AIs", f.Tick, f.Thinking)
 	}
 }
+
+func TestTheLabDeploysTheDefenderByItsLayout(t *testing.T) {
+	h := newLab(t)
+	h.loop(labMsg(labSetupOp, kitSetup(7)))
+	var before labField
+	h.d.last(t, labFieldOp, &before)
+	setup := kitSetup(7)
+	setup.Defend.Layout = battle.Layout{Sites: map[int]int{0: before.BuildingSites[1], 1: before.BuildingSites[0]}}
+	h.loop(labMsg(labSetupOp, setup))
+	var after labField
+	h.d.last(t, labFieldOp, &after)
+	if after.BuildingSites[0] != before.BuildingSites[1] || after.BuildingSites[1] != before.BuildingSites[0] {
+		t.Errorf("sites %v, then %v with the two swapped; want them swapped", before.BuildingSites, after.BuildingSites)
+	}
+	for _, sq := range h.frame().Snapshot.Squads {
+		if sq.Building && !sq.CommandPost && sq.Unit == "base:hall" && sq.Cell != after.Sites[after.BuildingSites[0]] {
+			t.Errorf("the Hall deployed at %v; want its site %v", sq.Cell, after.Sites[after.BuildingSites[0]])
+		}
+	}
+}

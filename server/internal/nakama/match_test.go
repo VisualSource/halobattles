@@ -27,6 +27,7 @@ type fakeDispatcher struct {
 	captured map[string][]*wire.PlanetCapturedT  // by session
 	ops      map[string][]wire.Op                // every message, by session
 	toAll    []wire.Op                           // messages broadcast to everyone
+	layout   *wire.DefenceLayoutT                // the last one sent
 }
 
 func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Presence, _ runtime.Presence, _ bool) error {
@@ -66,6 +67,8 @@ func (d *fakeDispatcher) BroadcastMessage(op int64, data []byte, to []runtime.Pr
 		for _, p := range to {
 			d.captured[p.GetSessionId()] = append(d.captured[p.GetSessionId()], wire.GetRootAsPlanetCaptured(data, 0).UnPack())
 		}
+	case op == int64(wire.OpDefenceLayout) && len(to) == 1:
+		d.layout = wire.GetRootAsDefenceLayout(data, 0).UnPack()
 	case op == int64(wire.OpCommandRejected) && len(to) == 1:
 		if d.rejected == nil {
 			d.rejected = map[string][]*wire.CommandRejectedT{}

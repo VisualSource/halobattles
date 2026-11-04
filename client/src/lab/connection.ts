@@ -5,6 +5,8 @@ import type {
   Battle,
   Battlefield,
   BuildPad,
+  Cell,
+  DefenceLayout,
   Side,
   Squad,
   SquadOrder,
@@ -35,6 +37,8 @@ export type LabSetup = {
   raid: boolean; // the attacker Raids: after the buildings, within raidTime
   seed: number;
   sides: [LabSide, LabSide];
+  /** The defender's layout: each Building Slot's site (null its default), each Stack's start. */
+  layout: { sites: (number | null)[]; starts: Map<number, Cell> };
 };
 
 export type Thinking = {
@@ -75,6 +79,8 @@ export type LabDecision = {
 export type LabState = {
   field: Battlefield | null;
   archetype: string; // the Battlefield's, as generated
+  /** Where the defender's layout put things, without the layout as set: the page has that. */
+  layout: Omit<DefenceLayout, "setSites" | "setStarts"> | null;
   battle: Battle | null;
   tick: number;
   setupTicks: number;
@@ -243,6 +249,7 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
 export class LabConnection {
   readonly store = createStore<LabState>(() => ({
     field: null,
+    layout: null,
     archetype: "",
     battle: null,
     tick: 0,
@@ -288,6 +295,18 @@ export class LabConnection {
       ),
       buildings: defend ? d.buildings : undefined,
       command: d.command,
+      layout: defend
+        ? {
+            Sites: Object.fromEntries(
+              s.layout.sites.flatMap((k, slot) =>
+                k === null ? [] : [[slot, k]],
+              ),
+            ),
+            Starts: Object.fromEntries(
+              [...s.layout.starts].map(([k, c]) => [k, { X: c.x, Y: c.y }]),
+            ),
+          }
+        : undefined,
     });
     this.send(OP.setup, {
       preset: s.preset,
@@ -376,7 +395,17 @@ export class LabConnection {
           Terrain: string;
           Height: string;
           Archetype: string;
+          CommandPost: GoCell;
+          Sites: GoCell[] | null;
+          Points: GoCell[] | null;
+          Starts: GoCell[] | null;
+          Pads: GoCell[] | null;
+          BuildingSites: number[] | null;
+          StackStarts: GoCell[] | null;
+          Reach: number;
         };
+        const cells = (cs: GoCell[] | null) =>
+          (cs ?? []).map((c) => ({ x: c.X, y: c.Y }));
         const field: Battlefield = {
           width: f.W,
           height: f.H,
@@ -386,6 +415,20 @@ export class LabConnection {
         };
         this.store.setState({
           field,
+          layout: {
+            planet: "",
+            field,
+            commandPost: { x: f.CommandPost.X, y: f.CommandPost.Y },
+            sites: cells(f.Sites),
+            points: cells(f.Points),
+            landings: cells(f.Starts),
+            pads: cells(f.Pads),
+            reach: f.Reach,
+            buildingSites: (f.BuildingSites ?? []).map((k) =>
+              k < 0 ? null : k,
+            ),
+            stackStarts: cells(f.StackStarts),
+          },
           archetype: f.Archetype,
           battle: null,
           log: [],

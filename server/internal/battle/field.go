@@ -41,6 +41,8 @@ func (f *Field) index(c Cell) int { return c.Y*f.W + c.X }
 
 func (f *Field) cell(i int) Cell { return Cell{i % f.W, i / f.W} }
 
+func (f *Field) inBounds(c Cell) bool { return c.X >= 0 && c.Y >= 0 && c.X < f.W && c.Y < f.H }
+
 // Generate builds a Planet's Battlefield for a neutral garrison: the
 // tests' shorthand, since the game and the Lab call GenerateFor.
 func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlefield, seed uint64) *Field {
@@ -174,6 +176,7 @@ func GenerateFor(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBatt
 	f.Sites = got.sites
 	f.Pads = got.pads[:min(len(got.pads), rules.BuildPads)]
 	f.Pads = append(f.Pads, l.placePads(max(0, rules.BuildPads-len(f.Pads)), area, f.Starts, f.Sites)...)
+	f.Sites = l.placeSites(rules.BuildingSites, edge, rules.DeployDepth+1, f.Pads) // the base's first: they're the defaults
 	f.lane, f.side = l.lane, l.side
 	return f
 }

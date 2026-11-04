@@ -18,10 +18,14 @@ import {
   type BattleViewT,
   CancelProjectT,
   CancelQueueItemT,
+  type CellT,
   CommandRejected,
+  DefenceLayout as DefenceLayoutMsg,
+  type DefenceLayoutT,
   DropState,
   type EconomyT,
   ExchangeT,
+  LayoutStartT,
   LobbyState,
   type LobbyStateT,
   MatchEnded,
@@ -40,10 +44,12 @@ import {
   RaidTurnedBack,
   RemoveBotT,
   ReorderArmyT,
+  RequestDefenceLayoutT,
   type ResearchT,
   SellBuildingT,
   SetBattleCommandT,
   SetBattleControlT,
+  SetDefenceLayoutT,
   SetFactionT,
   SetMapT,
   SetRallyPointT,
@@ -72,6 +78,7 @@ import {
   type Battlefield,
   type BattleReport,
   createMatchStore,
+  type DefenceLayout,
   type ViewDelta as Delta,
   type Economy,
   type Lobby,
@@ -205,6 +212,26 @@ const toArmy = (a: ArmyViewT): Army => ({
 });
 
 const side = (n: number): Side => (n === 0 ? "attacker" : "defender");
+
+const toCell = (c: CellT | null) => ({ x: c?.x ?? 0, y: c?.y ?? 0 });
+const toSite = (k: number) => (k < 0 ? null : k);
+
+export const toLayout = (t: DefenceLayoutT): DefenceLayout => ({
+  planet: str(t.planet),
+  field: t.field
+    ? toField(t.field)
+    : { width: 0, height: 0, terrains: [], terrain: [], heights: [] },
+  commandPost: toCell(t.commandPost),
+  sites: t.sites.map(toCell),
+  points: t.points.map(toCell),
+  landings: t.landings.map(toCell),
+  pads: t.pads.map(toCell),
+  reach: t.reach,
+  buildingSites: t.buildingSites.map(toSite),
+  stackStarts: t.stackStarts.map(toCell),
+  setSites: t.setSites.map(toSite),
+  setStarts: new Map(t.setStarts.map((s) => [s.stack, { x: s.x, y: s.y }])),
+});
 
 const toField = (f: BattlefieldT): Battlefield => ({
   width: f.width,
@@ -599,6 +626,34 @@ export class MatchConnection {
     );
   }
 
+  /** Asks for your Planet's defence layout; it arrives in local.layout. */
+  requestLayout(planet: string) {
+    this.send(
+      Op.RequestDefenceLayout,
+      "layout",
+      (seq) => new RequestDefenceLayoutT(seq, planet),
+    );
+  }
+
+  /** Sets your Planet's defence layout, whole: each Building Slot's site (null its default), each Stack's start. */
+  setLayout(
+    planet: string,
+    sites: (number | null)[],
+    starts: Map<number, { x: number; y: number }>,
+  ) {
+    this.send(
+      Op.SetDefenceLayout,
+      "layout",
+      (seq) =>
+        new SetDefenceLayoutT(
+          seq,
+          planet,
+          sites.map((k) => k ?? -1),
+          [...starts].map(([k, c]) => new LayoutStartT(k, c.x, c.y)),
+        ),
+    );
+  }
+
   /** Orders squads in the Battle on planet, which you command. */
   battleOrder(planet: string, squads: number[], o: SquadOrder) {
     this.send(
@@ -813,6 +868,12 @@ export class MatchConnection {
             detail: { planet: str(t.planet) },
           }),
         );
+        return;
+      }
+      case Op.DefenceLayout: {
+        const t = DefenceLayoutMsg.getRootAsDefenceLayout(bb).unpack();
+        this.debug("DefenceLayout", t);
+        this.local.setState({ layout: toLayout(t) });
         return;
       }
       case Op.BattleStarted: {

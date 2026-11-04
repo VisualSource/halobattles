@@ -57,6 +57,7 @@ const rules: Ruleset = {
     controlPointSpacing: 10,
     deployDepth: 4,
     buildPads: 4,
+    buildingSites: 10,
   },
   battle: {
     startDelay: 30,
@@ -67,6 +68,7 @@ const rules: Ruleset = {
     landingDelay: 20,
     padSight: 4,
     padCooldown: 20,
+    startReach: 8,
     padBuildSeconds: 10,
     neutralFunds: { "base:credits": 400 },
     captureRadius: 2,

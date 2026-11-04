@@ -63,6 +63,8 @@
     "controlPointSpacing": 10,
     "deployDepth": 4,
     "buildPads": 4,
+    // The base's sites plus more spread over the defender's side, for its defence layout.
+    "buildingSites": 10,
     "laneWidth": 2,
     "pointArea": 3
   },
@@ -80,6 +82,8 @@
     "padSight": 4,
     // A pad whose turret was destroyed waits this long before it can be built on.
     "padCooldown": 20,
+    // A defence layout places a Stack this near the Command Post or a building.
+    "startReach": 8,
     "padBuildSeconds": 10,
     // A neutral garrison's budget for pad turrets, having no economy: two
     // turrets' worth (each costs 200 Credits and 50 Materials).

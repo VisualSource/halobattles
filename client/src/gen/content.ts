@@ -356,6 +356,10 @@ export interface BattlefieldRules {
    */
   deployDepth: number;
   /**
+   * Building sites on a Battlefield, the base's first and the rest spread over the defender's side; where a Planet's owner can place its buildings.
+   */
+  buildingSites: number;
+  /**
    * Build pads the generator places: spots a side can capture and build a turret on.
    */
   buildPads: number;
@@ -384,6 +388,10 @@ export interface BattleRules {
    * Seconds after a pad turret is destroyed before its pad can be built on again.
    */
   padCooldown: number;
+  /**
+   * How far, in cells, from the Command Post or one of its buildings a Planet's owner can place a Stack's start in its defence layout.
+   */
+  startReach: number;
   /**
    * Seconds a turret takes to build on a build pad.
    */

@@ -128,6 +128,10 @@ type BattleRules struct {
 	// and the Planet Locked, so players can open the Battle.
 	StartDelay int `json:"startDelay"`
 
+	// How far, in cells, from the Command Post or one of its buildings a Planet's
+	// owner can place a Stack's start in its defence layout.
+	StartReach float64 `json:"startReach"`
+
 	// What a building without a combat block is in a Battle: a target that never
 	// fires.
 	Structure Structure `json:"structure"`
@@ -141,6 +145,10 @@ type BattlefieldRules struct {
 	// Build pads the generator places: spots a side can capture and build a turret
 	// on.
 	BuildPads int `json:"buildPads"`
+
+	// Building sites on a Battlefield, the base's first and the rest spread over the
+	// defender's side; where a Planet's owner can place its buildings.
+	BuildingSites int `json:"buildingSites"`
 
 	// The fewest cells between two Control Points, where the map has room.
 	ControlPointSpacing int `json:"controlPointSpacing"`

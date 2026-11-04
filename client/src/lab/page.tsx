@@ -18,6 +18,7 @@ import {
   Reinforcements,
 } from "../match/battle";
 import { SelectionStrip, useCommandKeys } from "../match/command";
+import { LayoutMap } from "../match/layout";
 import type { Side, Squad, SquadOrder, Volley } from "../match/store";
 import {
   BattlefieldScene,
@@ -84,6 +85,13 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
   const [show, setShow] = useState({ forces: true, targets: true });
   const [aiSide, setAiSide] = useState<0 | 1>(0);
   const [selected, setSelected] = useState<number | null>(null);
+  const [editLayout, setEditLayout] = useState(false);
+  // A new layout rebuilds the Battle on it, paused at the start.
+  const relayout = (layout: LabSetup["layout"]) => {
+    const next = { ...setup, layout };
+    setSetup(next);
+    conn?.setup(next);
+  };
 
   if (!conn) {
     return (
@@ -144,16 +152,42 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
               </label>
             </fieldset>
             <Reinforce conn={conn} content={content} setup={setup} />
+            <label className="flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={editLayout}
+                onChange={(e) => setEditLayout(e.target.checked)}
+              />
+              Defender layout
+            </label>
+            {editLayout && (
+              <button
+                type="button"
+                className="border-edge bg-raised min-h-7 rounded border px-2.5 text-xs"
+                onClick={() => relayout({ sites: [], starts: new Map() })}
+              >
+                Reset layout
+              </button>
+            )}
           </div>
-          <Field
-            conn={conn}
-            content={content}
-            fog={fog}
-            show={show}
-            selected={selected}
-            onPick={setSelected}
-            factions={[setup.sides[0].faction, setup.sides[1].faction]}
-          />
+          {editLayout ? (
+            <LabLayout
+              conn={conn}
+              content={content}
+              setup={setup}
+              onChange={relayout}
+            />
+          ) : (
+            <Field
+              conn={conn}
+              content={content}
+              fog={fog}
+              show={show}
+              selected={selected}
+              onPick={setSelected}
+              factions={[setup.sides[0].faction, setup.sides[1].faction]}
+            />
+          )}
           <Status conn={conn} content={content} />
         </main>
         <AiPanel
@@ -165,6 +199,37 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
           onSelect={setSelected}
         />
       </div>
+    </div>
+  );
+}
+
+/** The defender's layout on the Lab's Battlefield, edited as in a Match; each change rebuilds the Battle. */
+function LabLayout(props: {
+  conn: LabConnection;
+  content: ContentLookups;
+  setup: LabSetup;
+  onChange: (layout: LabSetup["layout"]) => void;
+}) {
+  const layout = useStore(props.conn.store, (s) => s.layout);
+  if (!layout)
+    return (
+      <p className="text-ink-3 flex-1 p-4">
+        Run a Battle to lay out its defender.
+      </p>
+    );
+  return (
+    <div className="flex min-h-0 flex-1">
+      <LayoutMap
+        content={props.content}
+        layout={{
+          ...layout,
+          setSites: props.setup.layout.sites,
+          setStarts: props.setup.layout.starts,
+        }}
+        buildings={props.setup.sides[1].buildings}
+        editable
+        onChange={(sites, starts) => props.onChange({ sites, starts })}
+      />
     </div>
   );
 }
@@ -193,6 +258,7 @@ function defaultSetup(content: ContentLookups): LabSetup {
       kit(factions[0] ?? "", false),
       kit(factions[1] ?? factions[0] ?? "", true),
     ],
+    layout: { sites: [], starts: new Map() },
   };
 }
 

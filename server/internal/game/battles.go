@@ -110,6 +110,7 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 		defend.Formations = append(defend.Formations, f)
 	}
 	defend.Buildings = slices.Clone(p.Buildings)
+	defend.Layout = battle.Layout{Sites: maps.Clone(p.Layout.Sites), Starts: maps.Clone(p.Layout.Starts)}
 	attack.Boosts, defend.Boosts = s.boosts(c, b.Attacker), s.boosts(c, b.Defender)
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
 	b.Attack, b.Defend, b.Seed, b.FieldSeed = attack, defend, s.Seed+uint64(b.ID), s.fieldSeed(p.ID)

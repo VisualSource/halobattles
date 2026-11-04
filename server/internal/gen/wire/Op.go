@@ -39,6 +39,8 @@ const (
 	OpSetBattleCommand     Op = 29
 	OpBattleOrder          Op = 30
 	OpBattleLand           Op = 31
+	OpRequestDefenceLayout Op = 32
+	OpSetDefenceLayout     Op = 33
 	OpLobbyState           Op = 100
 	OpCommandRejected      Op = 101
 	OpViewFull             Op = 102
@@ -51,6 +53,7 @@ const (
 	OpPlayerEliminated     Op = 109
 	OpMatchEnded           Op = 110
 	OpRaidTurnedBack       Op = 111
+	OpDefenceLayout        Op = 112
 )
 
 var EnumNamesOp = map[Op]string{
@@ -86,6 +89,8 @@ var EnumNamesOp = map[Op]string{
 	OpSetBattleCommand:     "SetBattleCommand",
 	OpBattleOrder:          "BattleOrder",
 	OpBattleLand:           "BattleLand",
+	OpRequestDefenceLayout: "RequestDefenceLayout",
+	OpSetDefenceLayout:     "SetDefenceLayout",
 	OpLobbyState:           "LobbyState",
 	OpCommandRejected:      "CommandRejected",
 	OpViewFull:             "ViewFull",
@@ -98,6 +103,7 @@ var EnumNamesOp = map[Op]string{
 	OpPlayerEliminated:     "PlayerEliminated",
 	OpMatchEnded:           "MatchEnded",
 	OpRaidTurnedBack:       "RaidTurnedBack",
+	OpDefenceLayout:        "DefenceLayout",
 }
 
 var EnumValuesOp = map[string]Op{
@@ -133,6 +139,8 @@ var EnumValuesOp = map[string]Op{
 	"SetBattleCommand":     OpSetBattleCommand,
 	"BattleOrder":          OpBattleOrder,
 	"BattleLand":           OpBattleLand,
+	"RequestDefenceLayout": OpRequestDefenceLayout,
+	"SetDefenceLayout":     OpSetDefenceLayout,
 	"LobbyState":           OpLobbyState,
 	"CommandRejected":      OpCommandRejected,
 	"ViewFull":             OpViewFull,
@@ -145,6 +153,7 @@ var EnumValuesOp = map[string]Op{
 	"PlayerEliminated":     OpPlayerEliminated,
 	"MatchEnded":           OpMatchEnded,
 	"RaidTurnedBack":       OpRaidTurnedBack,
+	"DefenceLayout":        OpDefenceLayout,
 }
 
 func (v Op) String() string {

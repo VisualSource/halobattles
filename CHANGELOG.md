@@ -6,6 +6,10 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ## 0.6.0 - 2026-11-04
 
+### Added
+
+- Defence layout: the Layout button beside Stacks in a Planet's window shows the Battlefield you'd defend it on. Drag your buildings between building sites, in the base or spread over your side of the map, and your Stacks to where they start the Battle, near the Command Post or your buildings. It applies to every Battle there until you change it.
+
 ### Changed
 
 - Battles: switch between Auto and You command in the Battle window, until the fighting starts; the Army window no longer has the switch.

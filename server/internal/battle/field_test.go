@@ -207,13 +207,26 @@ func TestTheAttackerLandsAtTheLandingZonesFarthestFromTheBase(t *testing.T) {
 	})
 }
 
-// The base holds the Command Post, building sites and unit starts round it.
+// The base holds the Command Post, its building sites and unit starts round
+// it; the rest of the sites are spread over the defender's side, apart.
 func TestTheBaseHoldsItsSitesAndUnitStarts(t *testing.T) {
+	c := baseContent(t)
+	want, margin := rules(c).BuildingSites, rules(c).DeployDepth+1
 	eachField(t, func(name string, f *Field) {
-		if len(f.Sites) < 4 || len(f.UnitStarts) < 3 {
-			t.Errorf("%s: %d sites, %d unit starts; want a base's 4 and 3", name, len(f.Sites), len(f.UnitStarts))
+		if len(f.Sites) < want || len(f.UnitStarts) < 3 {
+			t.Errorf("%s: %d sites, %d unit starts; want %d and 3", name, len(f.Sites), len(f.UnitStarts), want)
 		}
-		for _, x := range append(slices.Clone(f.Sites), f.UnitStarts...) {
+		for i, x := range f.Sites[4:] {
+			if x.X < margin || x.Y < margin || x.X >= f.W-margin || x.Y >= f.H-margin {
+				t.Errorf("%s: site %v is in an edge strip", name, x)
+			}
+			for _, y := range f.Sites[:4+i] {
+				if dist2(x, y) < keepApart*keepApart {
+					t.Errorf("%s: sites %v and %v are too close", name, x, y)
+				}
+			}
+		}
+		for _, x := range append(slices.Clone(f.Sites[:4]), f.UnitStarts...) {
 			if dist(x, f.CommandPost) > 10 {
 				t.Errorf("%s: %v is %.0f cells from the Command Post: outside its base", name, x, dist(x, f.CommandPost))
 			}

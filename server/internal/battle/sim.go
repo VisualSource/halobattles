@@ -39,6 +39,61 @@ type Force struct {
 	// Boosts are the side's Tech effects, by unit or building id, fixed for
 	// the Battle; pad turrets built later get them too.
 	Boosts map[string]Boost
+	Layout Layout // the defender's: where its buildings and Stacks start
+}
+
+// Layout is a Planet owner's defence layout: the base site each Building
+// Slot stands on, and where each Stack deploys, by index. Anything it leaves
+// out goes where the base puts it.
+type Layout struct {
+	Sites  map[int]int  `json:",omitempty"`
+	Starts map[int]Cell `json:",omitempty"`
+}
+
+// Deploy is where a defender's buildings (by Building Slot: an index into
+// Sites; -1 for an empty slot, or one with no free site, which stands by the
+// Command Post) and Stacks start. A
+// building the layout places takes its site first; the rest take their own
+// slot's site if it's free, else the first free one. A Stack's start counts
+// only within reach of the Command Post or a site with a building on it;
+// otherwise it starts at the base's unit start, or past those the Command Post.
+func (f *Field) Deploy(buildings []string, stacks int, l Layout, reach float64) (at []int, starts []Cell) {
+	at = make([]int, len(buildings))
+	taken := make([]bool, len(f.Sites))
+	for slot, id := range buildings {
+		at[slot] = -1
+		if k, ok := l.Sites[slot]; ok && id != "" && k >= 0 && k < len(f.Sites) && !taken[k] {
+			at[slot], taken[k] = k, true
+		}
+	}
+	for slot, id := range buildings {
+		switch {
+		case id == "" || at[slot] >= 0:
+		case slot < len(f.Sites) && !taken[slot]:
+			at[slot], taken[slot] = slot, true
+		default:
+			if k := slices.Index(taken, false); k >= 0 {
+				at[slot], taken[k] = k, true
+			}
+		}
+	}
+	held := []Cell{f.CommandPost}
+	for _, k := range at {
+		if k >= 0 {
+			held = append(held, f.Sites[k])
+		}
+	}
+	for k := range stacks {
+		p := f.CommandPost
+		if k < len(f.UnitStarts) {
+			p = f.UnitStarts[k]
+		}
+		if c, ok := l.Starts[k]; ok && f.inBounds(c) && slices.ContainsFunc(held, func(h Cell) bool { return dist(c, h) <= reach }) {
+			p = c
+		}
+		starts = append(starts, p)
+	}
+	return at, starts
 }
 
 // Boost is what Tech effects add to a unit's or building's combat stats.
@@ -260,27 +315,23 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 			s.addUnit(Attacker, k, sl, want)
 		}
 	}
-	// Each Stack deploys round its unit start in the base, Stack 1 at the
-	// first; past the base's starts, round the Command Post.
+	// Each Stack deploys round its start, its buildings on their sites.
+	sites, starts := f.Deploy(defend.Buildings, len(defend.Formations), defend.Layout, rules.Battle.StartReach)
 	for k, form := range defend.Formations {
-		p := f.CommandPost
-		if k < len(f.UnitStarts) {
-			p = f.UnitStarts[k]
-		}
 		for _, sl := range form {
 			col, row := sl.Cell%5, sl.Cell/5
 			// The front row faces the attacker, which is against the inward direction.
-			s.addUnit(Defender, k, sl, p.add(side.scale(col-2)).add(in.scale(row-1)))
+			s.addUnit(Defender, k, sl, starts[k].add(side.scale(col-2)).add(in.scale(row-1)))
 		}
 	}
 	s.addCommandPost(f.CommandPost)
 	for slot, id := range defend.Buildings {
 		switch {
 		case id == "":
-		case slot < len(f.Sites):
-			s.addBuilding(slot, id, f.Sites[slot])
-		default: // more Building Slots than the base has sites: by the Command Post
+		case sites[slot] < 0: // no free site: by the Command Post
 			s.addBuilding(slot, id, f.CommandPost)
+		default:
+			s.addBuilding(slot, id, f.Sites[sites[slot]])
 		}
 	}
 	s.see()

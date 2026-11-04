@@ -14,10 +14,13 @@ import {
   BattleTickT,
   BattleViewT,
   BuildPadT,
+  CellT,
   ControlPointT,
+  DefenceLayoutT,
   EconomyT,
   Exchange,
   LabT,
+  LayoutStartT,
   LobbyStateT,
   MatchEndedT,
   MoveUnits,
@@ -49,7 +52,7 @@ import {
   WinHoldT,
 } from "../gen/wire";
 import { settings } from "../settings";
-import { MatchConnection, type SocketLike } from "./connection";
+import { MatchConnection, type SocketLike, toLayout } from "./connection";
 import { projectDone, type View } from "./store";
 
 function fakeSocket() {
@@ -1170,5 +1173,24 @@ describe("MatchConnection", () => {
       expect.stringContaining('"base:credits":1000'),
     );
     debug.mockRestore();
+  });
+});
+
+describe("toLayout", () => {
+  it("reads -1 as a default or no site", () => {
+    const t = Object.assign(new DefenceLayoutT(), {
+      planet: "a",
+      commandPost: new CellT(5, 6),
+      sites: [new CellT(1, 2)],
+      buildingSites: [0, -1],
+      setSites: [-1, 0],
+      setStarts: [new LayoutStartT(2, 7, 8)],
+      reach: 8,
+    });
+    const l = toLayout(t);
+    expect(l.commandPost).toEqual({ x: 5, y: 6 });
+    expect(l.buildingSites).toEqual([0, null]);
+    expect(l.setSites).toEqual([null, 0]);
+    expect(l.setStarts).toEqual(new Map([[2, { x: 7, y: 8 }]]));
   });
 });

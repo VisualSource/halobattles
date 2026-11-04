@@ -43,6 +43,7 @@ Generation follows [Red Blob Games: terrain from noise](https://www.redblobgames
    - **Landing Zone areas:** every cell within `battlefield.pointArea` (3) of one becomes `clear` Terrain, level with it. Over a band from 1.5 cells inside that edge to 1.5 outside it, about a third of the cells become the preset's `pointCover` Terrain (`rough` in the base presets), so guards inside the capture radius have cover.
    - **Main lanes**, `battlefield.laneWidth` (2) cells wide: the shortest links that join every Landing Zone (a spanning tree), then a ring round them, so guards can go round; then the base to its nearest Landing Zone. A lane is the cheapest 4-way path, preferring ground every ground Unit Class crosses and existing lanes, and going round fixtures where it can. Anything on a lane a ground Unit Class can't cross becomes `clear` Terrain, except in a fixture, which keeps what it was drawn with; a lane never runs over a fixture's pad.
    - **Build pads:** a fixture's first, then the rest; see [Build pads](#build-pads).
+   - **Building sites:** the base's, then more up to `battlefield.buildingSites` (10) in all, spread over the defender's side (at least 0.35 of the way to its edge): each the reachable cell farthest from the Command Post and every site so far, off the lanes and the cells touching them, the Landing Zone areas, the fixtures and the edge strips, and 3 cells from pads. The base's come first, so they're the defaults ([Deployment](#deployment)); the rest are for the [defence layout](#defence-layout).
 11. Each stage draws from its own PCG stream: 1 elevation, 2 moisture, 3 Landing Zones, 7 point cover, 8 archetype and edge, 9 base, 10 features, 11 fords and ruins (6 was the old edge starts). A new stage takes the next number.
 12. Deployment and buildings are placed per Battle9. Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
 
@@ -86,7 +87,7 @@ Base-Mod Terrains:
 
 ### Deployment
 
-- **Defender:** in its base. Stack *n* deploys round the base's unit start *n*; past the base's starts, round the [Command Post](#the-command-post). Building Slot *n* stands on the base's building site *n*. With more slots than sites, the rest stand by the Command Post.
+- **Defender:** in its base, as its owner's [defence layout](#defence-layout) places it. A building the layout places takes its site; the rest take their own slot's site (Building Slot *n*, site *n*) if it's free, else the first free one, and past the sites stand by the Command Post. Stack *n* deploys round the start the layout gives it, else round the base's unit start *n*; past the base's starts, round the [Command Post](#the-command-post).
 - **Attacker:** lands at one of the Landing Zones in the farther half from the base, which the Battle seed picks, and holds it from the start. It Retreats off the map edge nearest it. A player choosing where to land is for later (#92, #57).
 - **Formations:** a Stack deploys in the shape of its 3 × 5 slot grid. The front row faces the enemy, and empty slots leave gaps. An attacking Army's slots are laid out the same way, 15 slots per formation, in slot order. A slot that lands on a blocked cell moves to the nearest free passable cell (breadth-first, ties to the lowest cell index).
 
@@ -429,7 +430,9 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battle.structure` | Unit Class Structure, 0/20/30 |
 | `battle.classDefaults` | see [Stats](#stats) |
 | `battle.retreatCountdown` | 10 s |
+| `battle.startReach` | 8 cells |
 | `battlefield.buildPads` | 4 |
+| `battlefield.buildingSites` | 10 |
 | `battle.padBuildSeconds` | 10 s |
 | `battle.neutralFunds` | 400 Credits, 100 Materials, 40 Alloys |
 
@@ -569,6 +572,21 @@ Late game: an Army can join a Battle already running (#57). Built.
 - **Later:**
   - an orbit panel in the Battle window: pick units waiting in orbit and place them at a Landing Zone, and a Dropship flies them there (#102);
 
+### Defence layout
+
+A Planet's owner lays out its defence ahead of time, as on Empire at War's ground maps (#91). Built.
+
+- **Where:** a **Layout** button next to **Stacks** in the Planet window, on your own Planets, opens the Layout window, built like the Battle window. It shows the Battlefield you'd defend the Planet on (the Match's, with your Faction's base) with no fog: the base, the Command Post, its building sites, your Stacks' starts, and the Landing Zones and pads for context.
+- **Who:** only the owner. Teammates can't, and Bots keep the default.
+- **Buildings** go only on building sites: the base's, and the rest the generator spreads over the defender's side of the map. Drag one onto another site; onto a taken one, the two swap. A building the layout doesn't place, a new one included, takes a free site (see [Deployment](#deployment)).
+- **Stacks:** drag a Stack's start anywhere within `battle.startReach` (8) cells of the Command Post or a site with one of your buildings on it. It still deploys in its 3 × 5 shape round it, front row facing the attacker. A start that's out of reach by the next Battle (its building gone) falls back to the default.
+- **When:** any time but while the Planet is Locked by a Battle. Changes apply to the next Battle there. **Reset to default** clears it.
+- **Raids** use it too. Armies waiting at the Planet that join as defenders deploy round the Command Post, as before.
+- **A capture** clears the Stacks' starts and keeps the sites the Building Slots stand on.
+- **The Command Post** stays where the base puts it. Turrets and pads are unchanged.
+- **Wire:** `RequestDefenceLayout {planet}` and `SetDefenceLayout {planet, sites, starts}` (the whole layout; empty resets it), each answered with a `DefenceLayout` to the sender: the Battlefield, its Command Post, sites, Landing Zones, attacker landings and pads, the reach, where each building and Stack starts, and the layout as set. The layout lives on the Planet in the game state and goes into the defender's `Force`, so replays stay exact.
+- **The Lab:** a Defender layout toggle shows the same editor on the Lab's Battlefield, in place of the map; each change rebuilds the Battle on it, paused at the start, and Reset layout clears it. The setup sends the layout with the defender's side, and the Field message says where each building and Stack starts.
+
 ### Order of work
 
 1. ~~Squads by Unit Class~~ (#96): now in [Squads](#squads).
@@ -580,7 +598,7 @@ Late game: an Army can join a Battle already running (#57). Built.
 7. ~~Reinforcements~~ (#57): built; see [Reinforcements](#reinforcements).
 8. 3D drawing (#93).
 
-Related, later: the EaW-style battle view for laying out a Planet's defence ahead of time (#91). Measured in the Lab: big Battles favouring the attacker (#40), and an AI that chooses to Retreat (#61).
+Related: ~~the defence layout~~ (#91), built; see [Defence layout](#defence-layout). Measured in the Lab: big Battles favouring the attacker (#40), and an AI that chooses to Retreat (#61).
 
 ## Later
 
