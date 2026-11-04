@@ -23,6 +23,9 @@ type Courier struct {
 	Tech string
 	Home LabRef // the Lab it left; Planet "" once that's lost
 	Dest LabRef // the Lab it's going to; Home again when called off or turned back
+	// The Planet whose Lab it was coming to when that was lost: reaching it,
+	// or waiting there, is no danger even if it's now an enemy's.
+	Turned string
 }
 
 // holding finds the Lab holding tech, if seat holds it.
@@ -178,27 +181,37 @@ func (s *State) loseCourier(a *Army) {
 
 // moveCourier moves a Courier along its path. Like an Army it goes through
 // its owner's, Teammates' and neutral Planets and waits in orbit at a Locked
-// one; at an enemy's it's destroyed. At Dest it lands.
+// one of those; at an enemy's it's destroyed, unless it's the Turned one, which
+// it just leaves. At Dest it lands.
 func (s *State) moveCourier(c *cs.Content, a *Army, now int64) {
-	if a.Waiting && !s.passable(a.Owner, s.Planets[a.To]) { // taken while it waited out the Battle
-		s.loseCourier(a)
-		return
+	co := a.Courier
+	if a.From == co.Turned {
+		co.Turned = "" // left it
 	}
-	if dest := a.Courier.Dest.Planet; dest != a.destination() {
+	if dest := co.Dest.Planet; dest != a.destination() {
+		if len(a.Path) == 0 {
+			co.Turned = a.To
+		}
 		route, _, ok := Route(s.Lanes, s.ownerFor(a.Owner), a.Owner, a.To, dest)
 		if !ok {
 			s.loseCourier(a)
 			return
 		}
-		a.redirect(route, s.Lanes, now)
+		a.Path = route[1:] // not redirect: a turn-back doesn't leave a Locked orbit
 	}
+	if a.Waiting && !s.passable(a.Owner, s.Planets[a.To]) && a.To != co.Turned { // taken while it waited out the Battle
+		s.loseCourier(a)
+		return
+	}
+	// Locked and not an enemy's: it waits. An enemy's holds nothing of its own to wait for.
+	stuck := func(p *Planet) bool { return p.Locked && s.passable(a.Owner, p) }
 	for !a.Waiting && a.Arrives <= now {
 		s.sight(c, a.Owner, a.To, a.Arrives)
 		switch p := s.Planets[a.To]; {
-		case !s.passable(a.Owner, p):
+		case !s.passable(a.Owner, p) && a.To != co.Turned:
 			s.loseCourier(a)
 			return
-		case len(a.Path) > 0 && !p.Locked:
+		case len(a.Path) > 0 && !stuck(p):
 			a.hop(s.Lanes, a.Arrives)
 		default:
 			a.Waiting = true
@@ -208,12 +221,12 @@ func (s *State) moveCourier(c *cs.Content, a *Army, now int64) {
 		return
 	}
 	switch {
-	case s.Planets[a.To].Locked:
+	case stuck(s.Planets[a.To]):
 	case len(a.Path) > 0:
 		a.Waiting = false
 		a.hop(s.Lanes, now)
 	default:
-		s.Planets[a.Courier.Dest.Planet].hold(a.Courier.Dest.Slot, a.Courier.Tech)
+		s.Planets[co.Dest.Planet].hold(co.Dest.Slot, co.Tech)
 		delete(s.Armies, a.ID)
 	}
 }

@@ -1,7 +1,8 @@
 import type { ContentLookups } from "../content";
 import type { Effect, Tech } from "../gen/content";
 import { fieldsOf } from "./fields";
-import type { Army, Project, View } from "./store";
+import { arrival, type Lanes } from "./route";
+import type { Army, PlanetView, Project, View } from "./store";
 
 // Techs as the client shows them; docs/specs/tech-spec.md. The server
 // decides; these mirror its rules so the UI can explain before it asks.
@@ -144,13 +145,68 @@ export function labCouriers(view: View, planet: string, slot: number) {
   };
 }
 
+/**
+ * What fills a Lab, Building Slot slot of p, and its free Tech Slots out of
+ * the building's base count. Your View has only your own effects, and your
+ * own Projects, so another player's Lab shows as built.
+ */
+export function labFill(
+  content: ContentLookups,
+  view: View,
+  p: PlanetView,
+  slot: number,
+  base: number,
+) {
+  const own = p.owner === view.you;
+  const holds = p.labs.get(slot) ?? [];
+  const researching = own
+    ? view.research.projects
+        .filter((x) => x.planet === p.id && x.slot === slot)
+        .map((x) => x.tech)
+    : [];
+  const { incoming, outgoing } = labCouriers(view, p.id, slot);
+  const slots = own
+    ? modded(content, heldTechs(view), "techSlots", base)
+    : base;
+  const free = Math.max(
+    0,
+    slots -
+      holds.length -
+      researching.length -
+      incoming.length -
+      outgoing.length,
+  );
+  return { holds, researching, incoming, outgoing, free };
+}
+
+/**
+ * The Techs lost with a Lab: those it holds, and those on Couriers coming to
+ * it with no other Lab to turn back to.
+ */
+export function techsLostWithLab(view: View, p: PlanetView, slot: number) {
+  const stranded = labCouriers(view, p.id, slot).incoming.filter(
+    (a) => !a.homePlanet || (a.homePlanet === p.id && a.homeSlot === slot),
+  );
+  return [...(p.labs.get(slot) ?? []), ...stranded.map((a) => a.tech)];
+}
+
+/** When a Courier lands, in words. One waiting has no time: it goes when its Planet unlocks. */
+export function courierLanding(
+  lanes: Lanes,
+  a: Army,
+  now: number,
+  planetName: (id: string) => string,
+) {
+  if (a.waiting) return `waiting in orbit at ${planetName(a.to)}`;
+  return `arrives in ${Math.max(0, Math.ceil((arrival(lanes, a, now) - now) / 1000))} s`;
+}
+
 /** The colour of a Tech's Rarity. */
 export const rarityColour = (content: ContentLookups, tech: string) =>
   `var(--color-rarity-${content.techs.get(tech)?.rarity ?? "common"})`;
 
 /** Your Labs, by Planet then slot, with what each holds and its free Tech Slots. */
 export function labs(content: ContentLookups, view: View): Lab[] {
-  const held = heldTechs(view);
   const out: Lab[] = [];
   for (const p of [...view.planets.values()].sort((a, b) =>
     a.id.localeCompare(b.id),
@@ -159,24 +215,21 @@ export function labs(content: ContentLookups, view: View): Lab[] {
     p.buildings.forEach((id, slot) => {
       const b = content.buildings.get(id);
       if (!b?.techSlots) return;
-      const holds = p.labs.get(slot) ?? [];
-      const researching = view.research.projects
-        .filter((x) => x.planet === p.id && x.slot === slot)
-        .map((x) => x.tech);
-      const { incoming, outgoing } = labCouriers(view, p.id, slot);
-      const couriers = [...incoming, ...outgoing].map((a) => a.tech);
-      const slots = modded(content, held, "techSlots", b.techSlots);
+      const { holds, researching, incoming, outgoing, free } = labFill(
+        content,
+        view,
+        p,
+        slot,
+        b.techSlots,
+      );
       out.push({
         planet: p.id,
         slot,
         name: b.name,
         holds,
         researching,
-        couriers,
-        free: Math.max(
-          0,
-          slots - holds.length - researching.length - couriers.length,
-        ),
+        couriers: [...incoming, ...outgoing].map((a) => a.tech),
+        free,
       });
     });
   }

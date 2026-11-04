@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
-import type { Building, Unit } from "../gen/content";
+import type { Building, GalaxyMap, Unit } from "../gen/content";
 import { progress, seatColour } from "../scene/galaxy";
 import { InfoButton, InfoPopover } from "../ui/popover";
 import { Select } from "../ui/select";
@@ -27,9 +27,9 @@ import {
   roleOf,
 } from "./buildings";
 import type { MatchConnection } from "./connection";
-import { isPending } from "./local";
+import { isPending, type LocalState } from "./local";
 import { CommandPoints, CostIcons } from "./resources";
-import { arrival, laneTimes } from "./route";
+import { laneTimes } from "./route";
 import { freeCell, moveSlot } from "./stacks";
 import { ConfirmDialog } from "./status";
 import {
@@ -40,12 +40,14 @@ import {
   type View,
 } from "./store";
 import {
+  courierLanding,
   heldTechs,
-  labCouriers,
+  labFill,
   listed,
   needsTech,
   otherLabs,
   rarityColour,
+  techsLostWithLab,
 } from "./tech";
 import { THREAT_LEVELS, threat } from "./threat";
 import { formatAge, useMatchNow } from "./time";
@@ -53,6 +55,20 @@ import { UnitInfo } from "./units";
 
 // The play screen's floating windows: the selected Planet, its Stacks, and
 // the selected Army. Each can be dragged by its title bar.
+
+/** A Planet's name on map, or its id if it isn't there. */
+export const planetNameOn = (map: GalaxyMap | undefined, id: string) =>
+  map?.planets.find((p) => p.id === id)?.name ?? id;
+
+/** A Planet's owner as the player knows it: live, else as last seen, else neutral. */
+export function knownOwner(
+  view: View,
+  lastSeen: LocalState["lastSeen"],
+  id: string,
+) {
+  const live = view.planets.get(id);
+  return live ? live.owner : (lastSeen.get(id)?.planet.owner ?? null);
+}
 
 export const label =
   "font-mono text-[11px] text-ink-3 uppercase tracking-[0.08em]";
@@ -773,7 +789,7 @@ function BuildingsTab(props: {
   // The Lab slot whose sale is being confirmed: it holds Techs.
   const [selling, setSelling] = useState<number | null>(null);
   const sellingTechs = (
-    selling === null ? [] : (planet.labs.get(selling) ?? [])
+    selling === null || !view ? [] : techsLostWithLab(view, planet, selling)
   ).map((t) => content.techs.get(t)?.name ?? t);
 
   const held = view ? heldTechs(view) : new Set<string>();
@@ -915,9 +931,9 @@ function BuildingsTab(props: {
         }}
         onCancel={() => setSelling(null)}
       >
-        Selling this Lab loses every Tech it holds. They come back as cards you
-        can research again for {content.rules.tech.recoveryPercent}% of their
-        cost.
+        Selling this Lab loses every Tech it holds or that has no other Lab to
+        go back to. They come back as cards you can research again for{" "}
+        {content.rules.tech.recoveryPercent}% of their cost.
       </ConfirmDialog>
       <span className={label}>Buildings</span>
       <div className="grid grid-cols-2 gap-2">
@@ -950,7 +966,7 @@ function BuildingsTab(props: {
                             type="button"
                             disabled={isPending(local, "sell")}
                             onClick={() =>
-                              planet.labs.get(i)?.length
+                              view && techsLostWithLab(view, planet, i).length
                                 ? setSelling(i)
                                 : conn.sellBuilding(planet.id, i)
                             }
@@ -969,7 +985,7 @@ function BuildingsTab(props: {
                         content={content}
                         planet={planet}
                         slot={i}
-                        slots={b.techSlots}
+                        base={b.techSlots}
                         now={now}
                       />
                     ) : undefined
@@ -1145,7 +1161,7 @@ function LabSlots(props: {
   content: ContentLookups;
   planet: PlanetView;
   slot: number;
-  slots: number;
+  base: number; // the building's Tech Slots, before effects
   now: number;
 }) {
   const { conn, content, planet, slot } = props;
@@ -1154,25 +1170,15 @@ function LabSlots(props: {
   if (!view) return null;
   const name = (t: string) => content.techs.get(t)?.name ?? t;
   const map = content.maps.get(view.map);
-  const planetName = (id: string) =>
-    map?.planets.find((p) => p.id === id)?.name ?? id;
+  const planetName = (id: string) => planetNameOn(map, id);
   const mine =
     !view.spectating && view.planets.get(planet.id)?.owner === view.you;
-  const holds = planet.labs.get(slot) ?? [];
-  const researching =
-    planet.owner === view.you
-      ? view.research.projects
-          .filter((p) => p.planet === planet.id && p.slot === slot)
-          .map((p) => p.tech)
-      : [];
-  const { incoming, outgoing } = labCouriers(view, planet.id, slot);
-  const free = Math.max(
-    0,
-    props.slots -
-      holds.length -
-      researching.length -
-      incoming.length -
-      outgoing.length,
+  const { holds, researching, incoming, outgoing, free } = labFill(
+    content,
+    view,
+    planet,
+    slot,
+    props.base,
   );
   const reserved =
     "border-accent text-accent flex-none truncate rounded border px-2 py-0.5 text-xs";
@@ -1224,18 +1230,13 @@ function LabSlots(props: {
       ))}
       {incoming.map((a) => (
         <li key={a.id} className={reserved}>
-          {name(a.tech)} · arrives in{" "}
-          {map
-            ? Math.max(
-                0,
-                Math.ceil(
-                  (arrival(laneTimes(map, content.rules), a, props.now) -
-                    props.now) /
-                    1000,
-                ),
-              )
-            : 0}{" "}
-          s
+          {name(a.tech)} ·{" "}
+          {courierLanding(
+            map ? laneTimes(map, content.rules) : new Map(),
+            a,
+            props.now,
+            planetName,
+          )}
         </li>
       ))}
       {Array.from({ length: free }, (_, n) => `free-${n}`).map((key) => (
@@ -1978,13 +1979,8 @@ export function ArmyWindow(props: {
   const army = id === null ? undefined : view?.armies.get(id);
   const map = view && content.maps.get(view.map);
   if (!army || !view || !map) return null;
-  const planet = (p: string) =>
-    map.planets.find((mp) => mp.id === p)?.name ?? p;
-  // As the player knows it: live, else as last seen, else neutral.
-  const ownerOf = (p: string) => {
-    const live = view.planets.get(p);
-    return live ? live.owner : (lastSeen.get(p)?.planet.owner ?? null);
-  };
+  const planet = (p: string) => planetNameOn(map, p);
+  const ownerOf = (p: string) => knownOwner(view, lastSeen, p);
   const mine = army.owner === view.you;
   const home = (p: string, slot: number) =>
     p === army.homePlanet && slot === army.homeSlot;
@@ -2002,24 +1998,19 @@ export function ArmyWindow(props: {
     const owner = ownerOf(p);
     const last = i === route.length - 1;
     const enemy = owner !== null && !allied(view, owner, army.owner);
+    const fight = mine && (enemy || (!courier && last && owner !== army.owner));
     const does = !mine
       ? ""
-      : courier
-        ? enemy
+      : fight
+        ? courier
           ? "enemy · lost here"
           : last
-            ? "lands"
-            : "passes"
-        : enemy
-          ? last
             ? "attacks"
             : "attacks · stops here"
-          : last
-            ? owner === army.owner
-              ? "lands"
-              : "attacks"
-            : "passes";
-    return { id: p, owner, at, does, fight: /^(attacks|enemy)/.test(does) };
+        : last
+          ? "lands"
+          : "passes";
+    return { id: p, owner, at, does, fight };
   });
 
   return (
@@ -2086,7 +2077,9 @@ export function ArmyWindow(props: {
               eta={
                 army.waiting && i === 0
                   ? "here"
-                  : `${Math.max(0, Math.ceil((st.at - now) / 1000))} s`
+                  : courier && army.waiting
+                    ? undefined // it goes when its Planet unlocks: no time to give
+                    : `${Math.max(0, Math.ceil((st.at - now) / 1000))} s`
               }
               last={i === stops.length - 1}
               next={i === 0}

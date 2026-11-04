@@ -315,6 +315,16 @@ func wantDrillLost(t *testing.T, s *State) {
 	}
 }
 
+func wantDrillHome(t *testing.T, s *State, a *Army) {
+	t.Helper()
+	if s.Armies[a.ID] != nil || !slices.Contains(s.Planets["a"].Techs[2], "base:drill") {
+		t.Errorf("Courier %+v, a holds %v", s.Armies[a.ID], s.Planets["a"].Techs[2])
+	}
+	if len(s.Players[0].Saved) != 0 {
+		t.Errorf("guaranteed cards %v", s.Players[0].Saved)
+	}
+}
+
 func TestACourierReachingAnEnemyPlanetIsDestroyedWithoutABattleOrACapture(t *testing.T) {
 	s, c := courierCase(t)
 	sent(t, s, c)
@@ -337,15 +347,106 @@ func TestACourierWaitingWhileItsPlanetIsTakenIsDestroyed(t *testing.T) {
 	wantDrillLost(t, s)
 }
 
-func TestACourierInOrbitWhenItsDestinationIsCapturedIsDestroyed(t *testing.T) {
+func TestACourierInOrbitWhenItsDestinationIsCapturedTurnsBack(t *testing.T) {
 	s, c := courierCase(t)
 	s.Planets["c"].Locked = true
-	sent(t, s, c)
+	a := sent(t, s, c)
 	s.Advance(c, 60_000)
 	s.capture(s.Planets["c"], 1, &Events{})
-	s.Planets["c"].Locked = false
-	s.Advance(c, 61_000)
+	s.Advance(c, 61_000) // still Locked, but no longer yours: it leaves
+	if a.Waiting || a.From != "c" || a.To != "b" {
+		t.Fatalf("Courier %+v, want it leaving c for b", a)
+	}
+	s.Advance(c, 91_000)
+	s.Advance(c, 121_000)
+	wantDrillHome(t, s, a)
+}
+
+func TestACourierOnTheLastHopIntoACapturedDestinationGoesBack(t *testing.T) {
+	s, c := courierCase(t) // Drill in a; the only Lane to b is the last hop
+	s.Planets["b"].Owner = 0
+	holdTech(s, "b", 0)
+	if err := s.SendTech(c, 0, "base:drill", "b", 0); err != nil {
+		t.Fatal(err)
+	}
+	a := s.Armies[s.LastID]
+	s.Advance(c, 10_000)
+	s.capture(s.Planets["b"], 1, &Events{})
+	s.Advance(c, 11_000)
+	s.Advance(c, 30_000) // finishes the hop, unharmed
+	if s.Armies[a.ID] == nil || a.From != "b" || a.To != "a" || a.Arrives != 60_000 {
+		t.Fatalf("Courier %+v, want it on its way back to a", a)
+	}
+	s.Advance(c, 60_000)
+	wantDrillHome(t, s, a)
+}
+
+func TestACourierReorderedOnTheLastHopIntoACapturedDestinationStillGetsThrough(t *testing.T) {
+	s, c := courierCase(t)
+	s.Planets["b"].Owner = 0
+	holdTech(s, "b", 0)
+	if err := s.SendTech(c, 0, "base:drill", "b", 0); err != nil {
+		t.Fatal(err)
+	}
+	a := s.Armies[s.LastID]
+	s.Advance(c, 10_000)
+	s.capture(s.Planets["b"], 1, &Events{})
+	s.Advance(c, 11_000)
+	if err := s.ReorderCourier(c, 0, a.ID, "c", 0); err != nil {
+		t.Fatal(err)
+	}
+	s.Advance(c, 30_000)
+	s.Advance(c, 60_000)
+	if s.Armies[a.ID] != nil || !slices.Equal(s.Planets["c"].Techs[0], []string{"base:drill"}) {
+		t.Errorf("Courier %+v, c holds %v", s.Armies[a.ID], s.Planets["c"].Techs[0])
+	}
+}
+
+func TestACourierOnTheLastHopHomeWhenItsCapturedLosesTheTech(t *testing.T) {
+	s, c := courierCase(t)
+	s.Planets["a"].Techs[2] = []string{"base:drill"}
+	s.Planets["b"].Owner = 0
+	holdTech(s, "b", 0)
+	if err := s.SendTech(c, 0, "base:drill", "b", 0); err != nil {
+		t.Fatal(err)
+	}
+	s.Advance(c, 10_000)
+	s.capture(s.Planets["b"], 1, &Events{})
+	s.Advance(c, 11_000)
+	s.Advance(c, 30_000)
+	s.capture(s.Planets["a"], 1, &Events{}) // the Lab it left
 	wantDrillLost(t, s)
+}
+
+func TestAnEnemyPlanetPassedOnTheWayBackIsStillFatal(t *testing.T) {
+	s, c := courierCase(t)
+	sent(t, s, c)
+	s.Advance(c, 30_000) // on the Lane b to c
+	s.capture(s.Planets["c"], 1, &Events{})
+	s.Advance(c, 31_000)
+	s.Planets["b"].Owner = 1
+	s.Advance(c, 60_000) // reaches c, turns for b
+	s.Advance(c, 90_000)
+	wantDrillLost(t, s)
+}
+
+func TestATurnedBackCourierWaitsOutItsLockedPlanet(t *testing.T) {
+	s, c := courierCase(t)
+	s.Planets["b"].Locked = true
+	a := sent(t, s, c)
+	s.Advance(c, 30_000)
+	if err := s.SellBuilding(c, 0, "c", 0); err != nil {
+		t.Fatal(err)
+	}
+	s.Advance(c, 31_000)
+	if !a.Waiting || a.To != "b" {
+		t.Fatalf("Courier %+v, want it still waiting at b", a)
+	}
+	s.Planets["b"].Locked = false
+	s.Advance(c, 32_000)
+	if a.Waiting || a.To != "a" {
+		t.Errorf("Courier %+v, want it gone for a", a)
+	}
 }
 
 func TestACourierNeverTakesAnEmptyNeutralPlanetOrAStack(t *testing.T) {
@@ -501,5 +602,13 @@ func TestAMoveBetweenLabsOnOnePlanetLandsNextTick(t *testing.T) {
 	s.Advance(c, 200)
 	if len(s.Armies) != 0 || !slices.Equal(s.Planets["a"].Techs[3], []string{"base:drill"}) {
 		t.Errorf("armies %v, Labs %v", s.Armies, s.Planets["a"].Techs)
+	}
+}
+
+func TestARaidOrderToACourierNamesTheCourier(t *testing.T) {
+	s, c := courierCase(t)
+	a := sent(t, s, c)
+	if err := s.ReorderRaid(c, 0, a.ID, "a", 0); err == nil || err.Error() != "a Courier goes to a Lab" {
+		t.Errorf("err %v", err)
 	}
 }

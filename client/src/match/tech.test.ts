@@ -3,15 +3,18 @@ import type { ContentLookups } from "../content";
 import type { Tech } from "../gen/content";
 import type { Army, PlanetView, View } from "./store";
 import {
+  courierLanding,
   effectText,
   finishedProjects,
   heldTechs,
   idleFields,
+  labFill,
   labs,
   needsTech,
   pauseReason,
   researchBuildings,
   techCost,
+  techsLostWithLab,
   techText,
 } from "./tech";
 
@@ -313,6 +316,63 @@ describe("Techs", () => {
       ["a", 2, 2, []],
       ["b", 0, 1, ["relic"]],
     ]);
+  });
+
+  it("fills a Lab the same for the Planet window as for labs()", () => {
+    const yours = planet("a", 0, ["lab"], [[0, ["relic"]]]);
+    const theirs = planet("b", 1, ["lab"], [[0, ["plating"]]]);
+    const v = view([yours, theirs]);
+    // Relic's +1 Tech Slot counts on your Lab: 2 + 1, less Relic itself.
+    expect(labFill(content, v, yours, 0, 2).free).toBe(2);
+    expect(labs(content, v)[0]?.free).toBe(2);
+    // It's your Tech: another player's Lab stays as the building says.
+    expect(labFill(content, v, theirs, 0, 2).free).toBe(1);
+  });
+
+  describe("selling a Lab", () => {
+    const courier = (home: string, homeSlot: number, dest: string) =>
+      ({
+        id: 1,
+        tech: "plating",
+        homePlanet: home,
+        homeSlot,
+        destPlanet: dest,
+        destSlot: 0,
+      }) as Army;
+    const a = planet("a", 0, ["lab"], [[0, ["relic"]]]);
+    const lost = (c: Army) => {
+      const v = view([a, planet("b", 0, ["lab"])]);
+      v.armies.set(1, c);
+      return techsLostWithLab(v, a, 0);
+    };
+
+    it("loses what it holds and a Courier heading back to it", () => {
+      expect(lost(courier("a", 0, "a"))).toEqual(["relic", "plating"]);
+    });
+
+    it("loses a Courier coming to it whose own Lab is gone", () => {
+      expect(lost(courier("", 0, "a"))).toEqual(["relic", "plating"]);
+    });
+
+    it("spares a Courier that can still turn back, or left for elsewhere", () => {
+      expect(lost(courier("b", 0, "a"))).toEqual(["relic"]);
+      expect(lost(courier("a", 0, "b"))).toEqual(["relic"]);
+    });
+  });
+
+  it("says when a Courier lands, or where it's waiting", () => {
+    const lanes = new Map([["b", new Map([["c", 30_000]])]]);
+    const going = {
+      to: "b",
+      path: ["c"],
+      arrives: 10_000,
+      waiting: false,
+    } as unknown as Army;
+    const name = (p: string) => p.toUpperCase();
+    expect(courierLanding(lanes, going, 1_000, name)).toBe("arrives in 39 s");
+    expect(
+      courierLanding(lanes, { ...going, waiting: true }, 1_000, name),
+    ).toBe("waiting in orbit at B");
   });
 
   it("says why a Project is paused", () => {

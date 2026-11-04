@@ -143,15 +143,9 @@ func (s *State) OrderArmy(seat int, from string, units []ArmyUnits, to string, t
 // Lane hop first and never turns back mid-Lane, so its route starts at To.
 // An Army waiting in orbit leaves now.
 func (s *State) ReorderArmy(seat int, id uint32, to string, toStack int) error {
-	a := s.Armies[id]
-	if a == nil || a.Owner != seat {
-		return fmt.Errorf("you have no Army %d", id)
-	}
-	if a.Courier != nil {
-		return errors.New("a Courier goes to a Lab")
-	}
-	if a.Retreating {
-		return errors.New("a Retreating Army can't be re-ordered")
+	a, err := s.reorderable(seat, id)
+	if err != nil {
+		return err
 	}
 	if err := s.checkTarget(seat, to, toStack); err != nil {
 		return err
@@ -164,6 +158,20 @@ func (s *State) ReorderArmy(seat int, id uint32, to string, toStack int) error {
 	a.ToStack, a.Raid = toStack, false // re-ordered as an Attack; ReorderRaid makes it a Raid again
 	a.redirect(route, s.Lanes, s.Time)
 	return nil
+}
+
+// reorderable finds an Army of seat's that may take a new order.
+func (s *State) reorderable(seat int, id uint32) (*Army, error) {
+	a := s.Armies[id]
+	switch {
+	case a == nil || a.Owner != seat:
+		return nil, fmt.Errorf("you have no Army %d", id)
+	case a.Courier != nil:
+		return nil, errors.New("a Courier goes to a Lab")
+	case a.Retreating:
+		return nil, errors.New("a Retreating Army can't be re-ordered")
+	}
+	return a, nil
 }
 
 // redirect gives the Army a new route from To; one waiting in orbit leaves at at.
@@ -194,10 +202,12 @@ func (s *State) OrderRaid(c *cs.Content, seat int, from string, units []ArmyUnit
 
 // ReorderRaid is ReorderArmy for a Raid: it raids its new target.
 func (s *State) ReorderRaid(c *cs.Content, seat int, id uint32, to string, toStack int) error {
-	if a := s.Armies[id]; a != nil && a.Owner == seat {
-		if err := s.raidable(c, seat, a.Units, to); err != nil {
-			return err
-		}
+	a, err := s.reorderable(seat, id)
+	if err != nil {
+		return err
+	}
+	if err := s.raidable(c, seat, a.Units, to); err != nil {
+		return err
 	}
 	if err := s.ReorderArmy(seat, id, to, toStack); err != nil {
 		return err

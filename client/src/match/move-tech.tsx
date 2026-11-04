@@ -8,7 +8,14 @@ import { laneTimes, route } from "./route";
 import { allied } from "./store";
 import { labs, otherLabs } from "./tech";
 import { useMatchNow } from "./time";
-import { besidePlanet, Floating, label, windowTitle } from "./windows";
+import {
+  besidePlanet,
+  Floating,
+  knownOwner,
+  label,
+  planetNameOn,
+  windowTitle,
+} from "./windows";
 
 /** "38 s", "1 m 12 s" */
 function duration(ms: number) {
@@ -51,13 +58,10 @@ export function MoveTechWindow(props: {
     ([r, n]) => (view.economy.resources.get(r) ?? 0) >= n,
   );
   const lanes = laneTimes(map, content.rules);
-  const planetName = (id: string) =>
-    map.planets.find((p) => p.id === id)?.name ?? id;
-  // What the player knows: live, else as last seen, else neutral. A
-  // Teammate's Planet is passed as your own, as on the server.
+  const planetName = (id: string) => planetNameOn(map, id);
+  // A Teammate's Planet is passed as your own, as on the server.
   const owner = (id: string) => {
-    const live = view.planets.get(id);
-    const o = live ? live.owner : (lastSeen.get(id)?.planet.owner ?? null);
+    const o = knownOwner(view, lastSeen, id);
     return allied(view, o, view.you) ? view.you : o;
   };
   const trip = (to: string) => route(lanes, owner, view.you, from, to);
