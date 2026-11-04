@@ -30,6 +30,8 @@ export type BattlefieldLook = {
   sight: (sq: Squad, height: number) => number;
   /** Whether a squad flies: drawn as a triangle. */
   flies: (sq: Squad) => boolean;
+  /** How far a build pad sees for the side holding it, in cells. */
+  padSight: number;
   /** How near a squad must be to a Control Point, in cells. */
   captureRadius: number;
   /** Sim ticks to take a Control Point. */
@@ -54,6 +56,7 @@ type Marker = {
 };
 
 type PadMark = {
+  group: THREE.Group; // hidden in the fog, unless it's yours
   outline: THREE.Mesh;
   fill: THREE.Mesh;
   arc: THREE.Mesh;
@@ -147,6 +150,7 @@ export class BattlefieldScene {
   private fogOf: Side | null | false;
   private lastSquads: Squad[] = [];
   private lastPoints: ControlPoint[] = [];
+  private lastPads: BuildPad[] = [];
   private readonly overlays = new THREE.Group();
   private readonly ring = new THREE.Mesh(
     new THREE.RingGeometry(0.55, 0.7, 24),
@@ -178,6 +182,8 @@ export class BattlefieldScene {
   });
   private readonly box = document.createElement("div");
   private boxFrom: { x: number; y: number } | null = null;
+  /** Hears a right-click on a build pad: its index, and the screen point. */
+  onPadMenu?: (pad: number, clientX: number, clientY: number) => void;
   /** Hears the squads you've picked, when that changes. */
   onSelect?: (squads: number[]) => void;
   /** Hears an order to the picked squads. */
@@ -306,6 +312,7 @@ export class BattlefieldScene {
     this.drawPoints(battle.points);
     this.lastPoints = battle.points;
     this.drawPads(battle.pads);
+    this.lastPads = battle.pads;
     this.lastSquads = battle.squads;
     this.drawFog(battle.squads);
     // Squads that died or left drop out of the selection.
@@ -354,8 +361,9 @@ export class BattlefieldScene {
 
   /** Commands side's squads from the map, or with null stops. */
   command(side: Side | null) {
+    const changed = side !== this.commandSide;
     this.commandSide = side;
-    if (side === null) this.pick([]);
+    if (changed) this.pick([]); // the other side's squads aren't yours to order
   }
 
   /** Sets the picked squads, ringing each, and tells onSelect. */
@@ -694,7 +702,7 @@ export class BattlefieldScene {
         label.center.set(0.5, 1.6);
         group.add(label);
         this.scene.add(group);
-        m = { outline, fill, arc, label, progress: 0 };
+        m = { group, outline, fill, arc, label, progress: 0 };
         this.padMarks.push(m);
       }
       const colour = (s: Side | null) => (s ? this.look.sideColour[s] : UNHELD);
@@ -730,9 +738,23 @@ export class BattlefieldScene {
     const { width: w, height: h, heights } = this.field;
     const data = this.fog.image.data as Uint8Array;
     const alpha = new Float32Array(w * h).fill(this.fogOf === false ? 0 : FOG);
-    for (const sq of squads) {
+    // Each squad's Sight, and each held pad's: a pad sees round itself.
+    const eyes = [
+      ...squads.map((sq) => ({
+        x: sq.x,
+        y: sq.y,
+        side: sq.side,
+        r: this.look.sight(sq, heights[sq.y * w + sq.x] ?? 0),
+      })),
+      ...this.lastPads.flatMap((p) =>
+        p.owner
+          ? [{ x: p.x, y: p.y, side: p.owner, r: this.look.padSight }]
+          : [],
+      ),
+    ];
+    for (const sq of eyes) {
       if (this.fogOf && sq.side !== this.fogOf) continue;
-      const r = this.look.sight(sq, heights[sq.y * w + sq.x] ?? 0);
+      const r = sq.r;
       for (
         let y = Math.max(0, Math.floor(sq.y - r));
         y <= Math.min(h - 1, sq.y + r);
@@ -753,6 +775,14 @@ export class BattlefieldScene {
       }
     }
     this.fog.needsUpdate = true;
+    // A pad shows only where you can see it, or if it's yours.
+    this.lastPads.forEach((p, i) => {
+      const m = this.padMarks[i];
+      if (m)
+        m.group.visible =
+          (alpha[p.y * w + p.x] ?? 0) === 0 ||
+          (!!this.fogOf && p.owner === this.fogOf);
+    });
   }
 
   private tick(t: number) {
@@ -859,6 +889,26 @@ export class BattlefieldScene {
     const from = this.boxFrom;
     this.boxFrom = null;
     this.box.style.display = "none";
+    // A right-click on a pad you can see opens its menu: commanding, only on
+    // one you hold, since right-clicking another sends squads to take it.
+    if (
+      e.button === 2 &&
+      p &&
+      Math.hypot(e.clientX - p.x, e.clientY - p.y) <= 4
+    ) {
+      const at = this.world(e);
+      const pad = this.lastPads.findIndex(
+        (q, i) =>
+          this.padMarks[i]?.group.visible &&
+          (this.commandSide === null || q.owner === this.commandSide) &&
+          Math.abs(q.x + 0.5 - at.x) <= 0.8 &&
+          Math.abs(-(q.y + 0.5) - at.y) <= 0.8,
+      );
+      if (pad >= 0 && this.onPadMenu) {
+        this.onPadMenu(pad, e.clientX, e.clientY);
+        return;
+      }
+    }
     if (this.commandSide !== null && p) {
       const click = Math.hypot(e.clientX - p.x, e.clientY - p.y) <= 4;
       if (e.button === 2) {

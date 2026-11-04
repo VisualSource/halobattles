@@ -572,7 +572,7 @@ func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 		for _, p := range b.Pads {
 			bv.Pads = append(bv.Pads, &wire.BuildPadT{
 				X: uint16(p.Cell.X), Y: uint16(p.Cell.Y), Owner: int8(p.Owner), Taker: int8(p.Taker), Progress: uint16(p.Progress),
-				Turret: uint16(p.Turret), Building: p.Building, ReadyAt: uint32(p.ReadyAt),
+				Turret: uint16(p.Turret), Building: p.Building, ReadyAt: uint32(p.ReadyAt), CoolsAt: uint32(p.CoolsAt),
 			})
 		}
 		out = append(out, bv)
@@ -600,7 +600,7 @@ func armies(as []game.ArmyView) []*wire.ArmyViewT {
 	for _, a := range as { // already sorted by id, as the (key) needs
 		out = append(out, &wire.ArmyViewT{
 			Id: a.ID, Owner: int8(a.Owner), Units: unitSlots(a.Units), From: a.From, To: a.To,
-			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting, Destination: a.Destination, ToStack: uint8(a.ToStack), Path: a.Path, Raid: a.Raid, Command: a.Command,
+			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting, Destination: a.Destination, ToStack: uint8(a.ToStack), Path: a.Path, Raid: a.Raid,
 		})
 	}
 	return out

@@ -165,10 +165,10 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 			s.play.SetBattleControl(s.seat(user), c.Command())
 			return nil
 		}
-	case wire.OpSetArmyControl:
-		c := wire.GetRootAsSetArmyControl(data, 0)
+	case wire.OpSetBattleCommand:
+		c := wire.GetRootAsSetBattleCommand(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
-			return s.play.SetArmyControl(s.seat(user), c.Army(), c.Command())
+			return s.play.SetBattleCommand(s.seat(user), string(c.Planet()), c.Command())
 		}
 	case wire.OpBattleLand:
 		c := wire.GetRootAsBattleLand(data, 0)

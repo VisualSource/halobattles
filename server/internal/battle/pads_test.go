@@ -215,3 +215,36 @@ func TestASquadShotByATurretItCantHurtGetsOutOfRange(t *testing.T) {
 	}
 	t.Errorf("the Marines stayed in the turret's range: at %v, turret at %v (reach %v), alive %v", a.Cell, tur.Cell, tur.reach, a.alive())
 }
+
+func TestAHeldPadSeesRoundItself(t *testing.T) {
+	s, pad := padSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
+	m, g := s.Squads[0], s.Squads[1]
+	freeAt(t, s, g, pad.Cell, 1)
+	freeAt(t, s, m, pad.Cell, int(s.sightOf(m))+int(s.rules.PadSight)+4) // the Marines can't see it
+	s.see()
+	if s.visible[Attacker][g.ID] {
+		t.Fatal("the attacker sees the Grunts with nothing near: the test proves nothing")
+	}
+	pad.Owner = Attacker
+	s.see()
+	if !s.visible[Attacker][g.ID] {
+		t.Error("a pad the attacker holds doesn't see the Grunts beside it")
+	}
+}
+
+func TestAPadCoolsDownAfterItsTurretIsDestroyed(t *testing.T) {
+	s, pad := padSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
+	s.Command(Defender, Order{Kind: Build, Target: 0, Building: "base:plasma-turret"})
+	for pad.Turret == 0 {
+		s.Step()
+	}
+	s.squad(pad.Turret).Members = nil
+	s.capture()
+	if pad.Turret != 0 || s.CanBuild(Defender, 0, "base:plasma-turret") == nil {
+		t.Fatalf("pad %+v; want it clear, but cooling down", *pad)
+	}
+	s.Tick = pad.CoolsAt
+	if err := s.CanBuild(Defender, 0, "base:plasma-turret"); err != nil {
+		t.Errorf("after the cooldown: %v", err)
+	}
+}

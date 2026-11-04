@@ -27,7 +27,7 @@ export type CommandKind =
   | "exchange"
   | "research"
   | "battleControl"
-  | "armyControl"
+  | "battleCommand"
   | "battleOrder";
 
 export type LocalState = {

@@ -93,6 +93,10 @@ const LOG_MAX = 500;
 
 // The sim's OrderKind numbers (server battle/control.go).
 const SIM_KINDS = { move: 0, attack: 1, hold: 2, attackMove: 6 } as const;
+const BUILD = 5;
+const ARRIVE = 7;
+const LAND = 8;
+const DROP_STATES = ["orbit", "flying", "done"] as const;
 
 const sideOf = (n: number): Side => (n === 0 ? "attacker" : "defender");
 const bytes = (b64: string) =>
@@ -137,11 +141,22 @@ type GoFrame = {
           Turret: number;
           Building: string;
           ReadyAt: number;
+          CoolsAt: number;
         }[]
       | null;
     Retreating: [boolean, boolean];
     BuildingsLeft: number;
     Buildings: number;
+    Drops:
+      | {
+          Side: number;
+          Unit: string;
+          Cargo: { Unit: string; Count: number }[] | null;
+          State: number;
+          Point: number;
+          SendsAt: number;
+        }[]
+      | null;
   };
   volleys?: {
     Actor: number;
@@ -187,6 +202,7 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     turret: p.Turret,
     building: p.Building,
     readyAt: p.ReadyAt,
+    coolsAt: p.CoolsAt,
   }));
   return {
     id: 1,
@@ -212,7 +228,15 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     buildingsLeft: s.BuildingsLeft,
     buildings: s.Buildings,
     commanded: false, // the Lab page knows which sides it commands
-    drops: [], // shortcut: the Lab has no reinforcements to add yet; replays still land them
+    // Both sides' Dropships, in the sim's order: a Land order names one by it.
+    drops: (s.Drops ?? []).map((d) => ({
+      side: sideOf(d.Side),
+      unit: d.Unit,
+      units: (d.Cargo ?? []).reduce((n, c) => n + c.Count, 0),
+      state: DROP_STATES[d.State] ?? "done",
+      point: d.Point < 0 ? null : d.Point,
+      aiAt: d.SendsAt,
+    })),
   };
 }
 
@@ -295,6 +319,33 @@ export class LabConnection {
         Cell: { X: o.cell?.x ?? 0, Y: o.cell?.y ?? 0 },
         Target: o.target ?? 0,
       },
+    });
+  }
+
+  /** Puts a Dropship carrying cargo in orbit for side, the AI's or yours. */
+  arrive(side: Side, unit: string, cargo: { unit: string; count: number }[]) {
+    this.raw(side, {
+      Kind: ARRIVE,
+      Building: unit,
+      Cargo: cargo.map((c, i) => ({ Unit: c.unit, Count: c.count, Cell: i })),
+    });
+  }
+
+  /** Sends Dropship drop, by its index in the Battle's drops, to Landing Zone point. */
+  land(side: Side, drop: number, point: number) {
+    this.raw(side, { Kind: LAND, Target: drop, Point: point });
+  }
+
+  /** Builds a pad turret on pad, for a side you command. */
+  build(side: Side, pad: number, building: string) {
+    this.raw(side, { Kind: BUILD, Target: pad, Building: building });
+  }
+
+  private raw(side: Side, order: Record<string, unknown>) {
+    this.send(OP.order, {
+      side: side === "attacker" ? 0 : 1,
+      squads: [],
+      order,
     });
   }
 

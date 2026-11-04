@@ -377,6 +377,14 @@ export interface BattleRules {
    */
   startDelay: number;
   /**
+   * How far, in cells, a build pad sees for the side holding it.
+   */
+  padSight: number;
+  /**
+   * Seconds after a pad turret is destroyed before its pad can be built on again.
+   */
+  padCooldown: number;
+  /**
    * Seconds a turret takes to build on a build pad.
    */
   padBuildSeconds: number;

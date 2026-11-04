@@ -28,8 +28,6 @@ type Army struct {
 	// Raid: it fights for the target's buildings, never the Planet, and only
 	// its owner sees it on the way.
 	Raid bool
-	// Command: its owner commands its Battle; from their default, at the order.
-	Command bool
 }
 
 // ArmyUnits is part of an order: count of a unit from one Stack.
@@ -130,7 +128,7 @@ func (s *State) OrderArmy(seat int, from string, units []ArmyUnits, to string, t
 	}
 	p.Stacks = stacks
 	s.LastID++
-	a := &Army{ID: s.LastID, Owner: seat, Units: army, To: from, Path: route[1:], ToStack: toStack, Command: s.Players[seat].CommandBattles}
+	a := &Army{ID: s.LastID, Owner: seat, Units: army, To: from, Path: route[1:], ToStack: toStack}
 	a.hop(s.Lanes, s.Time)
 	if s.Armies == nil {
 		s.Armies = map[uint32]*Army{}

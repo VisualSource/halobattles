@@ -65,6 +65,8 @@ const rules: Ruleset = {
     raidCap: 10,
     raidRoles: ["scout"],
     landingDelay: 20,
+    padSight: 4,
+    padCooldown: 20,
     padBuildSeconds: 10,
     neutralFunds: { "base:credits": 400 },
     captureRadius: 2,

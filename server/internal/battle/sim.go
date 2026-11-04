@@ -115,6 +115,7 @@ type Pad struct {
 	Turret   int    // the turret squad on it, or 0
 	Building string // the turret under construction, or ""
 	ReadyAt  int    // the tick it's built
+	CoolsAt  int    // its turret destroyed: the tick it can be built on again
 }
 
 // Point is a Control Point. Taker has been in range alone for Progress ticks.
@@ -806,6 +807,9 @@ func (s *Sim) see() {
 					}
 				}
 			}
+			// A pad the side holds sees round itself.
+			r := s.rules.PadSight
+			vis[e.ID] = vis[e.ID] || slices.ContainsFunc(s.Pads, func(p Pad) bool { return p.Owner == Side(side) && float64(dist2(p.Cell, e.Cell)) <= r*r })
 		}
 		s.visible[side] = vis
 		// Pads: what the side can see of them now, else as it last saw them.
@@ -990,7 +994,8 @@ func (s *Sim) capture() {
 	for i := range s.Pads {
 		p := &s.Pads[i]
 		if t := s.squad(p.Turret); t != nil && !t.alive() {
-			p.Turret = 0 // destroyed: the pad can be taken
+			p.Turret = 0 // destroyed: the pad can be taken, and built on after the cooldown
+			p.CoolsAt = s.Tick + ticks(s.rules.PadCooldown)
 		}
 		present := s.presence(p.Cell)
 		switch {
@@ -1031,6 +1036,8 @@ func (s *Sim) CanBuild(side Side, pad int, building string) error {
 		return errors.New("you don't hold that build pad")
 	case p.Turret != 0 || p.Building != "":
 		return errors.New("that build pad is taken")
+	case s.Tick < p.CoolsAt:
+		return errors.New("that build pad is cooling down after its turret was destroyed")
 	case !ok || b.PadTurret == nil || !*b.PadTurret || b.Combat == nil:
 		return errors.New("that can't be built on a build pad")
 	case s.Retreating[side]:

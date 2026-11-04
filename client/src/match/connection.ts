@@ -42,7 +42,7 @@ import {
   ReorderArmyT,
   type ResearchT,
   SellBuildingT,
-  SetArmyControlT,
+  SetBattleCommandT,
   SetBattleControlT,
   SetFactionT,
   SetMapT,
@@ -202,7 +202,6 @@ const toArmy = (a: ArmyViewT): Army => ({
   toStack: a.toStack,
   path: a.path.map(str),
   raid: a.raid,
-  command: a.command,
 });
 
 const side = (n: number): Side => (n === 0 ? "attacker" : "defender");
@@ -261,6 +260,7 @@ const toBattle = (
     turret: p.turret,
     building: str(p.building),
     readyAt: p.readyAt,
+    coolsAt: p.coolsAt,
   })),
   retreatAt: b.retreatAt,
   retreating: {
@@ -590,12 +590,12 @@ export class MatchConnection {
     );
   }
 
-  /** Whether you command one Army's Battle, over your default. */
-  setArmyControl(army: number, command: boolean) {
+  /** Whether you command your side of the Battle on planet: only in its setup. */
+  setBattleCommand(planet: string, command: boolean) {
     this.send(
-      Op.SetArmyControl,
-      "armyControl",
-      (seq) => new SetArmyControlT(seq, army, command),
+      Op.SetBattleCommand,
+      "battleCommand",
+      (seq) => new SetBattleCommandT(seq, planet, command),
     );
   }
 

@@ -35,7 +35,7 @@ enum Op : int {
   SetTeam = 26,
   SetRallyPoint = 27,
   SetBattleControl = 28,
-  SetArmyControl = 29,
+  SetBattleCommand = 29,
   BattleOrder = 30,
   BattleLand = 31,
 
@@ -220,10 +220,11 @@ table SetBattleControl {
   command: bool;
 }
 
-// Whether the player commands one Army's Battle, over their default.
-table SetArmyControl {
+// Whether you command your side of the Battle on planet, over your default:
+// only in its setup, before the fighting starts.
+table SetBattleCommand {
   seq: uint32;
-  army: uint32;
+  planet: string;
   command: bool;
 }
 
@@ -378,7 +379,6 @@ table ArmyView {
   to_stack: ubyte;         // own only
   path: [string];          // own only: the Planets after to, in order
   raid: bool;              // own only: others don't see a Raid at all
-  command: bool;           // own only: you command its Battle
 }
 
 // A Battle's grid: one Terrain index and one height level per cell, row by
@@ -442,6 +442,7 @@ table BuildPad {
   turret: ushort;          // the turret squad on it, or 0
   building: string;        // a turret under construction, or ""
   ready_at: uint32;        // the tick it's built
+  cools_at: uint32;        // its turret destroyed: the tick it can be built on again
 }
 
 // A Battle you're a side of, as your side sees it: your own squads and the

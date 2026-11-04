@@ -117,9 +117,9 @@ type labState struct {
 	build     func() (*battle.Sim, error) // makes the current Battle again
 	sim       *battle.Sim
 	orders    []battle.Logged // a replay's player orders still to come
-	// A replay's AI takeovers: 1 + the tick each side's AI took over from a
-	// player who left, or 0; and the weights it plays with.
-	handOver  [2]int
+	// A replay's sides changing hands, each at its tick, and the weights its
+	// AI plays with.
+	switches  []game.Switch
 	weights   [2]battle.Weights
 	paused    bool
 	speed     float64
@@ -237,8 +237,31 @@ func (s *labState) handle(c *content.Content, op int64, data []byte, dispatcher 
 			return errors.New("no Battle running")
 		case in.Side != battle.Attacker && in.Side != battle.Defender:
 			return errors.New("no such side")
+		case in.Order.Kind == battle.Arrive: // a test landing, for either side, the AI's too
+			if u, ok := doc.Units[in.Order.Building]; !ok || u.Carry == nil {
+				return fmt.Errorf("%q isn't a Dropship", in.Order.Building)
+			}
+			for _, sl := range in.Order.Cargo {
+				if _, ok := doc.Units[sl.Unit]; !ok || sl.Count < 1 {
+					return fmt.Errorf("cargo %q × %d", sl.Unit, sl.Count)
+				}
+			}
+			s.sim.Command(in.Side, in.Order)
+			return nil
 		case s.sim.Controllers[in.Side] != nil:
 			return errors.New("the AI runs that side: set it to command")
+		case in.Order.Kind == battle.Land:
+			if err := s.sim.CanLand(in.Side, in.Order.Target, in.Order.Point); err != nil {
+				return err
+			}
+			s.sim.Command(in.Side, in.Order)
+			return nil
+		case in.Order.Kind == battle.Build:
+			if err := s.sim.CanBuild(in.Side, in.Order.Target, in.Order.Building); err != nil {
+				return err
+			}
+			s.sim.Command(in.Side, in.Order)
+			return nil
 		}
 		return s.sim.CommandGroup(in.Side, in.Squads, in.Order)
 	default:
@@ -348,7 +371,7 @@ func (s *labState) fromReplay(c *cs.Content, in labReplay) (*battle.Sim, error) 
 			sim.Controllers[i] = s.ai(battle.Side(i), r.Weights[i])
 		}
 	}
-	s.orders, s.handOver, s.weights = r.Orders, r.HandedOver, r.Weights
+	s.orders, s.switches, s.weights = r.Orders, r.Switches, r.Weights
 	return sim, nil
 }
 
@@ -376,10 +399,13 @@ func (s *labState) step(n int) {
 		if s.sim.Over {
 			break
 		}
-		for side, at := range s.handOver {
-			if at > 0 && s.sim.Tick == at-1 && s.sim.Controllers[side] == nil {
-				s.sim.Controllers[side] = s.ai(battle.Side(side), s.weights[side])
+		for len(s.switches) > 0 && s.switches[0].Tick <= s.sim.Tick {
+			sw := s.switches[0]
+			s.sim.Controllers[sw.Side] = nil
+			if !sw.Command {
+				s.sim.Controllers[sw.Side] = s.ai(sw.Side, s.weights[sw.Side])
 			}
+			s.switches = s.switches[1:]
 		}
 		for len(s.orders) > 0 && s.orders[0].Tick <= s.sim.Tick {
 			s.sim.Command(s.orders[0].Side, s.orders[0].Order)

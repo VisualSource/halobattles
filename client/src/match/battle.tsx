@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
+import type { Building } from "../gen/content";
 import { BattlefieldScene, POINT_NAMES } from "../scene/battlefield";
 import { seatColour } from "../scene/galaxy";
 import { amounts } from "./buildings";
@@ -19,6 +20,7 @@ import {
   BATTLE_TICKS,
   type Battle,
   type BattleReport,
+  type BuildPad,
   type Side,
   type Squad,
   type SquadOrder,
@@ -26,7 +28,7 @@ import {
   type Volley,
 } from "./store";
 import { formatAge, useMatchNow } from "./time";
-import { Floating, label, Tag, Tile, windowTitle } from "./windows";
+import { Floating, label, Tag, Tile, useDismiss, windowTitle } from "./windows";
 
 type TickEvent = { battle: number; tick: number; volleys: Volley[] };
 
@@ -102,6 +104,16 @@ export function BattlePanel(props: {
   });
   const fire = shots.id === id ? shots.fire : [];
   const [full, setFull] = useState(false);
+  const controlSent = useStore(conn.local, (s) =>
+    [...s.pending.values()].includes("battleCommand"),
+  );
+  // A pad's menu, right-clicking it on the map: tagged with its Battle.
+  const [padMenu, setPadMenu] = useState<{
+    id: typeof id;
+    pad: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     const onTick = (e: Event) => {
@@ -193,6 +205,17 @@ export function BattlePanel(props: {
     content.buildings.get(unit ?? "")?.name ??
     unit ??
     "?";
+  // A fresh member's layers: the Command Post's are the Ruleset's, and a
+  // building without a combat block stands with the structure defaults.
+  const fresh = (unit: string) => {
+    const c =
+      unit === COMMAND_POST
+        ? rules.commandPost
+        : (content.units.get(unit)?.combat ??
+          content.buildings.get(unit)?.combat ??
+          rules.structure);
+    return c.shield + c.armor + c.hp;
+  };
   const last = fire.at(-1);
 
   const title = (
@@ -202,14 +225,17 @@ export function BattlePanel(props: {
         {planetName(battle.planet)}
       </h2>
       {battle.raid && <Tag className="bg-danger-wash text-danger">Raid</Tag>}
-      {commanding ? (
-        <Tag className="bg-ok-wash text-ok">You command</Tag>
-      ) : (
-        !view?.spectating &&
+      {!view?.spectating &&
         (battle.attacker === view?.you || battle.defender === view?.you) && (
-          <Tag className="bg-idle-wash text-idle">Auto</Tag>
-        )
-      )}
+          <ControlSwitch
+            commanding={!!commanding}
+            // Who fights it is fixed once the fighting starts.
+            open={battle.started > now && !controlSent}
+            onChange={(command) =>
+              conn.setBattleCommand(battle.planet, command)
+            }
+          />
+        )}
       <Tag className="bg-accent-wash text-accent">Locked</Tag>
     </>
   );
@@ -264,78 +290,29 @@ export function BattlePanel(props: {
     spectating ||
     (battle.attacker !== view?.you && battle.defender !== view?.you);
   const faction = view ? view.players[view.you]?.faction : undefined;
-  // Your Faction's pad turret, if it has one: the cheapest.
-  const turret = [...content.buildings.entries()]
-    .filter(([, b]) => b.padTurret && b.combat && b.faction === faction)
-    .sort(
-      ([, a], [, b]) =>
-        Object.values(a.cost).reduce((n, c) => n + c, 0) -
-        Object.values(b.cost).reduce((n, c) => n + c, 0),
-    )[0];
-  const affords =
-    !!turret &&
-    Object.entries(turret[1].cost).every(
-      ([r, n]) => (view?.economy.resources.get(r) ?? 0) >= n,
-    );
-  const pads = battle.pads.length > 0 && (
-    <div className="flex flex-wrap items-center gap-2 px-4 pt-2 text-sm">
-      <span className={label}>Pads</span>
-      {battle.pads.map((p, i) => {
-        const yours = !watching && p.owner === mySide;
-        const state = p.turret
-          ? "Turret up"
-          : p.building
-            ? `Building · ${Math.max(0, Math.ceil((p.readyAt - battle.tick) / BATTLE_TICKS))} s`
-            : p.owner
-              ? "Empty"
-              : "Nobody's";
-        return (
-          <span
-            key={`${p.x},${p.y}`}
-            className="border-line flex items-center gap-1.5 rounded-md border py-0.5 pr-0.5 pl-2"
-          >
-            <span
-              aria-hidden="true"
-              className="size-2.5 rounded-sm"
-              style={{
-                background: p.owner
-                  ? colourOf(seatOf(battle, p.owner))
-                  : NEUTRAL,
-              }}
-            />
-            <span className="font-mono">{i + 1}</span>
-            <span className="text-ink-3 w-20 text-xs">{state}</span>
-            <button
-              type="button"
-              disabled={
-                !yours ||
-                !!p.turret ||
-                !!p.building ||
-                !turret ||
-                !affords ||
-                buildSent
-              }
-              title={
-                turret
-                  ? `Build a ${turret[1].name} for ${amounts(content, turret[1].cost)}`
-                  : "Your Faction has no pad turret"
-              }
-              onClick={() =>
-                turret && conn.buildTurret(battle.planet, i, turret[0])
-              }
-              className="border-edge bg-raised min-h-7 w-14 rounded px-2 text-xs disabled:opacity-40"
-            >
-              Build
-            </button>
-          </span>
-        );
-      })}
-      {turret && (
-        <span className="text-ink-3 text-xs">
-          {turret[1].name}: {amounts(content, turret[1].cost)}
-        </span>
-      )}
-    </div>
+  // Your Faction's pad turrets: built from a pad's menu, right-clicking it on the map.
+  const turrets = [...content.buildings.entries()].filter(
+    ([, b]) => b.padTurret && b.combat && b.faction === faction,
+  );
+  const menu = padMenu?.id === id && (
+    <PadMenu
+      at={padMenu}
+      pad={battle.pads[padMenu.pad]}
+      tick={battle.tick}
+      yours={!watching && battle.pads[padMenu.pad]?.owner === mySide}
+      turrets={turrets}
+      afford={(cost) =>
+        Object.entries(cost).every(
+          ([r, n]) => (view?.economy.resources.get(r) ?? 0) >= n,
+        )
+      }
+      sent={buildSent}
+      content={content}
+      onBuild={(building) =>
+        conn.buildTurret(battle.planet, padMenu.pad, building)
+      }
+      onClose={() => setPadMenu(null)}
+    />
   );
   const sides = (
     <div className={`grid gap-4 p-4 ${full ? "grid-cols-1" : "grid-cols-2"}`}>
@@ -365,6 +342,7 @@ export function BattlePanel(props: {
             <UnitGrid
               squads={battle.squads.filter((q) => q.side === side)}
               name={name}
+              fresh={fresh}
               actor={last?.actor}
               target={last?.target}
             />
@@ -469,6 +447,7 @@ export function BattlePanel(props: {
       content={content}
       battle={battle.id}
       onDrop={commanding ? land : undefined}
+      onPadMenu={(pad, x, y) => setPadMenu({ id, pad, x, y })}
       className={full ? "min-h-0 flex-1" : "mx-4 h-95 rounded-md"}
       banner={startsIn > 0 ? `The fighting starts in ${startsIn} s` : undefined}
       command={
@@ -497,8 +476,9 @@ export function BattlePanel(props: {
       <div className="border-line flex flex-none items-center gap-2.5 border-t px-4 py-3">
         <span className={label}>Auto</span>
         <p className="text-ink-2 text-sm">
-          The AI fights this Battle for you. It was set when the Battle started;
-          you can still Retreat.
+          The AI fights this Battle for you. Until the fighting starts you can
+          take it over with You command, above; you can always Retreat, and
+          right-click a pad you hold to build a turret.
         </p>
       </div>
     )
@@ -527,12 +507,12 @@ export function BattlePanel(props: {
         <div className="flex min-h-0 flex-1">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             {map}
+            {menu}
             {orders}
           </div>
           <aside className="border-line bg-panel flex w-105 flex-none flex-col overflow-y-auto border-l">
             {points}
             {reinforcements}
-            {pads}
             {sides}
             {latest}
             <span className="flex-1" />
@@ -556,9 +536,9 @@ export function BattlePanel(props: {
       {timeBar}
       {points}
       {reinforcements}
-      {pads}
       <div className="h-3" />
       {map}
+      {menu}
       <div className="h-3" />
       {orders}
       {sides}
@@ -581,6 +561,8 @@ function BattlefieldView(props: {
   banner?: string; // shown over the map
   /** A drag dropped on the map: a Dropship sent to a Landing Zone. */
   onDrop?: (e: React.DragEvent) => void;
+  /** A right-click on a build pad, by index, at a screen point. */
+  onPadMenu?: (pad: number, x: number, y: number) => void;
   /** Commanding a side: the map picks and orders its squads. */
   command?: {
     side: Side;
@@ -593,9 +575,11 @@ function BattlefieldView(props: {
   const ref = useRef<HTMLDivElement>(null);
   // The latest handlers, so a new render doesn't rebuild the scene.
   const command = useRef(props.command);
+  const padMenu = useRef(props.onPadMenu);
   // Before the scene's effect below, which reads it.
   useLayoutEffect(() => {
     command.current = props.command;
+    padMenu.current = props.onPadMenu;
   });
   const side = props.command?.side ?? null;
   const ready = useStore(conn.store, (s) => !!s.view?.battles.get(id)?.field);
@@ -624,10 +608,12 @@ function BattlefieldView(props: {
           rules.classDefaults[classOf(sq.unit)]?.sight ??
           0) + (flies(sq) ? 0 : rules.heightSight * height),
       flies,
+      padSight: rules.padSight,
       captureRadius: rules.captureRadius,
       captureTicks: rules.captureSeconds * BATTLE_TICKS,
     });
     scene.onSelect = (ids) => command.current?.onSelect(ids);
+    scene.onPadMenu = (pad, x, y) => padMenu.current?.(pad, x, y);
     scene.onOrder = (ids, o) => command.current?.onOrder(ids, o);
     scene.command(side);
     if (command.current) command.current.map.current = scene;
@@ -677,6 +663,117 @@ function BattlefieldView(props: {
   );
 }
 
+/**
+ * Auto or Command for your side: yours to change in the Battle's setup, then
+ * fixed for the fighting.
+ */
+function ControlSwitch(props: {
+  commanding: boolean;
+  open: boolean;
+  onChange: (command: boolean) => void;
+}) {
+  return (
+    <fieldset
+      className="border-edge m-0 flex overflow-hidden rounded-md border p-0"
+      title={
+        props.open
+          ? "Who fights your side: yours to change until the fighting starts"
+          : "Fixed once the fighting started"
+      }
+    >
+      <legend className="sr-only">Who fights your side of this Battle</legend>
+      {[false, true].map((command) => (
+        <button
+          key={String(command)}
+          type="button"
+          aria-pressed={props.commanding === command}
+          disabled={!props.open}
+          onClick={() =>
+            props.commanding !== command && props.onChange(command)
+          }
+          className={cn(
+            "min-h-7 border-0 px-2.5 text-[11px] first:border-r disabled:cursor-default",
+            props.commanding === command
+              ? command
+                ? "bg-ok-wash text-ok"
+                : "bg-idle-wash text-idle"
+              : "text-ink-3 bg-transparent",
+          )}
+        >
+          {command ? "You command" : "Auto"}
+        </button>
+      ))}
+    </fieldset>
+  );
+}
+
+/**
+ * A build pad's menu, where it was right-clicked: your Faction's pad
+ * turrets, each with its cost, to build on a pad you hold that's empty.
+ */
+export function PadMenu(props: {
+  at: { x: number; y: number };
+  pad: BuildPad | undefined;
+  tick: number; // the Battle's, for a cooldown's time left
+  yours: boolean;
+  turrets: [string, Building][];
+  afford: (cost: Record<string, number>) => boolean;
+  sent: boolean;
+  content: ContentLookups;
+  onBuild: (building: string) => void;
+  onClose: () => void;
+}) {
+  const ref = useDismiss<HTMLDivElement>(true, props.onClose);
+  const p = props.pad;
+  const why = !p
+    ? "Gone"
+    : !props.yours
+      ? "Take this pad first"
+      : p.turret
+        ? "A turret is up"
+        : p.building
+          ? "Already building"
+          : props.tick < p.coolsAt
+            ? `Cooling down · ${Math.ceil((p.coolsAt - props.tick) / BATTLE_TICKS)} s`
+            : props.turrets.length === 0
+              ? "Your Faction has no pad turret"
+              : "";
+  return (
+    <div
+      ref={ref}
+      role="menu"
+      aria-label="Build pad"
+      // On the screen, wherever the pad was clicked: 240 px wide, a row per turret.
+      style={{
+        left: Math.min(props.at.x, innerWidth - 248),
+        top: Math.min(props.at.y, innerHeight - 48 - 36 * props.turrets.length),
+      }}
+      className="border-edge bg-panel fixed z-60 flex w-60 flex-col rounded-md border p-1 shadow-[0_12px_32px_#000a]"
+    >
+      <span className={cn(label, "px-2 py-1.5")}>
+        Build pad{why && ` · ${why}`}
+      </span>
+      {props.turrets.map(([id, b]) => (
+        <button
+          key={id}
+          type="button"
+          role="menuitem"
+          disabled={!!why || props.sent || !props.afford(b.cost)}
+          onClick={() => {
+            props.onBuild(id);
+            props.onClose();
+          }}
+          className="hover:bg-raised flex min-h-9 items-center justify-between gap-2 rounded border-0 bg-transparent px-2 text-left text-sm disabled:opacity-40"
+        >
+          <span>{b.name}</span>
+          <span className="text-ink-3 text-xs">
+            {amounts(props.content, b.cost)}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
 /** The drag data type of a Dropship in orbit, by its index in Battle.drops. */
 export const DROP_DRAG = "application/x-halobattles-drop";
 
@@ -685,7 +782,8 @@ export const DROP_DRAG = "application/x-halobattles-drop";
  * Commanding, you drag one in orbit onto a Landing Zone you hold; otherwise
  * the AI sends it when its time comes.
  */
-function Reinforcements(props: {
+export function Reinforcements(props: {
+  title?: string; // in place of "In orbit"
   battle: Battle;
   side: Side | null | undefined;
   commanding: boolean;
@@ -693,15 +791,19 @@ function Reinforcements(props: {
 }) {
   const { battle } = props;
   const held = battle.points.some((p) => p.owner === props.side);
+  // The side's, by their index in Battle.drops: the Lab lists both sides'.
+  const drops = battle.drops
+    .map((d, i) => [d, i] as const)
+    .filter(([d]) => !d.side || d.side === props.side);
   return (
     <div className="flex items-center gap-2.5 px-4 pt-2 text-sm">
-      <span className={cn(label, "w-16 flex-none")}>In orbit</span>
+      <span className={cn(label, "w-16 flex-none")}>
+        {props.title ?? "In orbit"}
+      </span>
       {/* A fixed-height row that scrolls sideways: the window keeps its size. */}
       <ul className="flex h-11 min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-        {battle.drops.length === 0 && (
-          <li className="text-ink-4 text-[13px]">None</li>
-        )}
-        {battle.drops.map((d, i) => {
+        {drops.length === 0 && <li className="text-ink-4 text-[13px]">None</li>}
+        {drops.map(([d, i]) => {
           const drag = props.commanding && d.state === "orbit" && held;
           const at = d.point === null ? "" : `LZ ${POINT_NAMES[d.point]}`;
           const note =
@@ -716,7 +818,6 @@ function Reinforcements(props: {
                   : `AI sends in ${clock(Math.max(0, (d.aiAt - battle.tick) / BATTLE_TICKS))}`;
           return (
             <li
-              // biome-ignore lint/suspicious/noArrayIndexKey: a Battle's Dropships never reorder
               key={i}
               draggable={drag}
               onDragStart={(e) => {
@@ -1030,6 +1131,8 @@ function damage(v: Volley) {
 function UnitGrid(props: {
   squads: Squad[];
   name: (unit: string) => string;
+  /** A fresh member's Shield, Armor and HP together. */
+  fresh: (unit: string) => number;
   actor?: number;
   target?: number;
 }) {
@@ -1048,6 +1151,21 @@ function UnitGrid(props: {
       {[...units].map(([unit, qs]) => {
         const left = qs.reduce((n, q) => n + q.count, 0);
         const started = qs.reduce((n, q) => n + q.start, 0);
+        // Whole members, and what the front one, taking the hits, has left: a
+        // turret or the Command Post is one member, worn down before it dies.
+        const health = qs.reduce(
+          (n, q) =>
+            q.count > 0
+              ? n +
+                q.count -
+                1 +
+                Math.min(
+                  1,
+                  (q.shield + q.armor + q.hp) / Math.max(1, props.fresh(unit)),
+                )
+              : n,
+          0,
+        );
         const ids = new Set(qs.map((q) => q.id));
         const hit = ids.has(props.target ?? 0);
         const acting = ids.has(props.actor ?? 0);
@@ -1066,10 +1184,12 @@ function UnitGrid(props: {
                 {hit && <span className={cn(label, "text-danger")}>hit</span>}
               </div>
               <div className="text-ink-3 font-mono text-xs">
-                {left} of {started} left
+                {started === qs.length
+                  ? `${Math.round((health / started) * 100)}% left`
+                  : `${left} of ${started} left`}
               </div>
             </div>
-            <Bar label="Left" color="bg-ok" value={left} max={started} />
+            <Bar label="Left" color="bg-ok" value={health} max={started} />
           </li>
         );
       })}

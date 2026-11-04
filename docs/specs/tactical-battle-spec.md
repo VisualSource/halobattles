@@ -204,6 +204,7 @@ Spots on the Battlefield where a side that holds one can build a turret, as on E
 - **Building:** the side holding an empty pad can build one turret on it. A turret is a Building with `padTurret: true` and a `combat` block, of the side's own Faction. It costs that Building's `cost`, paid at once from the player's Resources, the same pool as the galaxy. It's built after `battle.padBuildSeconds` (10 s), and it exists only for this Battle. The base Mod's pad turrets are the Turret and the Plasma Turret.
 - **Who decides:** a player builds with the Battle window's button; the Battle AI never spends a player's money, but a galaxy Bot buys for its own side (see the Bot spec). A **neutral garrison** has no economy, so it gets `battle.neutralFunds` (400 Credits, 100 Materials and 40 Alloys, two turrets' worth) for the Battle, and its AI builds turrets on the pads it holds, the cheapest it can afford first.
 - **Winning:** a defender's pad turrets count against its elimination, like its armed buildings. An attacker's don't: an attacker with only turrets left has lost.
+- **Cooldown:** a pad whose turret is destroyed can be taken at once, but can't be built on again for `battle.padCooldown` (20 s).
 - **After the Battle:** pad turrets are gone, whoever won. They aren't Planet buildings.
 - **Fog:** a side sees a pad's owner, capture, turret and build as they are only for its own pads and those in its Sight; others as it last saw them, which at the start is unowned. A side that loses one of its pads out of Sight learns it has, but not what's built on it after. A pad's cell is always shown, as part of the map. The Battle AI plans from the same picture.
 - **On the wire:** each pad in `BattleView`, as the side sees it: its cell, owner, capture progress, any turret's squad id, and any build under way with the tick it finishes. The command is `BattleBuildTurret {planet, pad, building}`.
@@ -529,9 +530,9 @@ A player can command their side of a Battle instead of the AI (#92). The AI then
 
 - **Choosing:**
   - Each player sets a default, **Command** or **Auto** (the default), in a new full-screen **Settings** dialog (the house Base UI `Dialog`, as the faction picker) opened from a gear in the play screen's header, the main menu's bottom-right corner, and the header on the lobby and results screens (an icon only, there); later settings go there too. It's kept in the browser and sent to the server on joining a Match and on each change, so it carries over between Matches. A change affects only Battles that start after it.
-  - The Army window has the same toggle for that Army, starting from the default. Dragging a Stack uses the default.
+  - The Battle window has the same switch, Auto or You command, for your side of that Battle: yours to change during its setup, starting from the default.
   - A Battle you defend uses your default. Bots always auto-resolve; Teammates and spectators watch.
-- **The choice is fixed when the Battle starts.** If it starts on Auto, you watch and can't take over. If you're commanding and you disconnect, the AI takes over for the rest of that Battle, and reconnecting doesn't hand it back.
+- **The choice is fixed when the fighting starts.** Change it in the Battle window during setup; after that, on Auto you watch and can't take over. If you're commanding and you disconnect, the AI takes over for the rest of that Battle, and reconnecting doesn't hand it back. A replay records each change and its tick.
 - **When a Battle you command starts,** its window opens on its own, with a toast.
 - **Controls,** RTS-style:
   - **Selecting:** click a squad, drag a box, Shift to add or take away, Esc to clear. Only your own mobile squads: not buildings or turrets.

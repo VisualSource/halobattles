@@ -26,11 +26,10 @@ type Battle struct {
 	Started  int64 // Match Time of the first sim tick, after the start delay
 	ToStack  int   // where the attackers go if they win
 	// Commanded: a player gave each side's orders from the start, not the AI.
-	// HandedOver is 1 + the tick the AI took a side over from a player who
-	// left, or 0: a replay attaches it there.
-	Commanded  [2]bool
-	HandedOver [2]int
-	Sim        *battle.Sim
+	// Switches are its sides changing hands since: to a player, or to the AI.
+	Commanded [2]bool
+	Switches  []Switch
+	Sim       *battle.Sim
 	// What the Sim was made from, so the Battle can be replayed: with the
 	// Sim's Setup, Builders and Log, it plays out the same again.
 	Attack, Defend  battle.Force
@@ -119,7 +118,7 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 	}
 	b.Weights = [2]battle.Weights{s.aiWeights(c, b.Attacker), s.aiWeights(c, b.Defender)}
 	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID, b.FieldFaction), attack, defend, b.Seed)
-	b.Commanded = [2]bool{s.commands(b.Attacker, a), s.commands(b.Defender, nil)}
+	b.Commanded = [2]bool{s.commands(b.Attacker), s.commands(b.Defender)}
 	for side := range b.Sim.Controllers {
 		if !b.Commanded[side] {
 			b.Sim.Controllers[side] = battle.NewAI(b.Weights[side])

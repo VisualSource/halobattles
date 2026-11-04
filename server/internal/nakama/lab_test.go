@@ -11,6 +11,7 @@ import (
 
 	"github.com/VisualSource/halobattles/server/internal/battle"
 	"github.com/VisualSource/halobattles/server/internal/content"
+	"github.com/VisualSource/halobattles/server/internal/game"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
 	"github.com/heroiclabs/nakama-common/runtime"
 )
@@ -228,7 +229,7 @@ func TestTheLabReplaysABattleTheAITookOver(t *testing.T) {
 	for range 30 {
 		sim.Step()
 	}
-	handed := sim.Tick + 1
+	handed := sim.Tick
 	sim.Controllers[battle.Attacker] = battle.NewAI(weights[battle.Attacker]) // as handOver does
 	for !sim.Over {
 		sim.Step()
@@ -239,7 +240,7 @@ func TestTheLabReplaysABattleTheAITookOver(t *testing.T) {
 		Defend:    battle.Force{Formations: setup.Defend.Formations, Buildings: setup.Defend.Buildings},
 		Weights:   weights,
 		Orders:    sim.Log,
-		Commanded: [2]bool{true, false}, HandedOver: [2]int{handed, 0},
+		Commanded: [2]bool{true, false}, Switches: []game.Switch{{Tick: handed, Side: battle.Attacker}},
 	}
 	for name := range c.Doc.Maps {
 		h.loop(labMsg(labReplayOp, labReplay{Map: name, Replay: r}))
@@ -252,6 +253,42 @@ func TestTheLabReplaysABattleTheAITookOver(t *testing.T) {
 	}
 	if f := h.frame(); f.Tick != sim.Tick || f.Winner != sim.Winner {
 		t.Errorf("replay ended at tick %d, winner %v; the Battle: %d, %v", f.Tick, f.Winner, sim.Tick, sim.Winner)
+	}
+}
+
+// The Lab sends a test Dropship for a side, and lands it where you say for
+// a side you command.
+func TestTheLabSendsAndLandsADropship(t *testing.T) {
+	h := newLab(t)
+	setup := kitSetup(3)
+	setup.Attack.Command = true
+	h.loop(labMsg(labSetupOp, setup))
+	for h.frame().Tick < h.frame().Setup {
+		h.loop(labMsg(labControlOp, labControl{Step: labMaxSteps}))
+	}
+	h.loop(labMsg(labOrderOp, labOrder{Side: battle.Attacker, Order: battle.Order{Kind: battle.Arrive, Building: "base:marine"}}))
+	var e map[string]string
+	if !h.d.last(t, labErrorOp, &e) {
+		t.Error("a Marine was accepted as a Dropship")
+	}
+	arrive := battle.Order{Kind: battle.Arrive, Building: "base:pelican", Cargo: []battle.Slot{{Unit: "base:marine", Count: 4}}}
+	h.loop(labMsg(labOrderOp, labOrder{Side: battle.Attacker, Order: arrive}))
+	h.loop(labMsg(labControlOp, labControl{Step: 1}))
+	f := h.frame()
+	held := slices.IndexFunc(f.Snapshot.Points, func(p battle.Point) bool { return p.Owner == battle.Attacker })
+	if len(f.Snapshot.Drops) != 1 || held < 0 {
+		t.Fatalf("drops %+v, held LZ %d; want the Pelican in orbit over an LZ the attacker holds", f.Snapshot.Drops, held)
+	}
+	n := len(h.d.sent)
+	h.loop(labMsg(labOrderOp, labOrder{Side: battle.Attacker, Order: battle.Order{Kind: battle.Land, Target: 0, Point: held}}))
+	for _, m := range h.d.sent[n:] {
+		if m.op == labErrorOp {
+			t.Fatalf("the landing was refused: %s", m.data)
+		}
+	}
+	h.loop(labMsg(labControlOp, labControl{Step: 1}))
+	if d := h.frame().Snapshot.Drops[0]; d.State != battle.Flying {
+		t.Errorf("drop %+v; want it on its way", d)
 	}
 }
 

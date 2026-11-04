@@ -1,6 +1,7 @@
 package game
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -27,16 +28,20 @@ func TestACommandedSideHasNoAI(t *testing.T) {
 	}
 }
 
-func TestAnArmyCanBeLeftToTheAIOverTheDefault(t *testing.T) {
-	s, c := fixedMatch(t), lineContent()
-	s.SetBattleControl(0, true)
-	_ = s.OrderArmy(0, "a", marines(10), "b", 1)
-	if err := s.SetArmyControl(0, onlyArmy(t, s).ID, false); err != nil {
-		t.Fatal(err)
+func TestASideChangesHandsInSetupOnly(t *testing.T) {
+	s, b := commandedBattle(t)
+	if err := s.SetBattleCommand(0, "b", false); err != nil || b.commanded(battle.Attacker) || b.Sim.Controllers[battle.Attacker] == nil {
+		t.Fatalf("err %v; set to Auto in setup, want the AI running the side", err)
 	}
-	s.Advance(c, 30_000)
-	if b := onlyBattle(t, s); b.Commanded[battle.Attacker] {
-		t.Error("the Army was set to Auto, but its Battle is commanded")
+	if err := s.SetBattleCommand(0, "b", true); err != nil || b.Sim.Controllers[battle.Attacker] != nil {
+		t.Fatalf("err %v; set back to Command, want no AI", err)
+	}
+	if want := []Switch{{b.Sim.Tick, battle.Attacker, false}, {b.Sim.Tick, battle.Attacker, true}}; !slices.Equal(b.Switches, want) {
+		t.Errorf("switches %+v; want %+v, for replays", b.Switches, want)
+	}
+	b.Sim.Tick = b.Sim.Setup
+	if err := s.SetBattleCommand(0, "b", false); err == nil {
+		t.Error("changed hands once the fighting started")
 	}
 }
 
@@ -86,8 +91,8 @@ func TestBattleOrdersGoToTheSquadsOfASideYouCommand(t *testing.T) {
 	}
 
 	s.Disconnect(0, 60_000)
-	if b.Sim.Controllers[battle.Attacker] == nil || b.HandedOver[battle.Attacker] != b.Sim.Tick+1 {
-		t.Fatalf("after a disconnect: controller %v, handed over %d; want the AI from now", b.Sim.Controllers[battle.Attacker], b.HandedOver)
+	if want := []Switch{{b.Sim.Tick, battle.Attacker, false}}; b.Sim.Controllers[battle.Attacker] == nil || !slices.Equal(b.Switches, want) {
+		t.Fatalf("after a disconnect: controller %v, switches %+v; want the AI from now", b.Sim.Controllers[battle.Attacker], b.Switches)
 	}
 	s.Reconnect(0)
 	if err := s.BattleOrder(0, "b", battle.Hold, []int{marine.ID}, to, 0); err == nil {

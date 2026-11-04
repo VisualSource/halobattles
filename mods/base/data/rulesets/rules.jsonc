@@ -76,6 +76,10 @@
     "raidRoles": ["scout", "infiltration", "shock"],
     // A Dropship waits this long in orbit before the AI sends it in.
     "landingDelay": 20,
+    // A build pad its side holds sees this far round itself.
+    "padSight": 4,
+    // A pad whose turret was destroyed waits this long before it can be built on.
+    "padCooldown": 20,
     "padBuildSeconds": 10,
     // A neutral garrison's budget for pad turrets, having no economy: two
     // turrets' worth (each costs 200 Credits and 50 Materials).

@@ -155,9 +155,11 @@
       "description": "How a Battle runs on its Battlefield.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "landingDelay", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "highGroundToHit", "heightSight", "retreatCountdown", "structure", "commandPost", "classDefaults"],
+      "required": ["startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "landingDelay", "padSight", "padCooldown", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "highGroundToHit", "heightSight", "retreatCountdown", "structure", "commandPost", "classDefaults"],
       "properties": {
         "startDelay": { "description": "Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.", "type": "integer", "minimum": 0 },
+        "padSight": { "description": "How far, in cells, a build pad sees for the side holding it.", "type": "number", "minimum": 0 },
+        "padCooldown": { "description": "Seconds after a pad turret is destroyed before its pad can be built on again.", "type": "number", "minimum": 0 },
         "padBuildSeconds": { "description": "Seconds a turret takes to build on a build pad.", "type": "number", "minimum": 0 },
         "neutralFunds": { "description": "What a neutral garrison has to spend on pad turrets in each Battle, having no economy.", "$ref": "defs.schema.json#/definitions/resourceMap" },
         "timeCap": { "description": "Seconds of fighting, after startDelay, until the defender wins.", "type": "integer", "minimum": 1 },

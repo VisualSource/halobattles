@@ -4,6 +4,19 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ## Unreleased
 
+## 0.6.0 - 2026-11-04
+
+### Changed
+
+- Battles: switch between Auto and You command in the Battle window, until the fighting starts; the Army window no longer has the switch.
+- Battles: build pad turrets by right-clicking a pad you hold on the map, in place of the Battle window's list of pads.
+- Battles: pads hide in the fog unless they're yours, and a pad your side holds sees a little way round itself.
+- Battles: a pad whose turret was destroyed can't be built on again for 20 s.
+
+### Fixed
+
+- The Battle window's squad list shows how worn down turrets, buildings and the Command Post are, not only whether they're still standing.
+
 ## 0.5.0 - 2026-11-03
 
 ### Added

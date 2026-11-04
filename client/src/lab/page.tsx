@@ -10,7 +10,13 @@ import {
 import { useStore } from "zustand";
 import { useHideHeader } from "../backdrop";
 import type { ContentLookups } from "../content";
-import { COMMAND_POST, commandPostHealth } from "../match/battle";
+import {
+  COMMAND_POST,
+  commandPostHealth,
+  DROP_DRAG,
+  PadMenu,
+  Reinforcements,
+} from "../match/battle";
 import { SelectionStrip, useCommandKeys } from "../match/command";
 import type { Side, Squad, SquadOrder, Volley } from "../match/store";
 import {
@@ -137,6 +143,7 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
                 Targets
               </label>
             </fieldset>
+            <Reinforce conn={conn} content={content} setup={setup} />
           </div>
           <Field
             conn={conn}
@@ -145,6 +152,7 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
             show={show}
             selected={selected}
             onPick={setSelected}
+            factions={[setup.sides[0].faction, setup.sides[1].faction]}
           />
           <Status conn={conn} content={content} />
         </main>
@@ -651,23 +659,35 @@ function Field(props: {
   show: { forces: boolean; targets: boolean };
   selected: number | null;
   onPick: (id: number | null) => void;
+  factions: [string, string]; // each side's, for its pad turrets
 }) {
   const { conn, content } = props;
   const ref = useRef<HTMLDivElement>(null);
+  const [padMenu, setPadMenu] = useState<{
+    pad: number;
+    x: number;
+    y: number;
+    side: Side | null;
+  } | null>(null);
   const scene = useRef<BattlefieldScene | null>(null);
   const field = useStore(conn.store, (s) => s.field);
   const battle = useStore(conn.store, (s) => s.battle);
   const thinking = useStore(conn.store, (s) => s.thinking);
   const { onPick } = props;
-  // A side with no AI is yours to command from the map; the attacker, if both.
+  // A side with no AI is yours to command from the map; with both, the one
+  // picked to order.
   const commanded = useStore(conn.store, (s) => s.commanded);
+  const [ordering, setOrdering] = useState<Side>("attacker");
+  const both = commanded[0] && commanded[1];
   const commandSide: Side | null = !battle
     ? null
-    : commanded[0]
-      ? "attacker"
-      : commanded[1]
-        ? "defender"
-        : null;
+    : both
+      ? ordering
+      : commanded[0]
+        ? "attacker"
+        : commanded[1]
+          ? "defender"
+          : null;
   const [picked, setPicked] = useState<number[]>([]);
   const order = useCallback(
     (ids: number[], o: SquadOrder) =>
@@ -694,6 +714,7 @@ function Field(props: {
           rules.classDefaults[classOf(sq.unit)]?.sight ??
           0) + (flies(sq) ? 0 : rules.heightSight * height),
       flies,
+      padSight: rules.padSight,
       captureRadius: rules.captureRadius,
       captureTicks: rules.captureSeconds * 5,
     });
@@ -734,11 +755,27 @@ function Field(props: {
     if (!s) return;
     s.onOrder = order;
     s.command(commandSide);
+    // Tagged with the side it's for: one from before a change never shows.
+    s.onPadMenu = (pad, x, y) => setPadMenu({ pad, x, y, side: commandSide });
   }, [commandSide, order, field]);
 
   return (
     <div className="border-line flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
-      <div className="bg-void relative min-h-0 flex-1 overflow-hidden">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: a drop target for a Dropship dragged from the list; without a drag the AI sends it after landingDelay */}
+      <div
+        className="bg-void relative min-h-0 flex-1 overflow-hidden"
+        onDragOver={(e) => {
+          if (commandSide && e.dataTransfer.types.includes(DROP_DRAG))
+            e.preventDefault();
+        }}
+        onDrop={(e) => {
+          const drop = Number(e.dataTransfer.getData(DROP_DRAG));
+          const point = scene.current?.pointAt(e.clientX, e.clientY);
+          if (!commandSide || point == null) return;
+          e.preventDefault();
+          conn.land(commandSide, drop, point);
+        }}
+      >
         <div ref={ref} className="size-full" />
         {!field && (
           <p className="text-ink-3 absolute inset-0 flex items-center justify-center">
@@ -754,6 +791,55 @@ function Field(props: {
           />
         )}
       </div>
+      {padMenu && commandSide && padMenu.side === commandSide && battle && (
+        <PadMenu
+          at={padMenu}
+          pad={battle.pads[padMenu.pad]}
+          tick={battle.tick}
+          yours={battle.pads[padMenu.pad]?.owner === commandSide}
+          turrets={[...content.buildings.entries()].filter(
+            ([, b]) =>
+              b.padTurret &&
+              b.combat &&
+              b.faction === props.factions[commandSide === "attacker" ? 0 : 1],
+          )}
+          afford={() => true} // the Lab's funds are the server's to check
+          sent={false}
+          content={content}
+          onBuild={(id) => conn.build(commandSide, padMenu.pad, id)}
+          onClose={() => setPadMenu(null)}
+        />
+      )}
+      {battle &&
+        SIDES.map((side) => (
+          <Reinforcements
+            key={side}
+            title={side === "attacker" ? "Atk orbit" : "Def orbit"}
+            battle={battle}
+            side={side}
+            commanding={side === commandSide}
+            name={(u) => nameOf(content, u)}
+          />
+        ))}
+      {both && battle && (
+        <fieldset
+          aria-label="Side to order"
+          className="m-0 flex items-center gap-1.5 border-0 px-4 pt-2"
+        >
+          <span className={tag}>ORDERS</span>
+          <Segmented
+            value={ordering}
+            options={[
+              ["attacker", "Attacker"],
+              ["defender", "Defender"],
+            ]}
+            onChange={setOrdering}
+          />
+          <span className="text-ink-3 text-xs">
+            You command both: the map orders this side
+          </span>
+        </fieldset>
+      )}
       {commandSide && (
         <SelectionStrip
           squads={battle?.squads ?? []}
@@ -1073,5 +1159,90 @@ function AiPanel(props: {
         </span>
       </section>
     </aside>
+  );
+}
+
+/**
+ * Sends a test Dropship for either side: it waits in orbit, then the AI
+ * sends it after landingDelay, or you drag it onto a Landing Zone for a side
+ * you command.
+ */
+function Reinforce(props: {
+  conn: LabConnection;
+  content: ContentLookups;
+  setup: LabSetup;
+}) {
+  const { content } = props;
+  const running = useStore(props.conn.store, (s) => !!s.battle && !s.over);
+  const [side, setSide] = useState<0 | 1>(0);
+  const ships = [...content.units].filter(([, u]) => u.carry);
+  const [ship, setShip] = useState(ships[0]?.[0] ?? "");
+  const faction = props.setup.sides[side].faction;
+  const troops = [...content.units].filter(
+    ([, u]) => !u.carry && u.faction === faction,
+  );
+  const [unit, setUnit] = useState("");
+  const [count, setCount] = useState(4);
+  const cargo = troops.some(([id]) => id === unit)
+    ? unit
+    : (troops[0]?.[0] ?? "");
+  const select = "border-edge bg-well min-h-8 rounded-md px-2";
+  return (
+    <fieldset
+      aria-label="Reinforce"
+      className="m-0 flex items-center gap-1.5 border-0 p-0"
+    >
+      <span className={tag}>REINFORCE</span>
+      <Segmented
+        value={side}
+        options={[
+          [0, "Attacker"],
+          [1, "Defender"],
+        ]}
+        onChange={setSide}
+      />
+      <select
+        aria-label="Dropship"
+        value={ship}
+        onChange={(e) => setShip(e.target.value)}
+        className={select}
+      >
+        {ships.map(([id, u]) => (
+          <option key={id} value={id}>
+            {u.name}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="Troops"
+        value={cargo}
+        onChange={(e) => setUnit(e.target.value)}
+        className={select}
+      >
+        {troops.map(([id, u]) => (
+          <option key={id} value={id}>
+            {u.name}
+          </option>
+        ))}
+      </select>
+      <input
+        aria-label="How many"
+        type="number"
+        min={1}
+        value={count}
+        onChange={(e) => setCount(Math.max(1, Number(e.target.value) || 1))}
+        className={cn(select, "w-16")}
+      />
+      <button
+        type="button"
+        disabled={!running || !ship || !cargo}
+        onClick={() =>
+          props.conn.arrive(SIDES[side], ship, [{ unit: cargo, count }])
+        }
+        className="border-edge bg-raised min-h-8 rounded-md px-3 disabled:opacity-50"
+      >
+        Send
+      </button>
+    </fieldset>
   );
 }

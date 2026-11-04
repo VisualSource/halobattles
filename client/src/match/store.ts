@@ -78,7 +78,6 @@ export type Army = {
   toStack: number; // own only
   path: string[]; // own only: the Planets after `to`, in order
   raid: boolean; // own only: nobody else sees a Raid at all
-  command: boolean; // own only: you command its Battle
 };
 
 export type Side = "attacker" | "defender";
@@ -106,6 +105,7 @@ export type Squad = {
 
 /** One of your side's Dropships over a Battle. */
 export type Drop = {
+  side?: Side; // the Lab's, which lists both sides'
   unit: string; // the Dropship's
   units: number; // the troops it carries
   state: "orbit" | "flying" | "done"; // done: it has landed them, once a Battle
@@ -138,6 +138,7 @@ export type BuildPad = {
   turret: number; // the turret squad on it, or 0
   building: string; // a turret under construction, or ""
   readyAt: number; // the tick it's built
+  coolsAt: number; // its turret destroyed: the tick it can be built on again
 };
 
 /** A Battle's grid, row by row; it never changes. */

@@ -32,7 +32,7 @@ export enum Op {
   SetTeam = 26,
   SetRallyPoint = 27,
   SetBattleControl = 28,
-  SetArmyControl = 29,
+  SetBattleCommand = 29,
   BattleOrder = 30,
   BattleLand = 31,
   LobbyState = 100,

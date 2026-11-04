@@ -104,6 +104,12 @@ type BattleRules struct {
 	// Seconds a turret takes to build on a build pad.
 	PadBuildSeconds float64 `json:"padBuildSeconds"`
 
+	// Seconds after a pad turret is destroyed before its pad can be built on again.
+	PadCooldown float64 `json:"padCooldown"`
+
+	// How far, in cells, a build pad sees for the side holding it.
+	PadSight float64 `json:"padSight"`
+
 	// The most Command Points a raiding Stack can hold.
 	RaidCap int `json:"raidCap"`
 

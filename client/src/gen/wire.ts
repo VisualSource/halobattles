@@ -53,7 +53,7 @@ export { Richness, RichnessT } from './wire/richness.js';
 export { SavedProject, SavedProjectT } from './wire/saved-project.js';
 export { Seat, SeatT } from './wire/seat.js';
 export { SellBuilding, SellBuildingT } from './wire/sell-building.js';
-export { SetArmyControl, SetArmyControlT } from './wire/set-army-control.js';
+export { SetBattleCommand, SetBattleCommandT } from './wire/set-battle-command.js';
 export { SetBattleControl, SetBattleControlT } from './wire/set-battle-control.js';
 export { SetFaction, SetFactionT } from './wire/set-faction.js';
 export { SetMap, SetMapT } from './wire/set-map.js';

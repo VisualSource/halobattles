@@ -32,7 +32,7 @@ const baseRules = `{
 		"rarities": {"common": {"from": 0, "weight": 10}, "uncommon": {"from": 4, "weight": 6}, "rare": {"from": 8, "weight": 3}, "legendary": {"from": 14, "weight": 1}}},
 	"battlefield": {"width": 32, "height": 24, "terrainPreset": "plain", "pathClass": "infantry",
 		"controlPoints": 3, "controlPointSpacing": 6, "deployDepth": 3, "buildPads": 2},
-	"battle": {"startDelay": 30, "timeCap": 180, "raidTime": 100, "raidCap": 10, "raidRoles": ["scout"], "landingDelay": 20, "padBuildSeconds": 10, "neutralFunds": {"credits": 400}, "captureRadius": 2, "captureSeconds": 5,
+	"battle": {"startDelay": 30, "timeCap": 180, "raidTime": 100, "raidCap": 10, "raidRoles": ["scout"], "landingDelay": 20, "padSight": 4, "padCooldown": 20, "padBuildSeconds": 10, "neutralFunds": {"credits": 400}, "captureRadius": 2, "captureSeconds": 5,
 		"highGroundToHit": 2, "heightSight": 1, "retreatCountdown": 10, "structure": {"unitClass": "infantry", "shield": 0, "armor": 20, "hp": 30},
 		"commandPost": {"unitClass": "infantry", "shield": 0, "armor": 60, "hp": 150},
 		"classDefaults": {"infantry": {"speed": 1.5, "range": 5, "fireInterval": 1.5, "sight": 8}}},
