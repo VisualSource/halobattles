@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ContentLookups } from "../content";
 import type { Tech } from "../gen/content";
-import type { PlanetView, View } from "./store";
+import type { Army, PlanetView, View } from "./store";
 import {
   effectText,
   finishedProjects,
@@ -92,6 +92,7 @@ function view(
   return {
     you: 0,
     planets: new Map(planets.map((p) => [p.id, p])),
+    armies: new Map(),
     economy: { resources: new Map([["credits", 100]]) },
     research: {
       rates: new Map([["industry", 4]]),
@@ -259,6 +260,7 @@ describe("Techs", () => {
         name: "Research Lab",
         holds: ["relic"],
         researching: ["plating"],
+        couriers: [],
         free: 1,
       },
       {
@@ -267,8 +269,49 @@ describe("Techs", () => {
         name: "Research Lab",
         holds: [],
         researching: [],
+        couriers: [],
         free: 3,
       },
+    ]);
+  });
+
+  it("counts a Courier against both its Labs, once if it's going back to the one it left", () => {
+    const v = view([
+      planet("a", 0, ["lab", "", "lab"]),
+      planet("b", 0, ["lab"]),
+    ]);
+    const courier = (id: number, tech: string, home: string, dest: string) =>
+      ({
+        id,
+        tech,
+        homePlanet: home,
+        homeSlot: 0,
+        destPlanet: dest,
+        destSlot: 0,
+      }) as Army;
+    const free = () =>
+      labs(content, v).map((l) => [l.planet, l.slot, l.free, l.couriers]);
+
+    v.armies.set(1, courier(1, "relic", "a", "b"));
+    expect(free()).toEqual([
+      ["a", 0, 1, ["relic"]],
+      ["a", 2, 2, []],
+      ["b", 0, 1, ["relic"]],
+    ]);
+
+    v.armies.set(1, courier(1, "relic", "a", "a"));
+    expect(free()).toEqual([
+      ["a", 0, 1, ["relic"]],
+      ["a", 2, 2, []],
+      ["b", 0, 2, []],
+    ]);
+
+    // Its origin Lab lost: it reserves only where it's going.
+    v.armies.set(1, courier(1, "relic", "", "b"));
+    expect(free()).toEqual([
+      ["a", 0, 2, []],
+      ["a", 2, 2, []],
+      ["b", 0, 1, ["relic"]],
     ]);
   });
 

@@ -1,7 +1,7 @@
 import type { ContentLookups } from "../content";
 import type { Effect, Tech } from "../gen/content";
 import { fieldsOf } from "./fields";
-import type { Project, View } from "./store";
+import type { Army, Project, View } from "./store";
 
 // Techs as the client shows them; docs/specs/tech-spec.md. The server
 // decides; these mirror its rules so the UI can explain before it asks.
@@ -124,8 +124,29 @@ export type Lab = {
   name: string; // the building's
   holds: string[]; // Tech ids
   researching: string[]; // Tech ids of Projects reserving a Tech Slot here
+  couriers: string[]; // Tech ids of Couriers reserving a Tech Slot here
   free: number;
 };
+
+/**
+ * The Couriers reserving a Tech Slot in a Lab, each once: incoming ones, going
+ * back to it included, and those that left it for another. Only your own say
+ * which Labs (a Spectator's View says for every player's).
+ */
+export function labCouriers(view: View, planet: string, slot: number) {
+  const couriers = [...view.armies.values()].filter((a) => a.tech);
+  const going = (a: Army) => a.destPlanet === planet && a.destSlot === slot;
+  return {
+    incoming: couriers.filter(going),
+    outgoing: couriers.filter(
+      (a) => a.homePlanet === planet && a.homeSlot === slot && !going(a),
+    ),
+  };
+}
+
+/** The colour of a Tech's Rarity. */
+export const rarityColour = (content: ContentLookups, tech: string) =>
+  `var(--color-rarity-${content.techs.get(tech)?.rarity ?? "common"})`;
 
 /** Your Labs, by Planet then slot, with what each holds and its free Tech Slots. */
 export function labs(content: ContentLookups, view: View): Lab[] {
@@ -142,6 +163,8 @@ export function labs(content: ContentLookups, view: View): Lab[] {
       const researching = view.research.projects
         .filter((x) => x.planet === p.id && x.slot === slot)
         .map((x) => x.tech);
+      const { incoming, outgoing } = labCouriers(view, p.id, slot);
+      const couriers = [...incoming, ...outgoing].map((a) => a.tech);
       const slots = modded(content, held, "techSlots", b.techSlots);
       out.push({
         planet: p.id,
@@ -149,12 +172,22 @@ export function labs(content: ContentLookups, view: View): Lab[] {
         name: b.name,
         holds,
         researching,
-        free: Math.max(0, slots - holds.length - researching.length),
+        couriers,
+        free: Math.max(
+          0,
+          slots - holds.length - researching.length - couriers.length,
+        ),
       });
     });
   }
   return out;
 }
+
+/** Your Labs a Tech could go to: not the one it's in, nor those its Courier already reserves. */
+export const otherLabs = (content: ContentLookups, view: View, tech: string) =>
+  labs(content, view).filter(
+    (l) => !l.holds.includes(tech) && !l.couriers.includes(tech),
+  );
 
 /** Why a Project isn't progressing, or null while it runs. */
 export function pauseReason(
@@ -238,6 +271,7 @@ export function finishedProjects(was: View, now: View): Project[] {
 /** Where a Tech stands for you, as the tech tree shows it. */
 export type TreeStatus =
   | { kind: "held"; planets: string[] } // in a Lab on these Planets
+  | { kind: "moving" } // on a Courier: it doesn't count until it lands
   | { kind: "researching"; project: Project }
   | { kind: "saved"; done: number; cost: number } // a stopped Project or lost Tech, guaranteed back
   | { kind: "hand" } // drawn: ready to start
@@ -268,6 +302,10 @@ export function treeStatus(
     )
     .map((p) => p.id);
   if (planets.length) return { kind: "held", planets };
+  if (
+    [...view.armies.values()].some((a) => a.tech === id && a.owner === view.you)
+  )
+    return { kind: "moving" };
   const project = r.projects.find((p) => p.tech === id);
   if (project) return { kind: "researching", project };
   const saved = r.saved.find((s) => s.tech === id);

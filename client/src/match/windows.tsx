@@ -29,7 +29,7 @@ import {
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
 import { CommandPoints, CostIcons } from "./resources";
-import { laneTimes } from "./route";
+import { arrival, laneTimes } from "./route";
 import { freeCell, moveSlot } from "./stacks";
 import { ConfirmDialog } from "./status";
 import {
@@ -39,7 +39,14 @@ import {
   type UnitSlot,
   type View,
 } from "./store";
-import { heldTechs, listed, needsTech } from "./tech";
+import {
+  heldTechs,
+  labCouriers,
+  listed,
+  needsTech,
+  otherLabs,
+  rarityColour,
+} from "./tech";
 import { THREAT_LEVELS, threat } from "./threat";
 import { formatAge, useMatchNow } from "./time";
 import { UnitInfo } from "./units";
@@ -958,18 +965,12 @@ function BuildingsTab(props: {
                   body={
                     b.techSlots ? (
                       <LabSlots
+                        conn={conn}
                         content={content}
-                        holds={planet.labs.get(i) ?? []}
-                        researching={
-                          planet.owner === view?.you
-                            ? (view?.research.projects ?? [])
-                                .filter(
-                                  (p) => p.planet === planet.id && p.slot === i,
-                                )
-                                .map((p) => p.tech)
-                            : []
-                        }
+                        planet={planet}
+                        slot={i}
                         slots={b.techSlots}
+                        now={now}
                       />
                     ) : undefined
                   }
@@ -1135,37 +1136,106 @@ function BuildingFace(props: {
 }
 
 /**
- * A Lab's Tech Slots: the Techs it holds, the Projects reserving one, then
- * the free ones. Other players see what it holds too.
+ * A Lab's Tech Slots: the Techs it holds, each of yours with a Move… action,
+ * the Projects and Couriers reserving one, then the free ones. Other players
+ * see what it holds too.
  */
 function LabSlots(props: {
+  conn: MatchConnection;
   content: ContentLookups;
-  holds: string[];
-  researching: string[];
+  planet: PlanetView;
+  slot: number;
   slots: number;
+  now: number;
 }) {
-  const name = (t: string) => props.content.techs.get(t)?.name ?? t;
+  const { conn, content, planet, slot } = props;
+  const view = useStore(conn.store, (s) => s.view);
+  const pending = useStore(conn.local, (s) => isPending(s, "courier"));
+  if (!view) return null;
+  const name = (t: string) => content.techs.get(t)?.name ?? t;
+  const map = content.maps.get(view.map);
+  const planetName = (id: string) =>
+    map?.planets.find((p) => p.id === id)?.name ?? id;
+  const mine =
+    !view.spectating && view.planets.get(planet.id)?.owner === view.you;
+  const holds = planet.labs.get(slot) ?? [];
+  const researching =
+    planet.owner === view.you
+      ? view.research.projects
+          .filter((p) => p.planet === planet.id && p.slot === slot)
+          .map((p) => p.tech)
+      : [];
+  const { incoming, outgoing } = labCouriers(view, planet.id, slot);
   const free = Math.max(
     0,
-    props.slots - props.holds.length - props.researching.length,
+    props.slots -
+      holds.length -
+      researching.length -
+      incoming.length -
+      outgoing.length,
   );
+  const reserved =
+    "border-accent text-accent flex-none truncate rounded border px-2 py-0.5 text-xs";
   return (
     // Scrolls inside the card past what fits, rather than squashing each slot.
     <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-      {props.holds.map((t) => (
-        <li
-          key={t}
-          className="border-edge bg-tile flex-none truncate rounded border px-2 py-0.5 text-xs"
-        >
-          {name(t)}
+      {holds.map((t) => {
+        const why = planet.locked
+          ? "Can't move a Tech off a Locked Planet"
+          : otherLabs(content, view, t).length === 0
+            ? "You have no other Lab"
+            : undefined;
+        return (
+          <li
+            key={t}
+            className={cn(
+              "border-edge bg-tile flex flex-none items-center gap-1.5 rounded border py-0.5 pl-2 text-xs",
+              mine ? "pr-0.5" : "pr-2",
+            )}
+          >
+            <span className="min-w-0 flex-1 truncate">{name(t)}</span>
+            {mine && (
+              <button
+                type="button"
+                aria-label={`Move ${name(t)}`}
+                title={why}
+                disabled={!!why || pending}
+                onClick={() => conn.local.setState({ moving: { tech: t } })}
+                className="border-edge min-h-6 flex-none rounded bg-transparent px-2 text-xs disabled:cursor-default disabled:opacity-50"
+              >
+                Move…
+              </button>
+            )}
+          </li>
+        );
+      })}
+      {researching.map((t) => (
+        <li key={t} className={reserved}>
+          {name(t)} · researching
         </li>
       ))}
-      {props.researching.map((t) => (
+      {outgoing.map((a) => (
         <li
-          key={t}
-          className="border-accent text-accent flex-none truncate rounded border px-2 py-0.5 text-xs"
+          key={a.id}
+          className="border-edge text-accent flex-none truncate rounded border border-dashed px-2 py-0.5 text-xs"
         >
-          {name(t)} · researching
+          {name(a.tech)} · moving to {planetName(a.destPlanet)}
+        </li>
+      ))}
+      {incoming.map((a) => (
+        <li key={a.id} className={reserved}>
+          {name(a.tech)} · arrives in{" "}
+          {map
+            ? Math.max(
+                0,
+                Math.ceil(
+                  (arrival(laneTimes(map, content.rules), a, props.now) -
+                    props.now) /
+                    1000,
+                ),
+              )
+            : 0}{" "}
+          s
         </li>
       ))}
       {Array.from({ length: free }, (_, n) => `free-${n}`).map((key) => (
@@ -1467,7 +1537,7 @@ function QueueRow(props: {
 const PLANET_WINDOW = "planet-window";
 
 /** Opens beside the Planet window, on whichever side has room. */
-const besidePlanet = (map: HTMLElement, self: HTMLElement): Point => {
+export const besidePlanet = (map: HTMLElement, self: HTMLElement): Point => {
   const planet = document.getElementById(PLANET_WINDOW);
   if (!planet) return { x: map.clientWidth - self.offsetWidth - 16, y: 16 };
   const right = planet.offsetLeft + planet.offsetWidth + 8;
@@ -1903,6 +1973,7 @@ export function ArmyWindow(props: {
   const id = useStore(conn.local, (s) => s.selectedArmy);
   const view = useStore(conn.store, (s) => s.view);
   const lastSeen = useStore(conn.local, (s) => s.lastSeen);
+  const pending = useStore(conn.local, (s) => isPending(s, "courier"));
   const now = useMatchNow(conn.local);
   const army = id === null ? undefined : view?.armies.get(id);
   const map = view && content.maps.get(view.map);
@@ -1915,7 +1986,10 @@ export function ArmyWindow(props: {
     return live ? live.owner : (lastSeen.get(p)?.planet.owner ?? null);
   };
   const mine = army.owner === view.you;
+  const home = (p: string, slot: number) =>
+    p === army.homePlanet && slot === army.homeSlot;
   // A Dropship in it: the Army can land in a Battle already under way.
+  const courier = !!army.tech;
   const ship = army.units
     .map((u) => content.units.get(u.unit))
     .find((d) => d?.carry);
@@ -1930,21 +2004,27 @@ export function ArmyWindow(props: {
     const enemy = owner !== null && !allied(view, owner, army.owner);
     const does = !mine
       ? ""
-      : enemy
-        ? last
-          ? "attacks"
-          : "attacks · stops here"
-        : last
-          ? owner === army.owner
+      : courier
+        ? enemy
+          ? "enemy · lost here"
+          : last
             ? "lands"
-            : "attacks"
-          : "passes";
-    return { id: p, owner, at, does, fight: does.startsWith("attacks") };
+            : "passes"
+        : enemy
+          ? last
+            ? "attacks"
+            : "attacks · stops here"
+          : last
+            ? owner === army.owner
+              ? "lands"
+              : "attacks"
+            : "passes";
+    return { id: p, owner, at, does, fight: /^(attacks|enemy)/.test(does) };
   });
 
   return (
     <Floating
-      label="Army"
+      label={courier ? "Courier" : "Army"}
       start={bottomLeft}
       remember="army"
       onClose={() => conn.local.setState({ selectedArmy: null })}
@@ -1957,19 +2037,33 @@ export function ArmyWindow(props: {
             style={{ background: seatColour(army.owner) }}
           />
           <h2 className={windowTitle}>
-            {mine ? "Your Army" : `${playerName(view, army.owner)}'s Army`}
+            {mine ? "Your" : `${playerName(view, army.owner)}'s`}{" "}
+            {courier ? "Courier" : "Army"}
           </h2>
         </>
       }
     >
       <div className="flex flex-col gap-2.5 p-3">
+        {courier && (
+          <div className="flex items-center justify-between gap-2">
+            <span className={label}>Carrying</span>
+            <span
+              className="truncate font-semibold"
+              style={{ color: rarityColour(content, army.tech) }}
+            >
+              {content.techs.get(army.tech)?.name ?? army.tech}
+            </span>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <span className={label}>{army.waiting ? "In orbit" : "Route"}</span>
-          <Strength
-            content={content}
-            units={army.units}
-            colour={mine ? seatColour(army.owner) : undefined}
-          />
+          {!courier && (
+            <Strength
+              content={content}
+              units={army.units}
+              colour={mine ? seatColour(army.owner) : undefined}
+            />
+          )}
         </div>
         {/* About five stops tall, scrolling past that: the window keeps its size. */}
         <ol className="flex max-h-40 flex-col overflow-y-auto">
@@ -1999,16 +2093,18 @@ export function ArmyWindow(props: {
             />
           ))}
         </ol>
-        <ul className="grid grid-cols-5 gap-1.25">
-          {army.units.map((u) => (
-            <li key={u.unit}>
-              <UnitSlotTile
-                slot={u}
-                name={content.units.get(u.unit)?.name ?? u.unit}
-              />
-            </li>
-          ))}
-        </ul>
+        {!courier && (
+          <ul className="grid grid-cols-5 gap-1.25">
+            {army.units.map((u) => (
+              <li key={u.unit}>
+                <UnitSlotTile
+                  slot={u}
+                  name={content.units.get(u.unit)?.name ?? u.unit}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
         {mine && ship && (
           <p className="text-ink-2 text-xs">
             Has a {ship.name}: it lands up to {ship.carry} Command Points in a
@@ -2016,11 +2112,45 @@ export function ArmyWindow(props: {
             waits in orbit.
           </p>
         )}
-        {mine && (
+        {mine && !courier && (
           <p className="text-ink-4 text-xs">
             Drag the Army onto a Planet to re-order it. It finishes this Lane
             first.
           </p>
+        )}
+        {mine && courier && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={
+                pending || otherLabs(content, view, army.tech).length === 0
+              }
+              onClick={() =>
+                conn.local.setState({
+                  moving: { tech: army.tech, army: army.id },
+                })
+              }
+              className={cn(smallButton, "flex-1 disabled:opacity-50")}
+            >
+              Change Lab…
+            </button>
+            {/* Stays in place when it can't go back: its Lab is lost, or it's on its way there. */}
+            <button
+              type="button"
+              disabled={
+                pending ||
+                !army.homePlanet ||
+                home(army.destPlanet, army.destSlot)
+              }
+              title={army.homePlanet ? undefined : "The Lab it left is lost"}
+              onClick={() =>
+                conn.reorderCourier(army.id, army.homePlanet, army.homeSlot)
+              }
+              className={cn(smallButton, "flex-1 disabled:opacity-50")}
+            >
+              {army.homePlanet ? `Back to ${planet(army.homePlanet)}` : "Back"}
+            </button>
+          </div>
         )}
       </div>
     </Floating>

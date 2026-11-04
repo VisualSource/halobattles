@@ -1,4 +1,5 @@
 import type { GalaxyMap, Ruleset } from "../gen/content";
+import type { Army } from "./store";
 
 /** Lane travel times in ms, both ways: from → to → ms. */
 export type Lanes = Map<string, Map<string, number>>;
@@ -29,6 +30,15 @@ export function laneTimes(map: GalaxyMap, rules: Ruleset): Lanes {
     }
   }
   return lanes;
+}
+
+/** The Match Time an Army reaches its destination: this hop, then the rest of its route. */
+export function arrival(lanes: Lanes, a: Army, now: number) {
+  let at = a.waiting ? now : a.arrives;
+  [a.to, ...a.path].forEach((p, i, stops) => {
+    if (i > 0) at += lanes.get(stops[i - 1] ?? "")?.get(p) ?? 0;
+  });
+  return at;
 }
 
 type Label = { enemies: number; neutrals: number; ms: number; path: string[] };

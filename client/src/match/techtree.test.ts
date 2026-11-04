@@ -37,6 +37,7 @@ function view(labs: string[] = []): View {
   return {
     you: 0,
     players: [{ faction: "unsc" }],
+    armies: new Map(),
     planets: new Map([
       [
         "reach",

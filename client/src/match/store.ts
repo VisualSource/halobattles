@@ -78,6 +78,11 @@ export type Army = {
   toStack: number; // own only
   path: string[]; // own only: the Planets after `to`, in order
   raid: boolean; // own only: nobody else sees a Raid at all
+  tech: string; // a Courier's, which has no units; "" for any other Army
+  homePlanet: string; // own only, a Courier's: the Lab it left, "" once that's lost
+  homeSlot: number;
+  destPlanet: string; // own only, a Courier's: the Lab it's going to
+  destSlot: number;
 };
 
 export type Side = "attacker" | "defender";

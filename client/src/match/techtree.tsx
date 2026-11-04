@@ -31,6 +31,7 @@ const ZOOM = { min: 0.35, max: 1.6 };
 
 const CHIP = {
   held: "border-ok-edge bg-ok-wash text-ok",
+  moving: "border-accent/50 text-accent",
   researching: "border-res-research/50 bg-res-research/10 text-res-research",
   saved: "border-res-research/50 text-res-research",
   hand: "border-accent/50 bg-accent-wash text-accent",
@@ -301,6 +302,7 @@ function TechCard(props: {
   const chip = {
     held: () =>
       `Held · ${s.kind === "held" ? s.planets.map(props.planetName).join(", ") : ""}`,
+    moving: () => "On a Courier",
     researching: () => `Researching ${Math.floor((progress ?? 0) * 100)}%`,
     saved: () => `Saved ${Math.floor((progress ?? 0) * 100)}%`,
     hand: () => "In hand",

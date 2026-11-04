@@ -44,9 +44,11 @@ import {
   RaidTurnedBack,
   RemoveBotT,
   ReorderArmyT,
+  ReorderCourierT,
   RequestDefenceLayoutT,
   type ResearchT,
   SellBuildingT,
+  SendTechT,
   SetBattleCommandT,
   SetBattleControlT,
   SetDefenceLayoutT,
@@ -210,6 +212,11 @@ const toArmy = (a: ArmyViewT): Army => ({
   toStack: a.toStack,
   path: a.path.map(str),
   raid: a.raid,
+  tech: str(a.tech),
+  homePlanet: str(a.homePlanet),
+  homeSlot: a.homeSlot,
+  destPlanet: str(a.destPlanet),
+  destSlot: a.destSlot,
 });
 
 const side = (n: number): Side => (n === 0 ? "attacker" : "defender");
@@ -747,6 +754,24 @@ export class MatchConnection {
       Op.CancelProject,
       "research",
       (seq) => new CancelProjectT(seq, tech),
+    );
+  }
+
+  /** Pays to send a held Tech to the Lab in slot of planet, as a Courier. */
+  sendTech(tech: string, planet: string, slot: number) {
+    this.send(
+      Op.SendTech,
+      "courier",
+      (seq) => new SendTechT(seq, tech, planet, slot),
+    );
+  }
+
+  /** Sends a Courier to the Lab in slot of planet, or back to the one it left. */
+  reorderCourier(army: number, planet: string, slot: number) {
+    this.send(
+      Op.ReorderCourier,
+      "courier",
+      (seq) => new ReorderCourierT(seq, army, planet, slot),
     );
   }
 
