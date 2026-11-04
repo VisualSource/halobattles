@@ -41,6 +41,8 @@ enum Op : int {
   RequestDefenceLayout = 32,
   SetDefenceLayout = 33,
   WatchBattle = 34,
+  SendTech = 35,
+  ReorderCourier = 36,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -309,6 +311,24 @@ table CancelProject {     // saved with its progress
   tech: string;
 }
 
+// Moves a held Tech to a free Tech Slot in another of your Labs as a Courier,
+// paying the Ruleset's techTransferCost now. Not from a Locked Planet.
+table SendTech {
+  seq: uint32;
+  tech: string;
+  to_planet: string;
+  to_slot: ubyte;          // the Lab's Building Slot
+}
+
+// Sends a Courier to another of your Labs with a free Tech Slot, or back to
+// the Lab it left, which calls the move off. It finishes its Lane hop first.
+table ReorderCourier {
+  seq: uint32;
+  army: uint32;            // the Courier's ArmyView id
+  to_planet: string;
+  to_slot: ubyte;          // the Lab's Building Slot
+}
+
 // Server messages.
 
 table Seat {
@@ -418,6 +438,14 @@ table ArmyView {
   to_stack: ubyte;         // own only
   path: [string];          // own only: the Planets after to, in order
   raid: bool;              // own only: others don't see a Raid at all
+  // A Courier has no units and carries this Tech; "" for any other Army.
+  tech: string;
+  // Own only: the Tech Slots a Courier reserves in the Lab it left and the
+  // one it's going to. home_planet "" means the Lab it left is lost.
+  home_planet: string;
+  home_slot: ubyte;
+  dest_planet: string;
+  dest_slot: ubyte;
 }
 
 // A Battle's grid: one Terrain index and one height level per cell, row by

@@ -362,3 +362,24 @@ func TestTheCommanderNeverTargetsATeammate(t *testing.T) {
 		t.Error("an enemy Team's b isn't an attack goal")
 	}
 }
+
+// A Courier is an Army with no units: nothing to fear, fight or count.
+func TestAnEnemyCourierIsNoThreatAndBotsNeverMoveTechs(t *testing.T) {
+	v := view([]string{"base:lab", "", ""}, 10)
+	v.Planets[0].Labs = map[int][]string{0: {"base:drill"}}
+	bare := len(hard(t).Think(v))
+	v.Armies = []game.ArmyView{{ID: 9, Owner: 1, From: "b", To: "a", Tech: "base:radar"}}
+	b := hard(t)
+	cmds := b.Think(v)
+	if len(cmds) != bare {
+		t.Errorf("%d commands with a Courier in view, %d without", len(cmds), bare)
+	}
+	if got := b.threat(v, "a"); got != 0 {
+		t.Errorf("threat %v from a Courier", got)
+	}
+	for _, c := range cmds {
+		if c.Op == wire.OpSendTech || c.Op == wire.OpReorderCourier {
+			t.Errorf("a Bot sent %v", c.Op)
+		}
+	}
+}

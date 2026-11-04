@@ -28,6 +28,8 @@ type Army struct {
 	// Raid: it fights for the target's buildings, never the Planet, and only
 	// its owner sees it on the way.
 	Raid bool
+	// Courier: it has no units and carries a Tech between Labs.
+	Courier *Courier
 }
 
 // ArmyUnits is part of an order: count of a unit from one Stack.
@@ -145,6 +147,9 @@ func (s *State) ReorderArmy(seat int, id uint32, to string, toStack int) error {
 	if a == nil || a.Owner != seat {
 		return fmt.Errorf("you have no Army %d", id)
 	}
+	if a.Courier != nil {
+		return errors.New("a Courier goes to a Lab")
+	}
 	if a.Retreating {
 		return errors.New("a Retreating Army can't be re-ordered")
 	}
@@ -156,12 +161,18 @@ func (s *State) ReorderArmy(seat int, id uint32, to string, toStack int) error {
 	if !ok || !a.Waiting && len(route) > 1 && !s.passable(seat, s.Planets[a.To]) {
 		return fmt.Errorf("no route to %s", to)
 	}
-	a.Path, a.ToStack, a.Raid = route[1:], toStack, false // re-ordered as an Attack; ReorderRaid makes it a Raid again
+	a.ToStack, a.Raid = toStack, false // re-ordered as an Attack; ReorderRaid makes it a Raid again
+	a.redirect(route, s.Lanes, s.Time)
+	return nil
+}
+
+// redirect gives the Army a new route from To; one waiting in orbit leaves at at.
+func (a *Army) redirect(route []string, lanes map[string]map[string]int64, at int64) {
+	a.Path = route[1:]
 	if a.Waiting && len(a.Path) > 0 {
 		a.Waiting = false
-		a.hop(s.Lanes, s.Time)
+		a.hop(lanes, at)
 	}
-	return nil
 }
 
 // OrderRaid sends units as a Raid on to: an Army after its buildings, hidden
@@ -253,6 +264,12 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 		return cmp.Or(cmp.Compare(a.Owner, b.Owner), cmp.Compare(a.ID, b.ID))
 	})
 	for _, a := range armies {
+		if a.Courier != nil {
+			if s.Armies[a.ID] != nil { // not lost to an earlier arrival's capture
+				s.moveCourier(c, a, now)
+			}
+			continue
+		}
 		for !a.Waiting && a.Arrives <= now {
 			if !a.Retreating {
 				s.sight(c, a.Owner, a.To, a.Arrives) // passing through or arriving

@@ -41,7 +41,8 @@ func (s *State) recoveryCost(c *cs.Content, seat int, tech string) int {
 }
 
 // loseLab empties the Lab in slot of p: its owner gets each Tech it held
-// back as a guaranteed card. Call it before the building leaves the slot.
+// back as a guaranteed card, and its Couriers learn it's gone. Call it before
+// the building leaves the slot.
 func (s *State) loseLab(p *Planet, slot int) {
 	techs := p.Techs[slot]
 	delete(p.Techs, slot)
@@ -52,6 +53,15 @@ func (s *State) loseLab(p *Planet, slot int) {
 	for _, t := range techs {
 		pl.Saved = append(pl.Saved, Saved{Tech: t, Lost: true})
 	}
+	s.courierLabLost(LabRef{p.ID, slot})
+}
+
+// hold puts tech in the Lab in slot.
+func (p *Planet) hold(slot int, tech string) {
+	if p.Techs == nil {
+		p.Techs = map[int][]string{}
+	}
+	p.Techs[slot] = append(p.Techs[slot], tech)
 }
 
 // researchRates is seat's Research per second in each Research field: its
@@ -122,7 +132,7 @@ func (s *State) requirementsMet(c *cs.Content, seat int, tech string, held map[s
 }
 
 // pool is every Tech of field seat could be offered: its Faction's or
-// shared, not held, running, saved or already in hand, with its
+// shared, not held, in transit, running, saved or already in hand, with its
 // requirements met, of a Rarity the field's Research rate has opened.
 // Sorted, so draws replay.
 func (s *State) pool(c *cs.Content, seat int, field string, rate int) []string {
@@ -136,6 +146,7 @@ func (s *State) pool(c *cs.Content, seat int, field string, rate int) []string {
 		case string(t.Field) != field,
 			t.Faction != nil && string(*t.Faction) != pl.Faction,
 			held[id],
+			s.inTransit(seat, id),
 			slices.ContainsFunc(pl.Projects, func(p Project) bool { return p.Tech == id }),
 			slices.ContainsFunc(pl.Saved, func(v Saved) bool { return v.Tech == id }),
 			slices.Contains(pl.Hands[field], id),
@@ -214,13 +225,7 @@ func (s *State) StartProject(c *cs.Content, seat int, tech, planet string, slot 
 	}
 	field := string(c.Techs[tech].Field)
 	saved := slices.IndexFunc(pl.Saved, func(v Saved) bool { return v.Tech == tech })
-	_, slots, isLab := s.labAt(c, seat, planet, slot)
-	reserved := 0
-	for _, p := range pl.Projects {
-		if p.Planet == planet && p.Slot == slot {
-			reserved++
-		}
-	}
+	free, isLab := s.freeSlots(c, seat, LabRef{planet, slot})
 	switch {
 	case !slices.Contains(pl.Hands[field], tech) && saved < 0:
 		return errors.New("that Tech isn't on offer")
@@ -230,7 +235,7 @@ func (s *State) StartProject(c *cs.Content, seat int, tech, planet string, slot 
 		return errors.New("you no longer have what that Tech requires")
 	case !isLab:
 		return fmt.Errorf("you have no Lab in Building Slot %d of %s", slot+1, planet)
-	case len(s.Planets[planet].Techs[slot])+reserved >= slots:
+	case free < 1:
 		return errors.New("that Lab has no free Tech Slot")
 	}
 	p := Project{Tech: tech, Planet: planet, Slot: slot, Since: s.Time}
@@ -309,11 +314,7 @@ func (s *State) research(c *cs.Content, now int64) {
 				p.Done, p.Since, p.Rate = p.done(now), now, rate
 			}
 			if p.done(now) >= float64(p.Cost) {
-				lab := s.Planets[p.Planet]
-				if lab.Techs == nil {
-					lab.Techs = map[int][]string{}
-				}
-				lab.Techs[p.Slot] = append(lab.Techs[p.Slot], p.Tech)
+				s.Planets[p.Planet].hold(p.Slot, p.Tech)
 				pl.Projects = slices.Delete(pl.Projects, i, i+1)
 			}
 		}

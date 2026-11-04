@@ -53,6 +53,13 @@
       "legendary": { "from": 9, "weight": 1 }
     }
   },
+  // docs/specs/tech-spec.md#moving-techs
+  "techTransferCost": {
+    "common": { "credits": 100 },
+    "uncommon": { "credits": 200 },
+    "rare": { "credits": 400, "alloys": 50 },
+    "legendary": { "credits": 800, "alloys": 100 }
+  },
   // docs/specs/tactical-battle-spec.md
   "battlefield": {
     "width": 64,

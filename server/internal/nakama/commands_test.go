@@ -8,6 +8,7 @@ import (
 
 	"github.com/VisualSource/halobattles/server/internal/battle"
 	"github.com/VisualSource/halobattles/server/internal/game"
+	"github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -653,5 +654,45 @@ func TestABattleReportCountsDamageBySideAndKills(t *testing.T) {
 	}
 	if n := r.squads[battle.Defender][1].Count; n != 3 {
 		t.Errorf("the Marines it saw have %d left after a kill; want 3", n)
+	}
+}
+
+func TestACourierGoesOutAndIsCalledBackOverTheWire(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	m := h.state.(*matchState)
+	two := 2
+	m.content.Doc.Buildings["base:lab"] = contentschema.Building{TechSlots: &two}
+	capital := ""
+	for _, p := range h.d.views[u1.session].Planets {
+		if p.Capital {
+			capital = p.Id
+		}
+	}
+	home, y := m.play.Planets[capital], m.play.Planets["y"]
+	y.Owner = 0
+	home.Buildings[0], y.Buildings[0] = "base:lab", "base:lab"
+	home.Techs = map[int][]string{0: {"base:drill"}}
+	m.play.Lanes[capital]["y"], m.play.Lanes["y"][capital] = 60_000, 60_000
+
+	h.loop(cmd(u1, wire.OpSendTech, &wire.SendTechT{Seq: 103, Tech: "base:radar", ToPlanet: "y"}))
+	if r := h.rejection(u1, 103); r == "" {
+		t.Error("sent a Tech it doesn't hold")
+	}
+	h.loop(cmd(u1, wire.OpSendTech, &wire.SendTechT{Seq: 104, Tech: "base:drill", ToPlanet: "y"}))
+	if r := h.rejection(u1, 104); r != "" {
+		t.Fatalf("SendTech rejected: %s", r)
+	}
+	ds := h.d.deltas[u1.session]
+	as := ds[len(ds)-1].Armies
+	if len(as) != 1 || as[0].Tech != "base:drill" || as[0].HomePlanet != capital || as[0].DestPlanet != "y" || as[0].DestSlot != 0 {
+		t.Fatalf("armies %+v, want the Courier", as)
+	}
+	h.loop(cmd(u1, wire.OpReorderCourier, &wire.ReorderCourierT{Seq: 105, Army: as[0].Id, ToPlanet: capital}))
+	if r := h.rejection(u1, 105); r != "" {
+		t.Fatalf("ReorderCourier rejected: %s", r)
+	}
+	if a := m.play.Armies[as[0].Id]; a == nil || a.Courier.Dest != a.Courier.Home {
+		t.Errorf("Courier %+v, want it called off", a)
 	}
 }

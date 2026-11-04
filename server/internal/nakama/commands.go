@@ -244,6 +244,16 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
 			return s.play.CancelProject(s.seat(user), string(c.Tech()))
 		}
+	case wire.OpSendTech:
+		c := wire.GetRootAsSendTech(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.SendTech(doc, s.seat(user), string(c.Tech()), string(c.ToPlanet()), int(c.ToSlot()))
+		}
+	case wire.OpReorderCourier:
+		c := wire.GetRootAsReorderCourier(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.ReorderCourier(doc, s.seat(user), c.Army(), string(c.ToPlanet()), int(c.ToSlot()))
+		}
 	case wire.OpSetRallyStack:
 		c := wire.GetRootAsSetRallyStack(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {

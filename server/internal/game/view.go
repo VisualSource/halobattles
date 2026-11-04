@@ -109,6 +109,8 @@ type ArmyView struct {
 	ToStack     int      // own only
 	Path        []string // own only: the Planets after To, in order
 	Raid        bool     // own only: nobody else sees a Raid at all
+	Tech        string   // a Courier's, seen by anyone who sees it; "" for other Armies
+	Home, Dest  LabRef   // own only, a Courier's: the Labs it reserves a Tech Slot in
 }
 
 // BattleView is a Battle the viewer is a side of, as their side sees it.
@@ -249,8 +251,14 @@ func (s *State) view(c *cs.Content, seat int) View {
 			ID: a.ID, Owner: a.Owner, Units: slices.Clone(a.Units), From: a.From, To: a.To,
 			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting,
 		}
+		if a.Courier != nil {
+			av.Tech = a.Courier.Tech
+		}
 		if ours || all { // a Spectator sees where every Army is going
 			av.Destination, av.ToStack, av.Path, av.Raid = a.destination(), a.ToStack, slices.Clone(a.Path), a.Raid
+			if a.Courier != nil {
+				av.Home, av.Dest = a.Courier.Home, a.Courier.Dest
+			}
 		}
 		v.Armies = append(v.Armies, av)
 	}

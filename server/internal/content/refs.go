@@ -18,6 +18,11 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 	case "rulesets":
 		qualifyKeys(obj, "startingResources", ns)
 		qualifyKeys(obj, "stockpileCaps", ns)
+		if tc, ok := obj["techTransferCost"].(map[string]any); ok {
+			for rarity := range tc {
+				qualifyKeys(tc, rarity, ns)
+			}
+		}
 		if tr, ok := obj["tech"].(map[string]any); ok {
 			qualifyKeys(tr, "fields", ns)
 		}
@@ -202,6 +207,9 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		where := "rulesets " + id
 		c.resourceKeys(where+": startingResources", r.StartingResources)
 		c.resourceKeys(where+": stockpileCaps", r.StockpileCaps)
+		for _, rarity := range slices.Sorted(maps.Keys(r.TechTransferCost)) {
+			c.resourceKeys(where+": techTransferCost "+rarity, r.TechTransferCost[rarity])
+		}
 		for _, f := range slices.Sorted(maps.Keys(r.Tech.Fields)) {
 			c.asset(where+": tech fields "+f, r.Tech.Fields[f].Icon)
 		}

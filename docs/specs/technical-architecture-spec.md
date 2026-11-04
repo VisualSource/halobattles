@@ -230,6 +230,8 @@ Every command carries a client-assigned `seq`.
 | `SetRallyStack {planet, stack}` | play | owner |
 | `OrderArmy {fromPlanet, units: [{stack, unit, count}], toPlanet, toStack}` | play | owner |
 | `ReorderArmy {army, toPlanet, toStack}` | play | owner |
+| `SendTech {tech, toPlanet, toSlot}` | play | owner; pays `techTransferCost` |
+| `ReorderCourier {army, toPlanet, toSlot}` | play | owner |
 | `BattleRetreat {planet}` | play | a side of that Battle, not neutral |
 | `BattleCancelRetreat {planet}` | play | a side of that Battle, during the countdown |
 | `BattleBuildTurret {planet, pad, building}` | play | a side of that Battle holding the pad; pays the turret's cost |
