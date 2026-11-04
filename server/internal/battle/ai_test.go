@@ -12,7 +12,7 @@ func aiSim(t *testing.T, attack, defend Force) *Sim {
 	t.Helper()
 	c := baseContent(t)
 	r := ruleset(c)
-	return New(c, r, Generate(c, r.Battlefield, nil, 7), attack, defend, 7)
+	return New(c, r, openField(64, 48), attack, defend, 7)
 }
 
 func marines(n int) [][]Slot {

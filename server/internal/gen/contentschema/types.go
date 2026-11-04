@@ -142,29 +142,11 @@ type BattleRules struct {
 
 // How Battlefields are generated. A map's Planet can override the size and preset.
 type BattlefieldRules struct {
-	// Build pads the generator places: spots a side can capture and build a turret
-	// on.
-	BuildPads int `json:"buildPads"`
-
-	// Building sites on a Battlefield, the base's first and the rest spread over the
-	// defender's side; where a Planet's owner can place its buildings.
-	BuildingSites int `json:"buildingSites"`
-
-	// The fewest cells between two Control Points, where the map has room.
-	ControlPointSpacing int `json:"controlPointSpacing"`
-
-	// ControlPoints corresponds to the JSON schema field "controlPoints".
-	ControlPoints int `json:"controlPoints"`
-
 	// Depth in cells of the strip along each edge an attacker can deploy in.
 	DeployDepth int `json:"deployDepth"`
 
 	// Height corresponds to the JSON schema field "height".
 	Height int `json:"height"`
-
-	// Width in cells of the lanes the generator clears between the Control Points and
-	// from each attacker start. Defaults to 2.
-	LaneWidth *int `json:"laneWidth,omitempty,omitzero"`
 
 	// The Unit Class whose movement decides which ground must connect: every Control
 	// Point and every edge's deployment strip.
@@ -452,6 +434,9 @@ type Content struct {
 	// Fixtures corresponds to the JSON schema field "fixtures".
 	Fixtures map[string]Fixture `json:"fixtures"`
 
+	// Layouts corresponds to the JSON schema field "layouts".
+	Layouts map[string]Layout `json:"layouts"`
+
 	// Maps corresponds to the JSON schema field "maps".
 	Maps map[string]GalaxyMap `json:"maps"`
 
@@ -724,6 +709,102 @@ type Lane struct {
 	Type string `json:"type"`
 }
 
+// A hand-drawn lane plan a Battlefield is remixed from: where the base, Landing
+// Zones, lanes, pads, building sites and features go, and the water, rock, high
+// ground and cover round them. Every point is a share of the map's width and
+// height, drawn with the attacker's edge at the top (y 0) and the defender's at
+// the bottom (y 1).
+type Layout struct {
+	// Schema corresponds to the JSON schema field "$schema".
+	Schema *string `json:"$schema,omitempty,omitzero"`
+
+	// The Battlefield Archetypes it suits; left out, any.
+	Archetypes []LayoutArchetypesElem `json:"archetypes,omitempty,omitzero"`
+
+	// Shapes of ground: water (the preset's lowest band), blocked (its top band:
+	// cliff or rock), high (the band at height) or cover (its point cover).
+	Areas []LayoutArea `json:"areas,omitempty,omitzero"`
+
+	// Where the base fixture goes: its middle.
+	Base Point `json:"base"`
+
+	// Slots each taking a feature fixture, picked by weight.
+	Features Points `json:"features,omitempty,omitzero"`
+
+	// ID corresponds to the JSON schema field "id".
+	ID ID `json:"id"`
+
+	// Its Landing Zones, A first.
+	LandingZones []LayoutLandingZone `json:"landingZones"`
+
+	// Routes units travel, each a line through its points; cleared where a ground
+	// Unit Class couldn't cross.
+	Lanes []LayoutLane `json:"lanes"`
+
+	// Whether generation may flip it left to right.
+	Mirror *bool `json:"mirror,omitempty,omitzero"`
+
+	// What the Lab and editors call it.
+	Name *string `json:"name,omitempty,omitzero"`
+
+	// Build pads.
+	Pads Points `json:"pads,omitempty,omitzero"`
+
+	// The Terrain Presets it suits; left out, any.
+	Presets []ID `json:"presets,omitempty,omitzero"`
+
+	// Replace an existing definition with this id.
+	Replace *bool `json:"replace,omitempty,omitzero"`
+
+	// Building sites, after the base fixture's own.
+	Sites Points `json:"sites,omitempty,omitzero"`
+
+	// How often it's picked among those that suit, against the others' weights.
+	// Defaults to 1.
+	Weight *float64 `json:"weight,omitempty,omitzero"`
+}
+
+type LayoutArchetypesElem string
+
+const LayoutArchetypesElemOpen LayoutArchetypesElem = "open"
+const LayoutArchetypesElemRidge LayoutArchetypesElem = "ridge"
+const LayoutArchetypesElemRiver LayoutArchetypesElem = "river"
+const LayoutArchetypesElemRuins LayoutArchetypesElem = "ruins"
+
+type LayoutArea struct {
+	// A high area's height level; 1 if left out.
+	Height *int `json:"height,omitempty,omitzero"`
+
+	// Kind corresponds to the JSON schema field "kind".
+	Kind LayoutAreasElemKind `json:"kind"`
+
+	// Points corresponds to the JSON schema field "points".
+	Points []Point `json:"points"`
+}
+
+type LayoutAreasElemKind string
+
+const LayoutAreasElemKindBlocked LayoutAreasElemKind = "blocked"
+const LayoutAreasElemKindCover LayoutAreasElemKind = "cover"
+const LayoutAreasElemKindHigh LayoutAreasElemKind = "high"
+const LayoutAreasElemKindWater LayoutAreasElemKind = "water"
+
+type LayoutLandingZone struct {
+	// At corresponds to the JSON schema field "at".
+	At Point `json:"at"`
+
+	// An attacker can land at it, and holds it from the start.
+	Attacker *bool `json:"attacker,omitempty,omitzero"`
+}
+
+type LayoutLane struct {
+	// Points corresponds to the JSON schema field "points".
+	Points []Point `json:"points"`
+
+	// In cells; 2 if left out.
+	Width *int `json:"width,omitempty,omitzero"`
+}
+
 // An id local to one definition, such as a map's Planet ids. No namespace.
 type LocalID string
 
@@ -794,6 +875,10 @@ type PlanetBattlefield struct {
 	// Height corresponds to the JSON schema field "height".
 	Height *int `json:"height,omitempty,omitzero"`
 
+	// The layout its Battlefield is remixed from, over the seed's pick; layout
+	// generation only.
+	Layout *ID `json:"layout,omitempty,omitzero"`
+
 	// TerrainPreset corresponds to the JSON schema field "terrainPreset".
 	TerrainPreset *ID `json:"terrainPreset,omitempty,omitzero"`
 
@@ -848,6 +933,11 @@ type PlanetType struct {
 	// Sprite corresponds to the JSON schema field "sprite".
 	Sprite *Asset `json:"sprite,omitempty,omitzero"`
 }
+
+// [x, y]: shares of the map's width and height, 0 to 1.
+type Point []float64
+
+type Points []Point
 
 type Position struct {
 	// X corresponds to the JSON schema field "x".

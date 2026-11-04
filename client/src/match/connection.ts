@@ -67,6 +67,7 @@ import {
   type ViewDeltaT,
   ViewFull,
   type ViewFullT,
+  WatchBattleT,
   type WinHoldT,
 } from "../gen/wire";
 import { settings } from "../settings";
@@ -298,6 +299,8 @@ const toBattle = (
   buildingsLeft: b.buildingsLeft,
   buildings: b.buildings,
   commanded: b.commanded,
+  summary: b.summary,
+  damage: { attacker: b.attackerDamage, defender: b.defenderDamage },
   drops: b.drops.map((d) => ({
     unit: str(d.unit),
     units: d.units,
@@ -617,6 +620,11 @@ export class MatchConnection {
     );
   }
 
+  /** The Battle you have open, by its Planet ("" none): only its view carries positions and fire. */
+  watchBattle(planet: string) {
+    this.send(Op.WatchBattle, "watch", (seq) => new WatchBattleT(seq, planet));
+  }
+
   /** Whether you command your side of the Battle on planet: only in its setup. */
   setBattleCommand(planet: string, command: boolean) {
     this.send(
@@ -887,7 +895,7 @@ export class MatchConnection {
           attacker: t.attacker,
           defender: t.defender < 0 ? null : t.defender,
           squads: new Map(),
-          ticks: 0,
+          started: Number(t.started),
           damage: { attacker: 0, defender: 0 },
         }));
         this.emit("battleStarted", { battle: t.battle, planet: str(t.planet) });
@@ -907,7 +915,7 @@ export class MatchConnection {
           armorDmg: v.armorDmg,
           hpDmg: v.hpDmg,
         }));
-        this.setReport(t.battle, (r) => r && reportVolleys(r, t.tick, volleys));
+        this.setReport(t.battle, (r) => r && reportVolleys(r, volleys));
         this.emit("battleTick", { battle: t.battle, tick: t.tick, volleys });
         return;
       }

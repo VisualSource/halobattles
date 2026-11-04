@@ -26,6 +26,9 @@ type BattleViewT struct {
 	Buildings          byte             `json:"buildings"`
 	Commanded          bool             `json:"commanded"`
 	Drops              []*BattleDropT   `json:"drops"`
+	Summary            bool             `json:"summary"`
+	AttackerDamage     float32          `json:"attacker_damage"`
+	DefenderDamage     float32          `json:"defender_damage"`
 }
 
 func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -109,6 +112,9 @@ func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleViewAddBuildings(builder, t.Buildings)
 	BattleViewAddCommanded(builder, t.Commanded)
 	BattleViewAddDrops(builder, dropsOffset)
+	BattleViewAddSummary(builder, t.Summary)
+	BattleViewAddAttackerDamage(builder, t.AttackerDamage)
+	BattleViewAddDefenderDamage(builder, t.DefenderDamage)
 	return BattleViewEnd(builder)
 }
 
@@ -156,6 +162,9 @@ func (rcv *BattleView) UnPackTo(t *BattleViewT) {
 		rcv.Drops(&x, j)
 		t.Drops[j] = x.UnPack()
 	}
+	t.Summary = rcv.Summary()
+	t.AttackerDamage = rcv.AttackerDamage()
+	t.DefenderDamage = rcv.DefenderDamage()
 }
 
 func (rcv *BattleView) UnPack() *BattleViewT {
@@ -505,8 +514,44 @@ func (rcv *BattleView) DropsLength() int {
 	return 0
 }
 
+func (rcv *BattleView) Summary() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(46))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleView) MutateSummary(n bool) bool {
+	return rcv._tab.MutateBoolSlot(46, n)
+}
+
+func (rcv *BattleView) AttackerDamage() float32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(48))
+	if o != 0 {
+		return rcv._tab.GetFloat32(o + rcv._tab.Pos)
+	}
+	return 0.0
+}
+
+func (rcv *BattleView) MutateAttackerDamage(n float32) bool {
+	return rcv._tab.MutateFloat32Slot(48, n)
+}
+
+func (rcv *BattleView) DefenderDamage() float32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(50))
+	if o != 0 {
+		return rcv._tab.GetFloat32(o + rcv._tab.Pos)
+	}
+	return 0.0
+}
+
+func (rcv *BattleView) MutateDefenderDamage(n float32) bool {
+	return rcv._tab.MutateFloat32Slot(50, n)
+}
+
 func BattleViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(21)
+	builder.StartObject(24)
 }
 func BattleViewAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -576,6 +621,15 @@ func BattleViewAddDrops(builder *flatbuffers.Builder, drops flatbuffers.UOffsetT
 }
 func BattleViewStartDropsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
+}
+func BattleViewAddSummary(builder *flatbuffers.Builder, summary bool) {
+	builder.PrependBoolSlot(21, summary, false)
+}
+func BattleViewAddAttackerDamage(builder *flatbuffers.Builder, attackerDamage float32) {
+	builder.PrependFloat32Slot(22, attackerDamage, 0.0)
+}
+func BattleViewAddDefenderDamage(builder *flatbuffers.Builder, defenderDamage float32) {
+	builder.PrependFloat32Slot(23, defenderDamage, 0.0)
 }
 func BattleViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

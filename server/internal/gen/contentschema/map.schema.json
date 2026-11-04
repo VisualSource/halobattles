@@ -41,6 +41,7 @@
             "properties": {
               "terrainPreset": { "$ref": "defs.schema.json#/definitions/id" },
               "archetype": { "description": "Forces this Planet's Battlefield Archetype, over its preset's weights.", "enum": ["open", "river", "ridge", "ruins"] },
+              "layout": { "description": "The layout its Battlefield is remixed from, over the seed's pick; layout generation only.", "$ref": "defs.schema.json#/definitions/id" },
               "width": { "type": "integer", "minimum": 16, "maximum": 256 },
               "height": { "type": "integer", "minimum": 16, "maximum": 256 }
             }

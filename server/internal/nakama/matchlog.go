@@ -101,7 +101,7 @@ type battleReplay struct {
 	Defender  int               `json:"defender"`
 	Winner    int               `json:"winner"`
 	Seed      uint64            `json:"seed"`
-	FieldSeed uint64            `json:"fieldSeed"`         // battle.GenerateFor's, with the map Planet's battlefield override
+	FieldSeed uint64            `json:"fieldSeed"`         // battle.GenerateLayout's, with the map Planet's battlefield override
 	Faction   string            `json:"faction,omitempty"` // the defender's, whose base the Battlefield has; "" neutral
 	Raid      bool              `json:"raid,omitempty"`
 	Attack    battle.Force      `json:"attack"`

@@ -31,7 +31,7 @@ const baseRules = `{
 	"tech": {"fields": {"military": {"name": "Military", "colour": "#e0604f"}, "industry": {"name": "Industry", "colour": "#e8b34a"}}, "capitalResearch": 2, "costScalingPercent": 10, "recoveryPercent": 50, "labsPerPlanet": 3, "handSize": 3,
 		"rarities": {"common": {"from": 0, "weight": 10}, "uncommon": {"from": 4, "weight": 6}, "rare": {"from": 8, "weight": 3}, "legendary": {"from": 14, "weight": 1}}},
 	"battlefield": {"width": 32, "height": 24, "terrainPreset": "plain", "pathClass": "infantry",
-		"controlPoints": 3, "controlPointSpacing": 6, "deployDepth": 3, "buildPads": 2, "buildingSites": 6},
+		"deployDepth": 3},
 	"battle": {"startDelay": 30, "timeCap": 180, "raidTime": 100, "raidCap": 10, "raidRoles": ["scout"], "landingDelay": 20, "padSight": 4, "padCooldown": 20, "startReach": 8, "padBuildSeconds": 10, "neutralFunds": {"credits": 400}, "captureRadius": 2, "captureSeconds": 5,
 		"highGroundToHit": 2, "heightSight": 1, "retreatCountdown": 10, "structure": {"unitClass": "infantry", "shield": 0, "armor": 20, "hp": 30},
 		"commandPost": {"unitClass": "infantry", "shield": 0, "armor": 60, "hp": 150},
@@ -70,6 +70,9 @@ func baseFiles() map[string]string {
 			"noise": {"frequency": 2, "octaves": 1, "persistence": 0.5},
 			"bands": [{"upTo": 1, "height": 0, "terrains": [{"upTo": 1, "terrain": "open"}]}],
 			"clear": {"terrain": "open", "height": 0}}`,
+		"base/data/layouts/lane.jsonc": `{"id": "lane", "base": [0.5, 0.9],
+			"landingZones": [{"at": [0.5, 0.1], "attacker": true}],
+			"lanes": [{"points": [[0.5, 0.1], [0.5, 0.9]]}]}`,
 	}
 }
 
@@ -281,5 +284,14 @@ func TestLoadsBaseModWithNamespacedIDs(t *testing.T) {
 	}
 	if c.Hash == "" || c.Hash != mustLoad(t, dirs).Hash {
 		t.Errorf("hash should be non-empty and stable, got %q", c.Hash)
+	}
+}
+
+func TestContentWithNoLayoutFailsReadably(t *testing.T) {
+	files := baseFiles()
+	delete(files, "base/data/layouts/lane.jsonc")
+	_, err := Load(writeMods(t, files, "base"))
+	if err == nil || !strings.Contains(err.Error(), "layouts: none") {
+		t.Errorf("Load with no layouts: %v; want it refused, saying so", err)
 	}
 }

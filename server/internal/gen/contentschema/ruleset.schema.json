@@ -136,18 +136,13 @@
       "description": "How Battlefields are generated. A map's Planet can override the size and preset.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["width", "height", "terrainPreset", "pathClass", "controlPoints", "controlPointSpacing", "deployDepth", "buildPads", "buildingSites"],
+      "required": ["width", "height", "terrainPreset", "pathClass", "deployDepth"],
       "properties": {
         "width": { "type": "integer", "minimum": 16, "maximum": 256 },
         "height": { "type": "integer", "minimum": 16, "maximum": 256 },
         "terrainPreset": { "description": "The Terrain Preset a Planet uses unless it names its own.", "$ref": "defs.schema.json#/definitions/id" },
         "pathClass": { "description": "The Unit Class whose movement decides which ground must connect: every Control Point and every edge's deployment strip.", "$ref": "defs.schema.json#/definitions/id" },
-        "controlPoints": { "type": "integer", "minimum": 1, "maximum": 8 },
-        "controlPointSpacing": { "description": "The fewest cells between two Control Points, where the map has room.", "type": "integer", "minimum": 0 },
         "deployDepth": { "description": "Depth in cells of the strip along each edge an attacker can deploy in.", "type": "integer", "minimum": 1 },
-        "buildingSites": { "description": "Building sites on a Battlefield, the base's first and the rest spread over the defender's side; where a Planet's owner can place its buildings.", "type": "integer", "minimum": 0, "maximum": 32 },
-        "buildPads": { "description": "Build pads the generator places: spots a side can capture and build a turret on.", "type": "integer", "minimum": 0, "maximum": 16 },
-        "laneWidth": { "description": "Width in cells of the lanes the generator clears between the Control Points and from each attacker start. Defaults to 2.", "type": "integer", "minimum": 1, "maximum": 6 },
         "pointArea": { "description": "Radius in cells of the clear ground the generator makes round each Control Point. Defaults to 3.", "type": "integer", "minimum": 0, "maximum": 8 }
       }
     },

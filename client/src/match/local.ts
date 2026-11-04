@@ -29,7 +29,8 @@ export type CommandKind =
   | "battleControl"
   | "battleCommand"
   | "battleOrder"
-  | "layout";
+  | "layout"
+  | "watch";
 
 export type LocalState = {
   pending: Map<number, CommandKind>;

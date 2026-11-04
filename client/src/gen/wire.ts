@@ -79,4 +79,5 @@ export { UnitSlot, UnitSlotT } from './wire/unit-slot.js';
 export { ViewDelta, ViewDeltaT } from './wire/view-delta.js';
 export { ViewFull, ViewFullT } from './wire/view-full.js';
 export { Volley, VolleyT } from './wire/volley.js';
+export { WatchBattle, WatchBattleT } from './wire/watch-battle.js';
 export { WinHold, WinHoldT } from './wire/win-hold.js';

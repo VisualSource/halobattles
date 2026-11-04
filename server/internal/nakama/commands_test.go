@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/VisualSource/halobattles/server/internal/battle"
 	"github.com/VisualSource/halobattles/server/internal/game"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
 	flatbuffers "github.com/google/flatbuffers/go"
@@ -578,5 +579,79 @@ func TestALayoutSwapComesBackToItsSender(t *testing.T) {
 	}
 	if got := h.d.layout.BuildingSites; got[0] != b || got[1] != a {
 		t.Errorf("sites after the swap %v; want %d and %d swapped", got, a, b)
+	}
+}
+
+// lastBattle is the latest Battle view a session was sent in a delta.
+func (h *lobbyHarness) lastBattle(p presence) *wire.BattleViewT {
+	ds := h.d.deltas[p.session]
+	for i := len(ds) - 1; i >= 0; i-- {
+		if bs := ds[i].Battles; len(bs) > 0 {
+			return bs[0]
+		}
+	}
+	return nil
+}
+
+func TestOnlyTheBattleYouHaveOpenSendsPositions(t *testing.T) {
+	h := newLobbyHarness(t)
+	r := h.m.content.Doc.Rulesets["base:rules"]
+	r.Battle.StartDelay, r.Battle.TimeCap = 0, 30
+	h.m.content.Doc.Rulesets["base:rules"] = r
+	h.start()
+	mine, theirs := "", ""
+	for _, p := range h.d.views[u1.session].Planets {
+		if p.Capital {
+			mine = p.Id
+		}
+	}
+	for _, p := range h.d.views[u2.session].Planets {
+		if p.Capital {
+			theirs = p.Id
+		}
+	}
+	army := []*wire.ArmyUnitsT{{Stack: 0, Unit: "base:grunt", Count: 2}}
+	h.loop(cmd(u1, wire.OpOrderArmy, &wire.OrderArmyT{Seq: 103, FromPlanet: mine, ToPlanet: "y", Units: army}))
+	h.loop(cmd(u1, wire.OpOrderArmy, &wire.OrderArmyT{Seq: 104, FromPlanet: "y", ToPlanet: theirs, Units: army}))
+	for i := 0; i < 6*tickRate && h.lastBattle(u2) == nil; i++ {
+		h.loop()
+	}
+	b := h.lastBattle(u2)
+	if b == nil || !b.Summary || b.Tick != 0 || len(b.Points) != 0 || len(b.Squads) == 0 {
+		t.Fatalf("u2's Battle %+v; want a summary: squads, no tick or Landing Zones", b)
+	}
+	for _, sq := range b.Squads {
+		if sq.X != 0 || sq.Y != 0 || sq.Hp != 0 || sq.Count == 0 {
+			t.Errorf("summary squad %+v; want its counts without its cell or layers", sq)
+		}
+	}
+	h.loop(cmd(u1, wire.OpWatchBattle, &wire.WatchBattleT{Seq: 105, Planet: theirs}))
+	h.loop()
+	if b := h.lastBattle(u1); b == nil || b.Summary || len(b.Points) == 0 {
+		t.Errorf("u1's Battle after opening it %+v; want the full view", b)
+	}
+}
+
+// A side's report adds each volley's damage to the shooter's side and takes
+// its kills off the target, for the volleys that side saw.
+func TestABattleReportCountsDamageBySideAndKills(t *testing.T) {
+	b := &game.Battle{Sim: &battle.Sim{Squads: []*battle.Squad{
+		{ID: 1, Side: battle.Attacker}, {ID: 2, Side: battle.Defender},
+	}}}
+	s := &matchState{reports: map[uint32]*battleReport{}}
+	r := s.report(5)
+	r.see(int(battle.Defender), []battle.SquadView{{ID: 1, Side: battle.Attacker, Count: 4, Start: 4}})
+	r.fire(int(battle.Defender), b, []battle.Volley{
+		{Actor: 1, Target: 2, ShieldDmg: 3, ArmorDmg: 4, HPDmg: 5},
+		{Actor: 2, Target: 1, HPDmg: 7, Kills: 1},
+	})
+	if d := r.damage[battle.Defender]; d[battle.Attacker] != 12 || d[battle.Defender] != 7 {
+		t.Errorf("the defender saw damage %v; want 12 by the attacker and 7 by itself", d)
+	}
+	if r.damage[battle.Attacker] != [2]float64{} || r.damage[2] != [2]float64{} {
+		t.Error("damage counted for a side that didn't see it")
+	}
+	if n := r.squads[battle.Defender][1].Count; n != 3 {
+		t.Errorf("the Marines it saw have %d left after a kill; want 3", n)
 	}
 }

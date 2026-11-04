@@ -59,6 +59,7 @@ type labSide struct {
 type labSetup struct {
 	Preset    string  `json:"preset"`              // a Terrain Preset id; "" is the Ruleset's
 	Archetype string  `json:"archetype,omitempty"` // a Battlefield Archetype; "" is the preset's pick
+	Layout    string  `json:"layout,omitempty"`    // which layout; "" lets the seed pick
 	Raid      bool    `json:"raid,omitempty"`      // the attacker Raids: after the buildings, within raidTime
 	Neutral   bool    `json:"neutral,omitempty"`   // the defender is a neutral garrison: its base, and turret funds
 	Seed      uint64  `json:"seed"`
@@ -332,7 +333,10 @@ func (s *labState) fromSetup(c *cs.Content, in labSetup) (*battle.Sim, error) {
 	if in.Neutral {
 		base = ""
 	}
-	f := battle.GenerateFor(c, rules.Battlefield, override, in.Seed, base)
+	if _, ok := c.Layouts[in.Layout]; in.Layout != "" && !ok {
+		return nil, fmt.Errorf("unknown layout %q", in.Layout)
+	}
+	f := battle.GenerateLayout(c, rules.Battlefield, override, in.Seed, base, in.Layout)
 	sim := battle.New(c, rules, f, forces[0], forces[1], in.Seed)
 	sim.Setup = rules.Battle.StartDelay * battle.TicksPerSecond
 	sim.Raid = in.Raid
@@ -367,7 +371,7 @@ func (s *labState) fromReplay(c *cs.Content, in labReplay) (*battle.Sim, error) 
 			override = mp.Battlefield
 		}
 	}
-	sim := battle.New(c, rules, battle.GenerateFor(c, rules.Battlefield, override, r.FieldSeed, r.Faction), r.Attack, r.Defend, r.Seed)
+	sim := battle.New(c, rules, battle.GenerateLayout(c, rules.Battlefield, override, r.FieldSeed, r.Faction, ""), r.Attack, r.Defend, r.Seed)
 	s.defend, s.reach = r.Defend, rules.Battle.StartReach
 	sim.Setup, sim.Builders, sim.Raid = r.Setup, r.Builders, r.Raid
 	for i := range sim.Funds {

@@ -10,6 +10,32 @@ export type Stacks = [] | [Stack] | [Stack, Stack] | [Stack, Stack, Stack];
  * Units in one Stack, one entry per Unit Slot.
  */
 export type Stack = StackEntry[];
+/**
+ * [x, y]: shares of the map's width and height, 0 to 1.
+ *
+ * @minItems 2
+ * @maxItems 2
+ */
+export type Point = [number, number];
+/**
+ * [x, y]: shares of the map's width and height, 0 to 1.
+ *
+ * @minItems 2
+ * @maxItems 2
+ */
+export type Point1 = [number, number];
+/**
+ * Build pads.
+ */
+export type Points = Point1[];
+/**
+ * Building sites, after the base fixture's own.
+ */
+export type Points1 = Point1[];
+/**
+ * Slots each taking a feature fixture, picked by weight.
+ */
+export type Points2 = Point1[];
 
 /**
  * The merged content document the server serves: kind, then id, then definition, with every Patch applied.
@@ -50,6 +76,9 @@ export interface Content {
   };
   fixtures: {
     [k: string]: Fixture;
+  };
+  layouts: {
+    [k: string]: Layout;
   };
   techs: {
     [k: string]: Tech;
@@ -346,27 +375,10 @@ export interface BattlefieldRules {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   pathClass: string;
-  controlPoints: number;
-  /**
-   * The fewest cells between two Control Points, where the map has room.
-   */
-  controlPointSpacing: number;
   /**
    * Depth in cells of the strip along each edge an attacker can deploy in.
    */
   deployDepth: number;
-  /**
-   * Building sites on a Battlefield, the base's first and the rest spread over the defender's side; where a Planet's owner can place its buildings.
-   */
-  buildingSites: number;
-  /**
-   * Build pads the generator places: spots a side can capture and build a turret on.
-   */
-  buildPads: number;
-  /**
-   * Width in cells of the lanes the generator clears between the Control Points and from each attacker start. Defaults to 2.
-   */
-  laneWidth?: number;
   /**
    * Radius in cells of the clear ground the generator makes round each Control Point. Defaults to 3.
    */
@@ -988,6 +1000,10 @@ export interface PlanetBattlefield {
    * Forces this Planet's Battlefield Archetype, over its preset's weights.
    */
   archetype?: "open" | "river" | "ridge" | "ruins";
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  layout?: string;
   width?: number;
   height?: number;
 }
@@ -1216,6 +1232,88 @@ export interface FixtureCell {
   clear?: boolean;
   cover?: boolean;
   height?: number;
+}
+/**
+ * A hand-drawn lane plan a Battlefield is remixed from: where the base, Landing Zones, lanes, pads, building sites and features go, and the water, rock, high ground and cover round them. Every point is a share of the map's width and height, drawn with the attacker's edge at the top (y 0) and the defender's at the bottom (y 1).
+ */
+export interface Layout {
+  $schema?: string;
+  /**
+   * Replace an existing definition with this id.
+   */
+  replace?: boolean;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  id: string;
+  /**
+   * What the Lab and editors call it.
+   */
+  name?: string;
+  /**
+   * The Battlefield Archetypes it suits; left out, any.
+   */
+  archetypes?: ("open" | "river" | "ridge" | "ruins")[];
+  /**
+   * The Terrain Presets it suits; left out, any.
+   *
+   * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  presets?: string[];
+  /**
+   * How often it's picked among those that suit, against the others' weights. Defaults to 1.
+   */
+  weight?: number;
+  /**
+   * Whether generation may flip it left to right.
+   */
+  mirror?: boolean;
+  base: Point;
+  /**
+   * Its Landing Zones, A first.
+   *
+   * @minItems 1
+   */
+  landingZones: [LayoutLandingZone, ...LayoutLandingZone[]];
+  /**
+   * Routes units travel, each a line through its points; cleared where a ground Unit Class couldn't cross.
+   */
+  lanes: LayoutLane[];
+  /**
+   * Shapes of ground: water (the preset's lowest band), blocked (its top band: cliff or rock), high (the band at height) or cover (its point cover).
+   */
+  areas?: LayoutArea[];
+  pads?: Points;
+  sites?: Points1;
+  features?: Points2;
+}
+export interface LayoutLandingZone {
+  at: Point1;
+  /**
+   * An attacker can land at it, and holds it from the start.
+   */
+  attacker?: boolean;
+}
+export interface LayoutLane {
+  /**
+   * @minItems 2
+   */
+  points: [Point1, Point1, ...Point1[]];
+  /**
+   * In cells; 2 if left out.
+   */
+  width?: number;
+}
+export interface LayoutArea {
+  kind: "water" | "blocked" | "high" | "cover";
+  /**
+   * A high area's height level; 1 if left out.
+   */
+  height?: number;
+  /**
+   * @minItems 3
+   */
+  points: [Point1, Point1, Point1, ...Point1[]];
 }
 /**
  * Researched by a player and held in a Lab: it unlocks units and buildings, and gives effects, while held. See docs/specs/tech-spec.md.

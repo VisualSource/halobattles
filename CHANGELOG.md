@@ -16,6 +16,7 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 - Battles: build pad turrets by right-clicking a pad you hold on the map, in place of the Battle window's list of pads.
 - Battles: pads hide in the fog unless they're yours, and a pad your side holds sees a little way round itself.
 - Battles: a pad whose turret was destroyed can't be built on again for 20 s.
+- Battlefields are remixed from hand-drawn layouts (two lanes, three lanes, a ring round a hill, river crossings, a ridge pass and a ruined city), each turned to the defender's edge, nudged and dressed in the Planet's terrain, so the lanes, Landing Zones, pads and building sites are where a map maker put them.
 
 ### Fixed
 

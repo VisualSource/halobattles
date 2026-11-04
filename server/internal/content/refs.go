@@ -87,6 +87,8 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		qualifyKeys(obj, "richness", ns)
 	case "terrains":
 		qualifyKeys(obj, "movement", ns)
+	case "layouts":
+		qualifyList(obj, "presets", ns)
 	case "fixtures":
 		qualifyField(obj, "faction", ns)
 		key, _ := obj["key"].(map[string]any)
@@ -118,6 +120,7 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 				qualifyField(p, "type", ns)
 				if b, ok := p["battlefield"].(map[string]any); ok {
 					qualifyField(b, "terrainPreset", ns)
+					qualifyField(b, "layout", ns)
 				}
 				if o, ok := p["overrides"].(map[string]any); ok {
 					qualifyKeys(o, "income", ns)
@@ -310,6 +313,12 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 	for _, id := range slices.Sorted(maps.Keys(doc.Fixtures)) {
 		c.fixture("fixtures "+id, doc.Fixtures[id])
 	}
+	if len(doc.Layouts) == 0 {
+		c.fail("layouts: none; every Battlefield is remixed from one, so the content needs at least one")
+	}
+	for _, id := range slices.Sorted(maps.Keys(doc.Layouts)) {
+		c.layout("layouts "+id, doc.Layouts[id])
+	}
 	for _, id := range slices.Sorted(maps.Keys(doc.Techs)) {
 		c.tech("techs "+id, doc.Techs[id])
 	}
@@ -474,6 +483,16 @@ func (c *checker) fixture(where string, f contentschema.Fixture) {
 	}
 }
 
+// layout checks a layout's presets exist and that an attacker can land.
+func (c *checker) layout(where string, l contentschema.Layout) {
+	for _, p := range l.Presets {
+		c.ref(where+": presets", "terrainPresets", string(p))
+	}
+	if !slices.ContainsFunc(l.LandingZones, func(z contentschema.LayoutLandingZone) bool { return z.Attacker != nil && *z.Attacker }) {
+		c.fail("%s: no Landing Zone an attacker can land at", where)
+	}
+}
+
 func (c *checker) terrainPreset(where string, p contentschema.TerrainPreset) {
 	c.ref(where+": clear", "terrains", string(p.Clear.Terrain))
 	if p.PointCover != nil {
@@ -562,6 +581,9 @@ func (c *checker) galaxyMap(where string, m contentschema.GalaxyMap) {
 		}
 		planets[p.ID] = true
 		c.ref(where+": planet "+string(p.ID), "planetTypes", string(p.Type))
+		if p.Battlefield != nil && p.Battlefield.Layout != nil {
+			c.ref(where+": planet "+string(p.ID)+": battlefield", "layouts", string(*p.Battlefield.Layout))
+		}
 		if p.Battlefield != nil && p.Battlefield.TerrainPreset != nil {
 			c.ref(where+": planet "+string(p.ID)+": battlefield", "terrainPresets", string(*p.Battlefield.TerrainPreset))
 		}

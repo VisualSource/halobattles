@@ -41,6 +41,7 @@ const (
 	OpBattleLand           Op = 31
 	OpRequestDefenceLayout Op = 32
 	OpSetDefenceLayout     Op = 33
+	OpWatchBattle          Op = 34
 	OpLobbyState           Op = 100
 	OpCommandRejected      Op = 101
 	OpViewFull             Op = 102
@@ -91,6 +92,7 @@ var EnumNamesOp = map[Op]string{
 	OpBattleLand:           "BattleLand",
 	OpRequestDefenceLayout: "RequestDefenceLayout",
 	OpSetDefenceLayout:     "SetDefenceLayout",
+	OpWatchBattle:          "WatchBattle",
 	OpLobbyState:           "LobbyState",
 	OpCommandRejected:      "CommandRejected",
 	OpViewFull:             "ViewFull",
@@ -141,6 +143,7 @@ var EnumValuesOp = map[string]Op{
 	"BattleLand":           OpBattleLand,
 	"RequestDefenceLayout": OpRequestDefenceLayout,
 	"SetDefenceLayout":     OpSetDefenceLayout,
+	"WatchBattle":          OpWatchBattle,
 	"LobbyState":           OpLobbyState,
 	"CommandRejected":      OpCommandRejected,
 	"ViewFull":             OpViewFull,

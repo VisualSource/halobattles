@@ -103,7 +103,7 @@ func TestABattleReplaysFromWhatItKeeps(t *testing.T) {
 	fight(t, s, c)
 
 	r := c.Rulesets[RulesetID]
-	again := battle.New(c, r, battle.Generate(c, r.Battlefield, nil, b.FieldSeed), b.Attack, b.Defend, b.Seed)
+	again := battle.New(c, r, battle.GenerateLayout(c, r.Battlefield, nil, b.FieldSeed, "", ""), b.Attack, b.Defend, b.Seed)
 	again.Controllers = [2]battle.Controller{battle.NewAI(b.Weights[0]), battle.NewAI(b.Weights[1])}
 	again.Setup, again.Builders = b.Sim.Setup, b.Sim.Builders
 	for side, f := range b.Funds {

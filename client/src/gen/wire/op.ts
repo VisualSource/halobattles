@@ -37,6 +37,7 @@ export enum Op {
   BattleLand = 31,
   RequestDefenceLayout = 32,
   SetDefenceLayout = 33,
+  WatchBattle = 34,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,

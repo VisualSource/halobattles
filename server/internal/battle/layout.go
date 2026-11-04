@@ -2,9 +2,7 @@ package battle
 
 import (
 	"cmp"
-	"container/heap"
 	"maps"
-	"math"
 	"math/rand/v2"
 	"slices"
 
@@ -24,22 +22,19 @@ type layout struct {
 	clearH uint8
 	cover  int    // the preset's point cover Terrain, or -1
 	lane   []bool // main lane cells
-	side   []bool // side lane cells
 	zone   []bool // start zones and point areas: kept free of sites and pads
 	fixed  []bool // fixture cells: hand-made, so lanes go round them and leave them as drawn
 	padAt  []bool // fixtures' pads: a lane never runs over one
 }
 
 const (
-	// padReach is how far from its Landing Zone, in cells, a build pad can be.
-	padReach = 8
 	// keepApart is the fewest cells between two sites or pads.
 	keepApart = 3
 )
 
 func newLayout(c *cs.Content, f *Field, pathClass string, clearT, clearH uint8, cover int) *layout {
 	l := &layout{f: f, clearT: clearT, clearH: clearH, cover: cover,
-		lane: make([]bool, f.W*f.H), side: make([]bool, f.W*f.H), zone: make([]bool, f.W*f.H), fixed: make([]bool, f.W*f.H), padAt: make([]bool, f.W*f.H)}
+		lane: make([]bool, f.W*f.H), zone: make([]bool, f.W*f.H), fixed: make([]bool, f.W*f.H), padAt: make([]bool, f.W*f.H)}
 	crosses := func(class string) []bool {
 		ok := make([]bool, len(f.Terrains))
 		for i, id := range f.Terrains {
@@ -107,43 +102,6 @@ func (l *layout) shapePoints(radius int, rng *rand.Rand) {
 	}
 }
 
-// route is the cheapest 4-way path from a to b, by cost per cell entered.
-func (l *layout) route(a, b Cell, cost func(i int) float64) []int {
-	f := l.f
-	n := f.W * f.H
-	g, from := make([]float64, n), make([]int, n)
-	for i := range g {
-		g[i], from[i] = math.Inf(1), -1
-	}
-	start, goal := f.index(a), f.index(b)
-	g[start] = 0
-	open := &cellHeap{{start, 0}}
-	for open.Len() > 0 {
-		cur := heap.Pop(open).(cellCost)
-		if cur.i == goal {
-			break
-		}
-		if cur.cost > g[cur.i] {
-			continue
-		}
-		f.neighbours4(cur.i, func(nb int) {
-			if c := g[cur.i] + cost(nb); c < g[nb] {
-				g[nb], from[nb] = c, cur.i
-				heap.Push(open, cellCost{nb, c})
-			}
-		})
-	}
-	var path []int
-	for i := goal; i >= 0; i = from[i] {
-		path = append(path, i)
-		if i == start {
-			break
-		}
-	}
-	slices.Reverse(path)
-	return path
-}
-
 type cellCost struct {
 	i    int
 	cost float64
@@ -185,101 +143,6 @@ func (l *layout) paint(path []int, width int, mark []bool, fix func(i int)) {
 	}
 }
 
-// mainLanes joins the Control Points with the shortest lanes that link
-// them all (a spanning tree), then closes them into a ring, so guards can
-// go round the points, and joins each attacker start to its nearest point.
-// Each lane is width cells wide, and anything on it a ground Unit Class
-// can't cross is cleared, so vehicles and infantry can reach every point.
-// A lane follows open ground where it can, and an earlier lane where that's
-// cheaper.
-func (l *layout) mainLanes(starts []Cell, area, width int) {
-	f := l.f
-	cost := func(i int) float64 {
-		switch {
-		case l.padAt[i]:
-			return 500
-		case l.fixed[i]:
-			return 50 // round a fixture where there's a way
-		case l.lane[i]:
-			return 0.5
-		case l.all(i):
-			return 1
-		case l.onFoot(i):
-			return 4
-		}
-		return 12
-	}
-	fix := func(i int) {
-		if !l.all(i) {
-			l.clear(i)
-		}
-	}
-	linked := map[[2]int]bool{}
-	// A link keeps off the other points' ground, so it joins its two
-	// directly rather than through a third.
-	link := func(a, b int) {
-		if a == b || linked[[2]int{min(a, b), max(a, b)}] {
-			return
-		}
-		linked[[2]int{min(a, b), max(a, b)}] = true
-		l.paint(l.route(f.Points[a], f.Points[b], func(i int) float64 {
-			for k, p := range f.Points {
-				if k != a && k != b && dist(f.cell(i), p) <= float64(area+width) {
-					return 50
-				}
-			}
-			return cost(i)
-		}), width, l.lane, fix)
-	}
-	joined := []int{0}
-	for len(joined) < len(f.Points) { // Prim's, by straight-line distance
-		bestA, bestB, bestD := -1, -1, math.MaxInt
-		for _, a := range joined {
-			for b := range f.Points {
-				if !slices.Contains(joined, b) && dist2(f.Points[a], f.Points[b]) < bestD {
-					bestA, bestB, bestD = a, b, dist2(f.Points[a], f.Points[b])
-				}
-			}
-		}
-		link(bestA, bestB)
-		joined = append(joined, bestB)
-	}
-	// The ring: the points in turn round their middle, each to the next.
-	if len(f.Points) > 2 {
-		var mx, my float64
-		for _, p := range f.Points {
-			mx, my = mx+float64(p.X), my+float64(p.Y)
-		}
-		mx, my = mx/float64(len(f.Points)), my/float64(len(f.Points))
-		ring := make([]int, len(f.Points))
-		for i := range ring {
-			ring[i] = i
-		}
-		angle := func(i int) float64 { return math.Atan2(float64(f.Points[i].Y)-my, float64(f.Points[i].X)-mx) }
-		slices.SortStableFunc(ring, func(a, b int) int { return cmp.Compare(angle(a), angle(b)) })
-		for k, a := range ring {
-			link(a, ring[(k+1)%len(ring)])
-		}
-	}
-	for _, s := range starts {
-		if len(f.Points) == 0 {
-			break
-		}
-		p := slices.MinFunc(f.Points, func(a, b Cell) int { return cmp.Compare(dist2(s, a), dist2(s, b)) })
-		l.paint(l.route(s, p, cost), width, l.lane, fix)
-	}
-}
-
-// fromStarts is how far each cell is from the nearest attacker start, in
-// straight-line cells.
-func fromStarts(c Cell, starts []Cell) float64 {
-	d := math.Inf(1)
-	for _, s := range starts {
-		d = min(d, dist(c, s))
-	}
-	return d
-}
-
 // reachAll marks the cells every ground Unit Class can reach from the
 // first Control Point.
 func (l *layout) reachAll() []bool {
@@ -310,108 +173,12 @@ func (l *layout) near(c Cell, a, b []Cell) bool {
 	return slices.ContainsFunc(a, close) || slices.ContainsFunc(b, close)
 }
 
-// placePads picks n build pads, dealt round the Control Points in turn:
-// beside a main lane (2 cells off it, clear of every lane), between the
-// point's clear ground and padReach from it, on ground every ground Unit
-// Class can reach, as far from the attacker starts as it can be. Where
-// none fits by its point, it goes by the next point with room.
-func (l *layout) placePads(n, area int, starts, sites []Cell) []Cell {
-	f := l.f
-	if len(f.Points) == 0 {
-		return nil
-	}
-	// Beside a lane: 2 cells off one, with a clear cell between, so a turret
-	// never narrows a lane, main or side.
-	reached := l.reachAll()
-	beside, touching := make([]bool, f.W*f.H), make([]bool, f.W*f.H)
-	for i := range l.lane {
-		if !l.lane[i] && !l.side[i] {
-			continue
-		}
-		c := f.cell(i)
-		for y := c.Y - 2; y <= c.Y+2; y++ {
-			for x := c.X - 2; x <= c.X+2; x++ {
-				if b := (Cell{x, y}); l.in(b) {
-					if l.lane[i] {
-						beside[f.index(b)] = true
-					}
-					if abs(x-c.X) <= 1 && abs(y-c.Y) <= 1 {
-						touching[f.index(b)] = true
-					}
-				}
-			}
-		}
-	}
-	var pads []Cell
-	for k := range n {
-		// Its own point first; where that has no room, the next one that does.
-		best, bestScore, found := Cell{}, math.Inf(-1), false
-		for try := 0; try < len(f.Points) && !found; try++ {
-			p := f.Points[(k+try)%len(f.Points)]
-			for y := p.Y - padReach; y <= p.Y+padReach; y++ {
-				for x := p.X - padReach; x <= p.X+padReach; x++ {
-					c := Cell{x, y}
-					if !l.in(c) {
-						continue
-					}
-					i, d := f.index(c), dist(c, p)
-					if d <= float64(area) || d > padReach || !beside[i] || touching[i] || !reached[i] || l.zone[i] || l.near(c, pads, sites) {
-						continue
-					}
-					if score := fromStarts(c, starts) - 0.25*d; score > bestScore {
-						best, bestScore, found = c, score, true
-					}
-				}
-			}
-		}
-		if found {
-			pads = append(pads, best)
-		}
-	}
-	return pads
-}
-
-// placeSites adds building sites past the base's until there are n, spread
-// over the defender's side of the map: each the reachable cell farthest
-// from the Command Post and every site and pad so far, off the lanes, the
-// Landing Zone areas, the fixtures and the edge strips Retreats leave by.
-// Ties go to the lowest cell index.
-func (l *layout) placeSites(n, edge, margin int, pads []Cell) []Cell {
-	f := l.f
-	reached := l.reachAll()
-	sites := slices.Clone(f.Sites)
-	for len(sites) < n {
-		best, bestD := -1, 0
-		for i := range reached {
-			c := f.cell(i)
-			if c.X < margin || c.Y < margin || c.X >= f.W-margin || c.Y >= f.H-margin {
-				continue
-			}
-			if !reached[i] || l.zone[i] || l.fixed[i] || l.lane[i] || l.side[i] || f.towardBase(c, edge) < 0.35 || l.near(c, pads, sites) || l.besideLane(c) {
-				continue
-			}
-			d := dist2(c, f.CommandPost)
-			for _, s := range sites {
-				d = min(d, dist2(c, s))
-			}
-			if d > bestD {
-				best, bestD = i, d
-			}
-		}
-		if best < 0 {
-			break
-		}
-		sites = append(sites, f.cell(best))
-	}
-	return sites
-}
-
-// besideLane is whether c touches a lane, main or side, so a building
+// besideLane is whether c touches a lane, so a building
 // there would narrow it.
 func (l *layout) besideLane(c Cell) bool {
 	for y := c.Y - 1; y <= c.Y+1; y++ {
 		for x := c.X - 1; x <= c.X+1; x++ {
-			if b := (Cell{x, y}); l.in(b) && (l.lane[l.f.index(b)] || l.side[l.f.index(b)]) {
+			if b := (Cell{x, y}); l.in(b) && l.lane[l.f.index(b)] {
 				return true
 			}
 		}

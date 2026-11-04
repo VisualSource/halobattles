@@ -4,7 +4,7 @@
   "description": "The merged content document the server serves: kind, then id, then definition, with every Patch applied.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["resources", "rulesets", "factions", "units", "buildings", "unitClasses", "weaponTypes", "planetTypes", "maps", "terrains", "terrainPresets", "fixtures", "techs", "soundtracks"],
+  "required": ["resources", "rulesets", "factions", "units", "buildings", "unitClasses", "weaponTypes", "planetTypes", "maps", "terrains", "terrainPresets", "fixtures", "layouts", "techs", "soundtracks"],
   "properties": {
     "resources": { "type": "object", "additionalProperties": { "$ref": "resource.schema.json" } },
     "rulesets": { "type": "object", "additionalProperties": { "$ref": "ruleset.schema.json" } },
@@ -18,6 +18,7 @@
     "terrains": { "type": "object", "additionalProperties": { "$ref": "terrain.schema.json" } },
     "terrainPresets": { "type": "object", "additionalProperties": { "$ref": "terrain-preset.schema.json" } },
     "fixtures": { "type": "object", "additionalProperties": { "$ref": "fixture.schema.json" } },
+    "layouts": { "type": "object", "additionalProperties": { "$ref": "layout.schema.json" } },
     "techs": { "type": "object", "additionalProperties": { "$ref": "tech.schema.json" } },
     "soundtracks": { "type": "object", "additionalProperties": { "$ref": "soundtrack.schema.json" } }
   }

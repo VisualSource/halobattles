@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Layout",
+  "description": "A hand-drawn lane plan a Battlefield is remixed from: where the base, Landing Zones, lanes, pads, building sites and features go, and the water, rock, high ground and cover round them. Every point is a share of the map's width and height, drawn with the attacker's edge at the top (y 0) and the defender's at the bottom (y 1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "base", "landingZones", "lanes"],
+  "definitions": {
+    "point": {
+      "description": "[x, y]: shares of the map's width and height, 0 to 1.",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "points": { "type": "array", "items": { "$ref": "#/definitions/point" } }
+  },
+  "properties": {
+    "$schema": { "type": "string" },
+    "replace": { "description": "Replace an existing definition with this id.", "type": "boolean" },
+    "id": { "$ref": "defs.schema.json#/definitions/id" },
+    "name": { "description": "What the Lab and editors call it.", "type": "string" },
+    "archetypes": {
+      "description": "The Battlefield Archetypes it suits; left out, any.",
+      "type": "array",
+      "items": { "enum": ["open", "river", "ridge", "ruins"] }
+    },
+    "presets": {
+      "description": "The Terrain Presets it suits; left out, any.",
+      "type": "array",
+      "items": { "$ref": "defs.schema.json#/definitions/id" }
+    },
+    "weight": { "description": "How often it's picked among those that suit, against the others' weights. Defaults to 1.", "type": "number", "exclusiveMinimum": 0 },
+    "mirror": { "description": "Whether generation may flip it left to right.", "type": "boolean" },
+    "base": { "description": "Where the base fixture goes: its middle.", "$ref": "#/definitions/point" },
+    "landingZones": {
+      "description": "Its Landing Zones, A first.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "title": "Layout Landing Zone",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["at"],
+        "properties": {
+          "at": { "$ref": "#/definitions/point" },
+          "attacker": { "description": "An attacker can land at it, and holds it from the start.", "type": "boolean" }
+        }
+      }
+    },
+    "lanes": {
+      "description": "Routes units travel, each a line through its points; cleared where a ground Unit Class couldn't cross.",
+      "type": "array",
+      "items": {
+        "title": "Layout Lane",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["points"],
+        "properties": {
+          "points": { "type": "array", "minItems": 2, "items": { "$ref": "#/definitions/point" } },
+          "width": { "description": "In cells; 2 if left out.", "type": "integer", "minimum": 1, "maximum": 6 }
+        }
+      }
+    },
+    "areas": {
+      "description": "Shapes of ground: water (the preset's lowest band), blocked (its top band: cliff or rock), high (the band at height) or cover (its point cover).",
+      "type": "array",
+      "items": {
+        "title": "Layout Area",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "points"],
+        "properties": {
+          "kind": { "enum": ["water", "blocked", "high", "cover"] },
+          "height": { "description": "A high area's height level; 1 if left out.", "type": "integer", "minimum": 1 },
+          "points": { "type": "array", "minItems": 3, "items": { "$ref": "#/definitions/point" } }
+        }
+      }
+    },
+    "pads": { "description": "Build pads.", "$ref": "#/definitions/points" },
+    "sites": { "description": "Building sites, after the base fixture's own.", "$ref": "#/definitions/points" },
+    "features": { "description": "Slots each taking a feature fixture, picked by weight.", "$ref": "#/definitions/points" }
+  }
+}

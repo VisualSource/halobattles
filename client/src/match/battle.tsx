@@ -103,6 +103,9 @@ export function BattlePanel(props: {
     fire: [],
   });
   const fire = shots.id === id ? shots.fire : [];
+  // The server sends positions and fire only for the Battle you have open.
+  const watched = battle?.planet ?? "";
+  useEffect(() => conn.watchBattle(watched), [conn, watched]);
   const [full, setFull] = useState(false);
   const controlSent = useStore(conn.local, (s) =>
     [...s.pending.values()].includes("battleCommand"),
@@ -186,6 +189,26 @@ export function BattlePanel(props: {
         title={<h2 className={windowTitle}>Battle over</h2>}
       >
         <p className="p-4">It has ended.</p>
+      </Floating>
+    );
+  }
+  // Just opened: until the server sends it in full, it's a summary, with no
+  // cells, pads, Landing Zones or tick to draw or count from.
+  if (battle.summary) {
+    return (
+      <Floating
+        label="Battle"
+        start={topCentre}
+        remember="battle"
+        onClose={close}
+        className="w-200"
+        title={
+          <h2 className={windowTitle}>Battle of {planetName(battle.planet)}</h2>
+        }
+      >
+        <p className="text-ink-3 flex h-95 items-center justify-center text-sm">
+          Loading the Battle…
+        </p>
       </Floating>
     );
   }
@@ -582,13 +605,17 @@ function BattlefieldView(props: {
     padMenu.current = props.onPadMenu;
   });
   const side = props.command?.side ?? null;
-  const ready = useStore(conn.store, (s) => !!s.view?.battles.get(id)?.field);
+  // A summary has no cells to draw yet: the scene waits for the Battle in full.
+  const ready = useStore(conn.store, (s) => {
+    const b = s.view?.battles.get(id);
+    return !!b?.field && !b.summary;
+  });
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: ready re-runs it once the Battlefield arrives
   useEffect(() => {
     const view = conn.store.getState().view;
     const battle = view?.battles.get(id);
-    if (!ref.current || !view || !battle?.field) return;
+    if (!ref.current || !view || !battle?.field || battle.summary) return;
     const rules = content.rules.battle;
     const statsOf = (unit: string) =>
       content.units.get(unit)?.combat ?? content.buildings.get(unit)?.combat;
@@ -620,7 +647,8 @@ function BattlefieldView(props: {
     scene.update(battle);
     const unsubscribe = conn.store.subscribe((s, prev) => {
       const next = s.view?.battles.get(id);
-      if (next && next !== prev.view?.battles.get(id)) scene.update(next);
+      if (next && !next.summary && next !== prev.view?.battles.get(id))
+        scene.update(next);
     });
     const onTick = (e: Event) => {
       const t = (e as CustomEvent<TickEvent>).detail;
@@ -1010,7 +1038,7 @@ function Report(props: {
       tools={
         <span className="mr-2 font-mono">
           <span className={label}>Lasted </span>
-          {clock(fighting(content, r.ticks) / BATTLE_TICKS)}
+          {clock(Math.max(0, (r.endedAt ?? now) - r.started) / 1000)}
         </span>
       }
     >

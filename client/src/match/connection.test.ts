@@ -763,6 +763,8 @@ describe("MatchConnection", () => {
       defender: null,
       started: 3000,
       tick: 10,
+      summary: false,
+      damage: { attacker: 0, defender: 0 },
       edge: 2,
       field: {
         width: 2,
@@ -977,7 +979,16 @@ describe("MatchConnection", () => {
           null,
           [],
           [],
-          [new BattleViewT(5, "c", 0, -1, 0n, 1, 0, null, squads)],
+          [
+            // The server counts the damage: it sees fire you may not be sent.
+            Object.assign(
+              new BattleViewT(5, "c", 0, -1, 0n, 1, 0, null, squads),
+              {
+                attackerDamage: 90,
+                defenderDamage: 9,
+              },
+            ),
+          ],
           [],
         ),
       ),
@@ -1006,7 +1017,7 @@ describe("MatchConnection", () => {
       planet: "c",
       attacker: 0,
       defender: null,
-      ticks: 10,
+      started: 0,
       damage: { attacker: 90, defender: 9 },
       winner: 0,
       endedAt: 2000,
@@ -1032,7 +1043,7 @@ describe("MatchConnection", () => {
     send(Op.BattleEnded, pack(new BattleEndedT(12000n, 5, "c", 0)));
 
     const r = conn.local.getState().reports.get(5);
-    expect(r).toMatchObject({ ticks: 15, winner: 0 });
+    expect(r).toMatchObject({ started: 0, winner: 0 });
     expect(r?.squads.get(1)).toMatchObject({ count: 4, start: 10 });
   });
 

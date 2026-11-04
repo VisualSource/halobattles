@@ -59,13 +59,7 @@
     "height": 48,
     "terrainPreset": "temperate",
     "pathClass": "infantry",
-    "controlPoints": 3,
-    "controlPointSpacing": 10,
     "deployDepth": 4,
-    "buildPads": 4,
-    // The base's sites plus more spread over the defender's side, for its defence layout.
-    "buildingSites": 10,
-    "laneWidth": 2,
     "pointArea": 3
   },
   "battle": {

@@ -578,3 +578,21 @@ func TestFireGoesForWhatFiresBackFirst(t *testing.T) {
 		t.Errorf("the Marines fire at %s; want an armed enemy before the unarmed %s", got.Unit, hall.Unit)
 	}
 }
+
+// openField is a plain Battlefield for sim and AI tests, so they don't hang
+// on what a seed's generated map holds: open ground everywhere, the
+// defender's Command Post at the bottom middle with its unit starts and
+// sites round it, three Landing Zones (the first in the middle; the attacker
+// lands at the second, up and left of it), and two pads in the middle.
+func openField(w, h int) *Field {
+	f := &Field{W: w, H: h, Terrains: []string{"base:open"}, Terrain: make([]uint8, w*h), Height: make([]uint8, w*h)}
+	post := Cell{w / 2, h - 6}
+	f.CommandPost = post
+	f.UnitStarts = []Cell{post.add(Cell{-4, -3}), post.add(Cell{4, -3}), post.add(Cell{0, -5})}
+	f.Sites = []Cell{post.add(Cell{-3, 0}), post.add(Cell{3, 0}), post.add(Cell{-3, 2}), post.add(Cell{3, 2})}
+	// The attacker's well in from the edges, so a Retreat from it takes a while.
+	f.Points = []Cell{{w / 2, h / 2}, {w * 3 / 10, h * 2 / 5}, {w * 7 / 10, h * 3 / 10}}
+	f.Starts = f.Points[1:2]
+	f.Pads = []Cell{{w/2 - 6, h/2 + 4}, {w/2 + 6, h/2 + 4}}
+	return f
+}

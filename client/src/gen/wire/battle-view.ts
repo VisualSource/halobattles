@@ -146,8 +146,23 @@ dropsLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+summary():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 46);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
+attackerDamage():number {
+  const offset = this.bb!.__offset(this.bb_pos, 48);
+  return offset ? this.bb!.readFloat32(this.bb_pos + offset) : 0.0;
+}
+
+defenderDamage():number {
+  const offset = this.bb!.__offset(this.bb_pos, 50);
+  return offset ? this.bb!.readFloat32(this.bb_pos + offset) : 0.0;
+}
+
 static startBattleView(builder:flatbuffers.Builder) {
-  builder.startObject(21);
+  builder.startObject(24);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -274,6 +289,18 @@ static startDropsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addSummary(builder:flatbuffers.Builder, summary:boolean) {
+  builder.addFieldInt8(21, +summary, +false);
+}
+
+static addAttackerDamage(builder:flatbuffers.Builder, attackerDamage:number) {
+  builder.addFieldFloat32(22, attackerDamage, 0.0);
+}
+
+static addDefenderDamage(builder:flatbuffers.Builder, defenderDamage:number) {
+  builder.addFieldFloat32(23, defenderDamage, 0.0);
+}
+
 static endBattleView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -300,7 +327,10 @@ unpack(): BattleViewT {
     this.buildingsLeft(),
     this.buildings(),
     this.commanded(),
-    this.bb!.createObjList<BattleDrop, BattleDropT>(this.drops.bind(this), this.dropsLength())
+    this.bb!.createObjList<BattleDrop, BattleDropT>(this.drops.bind(this), this.dropsLength()),
+    this.summary(),
+    this.attackerDamage(),
+    this.defenderDamage()
   );
 }
 
@@ -325,6 +355,9 @@ unpackTo(_o: BattleViewT): void {
   _o.buildings = this.buildings();
   _o.commanded = this.commanded();
   _o.drops = this.bb!.createObjList<BattleDrop, BattleDropT>(this.drops.bind(this), this.dropsLength());
+  _o.summary = this.summary();
+  _o.attackerDamage = this.attackerDamage();
+  _o.defenderDamage = this.defenderDamage();
 }
 }
 
@@ -348,7 +381,10 @@ constructor(
   public buildingsLeft: number = 0,
   public buildings: number = 0,
   public commanded: boolean = false,
-  public drops: (BattleDropT)[] = []
+  public drops: (BattleDropT)[] = [],
+  public summary: boolean = false,
+  public attackerDamage: number = 0.0,
+  public defenderDamage: number = 0.0
 ){}
 
 
@@ -380,6 +416,9 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   BattleView.addBuildings(builder, this.buildings);
   BattleView.addCommanded(builder, this.commanded);
   BattleView.addDrops(builder, drops);
+  BattleView.addSummary(builder, this.summary);
+  BattleView.addAttackerDamage(builder, this.attackerDamage);
+  BattleView.addDefenderDamage(builder, this.defenderDamage);
 
   return BattleView.endBattleView(builder);
 }

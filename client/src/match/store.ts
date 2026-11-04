@@ -189,8 +189,8 @@ export type Battle = {
   planet: string;
   attacker: number;
   defender: number | null; // null is neutral
-  started: number; // Match Time of tick 0
-  tick: number;
+  started: number; // Match Time of the first fighting tick
+  tick: number; // 0 in a summary
   edge: number; // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
   field: Battlefield | null; // null until it arrives
   squads: Squad[]; // your own, and enemies in Sight
@@ -203,6 +203,13 @@ export type Battle = {
   buildings: number; // and at the start
   commanded: boolean; // your side is yours to command: no AI runs it
   drops: Drop[]; // your side's Dropships
+  /**
+   * A Battle you don't have open: squads are what the report needs (every
+   * one your side has seen, the dead too, with no cell or layers); no pads,
+   * Landing Zones or tick.
+   */
+  summary: boolean;
+  damage: { attacker: number; defender: number }; // dealt by each side, in the fire your side could see
 };
 
 /** The public part of every player. */
@@ -383,14 +390,12 @@ export type BattleReport = {
   attacker: number;
   defender: number | null;
   squads: Map<number, Squad>;
-  ticks: number; // sim ticks run so far
+  started: number; // Match Time of the first fighting tick
   damage: { attacker: number; defender: number }; // dealt by each side
   winner?: number | null; // set when it ends; null is neutral
   endedAt?: number; // Match Time
   raid?: { left: number; of: number }; // a Raid's buildings, as last seen
 };
-
-const other = (s: Side): Side => (s === "attacker" ? "defender" : "attacker");
 
 /** A report brought up to date with the Battle as the View has it now. */
 export function reportView(
@@ -404,30 +409,27 @@ export function reportView(
     planet: b.planet,
     attacker: b.attacker,
     defender: b.defender,
-    damage: { attacker: 0, defender: 0 },
     ...r,
     squads,
-    ticks: Math.max(r?.ticks ?? 0, b.tick),
+    started: b.started,
+    damage: b.damage, // the server's count: it sees the fire while the Battle isn't open
     raid: b.raid ? { left: b.buildingsLeft, of: b.buildings } : undefined,
   };
 }
 
-/** A report after a tick's volleys: damage to the side firing, kills off. */
+/** A report after a tick's volleys: kills off, for squads that die out of the next view. */
 export function reportVolleys(
   r: BattleReport,
-  tick: number,
   volleys: Volley[],
 ): BattleReport {
   const squads = new Map(r.squads);
-  const damage = { ...r.damage };
   for (const v of volleys) {
     const target = squads.get(v.target);
     if (!target) continue;
-    damage[other(target.side)] += v.shieldDmg + v.armorDmg + v.hpDmg;
     squads.set(v.target, {
       ...target,
       count: Math.max(0, target.count - v.kills),
     });
   }
-  return { ...r, squads, damage, ticks: Math.max(r.ticks, tick) };
+  return { ...r, squads };
 }
