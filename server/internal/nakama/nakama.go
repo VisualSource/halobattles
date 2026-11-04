@@ -42,7 +42,20 @@ func Init(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.Nak
 	}); err != nil {
 		return err
 	}
-	return initializer.RegisterRpc("create_match", safeRPC(createMatch))
+	if err := initializer.RegisterRpc("create_match", safeRPC(createMatch)); err != nil {
+		return err
+	}
+	if !devMode() {
+		return nil
+	}
+	// The Battle Lab: dev only, never on a production server.
+	logger.Warn("HALO_DEV=1: the Battle Lab is on")
+	if err := initializer.RegisterMatch(labModule, func(context.Context, runtime.Logger, *sql.DB, runtime.NakamaModule) (runtime.Match, error) {
+		return safeMatch{&labMatch{content: c}}, nil
+	}); err != nil {
+		return err
+	}
+	return initializer.RegisterRpc("lab_create", safeRPC(createLab))
 }
 
 // findMods finds each Mod in names (comma-separated) on path: folders

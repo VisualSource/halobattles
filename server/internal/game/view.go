@@ -108,17 +108,20 @@ type ArmyView struct {
 	Destination string   // own only
 	ToStack     int      // own only
 	Path        []string // own only: the Planets after To, in order
+	Raid        bool     // own only: nobody else sees a Raid at all
 }
 
 // BattleView is a Battle the viewer is a side of, as their side sees it.
 // Others see only the Planet's Locked flag.
 type BattleView struct {
-	ID       uint32
-	Planet   string
-	Attacker int
-	Defender int
-	Started  int64
-	Field    *battle.Field // the same for the whole Battle
+	ID        uint32
+	Planet    string
+	Attacker  int
+	Defender  int
+	Started   int64
+	Raid      bool
+	Commanded bool          // the viewer's side is theirs to command: no AI runs it
+	Field     *battle.Field // the same for the whole Battle
 	battle.Snapshot
 }
 
@@ -234,7 +237,8 @@ func (s *State) view(c *cs.Content, seat int) View {
 	for _, id := range slices.Sorted(maps.Keys(s.Armies)) {
 		a := s.Armies[id]
 		ours := s.Allied(a.Owner, seat) // the viewer's or a Teammate's
-		if !all && !ours && !visible[a.To] && (a.Waiting || !visible[a.From]) {
+		if !all && !ours && !visible[a.To] && (a.Waiting || !visible[a.From]) ||
+			a.Raid && !all && a.Owner != seat { // hidden even from Teammates, until detection (#101)
 			continue
 		}
 		av := ArmyView{
@@ -242,7 +246,7 @@ func (s *State) view(c *cs.Content, seat int) View {
 			Departed: a.Departed, Arrives: a.Arrives, Waiting: a.Waiting,
 		}
 		if ours || all { // a Spectator sees where every Army is going
-			av.Destination, av.ToStack, av.Path = a.destination(), a.ToStack, slices.Clone(a.Path)
+			av.Destination, av.ToStack, av.Path, av.Raid = a.destination(), a.ToStack, slices.Clone(a.Path), a.Raid
 		}
 		v.Armies = append(v.Armies, av)
 	}
@@ -262,11 +266,11 @@ func (s *State) view(c *cs.Content, seat int) View {
 
 // view is the Battle as side sees it; NoSide is a Spectator's, both sides.
 func (b *Battle) view(side battle.Side) BattleView {
-	bv := BattleView{ID: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender, Started: b.Started, Field: b.Sim.Field}
+	bv := BattleView{ID: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender, Started: b.Started, Field: b.Sim.Field, Raid: b.Sim.Raid}
 	if side == battle.NoSide {
 		bv.Snapshot = b.Sim.SnapshotAll()
 	} else {
-		bv.Snapshot = b.Sim.Snapshot(side)
+		bv.Snapshot, bv.Commanded = b.Sim.Snapshot(side), b.commanded(side)
 	}
 	return bv
 }

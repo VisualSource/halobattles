@@ -266,16 +266,16 @@ func TestHostileArmiesPassOnALane(t *testing.T) {
 		t.Fatalf("%d Armies and %d Battles mid-Lane, want both Armies and no Battle", len(s.Armies), len(s.Battles))
 	}
 
-	// Each found the other's Planet empty: a Battle with no defenders.
+	// Each found the other's Planet empty, with no buildings: taken with no Battle.
 	ev := s.Advance(c, 30_000)
 	got := []string{}
-	for _, e := range ev.Ended {
-		got = append(got, e.Planet)
+	for _, x := range ev.Captures {
+		got = append(got, x.Planet)
 	}
 	slices.Sort(got)
-	if !slices.Equal(got, []string{"c", "d"}) || s.Planets["c"].Owner != 1 || s.Planets["d"].Owner != 0 {
-		t.Errorf("Battles ended at %v; c is Seat %d's, d is Seat %d's; want a Battle at each end and the Planets swapped",
-			got, s.Planets["c"].Owner, s.Planets["d"].Owner)
+	if !slices.Equal(got, []string{"c", "d"}) || len(s.Battles) != 0 || s.Planets["c"].Owner != 1 || s.Planets["d"].Owner != 0 {
+		t.Errorf("captured %v, %d Battles; c is Seat %d's, d is Seat %d's; want both taken at once and the Planets swapped",
+			got, len(s.Battles), s.Planets["c"].Owner, s.Planets["d"].Owner)
 	}
 }
 
@@ -357,5 +357,20 @@ func TestRetreatingArmiesSightNothing(t *testing.T) {
 	s.Advance(c, 30_000) // through c on the way home
 	if s.sees(0, "c") {
 		t.Error("a Retreating Army sighted c")
+	}
+}
+
+// An enemy Planet with a building but no units still has a defence: a Battle.
+func TestAnEnemyPlanetWithOnlyBuildingsIsFoughtFor(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	d := s.Planets["d"]
+	d.Owner, d.Stacks = 1, [StacksPerPlanet]Stack{}
+	d.Buildings[0] = "base:barracks"
+	s.Planets["c"].Owner = 0
+	s.Planets["c"].Stacks[0] = Stack{{Unit: "base:marine", Count: 3}}
+	_ = s.OrderArmy(0, "c", marines(3), "d", 0)
+	s.Advance(c, 30_000)
+	if len(s.Battles) != 1 || d.Owner != 1 {
+		t.Errorf("%d Battles, d is Seat %d's; want a Battle for it", len(s.Battles), d.Owner)
 	}
 }

@@ -3,7 +3,7 @@ package battle
 import (
 	"cmp"
 	"fmt"
-	"math"
+	"maps"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -12,7 +12,19 @@ import (
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
+// baseContent is the base Mod with one squad per Unit Slot, as the tests of
+// everything but squadSize were written for; modContent is it as shipped.
 func baseContent(t testing.TB) *cs.Content {
+	t.Helper()
+	c := modContent(t)
+	for id, uc := range c.UnitClasses {
+		uc.SquadSize = nil
+		c.UnitClasses[id] = uc
+	}
+	return c
+}
+
+func modContent(t testing.TB) *cs.Content {
 	t.Helper()
 	c, err := content.Load([]string{filepath.Join("..", "..", "..", "mods", "base")})
 	if err != nil {
@@ -78,18 +90,23 @@ func TestGenerateConnectsPointsAndEveryEdge(t *testing.T) {
 	}
 }
 
-func TestPointsAreSpacedInTheMiddle(t *testing.T) {
+// Landing Zones keep their spacing and clear of the base, and at least one
+// is in the far half, for the attacker to land at.
+func TestLandingZonesAreSpacedAndClearOfTheBase(t *testing.T) {
 	c := baseContent(t)
 	r := rules(c)
 	for seed := range uint64(20) {
 		f := Generate(c, r, nil, seed)
+		if len(f.Points) != r.ControlPoints || len(f.Starts) == 0 {
+			t.Fatalf("seed %d: %d Landing Zones, %d starts", seed, len(f.Points), len(f.Starts))
+		}
 		for i, p := range f.Points {
-			if p.X < f.W/4 || p.X >= f.W*3/4 || p.Y < f.H/4 || p.Y >= f.H*3/4 {
-				t.Errorf("seed %d: point %v outside the middle", seed, p)
+			if dist(p, f.CommandPost) < baseClearance {
+				t.Errorf("seed %d: Landing Zone %v %.0f cells from the Command Post", seed, p, dist(p, f.CommandPost))
 			}
 			for _, q := range f.Points[:i] {
 				if dist2(p, q) < r.ControlPointSpacing*r.ControlPointSpacing {
-					t.Errorf("seed %d: points %v and %v closer than %d", seed, p, q, r.ControlPointSpacing)
+					t.Errorf("seed %d: Landing Zones %v and %v closer than %d", seed, p, q, r.ControlPointSpacing)
 				}
 			}
 		}
@@ -98,7 +115,8 @@ func TestPointsAreSpacedInTheMiddle(t *testing.T) {
 
 func TestBandsTakeTheirShareOfTheMap(t *testing.T) {
 	c := baseContent(t)
-	f := Generate(c, rules(c), nil, 3)
+	ar := cs.GalaxyMapPlanetsElemBattlefieldArchetype(Open) // an open field keeps the preset's shares
+	f := Generate(c, rules(c), &cs.PlanetBattlefield{Archetype: &ar}, 3)
 	water, _ := slices.BinarySearch(f.Terrains, "base:water")
 	n := 0
 	for _, t := range f.Terrain {
@@ -106,8 +124,9 @@ func TestBandsTakeTheirShareOfTheMap(t *testing.T) {
 			n++
 		}
 	}
-	// Temperate is 12% water; carving a path to an edge can only lower it.
-	if share := float64(n) / float64(len(f.Terrain)); share > 0.12 || share < 0.08 {
+	// Temperate is 12% water; carving and the base can only lower it, and a
+	// bridge's stream raise it a little.
+	if share := float64(n) / float64(len(f.Terrain)); share > 0.13 || share < 0.08 {
 		t.Errorf("water share %.3f, want about 0.12", share)
 	}
 }
@@ -119,7 +138,7 @@ func TestPlanetOverridesSizeAndPreset(t *testing.T) {
 	if f.W != 40 || f.H != 30 || len(f.Terrain) != 1200 {
 		t.Errorf("size %dx%d, %d cells", f.W, f.H, len(f.Terrain))
 	}
-	if !slices.Contains(f.Terrains, "base:ice") || slices.Contains(f.Terrains, "base:water") {
+	if !slices.Contains(f.Terrains, "base:ice") || !slices.Contains(f.Terrains, "base:snow") {
 		t.Errorf("terrains %v, want the ice preset's", f.Terrains)
 	}
 }
@@ -151,98 +170,87 @@ func eachField(t *testing.T, fn func(name string, f *Field)) {
 	}
 }
 
-func TestEveryGroundClassCanReachEveryPointAndStart(t *testing.T) {
+func TestEveryGroundClassCanReachEveryPointStartAndTheBase(t *testing.T) {
 	c := baseContent(t)
 	eachField(t, func(name string, f *Field) {
 		for _, class := range []string{"base:infantry", "base:vehicle"} {
 			seen := reachable(c, f, class, f.Points[0])
-			for _, at := range append(slices.Clone(f.Points), f.Starts...) {
-				if !seen[f.index(at)] {
-					t.Errorf("%s: %s can't reach %v\n%s", name, class, at, f)
+			at := append(append(slices.Clone(f.Points), f.Starts...), f.CommandPost)
+			if class == "base:infantry" {
+				at = append(append(at, f.Sites...), f.UnitStarts...)
+			}
+			for _, a := range at {
+				if !seen[f.index(a)] {
+					t.Errorf("%s: %s can't reach %v\n%s", name, class, a, f)
 				}
 			}
 		}
 	})
 }
 
-func TestStartsAreOnTheEdgesAndApart(t *testing.T) {
-	c := baseContent(t)
-	want := *rules(c).AttackerStarts
+// The attacker may land at the Landing Zones in the farther half from the
+// base, never the nearest.
+func TestTheAttackerLandsAtTheLandingZonesFarthestFromTheBase(t *testing.T) {
 	eachField(t, func(name string, f *Field) {
-		if len(f.Starts) != want {
-			t.Fatalf("%s: %d starts, want %d", name, len(f.Starts), want)
+		if len(f.Starts) != (len(f.Points)+1)/2 {
+			t.Fatalf("%s: %d starts of %d Landing Zones", name, len(f.Starts), len(f.Points))
 		}
-		for i, s := range f.Starts {
-			if s.X != 0 && s.Y != 0 && s.X != f.W-1 && s.Y != f.H-1 {
-				t.Errorf("%s: start %v isn't on an edge", name, s)
+		nearest := slices.MinFunc(f.Points, func(a, b Cell) int { return cmp.Compare(dist2(a, f.CommandPost), dist2(b, f.CommandPost)) })
+		for _, s := range f.Starts {
+			if !slices.Contains(f.Points, s) {
+				t.Errorf("%s: start %v isn't a Landing Zone", name, s)
 			}
-			for _, o := range f.Starts[:i] {
-				if dist(s, o) < 20 {
-					t.Errorf("%s: starts %v and %v only %.0f cells apart", name, s, o, dist(s, o))
+			if len(f.Points) > 1 && s == nearest {
+				t.Errorf("%s: the attacker can land at %v, the Landing Zone nearest the base", name, s)
+			}
+		}
+	})
+}
+
+// The base holds the Command Post, its building sites and unit starts round
+// it; the rest of the sites are spread over the defender's side, apart.
+func TestTheBaseHoldsItsSitesAndUnitStarts(t *testing.T) {
+	c := baseContent(t)
+	want, margin := rules(c).BuildingSites, rules(c).DeployDepth+1
+	eachField(t, func(name string, f *Field) {
+		if len(f.Sites) < want || len(f.UnitStarts) < 3 {
+			t.Errorf("%s: %d sites, %d unit starts; want %d and 3", name, len(f.Sites), len(f.UnitStarts), want)
+		}
+		for i, x := range f.Sites[4:] {
+			if x.X < margin || x.Y < margin || x.X >= f.W-margin || x.Y >= f.H-margin {
+				t.Errorf("%s: site %v is in an edge strip", name, x)
+			}
+			for _, y := range f.Sites[:4+i] {
+				if dist2(x, y) < keepApart*keepApart {
+					t.Errorf("%s: sites %v and %v are too close", name, x, y)
 				}
 			}
 		}
-	})
-}
-
-func TestSitesStandByTheirPointsOnGroundInfantryCanReach(t *testing.T) {
-	c := baseContent(t)
-	eachField(t, func(name string, f *Field) {
-		if len(f.Sites) != sitesPerPoint*len(f.Points) {
-			t.Errorf("%s: %d sites, want %d", name, len(f.Sites), sitesPerPoint*len(f.Points))
-		}
-		seen := reachable(c, f, "base:infantry", f.Points[0])
-		for k, s := range f.Sites {
-			if p := f.Points[k%len(f.Points)]; dist(s, p) > siteReach {
-				t.Errorf("%s: site %v is %.0f cells from its point %v", name, s, dist(s, p), p)
-			}
-			if !seen[f.index(s)] {
-				t.Errorf("%s: site %v can't be walked to", name, s)
+		for _, x := range append(slices.Clone(f.Sites[:4]), f.UnitStarts...) {
+			if dist(x, f.CommandPost) > 10 {
+				t.Errorf("%s: %v is %.0f cells from the Command Post: outside its base", name, x, dist(x, f.CommandPost))
 			}
 		}
 	})
 }
 
-func TestPadsSitBesideALaneByAPointAwayFromTheStarts(t *testing.T) {
+func TestPadsAreOnGroundVehiclesReachAndOffTheLanes(t *testing.T) {
 	c := baseContent(t)
 	r := rules(c)
-	away, total := 0, 0
 	eachField(t, func(name string, f *Field) {
 		if len(f.Pads) != r.BuildPads {
 			t.Errorf("%s: %d pads, want %d", name, len(f.Pads), r.BuildPads)
 		}
 		vehicles := reachable(c, f, "base:vehicle", f.Points[0])
 		for _, pad := range f.Pads {
-			p := slices.MinFunc(f.Points, func(a, b Cell) int { return cmp.Compare(dist2(pad, a), dist2(pad, b)) })
-			if dist(pad, p) > padReach {
-				t.Errorf("%s: pad %v is %.0f cells from the nearest point %v", name, pad, dist(pad, p), p)
-			}
-			beside := false
-			for i, on := range f.lane {
-				beside = beside || on && dist(f.cell(i), pad) <= 2*math.Sqrt2
-			}
-			if !beside {
-				t.Errorf("%s: pad %v isn't beside a lane", name, pad)
-			}
-			for y := pad.Y - 1; y <= pad.Y+1; y++ {
-				for x := pad.X - 1; x <= pad.X+1; x++ {
-					if c := (Cell{x, y}); c.X >= 0 && c.Y >= 0 && c.X < f.W && c.Y < f.H && (f.lane[f.index(c)] || f.side[f.index(c)]) {
-						t.Errorf("%s: pad %v on or touching a lane at %v", name, pad, c)
-					}
-				}
+			if f.lane[f.index(pad)] {
+				t.Errorf("%s: pad %v on a lane", name, pad)
 			}
 			if !vehicles[f.index(pad)] {
 				t.Errorf("%s: pad %v isn't on ground vehicles reach", name, pad)
 			}
-			total++
-			if fromStarts(pad, f.Starts) > fromStarts(p, f.Starts) {
-				away++
-			}
 		}
 	})
-	if away*4 < total*3 {
-		t.Errorf("%d of %d pads are further from the attacker starts than their point; want most", away, total)
-	}
 }
 
 func TestThePointsAreJoinedInARingOfLanes(t *testing.T) {
@@ -277,4 +285,40 @@ func TestThePointsAreJoinedInARingOfLanes(t *testing.T) {
 			}
 		}
 	})
+}
+
+// Over many seeds, every archetype, preset and Faction's base: each place an
+// attacker lands reaches every Landing Zone and the Command Post, on foot
+// and by vehicle, and the base is always there.
+func TestEveryArchetypeKeepsTheBattlefieldPlayable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("hundreds of Battlefields")
+	}
+	c := modContent(t)
+	r := rules(c)
+	for _, a := range []string{Open, River, Ridge, Ruins} {
+		for _, preset := range slices.Sorted(maps.Keys(c.TerrainPresets)) {
+			for _, faction := range []string{"", "base:unsc", "base:covenant"} {
+				for seed := range uint64(15) {
+					ar, p := cs.GalaxyMapPlanetsElemBattlefieldArchetype(a), cs.ID(preset)
+					f := GenerateFor(c, r, &cs.PlanetBattlefield{Archetype: &ar, TerrainPreset: &p}, seed, faction)
+					name := fmt.Sprintf("%s %s %q seed %d", a, preset, faction, seed)
+					if f.Archetype != a || len(f.Starts) == 0 || len(f.UnitStarts) == 0 {
+						t.Errorf("%s: archetype %s, %d starts, %d unit starts", name, f.Archetype, len(f.Starts), len(f.UnitStarts))
+						continue
+					}
+					for _, class := range []string{"base:infantry", "base:vehicle"} {
+						for _, s := range f.Starts {
+							seen := reachable(c, f, class, s)
+							for _, to := range append(slices.Clone(f.Points), f.CommandPost) {
+								if !seen[f.index(to)] {
+									t.Errorf("%s: %s can't get from %v to %v\n%s", name, class, s, to, f)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }

@@ -75,6 +75,7 @@ The full rules and numbers are in the [economy spec](economy-spec.md) (Economy v
 - **Neutral Planets** start with a garrison set in map data, which may be empty.
   - An empty neutral Planet is captured on arrival, with no Battle.
   - A garrisoned one starts a Battle against the neutral side, which has no AI.
+- **An enemy Planet with nothing on it**, no units in its Stacks and no buildings, is captured on arrival with no Battle. A unit or a building there is a defence: it's fought for.
 
 ## Battles
 
@@ -177,16 +178,18 @@ Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and �
 | ODST | UNSC | Inf | Explosive | 0/2/19 | 2d6 | D/A/N/A | 100C 25M | 10C | 25s | 2 | Barracks |
 | Warthog | UNSC | Veh | Kinetic | 0/12/25 | 2d4 | A/D/N/D | 150C 50M 15A | 15C 1A | 30s | 3 | Vehicle Depot |
 | Scorpion | UNSC | Veh | Explosive | 0/38/38 | 4d6+1 | N/A/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Vehicle Depot |
+| M9 Wolverine | UNSC | Veh | Explosive | 0/25/30 | 3d6 | D/D/A/D | 200C 80M 25A | 20C 2A | 40s | 3 | Vehicle Depot |
 | Hornet | UNSC | Air | Kinetic | 0/12/25 | 1d12 | N/A/A/N | 300C 150M 40A | 30C 2A | 50s | 5 | Air Pad |
 | Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | A/D/D/D | 50C | 5C | 15s | 1 | Hall |
 | Elite | Covenant | Inf | Explosive | 10/0/10 | 2d6 | D/A/N/A | 100C 25M | 10C | 25s | 2 | Hall |
 | Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | A/D/N/D | 150C 50M 15A | 15C 1A | 30s | 3 | Summoning Foundry |
 | Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | N/A/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Summoning Foundry |
+| AA Wraith | Covenant | Veh | Plasma | 12/12/24 | 3d6 | D/D/A/D | 200C 80M 25A | 20C 2A | 40s | 3 | Summoning Foundry |
 | Banshee | Covenant | Air | Plasma | 13/5/20 | 1d12 | N/A/A/N | 300C 150M 40A | 30C 2A | 50s | 5 | Summit |
 
 ### Buildings
 
-Thirteen mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundry / Forge and Depot / Reliquary are from Economy v2; the last five rows are from the [tech spec](tech-spec.md#base-mod-buildings). The Vehicle Depot, Air Pad, Turret, Foundry and Depot (and their Covenant mirrors) each need a Tech before they can be built ([Base Mod Techs](tech-spec.md#base-mod-techs)).
+Fourteen mirrored buildings per Faction. Every `commandPointBonus` is 0. The Foundry / Forge and Depot / Reliquary are from Economy v2; the last five rows are from the [tech spec](tech-spec.md#base-mod-buildings). The Vehicle Depot, Air Pad, Turret, AA Turret, Foundry and Depot (and their Covenant mirrors) each need a Tech before they can be built ([Base Mod Techs](tech-spec.md#base-mod-techs)).
 
 | UNSC / Covenant | Cost | Time | Upkeep | Yield | Role |
 |---|---|---|---|---|---|
@@ -198,13 +201,14 @@ Thirteen mirrored buildings per Faction. Every `commandPointBonus` is 0. The Fou
 | Foundry / Forge | 250C 100M | 45s | 10C | refines 40M into 20A | Alloys |
 | Depot / Reliquary | 150C | 30s | 0 | +1500C +750M +250A of Stockpile caps | storage |
 | Turret / Plasma Turret | 200C 50M 20A | 30s | 10C | none | armed Structure |
+| AA Turret / AA Plasma Turret | 250C 75M 30A | 30s | 10C | none | armed Structure, fires only on aircraft; can shoot down Dropships |
 | Research Lab / Sanctum | 250C 100M | 45s | 15C | none | a Lab: holds 3 Techs |
 | Proving Grounds / Armory | 200C 50M | 30s | 10C | +2 Military Research | research |
 | ONI Station / Seminary | 200C 50M | 30s | 10C | +2 Industry Research | research |
 | Fleet Command / Ministry of Tranquility | 200C 50M | 30s | 10C | +2 Logistics Research | research |
 | Forerunner Dig Site / Relic Shrine | 400C 200M 50A | 60s | 20C | none | needed for the Faction's Legendary Tech |
 
-Both Turrets have a Damage roll of 2d4, have `advantage` against Infantry, and are `normal` against Vehicles and Aircraft.
+The Turret and Plasma Turret have a Damage roll of 2d4, have `advantage` against Infantry, and are `normal` against Vehicles and Aircraft. Their AA versions have the same Weapon Type and Sh/Ar/HP, with a Damage roll of 2d6, `advantage` against Aircraft, and can't hit anything else.
 
 - **Turret (UNSC):** Kinetic, Sh/Ar/HP 0/25/38.
 - **Plasma Turret (Covenant):** Plasma, Sh/Ar/HP 19/6/38.

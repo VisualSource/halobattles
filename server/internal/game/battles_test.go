@@ -37,8 +37,8 @@ func TestArrivingAtAGarrisonedPlanetStartsABattle(t *testing.T) {
 	if len(ev.Started) != 1 || b.Sim.Tick != 0 {
 		t.Errorf("events: %d started, sim at tick %d; want the Battle, not yet stepped", len(ev.Started), b.Sim.Tick)
 	}
-	if b.Sim.Field != s.Fields["b"] || len(b.Sim.Squads) != 2 {
-		t.Errorf("want b's cached Battlefield and 2 squads, got %d squads", len(b.Sim.Squads))
+	if b.Sim.Field != s.Fields["b|"] || len(b.Sim.Squads) != 3 {
+		t.Errorf("want b's cached Battlefield and 3 squads (the Command Post too), got %d", len(b.Sim.Squads))
 	}
 	if used, _ := s.commandPoints(c, 0); used != 16 {
 		t.Errorf("Command Points used = %d, want 16: attackers count until the Battle ends", used)
@@ -70,7 +70,7 @@ func TestTheStartDelayIsTheSetupThenTheSimStepsOncePerTick(t *testing.T) {
 
 func TestEachPlanetKeepsItsBattlefield(t *testing.T) {
 	s, c := fixedMatch(t), lineContent()
-	if s.field(c, "b") != s.field(c, "b") || s.field(c, "b").String() == s.field(c, "d").String() {
+	if s.field(c, "b", "") != s.field(c, "b", "") || s.field(c, "b", "").String() == s.field(c, "d", "").String() {
 		t.Error("want one Battlefield per Planet, cached, and different Planets different")
 	}
 }
@@ -448,5 +448,27 @@ func TestPadTurretsAreGoneAfterTheBattle(t *testing.T) {
 		if id == "base:turret" {
 			t.Error("the pad turret became one of b's buildings")
 		}
+	}
+}
+
+// A garrison slot split into capped squads holds as one slot again.
+func TestSplitSquadsGoBackToTheirSlotTogether(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	inf := c.UnitClasses["base:infantry"]
+	five := 5
+	inf.SquadSize = &five
+	c.UnitClasses["base:infantry"] = inf
+	_ = s.OrderArmy(0, "a", marines(1), "b", 0) // a lone Marine against b's 6 Grunts
+
+	s.Advance(c, 30_000)
+	b := onlyBattle(t, s)
+	if n := len(b.Sim.Squads); n != 4 {
+		t.Fatalf("%d squads; want the Marine, the Grunts as 5 and 1, and the Command Post", n)
+	}
+	for at := int64(60_000); s.Planets["b"].Locked && at < 600_000; at += 1_000 {
+		s.Advance(c, at)
+	}
+	if st := s.Planets["b"].Stacks[0]; s.Planets["b"].Owner != Neutral || len(st) != 1 || st[0].Unit != "base:grunt" || st[0].Count < 1 {
+		t.Errorf("b's Stack %+v; want the surviving Grunts back in one slot", st)
 	}
 }

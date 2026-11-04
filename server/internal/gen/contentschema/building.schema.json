@@ -33,6 +33,12 @@
     "research": { "description": "Research it makes per second in each Research field named, the same on every Planet.", "$ref": "defs.schema.json#/definitions/researchMap" },
     "commandPointBonus": { "type": "integer", "minimum": 0 },
     "trains": { "type": "array", "items": { "$ref": "defs.schema.json#/definitions/id" } },
+    "roles": {
+      "description": "An aa building can fire on a Dropship.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["aa"] }
+    },
     "padTurret": { "description": "Can be built on a build pad in Battle, lasting only that Battle. Needs a combat block.", "type": "boolean" },
     "combat": { "$ref": "defs.schema.json#/definitions/combat" },
     "icon": { "$ref": "defs.schema.json#/definitions/asset" }

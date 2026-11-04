@@ -84,6 +84,10 @@ _Avoid_: Maintenance
 The periodic moment when every player receives their net income in one lump sum.
 _Avoid_: Income tick, week, turn
 
+**Raid**:
+An order that sends a Stack of raiders (units with the scout, infiltration or shock role) after an enemy Planet's buildings: hidden on the way, it fights a Battle to destroy them within a time limit, then Retreats home. It never takes the Planet.
+_Avoid_: Strike, sabotage
+
 **Retreat**:
 The move of an Army to its owner's nearest Planet, passing through other Planets without stopping or fighting; forced on a defeated attacker, or ordered by either side mid-Battle.
 _Avoid_: Rout, recall
@@ -117,16 +121,44 @@ The noise settings and thresholds a Battlefield is generated from, e.g. temperat
 _Avoid_: Biome (reserved, see Planet Type), map type
 
 **Squad**:
-A Unit Slot as it fights in a Battle: one token on one cell, tracking each member's own layers.
+A Unit Slot, or part of one, as it fights in a Battle: one token on one cell, tracking each member's own layers. A Unit Slot bigger than its Unit Class's squad size fights as several.
 _Avoid_: Stack (a Stack holds up to 15 Unit Slots), unit, token
 
 **Control Point**:
-A Battlefield location the two sides fight over; holding enough of them long enough wins the Battle for the attacker.
+The code's name for a Landing Zone: a Battlefield location the two sides fight over.
 _Avoid_: Objective, flag, capture point
 
 **Sight**:
 How far a unit sees on a Battlefield, in cells; a side sees the union of its units' Sight, and everything else is fog.
 _Avoid_: Vision (Vision is galaxy-level), range (that's how far it fires)
+
+**Command Post**:
+The defender's objective structure on a Battlefield, which exists only for that Battle; destroying it wins the Battle for the attacker.
+_Avoid_: HQ, base, Capital (a Capital is a Planet)
+
+**Landing Zone**:
+What players call a Control Point: a spot the two sides fight over, where (once reinforcements are in) the side holding it can land them.
+_Avoid_: Drop zone, LZ in docs, beachhead
+
+**Dropship**:
+A unit unlocked by a Tech that carries an Army's units into a Battle already running, as reinforcements: it flies them to a Landing Zone its side holds, once a Battle, and never fires, though anti-air can shoot it down. The UNSC's is the Pelican, the Covenant's the Phantom.
+_Avoid_: Transport, Pelican/Phantom as the generic term (those are Faction units)
+
+**Battlefield Archetype**:
+The shape a Battlefield is generated in, such as a river with crossings or ruins; each Terrain Preset weights the ones it can use.
+_Avoid_: Map type, biome (a Terrain Preset sets the look), template
+
+**Fixture**:
+A hand-authored piece of Battlefield, drawn as ASCII art in a Mod, that generation stamps in: a base, holding the defender's Command Post, sites and unit starts, or a feature, a landmark.
+_Avoid_: Prefab, set piece, stamp
+
+**Auto-resolve**:
+A side of a Battle run by the AI (Auto in Settings), because its player chose not to command it, is a Bot, or disconnected while commanding. The choice is fixed when the Battle starts.
+_Avoid_: Simulate, AI control (the AI is a Controller either way), skip
+
+**Battle Lab**:
+A dev-only page for setting up, running, stepping and replaying Battles, with the AI's thinking shown.
+_Avoid_: Sandbox (a map is named that), test page, simulator
 
 **Controller**:
 What drives one side of a Battle: it reads that side's fog-filtered view and issues orders. The AI is a Controller, and a player will be one later.
@@ -142,7 +174,7 @@ _Avoid_: General, strategist
 
 **Task Force**:
 A few of one side's Squads the Commander gives one goal, which gather and then go in together at the slowest one's pace.
-_Avoid_: Group, squad (a Squad is one Unit Slot), Stack (that's the galaxy's)
+_Avoid_: Group, squad (a Squad is one token, a Unit Slot or part of one), Stack (that's the galaxy's)
 
 **Unit Variant**:
 A unit type made from another (its parent) by changing some of its stats, e.g. the Flame Hog from the Warthog; in a Match it is a unit type like any other.

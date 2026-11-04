@@ -86,9 +86,17 @@ type Orders = {
     stack: number,
     to: string,
     toStack?: number,
+    raid?: boolean,
   ) => void;
   /** An Army dropped on a Planet: re-order it there. */
-  moveArmy: (army: number, to: string, toStack?: number) => void;
+  moveArmy: (
+    army: number,
+    to: string,
+    toStack?: number,
+    raid?: boolean,
+  ) => void;
+  /** Whether these units can Raid: every one a raider, within the cap. */
+  canRaid: (units: { unit: string; count: number }[]) => boolean;
 };
 
 /** What's being dragged to a Planet: a Stack, or an Army (from its `to`). */
@@ -152,7 +160,9 @@ export class GalaxyScene {
   /** The yellow line follows a moving Army, so it's redrawn every frame. */
   private trackRoute = false;
   /** The Stack pile a drag is over, lit to show it'll land there. */
-  private litPile: { planet: string; stack: number } | null = null;
+  private litPile: { planet: string; stack: number } | null = null; // stack -1: the raid slot
+  /** What's being dragged can Raid: each Planet it could raid shows its slot. */
+  private raiding = false;
   private readonly target = new THREE.Vector3();
   private zoom = 1;
   private readonly keys = new Set<string>();
@@ -398,6 +408,18 @@ export class GalaxyScene {
         age.style.opacity = "0.5";
         below.push(age);
       }
+      const target = seen ?? last?.planet;
+      if (
+        this.raiding &&
+        view &&
+        target?.owner !== view.you &&
+        !allied(view, view.you, target?.owner ?? null) &&
+        // Nothing to raid, as far as you know; out of sight it may be worth a look.
+        (!target || target.buildings.some((b) => b))
+      ) {
+        parts.name.style.position = "relative"; // the slot hangs off its left
+        parts.name.append(raidSlot(p.id));
+      }
       obj.label.replaceChildren(...(parts.stacks ? [parts.stacks] : []));
       obj.name.replaceChildren(...below);
     }
@@ -421,15 +443,24 @@ export class GalaxyScene {
     }
     const you = this.stores.store.getState().view?.you;
     for (const a of armies.values()) {
-      if (this.armies.has(a.id)) continue;
-      const mesh = new THREE.Mesh(
-        fatArrow(),
-        new THREE.MeshStandardMaterial({ color: seatColour(a.owner) }),
-      );
-      mesh.userData.army = a.id;
-      if (a.owner === you) mesh.add(...arrowGlow(mesh.geometry, a.id));
-      this.armies.set(a.id, mesh);
-      this.scene.add(mesh);
+      let mesh = this.armies.get(a.id);
+      if (!mesh) {
+        mesh = new THREE.Mesh(
+          fatArrow(),
+          new THREE.MeshStandardMaterial({ color: seatColour(a.owner) }),
+        );
+        mesh.userData.army = a.id;
+        if (a.owner === you) mesh.add(...arrowGlow(mesh.geometry, a.id));
+        this.armies.set(a.id, mesh);
+        this.scene.add(mesh);
+      }
+      // A Raid is dimmed: only you see it. Re-ordered as an Attack, it isn't.
+      const m = mesh.material as THREE.MeshStandardMaterial;
+      if (m.transparent !== a.raid) {
+        m.transparent = a.raid;
+        m.needsUpdate = true; // its shader was built solid
+      }
+      m.opacity = a.raid ? 0.45 : 1;
     }
   }
 
@@ -588,7 +619,9 @@ export class GalaxyScene {
       // Dropped on a Stack pile: that Planet, landing in that Stack.
       const pile = o.moved ? this.pileAt(e) : null;
       const to = pile?.planet ?? this.planetAt(e);
-      const toStack = pile?.stack;
+      const raid = pile?.stack === -1;
+      const toStack = raid ? undefined : pile?.stack;
+      this.stopRaiding();
       if (!o.moved) {
         // A click, not a drag: select what was pressed.
         this.stores.local.setState(
@@ -597,9 +630,9 @@ export class GalaxyScene {
             : { selectedArmy: o.army },
         );
       } else if (to && o.army !== undefined) {
-        this.orders.moveArmy(o.army, to, toStack);
+        this.orders.moveArmy(o.army, to, toStack, raid);
       } else if (to && o.stack !== undefined && to !== o.from) {
-        this.orders.sendStack(o.from, o.stack, to, toStack);
+        this.orders.sendStack(o.from, o.stack, to, toStack, raid);
       }
       this.updateSelection();
     });
@@ -649,6 +682,7 @@ export class GalaxyScene {
         canvas.style.cursor = "";
         this.ghost.style.display = "none";
         this.lightPile(null);
+        this.stopRaiding();
         this.stores.local.setState({ selected: null, selectedArmy: null });
         return;
       }
@@ -690,6 +724,8 @@ export class GalaxyScene {
         ? view?.armies.get(d.army)?.units
         : view?.planets.get(d.from)?.stacks[d.stack ?? 0];
     const count = (units ?? []).reduce((n, u) => n + u.count, 0);
+    this.raiding = !!units?.length && this.orders.canRaid(units);
+    if (this.raiding) this.updatePlanets();
     if (d.army === undefined) {
       // The Stack's own pile of pancakes is what's carried to the Planet.
       const p = view?.planets.get(d.from);
@@ -707,7 +743,13 @@ export class GalaxyScene {
     }
   }
 
-  /** The Stack pile under the pointer, by its box: most ignore the pointer. */
+  private stopRaiding() {
+    if (!this.raiding) return;
+    this.raiding = false;
+    this.updatePlanets();
+  }
+
+  /** The Stack pile, or raid slot (Stack -1), under the pointer, by its box: most ignore the pointer. */
   private pileAt(e: MouseEvent) {
     for (const el of this.labels.domElement.querySelectorAll<HTMLElement>(
       "[data-stack]",
@@ -962,7 +1004,8 @@ export class GalaxyScene {
   }
 }
 
-function isTyping(target: EventTarget | null) {
+/** Whether a key event is typing into a field, not a shortcut. */
+export function isTyping(target: EventTarget | null) {
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
@@ -1102,6 +1145,33 @@ function pancakes(units: number, colour: string) {
     pile.append(count);
   }
   return pile;
+}
+
+/**
+ * A Planet's raid slot, `raid ( )` hung off the left of its name without
+ * moving it: an empty Stack's oval to drop a raiding Stack or Army on.
+ */
+function raidSlot(planet: string) {
+  const slot = document.createElement("div");
+  Object.assign(slot.style, {
+    position: "absolute",
+    right: "100%",
+    bottom: "-9px",
+    marginRight: "8px",
+    display: "flex",
+    alignItems: "flex-end",
+    gap: "4px",
+    lineHeight: "1",
+  });
+  const text = document.createElement("span");
+  text.textContent = "raid";
+  Object.assign(text.style, { position: "relative", top: "6px", left: "-2px" });
+  const oval = pancakes(0, "");
+  oval.title = "Raid: destroy its buildings, and come home";
+  oval.dataset.planet = planet;
+  oval.dataset.stack = "-1"; // a drop target like a Stack pile; -1 is the Raid
+  slot.append(text, oval);
+  return slot;
 }
 
 /**

@@ -6,5 +6,6 @@
   "field": "military",
   "rarity": "common",
   "cost": 300,
-  "unlocks": { "buildings": ["summoning-foundry"], "units": ["ghost"] }
+  "requires": { "techs": ["summoning-foundry"] },
+  "unlocks": { "units": ["ghost"] }
 }

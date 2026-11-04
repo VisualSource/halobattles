@@ -62,8 +62,13 @@ field(obj?:Battlefield):Battlefield|null {
   return offset ? (obj || new Battlefield()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
 }
 
+raid():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startBattleStarted(builder:flatbuffers.Builder) {
-  builder.startObject(7);
+  builder.startObject(8);
 }
 
 static addMatchTime(builder:flatbuffers.Builder, matchTime:bigint) {
@@ -94,6 +99,10 @@ static addField(builder:flatbuffers.Builder, fieldOffset:flatbuffers.Offset) {
   builder.addFieldOffset(6, fieldOffset, 0);
 }
 
+static addRaid(builder:flatbuffers.Builder, raid:boolean) {
+  builder.addFieldInt8(7, +raid, +false);
+}
+
 static endBattleStarted(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -108,7 +117,8 @@ unpack(): BattleStartedT {
     this.attacker(),
     this.defender(),
     this.started(),
-    (this.field() !== null ? this.field()!.unpack() : null)
+    (this.field() !== null ? this.field()!.unpack() : null),
+    this.raid()
   );
 }
 
@@ -121,6 +131,7 @@ unpackTo(_o: BattleStartedT): void {
   _o.defender = this.defender();
   _o.started = this.started();
   _o.field = (this.field() !== null ? this.field()!.unpack() : null);
+  _o.raid = this.raid();
 }
 }
 
@@ -132,7 +143,8 @@ constructor(
   public attacker: number = 0,
   public defender: number = -1,
   public started: bigint = BigInt('0'),
-  public field: BattlefieldT|null = null
+  public field: BattlefieldT|null = null,
+  public raid: boolean = false
 ){}
 
 
@@ -148,6 +160,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   BattleStarted.addDefender(builder, this.defender);
   BattleStarted.addStarted(builder, this.started);
   BattleStarted.addField(builder, field);
+  BattleStarted.addRaid(builder, this.raid);
 
   return BattleStarted.endBattleStarted(builder);
 }

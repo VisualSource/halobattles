@@ -87,6 +87,14 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		qualifyKeys(obj, "richness", ns)
 	case "terrains":
 		qualifyKeys(obj, "movement", ns)
+	case "fixtures":
+		qualifyField(obj, "faction", ns)
+		key, _ := obj["key"].(map[string]any)
+		for _, v := range key {
+			if v, ok := v.(map[string]any); ok {
+				qualifyField(v, "terrain", ns)
+			}
+		}
 	case "terrainPresets":
 		bands, _ := obj["bands"].([]any)
 		for _, b := range bands {
@@ -299,6 +307,9 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 	for _, id := range slices.Sorted(maps.Keys(doc.TerrainPresets)) {
 		c.terrainPreset("terrainPresets "+id, doc.TerrainPresets[id])
 	}
+	for _, id := range slices.Sorted(maps.Keys(doc.Fixtures)) {
+		c.fixture("fixtures "+id, doc.Fixtures[id])
+	}
 	for _, id := range slices.Sorted(maps.Keys(doc.Techs)) {
 		c.tech("techs "+id, doc.Techs[id])
 	}
@@ -413,6 +424,56 @@ func (c *checker) techCycles(techs map[string]contentschema.Tech) {
 
 // terrainPreset checks Terrains exist and that bands, and the moisture
 // splits inside each, rise to 1 so every cell gets a Terrain.
+// fixture checks a fixture's Faction and Terrains, that its rows are one
+// length, that every key cell says exactly one of terrain, clear or cover,
+// that no character is both a key and a marker, and that a base has exactly
+// one Command Post and a feature none.
+func (c *checker) fixture(where string, f contentschema.Fixture) {
+	if f.Faction != nil {
+		c.ref(where+": faction", "factions", string(*f.Faction))
+		if f.Kind != contentschema.FixtureKindBase {
+			c.fail("%s: only a base has a faction", where)
+		}
+	}
+	for _, k := range slices.Sorted(maps.Keys(f.Key)) {
+		cell := f.Key[k]
+		n := 0
+		if cell.Terrain != nil {
+			n++
+			c.ref(fmt.Sprintf("%s: key %q", where, k), "terrains", string(*cell.Terrain))
+		}
+		if cell.Clear != nil && *cell.Clear {
+			n++
+		}
+		if cell.Cover != nil && *cell.Cover {
+			n++
+		}
+		if n != 1 {
+			c.fail("%s: key %q says %d of terrain, clear and cover; it must say exactly one", where, k, n)
+		}
+		if _, ok := f.Markers[k]; ok {
+			c.fail("%s: %q is both a key and a marker", where, k)
+		}
+	}
+	posts := 0
+	for i, row := range f.Map {
+		if len([]rune(row)) != len([]rune(f.Map[0])) {
+			c.fail("%s: map row %d is %d long; the first is %d", where, i+1, len([]rune(row)), len([]rune(f.Map[0])))
+		}
+		for _, ch := range row {
+			if f.Markers[string(ch)] == contentschema.FixtureMarkersValueCommandPost {
+				posts++
+			}
+		}
+	}
+	switch {
+	case f.Kind == contentschema.FixtureKindBase && posts != 1:
+		c.fail("%s: a base needs exactly one commandPost marker; it has %d", where, posts)
+	case f.Kind == contentschema.FixtureKindFeature && posts != 0:
+		c.fail("%s: a feature can't hold the Command Post", where)
+	}
+}
+
 func (c *checker) terrainPreset(where string, p contentschema.TerrainPreset) {
 	c.ref(where+": clear", "terrains", string(p.Clear.Terrain))
 	if p.PointCover != nil {

@@ -369,7 +369,7 @@ func (b *Bot) buildTurrets(v game.View, bt game.BattleView) []Command {
 	left, techs := maps.Clone(v.Economy.Resources), held(v)
 	var out []Command
 	for i, p := range bt.Pads {
-		if p.Owner != side || p.Turret != 0 || p.Building != "" {
+		if p.Owner != side || p.Turret != 0 || p.Building != "" || bt.Tick < p.CoolsAt {
 			continue
 		}
 		for _, id := range battle.PadTurrets(b.c) {

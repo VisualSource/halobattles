@@ -3,16 +3,19 @@
   "id": "revenant",
   "name": "Revenant",
   "faction": "covenant",
-  "cost": {},
-  "buildTime": 30,
-  "commandPoints": 1,
+  "cost": { "credits": 200, "materials": 75, "alloys": 20 },
+  "upkeep": { "credits": 20, "alloys": 1 },
+  "buildTime": 35,
+  "commandPoints": 3,
+  "roles": ["scout"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "plasma",
-    "shield": 0,
-    "armor": 0,
-    "hp": 10,
-    "damage": "1d4"
+    "shield": 15,
+    "armor": 10,
+    "hp": 22,
+    "damage": "3d4",
+    "tiers": { "infantry": "advantage", "vehicle": "normal", "aircraft": "none", "structure": "normal" }
   },
-  "description": "The Rizvum-pattern Swift Tank (UNSC Type classification: Type-48 Light Assault Gun Carriage, T-48 LAGC) is a Covenant mobile artillery vehicle manufactured by the Merchants of Qikost."
+  "description": "The Rizvum-pattern Swift Tank (UNSC Type classification: Type-48 Light Assault Gun Carriage, T-48 LAGC) is a fast Covenant fire-support vehicle whose medium plasma mortar fires quicker but lighter than the Wraith's. Its exposed crew of two rely on speed to strike and withdraw."
 }

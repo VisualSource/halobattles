@@ -66,8 +66,13 @@ readyAt():number {
   return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
 }
 
+coolsAt():number {
+  const offset = this.bb!.__offset(this.bb_pos, 20);
+  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
+}
+
 static startBuildPad(builder:flatbuffers.Builder) {
-  builder.startObject(8);
+  builder.startObject(9);
 }
 
 static addX(builder:flatbuffers.Builder, x:number) {
@@ -102,12 +107,16 @@ static addReadyAt(builder:flatbuffers.Builder, readyAt:number) {
   builder.addFieldInt32(7, readyAt, 0);
 }
 
+static addCoolsAt(builder:flatbuffers.Builder, coolsAt:number) {
+  builder.addFieldInt32(8, coolsAt, 0);
+}
+
 static endBuildPad(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createBuildPad(builder:flatbuffers.Builder, x:number, y:number, owner:number, taker:number, progress:number, turret:number, buildingOffset:flatbuffers.Offset, readyAt:number):flatbuffers.Offset {
+static createBuildPad(builder:flatbuffers.Builder, x:number, y:number, owner:number, taker:number, progress:number, turret:number, buildingOffset:flatbuffers.Offset, readyAt:number, coolsAt:number):flatbuffers.Offset {
   BuildPad.startBuildPad(builder);
   BuildPad.addX(builder, x);
   BuildPad.addY(builder, y);
@@ -117,6 +126,7 @@ static createBuildPad(builder:flatbuffers.Builder, x:number, y:number, owner:num
   BuildPad.addTurret(builder, turret);
   BuildPad.addBuilding(builder, buildingOffset);
   BuildPad.addReadyAt(builder, readyAt);
+  BuildPad.addCoolsAt(builder, coolsAt);
   return BuildPad.endBuildPad(builder);
 }
 
@@ -129,7 +139,8 @@ unpack(): BuildPadT {
     this.progress(),
     this.turret(),
     this.building(),
-    this.readyAt()
+    this.readyAt(),
+    this.coolsAt()
   );
 }
 
@@ -143,6 +154,7 @@ unpackTo(_o: BuildPadT): void {
   _o.turret = this.turret();
   _o.building = this.building();
   _o.readyAt = this.readyAt();
+  _o.coolsAt = this.coolsAt();
 }
 }
 
@@ -155,7 +167,8 @@ constructor(
   public progress: number = 0,
   public turret: number = 0,
   public building: string|Uint8Array|null = null,
-  public readyAt: number = 0
+  public readyAt: number = 0,
+  public coolsAt: number = 0
 ){}
 
 
@@ -170,7 +183,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.progress,
     this.turret,
     building,
-    this.readyAt
+    this.readyAt,
+    this.coolsAt
   );
 }
 }

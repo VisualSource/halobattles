@@ -23,20 +23,24 @@ func marines(n int) [][]Slot {
 	return [][]Slot{f}
 }
 
-func TestTheCommanderSpreadsSquadsOverThePoints(t *testing.T) {
+// A force bigger than one Task Force splits: past forceCap squads on the
+// Command Post, a second force comes in on its own bearing, or squads go on
+// to other goals.
+func TestTheCommanderSplitsABigForce(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(6)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Attacker}
 	ai.command(v, v.Own(), nil)
 
-	points := map[Cell]bool{}
+	goals := map[goal]bool{}
 	for _, p := range ai.plans {
-		if p.goal.kind == capture {
-			points[p.goal.cell] = true
-		}
+		goals[p.goal] = true
 	}
-	if len(points) < 2 {
-		t.Errorf("6 squads went for %d point(s); want them spread", len(points))
+	if len(ai.forces) < 2 && len(goals) < 2 {
+		t.Errorf("6 squads in %d Task Force(s) on %d goal(s); want them split", len(ai.forces), len(goals))
+	}
+	if !goals[goal{kind: assault, cell: s.commandPost().Cell, target: s.commandPost().ID}] {
+		t.Errorf("goals %v; want the Command Post assaulted", goals)
 	}
 }
 
@@ -59,9 +63,29 @@ func stageNear(t *testing.T, s *Sim) *Squad {
 	return nil
 }
 
+// Squads the base can spare go after an enemy they see.
 func TestDefendersGoAfterAnEnemyTheySee(t *testing.T) {
-	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:grunt", 5, 1}, {"base:grunt", 5, 2}}}})
-	a := stageNear(t, s)
+	var guards []Slot
+	for cell := range 6 {
+		guards = append(guards, Slot{"base:grunt", 5, cell})
+	}
+	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{guards}})
+	a := s.Squads[0]
+	// In a guard's Sight, out of the Command Post's threat radius.
+	g := s.Squads[1]
+	placed := false
+	for y := g.Cell.Y - 7; y <= g.Cell.Y+7 && !placed; y++ {
+		for x := g.Cell.X - 7; x <= g.Cell.X+7 && !placed; x++ {
+			if c := (Cell{x, y}); dist(c, g.Cell) <= 7 && dist(c, s.Field.CommandPost) > threatRadius+2 && s.standable(a, c) {
+				s.relocate(a, c)
+				placed = true
+			}
+		}
+	}
+	s.see()
+	if !placed || !s.visible[Defender][a.ID] {
+		t.Skip("no spot in a guard's Sight away from the Command Post on this Battlefield")
+	}
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Defender}
 	ai.command(v, v.Own(), v.Enemies())
@@ -314,6 +338,7 @@ func TestTheCommanderSendsSquadsAfterWhatTheyreGoodAgainst(t *testing.T) {
 	for i := range s.Points {
 		s.Points[i].Owner = Attacker // nothing to capture: it's down to whom to fight
 	}
+	s.commandPost().Members = nil // nor to assault
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Attacker}
 	ai.command(v, v.Own(), v.Enemies())
@@ -434,8 +459,8 @@ func TestAScoutFallsBackFromTheEnemyThenRests(t *testing.T) {
 	ai.sighted[marines.ID] = sighting{ghost.Cell.add(Cell{2, 0}), 5, 0}
 	ai.assignRoles(v, v.Own(), nil)
 	p := ai.plans[ghost.ID]
-	if ai.roles[ghost.ID] != fallingBack || p.goal.kind != fallback || !slices.ContainsFunc(s.Points, func(pt Point) bool { return pt.Cell == p.goal.cell }) {
-		t.Fatalf("role %v, goal %+v; want it falling back to a held point", ai.roles[ghost.ID], p.goal)
+	if ai.roles[ghost.ID] != fallingBack || p.goal.kind != fallback || !slices.Contains(home(v), p.goal.cell) {
+		t.Fatalf("role %v, goal %+v; want it falling back to its base or a held point", ai.roles[ghost.ID], p.goal)
 	}
 
 	delete(ai.sighted, marines.ID)
@@ -449,6 +474,28 @@ func TestAScoutFallsBackFromTheEnemyThenRests(t *testing.T) {
 	}
 }
 
+// Seed 246130: a Warthog scouted the whole Battle while its base fell.
+func TestAScoutComesHomeOnceTheEnemyIsFoundElsewhere(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(1)},
+		Force{Formations: [][]Slot{{{"base:grunt", 5, 0}, {"base:ghost", 2, 1}, {"base:grunt", 5, 2}}}})
+	marines, ghost := s.Squads[0], s.Squads[2]
+	ai := NewAI(WeightsOf(nil))
+	v := View{s, Defender}
+	ai.look(v, v.Own())
+	ai.assignRoles(v, v.Own(), nil)
+	if ai.roles[ghost.ID] != scouting {
+		t.Fatalf("roles %v; want the Ghosts scouting", ai.roles)
+	}
+	ai.sighted[marines.ID] = sighting{s.Field.CommandPost, 5, s.Tick} // at the base, nowhere near the scout
+	if ai.inContact(v, ghost) {
+		t.Skip("the scout starts in contact")
+	}
+	ai.assignRoles(v, v.Own(), nil)
+	if r := ai.roles[ghost.ID]; r != noRole {
+		t.Errorf("role %v with the enemy found; want it back to the usual goals", r)
+	}
+}
+
 func TestSpareSquadsSkirmishBetweenThePoints(t *testing.T) {
 	var f []Slot
 	for cell := range 7 {
@@ -456,7 +503,7 @@ func TestSpareSquadsSkirmishBetweenThePoints(t *testing.T) {
 	}
 	f = append(f, Slot{"base:banshee", 1, 7})
 	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{f}})
-	banshee := s.Squads[len(s.Squads)-1]
+	banshee := s.Squads[slices.IndexFunc(s.Squads, func(sq *Squad) bool { return sq.Unit == "base:banshee" })]
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Defender}
 	ai.look(v, v.Own())

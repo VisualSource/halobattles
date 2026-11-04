@@ -6,6 +6,6 @@
   "field": "military",
   "rarity": "uncommon",
   "cost": 600,
-  "requires": { "techs": ["ghost-fabrication"] },
-  "unlocks": { "units": ["wraith"] }
+  "requires": { "techs": ["summoning-foundry"] },
+  "unlocks": { "units": ["wraith", "wraith-aa"] }
 }

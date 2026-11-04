@@ -25,11 +25,16 @@ type Battle struct {
 	Defender int   // a Seat, or Neutral
 	Started  int64 // Match Time of the first sim tick, after the start delay
 	ToStack  int   // where the attackers go if they win
-	Sim      *battle.Sim
+	// Commanded: a player gave each side's orders from the start, not the AI.
+	// Switches are its sides changing hands since: to a player, or to the AI.
+	Commanded [2]bool
+	Switches  []Switch
+	Sim       *battle.Sim
 	// What the Sim was made from, so the Battle can be replayed: with the
 	// Sim's Setup, Builders and Log, it plays out the same again.
 	Attack, Defend  battle.Force
 	Seed, FieldSeed uint64 // the Sim's, and its Battlefield's
+	FieldFaction    string // the defender's Faction, whose base the Battlefield has; "" neutral
 	Weights         [2]battle.Weights
 	Funds           [2]map[string]int // each side's at the start; the Sim spends its own
 }
@@ -51,10 +56,13 @@ type BattleEnded struct {
 	Viewers []int
 }
 
-// field is a Planet's Battlefield, generated on its first Battle from the
-// Match seed and the Planet id, and the same for the rest of the Match.
-func (s *State) field(c *cs.Content, planet string) *battle.Field {
-	if f := s.Fields[planet]; f != nil {
+// field is a Planet's Battlefield with faction's base (a neutral
+// garrison's for ""), generated on its first Battle so from the Match seed
+// and the Planet id, and the same for the rest of the Match: the ground
+// stays, and whoever defends shows their own base on it.
+func (s *State) field(c *cs.Content, planet, faction string) *battle.Field {
+	key := planet + "|" + faction
+	if f := s.Fields[key]; f != nil {
 		return f
 	}
 	var override *cs.PlanetBattlefield
@@ -63,11 +71,11 @@ func (s *State) field(c *cs.Content, planet string) *battle.Field {
 			override = mp.Battlefield
 		}
 	}
-	f := battle.Generate(c, c.Rulesets[RulesetID].Battlefield, override, s.fieldSeed(planet))
+	f := battle.GenerateFor(c, c.Rulesets[RulesetID].Battlefield, override, s.fieldSeed(planet), faction)
 	if s.Fields == nil {
 		s.Fields = map[string]*battle.Field{}
 	}
-	s.Fields[planet] = f
+	s.Fields[key] = f
 	return f
 }
 
@@ -102,18 +110,28 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 		defend.Formations = append(defend.Formations, f)
 	}
 	defend.Buildings = slices.Clone(p.Buildings)
+	defend.Layout = battle.Layout{Sites: maps.Clone(p.Layout.Sites), Starts: maps.Clone(p.Layout.Starts)}
 	attack.Boosts, defend.Boosts = s.boosts(c, b.Attacker), s.boosts(c, b.Defender)
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
 	b.Attack, b.Defend, b.Seed, b.FieldSeed = attack, defend, s.Seed+uint64(b.ID), s.fieldSeed(p.ID)
+	if b.Defender != Neutral {
+		b.FieldFaction = s.Players[b.Defender].Faction
+	}
 	b.Weights = [2]battle.Weights{s.aiWeights(c, b.Attacker), s.aiWeights(c, b.Defender)}
-	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID), attack, defend, b.Seed)
-	b.Sim.Controllers = [2]battle.Controller{battle.NewAI(b.Weights[0]), battle.NewAI(b.Weights[1])}
+	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID, b.FieldFaction), attack, defend, b.Seed)
+	b.Commanded = [2]bool{s.commands(b.Attacker), s.commands(b.Defender)}
+	for side := range b.Sim.Controllers {
+		if !b.Commanded[side] {
+			b.Sim.Controllers[side] = battle.NewAI(b.Weights[side])
+		}
+	}
 	b.Sim.Setup = int(delay / tickMs) // the start delay is the defender's setup phase
 	b.Sim.Builders = [2]bool{s.canBuildTurrets(c, b.Attacker), s.canBuildTurrets(c, b.Defender)}
 	if b.Defender == Neutral { // no economy: a budget for pad turrets instead
 		b.Funds[battle.Defender] = c.Rulesets[RulesetID].Battle.NeutralFunds
 		b.Sim.Funds[battle.Defender] = maps.Clone(b.Funds[battle.Defender])
 	}
+	b.Sim.Raid = a.Raid // after the buildings: the Planet never changes hands
 	p.Locked = true
 	delete(s.Armies, a.ID)
 	if s.Battles == nil {
@@ -166,26 +184,29 @@ func (s *State) fightBattles(c *cs.Content, now int64, ev *Events) {
 // winning attacker captures the Planet and moves in; a beaten one Retreats,
 // with any squads that escaped the field. A beaten defender's survivors
 // Retreat too, on the field or escaped, unless it's a neutral garrison, which
-// has nowhere to go; a holding defender's go back to their slots.
+// has nowhere to go; a holding defender's go back to their slots. A Raid
+// takes nothing: the raiders go home, and the defenders back to their slots.
 func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	p := s.Planets[b.Planet]
 	// Eliminated mid-Battle: their Armies are gone, and the Planet holds.
 	attackerWins := b.Sim.Winner == battle.Attacker && !s.Players[b.Attacker].Eliminated
+	takes := attackerWins && !b.Sim.Raid // a Raid never takes the Planet
 	var attackers, defenders Stack
 	var stacks [StacksPerPlanet]Stack
 	for _, sq := range b.Sim.Squads {
 		n := len(sq.Members)
 		switch {
-		case sq.OnPad > 0: // a pad turret lasts only the Battle
+		case sq.OnPad > 0 || sq.CommandPost: // a pad turret and the Command Post last only the Battle
 		case sq.Building:
 			if n == 0 {
 				s.loseLab(p, sq.Slot)
 				p.Buildings[sq.Slot] = ""
 			}
 		case n == 0:
+		case sq.Drop > 0: // reinforcements: back to their own owners, below
 		case sq.Side == battle.Attacker:
 			attackers = attackers.add(sq.Unit, n, 0)
-		case attackerWins:
+		case takes:
 			defenders = defenders.add(sq.Unit, n, 0)
 		default:
 			for range n {
@@ -195,6 +216,13 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	}
 	p.Stacks, p.Locked = stacks, false
 	delete(s.Battles, b.ID)
+	dropped := dropSurvivors(b)
+	if takes { // the attacker's own move in with the rest
+		for _, u := range dropped[b.Attacker] {
+			attackers = attackers.add(u.Unit, u.Count, 0)
+		}
+		delete(dropped, b.Attacker)
+	}
 
 	winner := b.Defender
 	if attackerWins {
@@ -208,11 +236,13 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 	}
 	ev.Ended = append(ev.Ended, BattleEnded{Battle: b.ID, Planet: p.ID, Winner: winner, Viewers: viewers})
 
+	if takes { // even with none of its own left: a Teammate's landed troops can win it
+		s.capture(p, b.Attacker, ev)
+	}
 	if len(attackers) > 0 && !s.Players[b.Attacker].Eliminated {
 		s.LastID++
 		a := &Army{ID: s.LastID, Owner: b.Attacker, Units: attackers, From: p.ID, To: p.ID, ToStack: b.ToStack}
-		if attackerWins {
-			s.capture(p, b.Attacker, ev)
+		if takes {
 			a.Waiting = true
 			s.Armies[a.ID] = a
 			s.land(c, a, p) // with overflow; what doesn't fit waits in orbit
@@ -231,6 +261,7 @@ func (s *State) endBattle(c *cs.Content, b *Battle, ev *Events) {
 			s.Armies[d.ID] = d
 		}
 	}
+	s.sendHome(c, p, dropped)
 }
 
 // RetreatFromBattle orders seat's side of the Battle on planet to Retreat,
@@ -249,6 +280,8 @@ func (s *State) RetreatFromBattle(seat int, planet string, cancel bool) error {
 		return nil
 	case b.Sim.RetreatAt[side] != 0:
 		return errors.New("you're already Retreating")
+	case side == battle.Defender && b.Sim.Raid:
+		return errors.New("there's nothing to save by leaving a Raid")
 	case side == battle.Defender && s.retreatRoute(planet, seat) == nil:
 		return errors.New("you have no other Planet to Retreat to")
 	}
@@ -306,7 +339,7 @@ func (s *State) retreat(a *Army, at int64) bool {
 	if path == nil {
 		return false
 	}
-	a.Path = path[1:]
+	a.Path, a.Raid = path[1:], false // seen on the way home, whatever it was
 	a.hop(s.Lanes, at)
 	return true
 }

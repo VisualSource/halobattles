@@ -14,10 +14,12 @@ import { useHideHeader } from "../backdrop";
 import type { ContentLookups } from "../content";
 import { GalaxyScene, seatColour } from "../scene/galaxy";
 import { planetIconsQuery } from "../scene/planet-icons";
+import { SettingsButton } from "../settings";
 import { BattlePanel } from "./battle";
 import { BotTag } from "./bot-tag";
 import type { MatchConnection } from "./connection";
 import { moneyOf, presets, quote } from "./exchange";
+import { LayoutWindow } from "./layout";
 import { isPending } from "./local";
 import { inMatch } from "./phase";
 import { ResearchButton, ResearchPanel } from "./research";
@@ -29,6 +31,7 @@ import { allied, teamName, type View, winnerName } from "./store";
 import { finishedProjects } from "./tech";
 import { formatAge, useMatchNow, useWallNow } from "./time";
 import { notify } from "./toasts";
+import { canRaid } from "./units";
 import {
   ArmyWindow,
   PlanetWindow,
@@ -72,6 +75,7 @@ export function PlayScreen(props: {
   const map = mapId ? content.maps.get(mapId) : undefined;
   const container = useRef<HTMLDivElement>(null);
   const [stacksOpen, setStacksOpen] = useState(true);
+  const [layoutOpen, setLayoutOpen] = useState(false);
   // Open, and the field whose Tech picker to open with, if any.
   const [research, setResearch] = useState<{ pick?: string } | null>(null);
 
@@ -83,10 +87,11 @@ export function PlayScreen(props: {
       { store: conn.store, local: conn.local },
       {
         lanes: laneTimes(map, content.rules),
-        sendStack: (from, stack, to, toStack) =>
-          sendStack(conn, from, stack, to, toStack),
-        moveArmy: (army, to, toStack) =>
-          conn.reorderArmy(army, to, toStack ?? toStackAt(conn, to)),
+        sendStack: (from, stack, to, toStack, raid) =>
+          sendStack(conn, from, stack, to, toStack, raid),
+        moveArmy: (army, to, toStack, raid) =>
+          conn.reorderArmy(army, to, toStack ?? toStackAt(conn, to), raid),
+        canRaid: (units) => canRaid(content, units),
       },
     );
     return () => scene.dispose();
@@ -133,12 +138,21 @@ export function PlayScreen(props: {
           content={content}
           stacksOpen={stacksOpen}
           onOpenStacks={() => setStacksOpen(true)}
+          layoutOpen={layoutOpen}
+          onOpenLayout={() => setLayoutOpen(true)}
         />
         {stacksOpen && (
           <StacksWindow
             conn={conn}
             content={content}
             onClose={() => setStacksOpen(false)}
+          />
+        )}
+        {layoutOpen && (
+          <LayoutWindow
+            conn={conn}
+            content={content}
+            onClose={() => setLayoutOpen(false)}
           />
         )}
         <ArmyWindow conn={conn} content={content} />
@@ -551,6 +565,7 @@ function Hud(props: {
       )}
       <Mode conn={conn} content={content} />
       <Notifications />
+      <SettingsButton />
       {view.spectating ? (
         <Link
           to="/"
@@ -1193,6 +1208,12 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
           show(p.planet),
         );
       }
+      // A Battle you command opens on its own as it comes into your View.
+      for (const b of now.battles.values()) {
+        if (!b.commanded || was.battles.get(b.id)?.commanded) continue;
+        conn.local.setState({ watching: b.id });
+        notify("battle", `You command the Battle at ${planet(b.planet)}`);
+      }
     });
     /** A Battle you're a side of: it has a report, running or over. */
     const mine = (battle: number) =>
@@ -1219,6 +1240,14 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
               ? `${who(to)} took ${planet(id)} from you`
               : `${who(to)} took ${planet(id)}`;
         notify("captured", text, show(id));
+      },
+      raidTurnedBack: (e) => {
+        const { planet: id } = detail<{ planet: string }>(e);
+        notify(
+          "battle",
+          `Your Raid found no buildings at ${planet(id)} and is heading home`,
+          show(id),
+        );
       },
       battleStarted: (e) => {
         const { battle, planet: id } = detail<{

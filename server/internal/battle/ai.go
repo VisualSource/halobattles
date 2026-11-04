@@ -44,6 +44,7 @@ const (
 	patrol                   // a skirmisher's next stop on its round
 	fallback                 // get clear of the enemy: back to a held point or a friend
 	takePad                  // take a build pad the side doesn't hold
+	assault                  // destroy the defender's Command Post
 )
 
 // role is a job the Commander gives a squad on top of the usual goals.
@@ -127,8 +128,9 @@ type AI struct {
 	round   map[int]int        // a skirmisher's place on its patrol
 	// Trace, if set, hears each change in what a squad has been told to do,
 	// for a Match log.
-	Trace  func(Decision)
-	traced map[int]Decision
+	Trace    func(Decision)
+	traced   map[int]Decision
+	thinking *Thinking // kept for the Battle Lab once Think is called
 }
 
 // Decision is what the Commander has a squad do: its goal, and any role.
@@ -143,7 +145,7 @@ type Decision struct {
 }
 
 var (
-	goalNames = [...]string{"capture", "defend", "kill", "raid", "scout", "patrol", "fallback", "takePad"}
+	goalNames = [...]string{"capture", "defend", "kill", "raid", "scout", "patrol", "fallback", "takePad", "assault"}
 	roleNames = [...]string{"", "scouting", "skirmish", "fallingBack"}
 )
 
@@ -198,6 +200,13 @@ const (
 	// against 2 for holding one of its own.
 	padValue      = 1.2
 	setupPadValue = 5
+	// assaultValue is what the attacker wants the Command Post; the
+	// defender holding it, holdCommandPost, before its threat; taking a
+	// Landing Zone, landingZone. First pass, untuned (#95).
+	assaultValue        = 4
+	holdCommandPost     = 3
+	landingZone         = 1.2
+	attackerLandingZone = 0.3
 	// block is the side, in cells, of the squares the AI tracks looking at.
 	block = 8
 	// scoutShare is the part of a defender's mobile squads sent scouting,
@@ -387,17 +396,30 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		values = append(values, value)
 	}
 	w := ai.weights
-	retake := 3.0
-	if v.Side == Defender && s.Hold > 0 {
-		retake = 5 // the attacker's hold timer is running: a point back stops it
-	}
-	for _, p := range s.Points {
-		if p.Owner != v.Side {
-			add(goal{kind: capture, cell: p.Cell}, retake)
-		} else if v.Side == Defender {
-			add(goal{kind: defend, cell: p.Cell}, 2)
+	// The Command Post decides the Battle; Landing Zones count for little
+	// until reinforcements land on them (#57).
+	cp := s.commandPost()
+	raider := s.Raid && v.Side == Attacker // after the buildings, not the Command Post or the Landing Zones
+	if cp != nil && cp.alive() && !raider {
+		if v.Side == Attacker {
+			add(goal{kind: assault, cell: cp.Cell, target: cp.ID}, assaultValue)
+		} else if s.setup() {
+			add(goal{kind: defend, cell: cp.Cell}, 1) // the attacker can't move yet: pads first
 		} else {
-			add(goal{kind: defend, cell: p.Cell}, 1.2)
+			add(goal{kind: defend, cell: cp.Cell}, holdCommandPost)
+		}
+	}
+	// The attacker never stops to hold one, and takes one only in passing:
+	// its squads are for the assault.
+	for _, p := range s.Points {
+		switch {
+		case raider:
+		case p.Owner != v.Side && v.Side == Attacker:
+			add(goal{kind: capture, cell: p.Cell}, attackerLandingZone)
+		case p.Owner != v.Side:
+			add(goal{kind: capture, cell: p.Cell}, landingZone)
+		case v.Side == Defender:
+			add(goal{kind: defend, cell: p.Cell}, 1)
 		}
 	}
 	pad := padValue
@@ -409,17 +431,45 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			add(goal{kind: takePad, cell: p.Cell}, pad)
 		}
 	}
+	if s.Raid && v.Side == Defender {
+		for _, sq := range own {
+			if sq.planetBuilding() {
+				add(goal{kind: defend, cell: sq.Cell}, 1) // worth more under threat, as a Landing Zone is
+			}
+		}
+	}
+	// A raider's buildings are worth what an assault is; others, in sight,
+	// 1.2 × the Raid weight, and as last seen 1 ×.
+	raidValue := func(e *Squad, inSight bool) float64 {
+		switch {
+		case raider && e.planetBuilding():
+			return assaultValue * w.Raid
+		case inSight:
+			return 1.2 * w.Raid
+		}
+		return w.Raid
+	}
 	for _, e := range enemies {
+		if e.CommandPost {
+			continue // its own goal, above
+		}
 		if e.Building {
-			add(goal{kind: raid, cell: e.Cell, target: e.ID}, 1.2*w.Raid)
+			add(goal{kind: raid, cell: e.Cell, target: e.ID}, raidValue(e, true))
 		} else {
 			add(goal{kind: kill, cell: e.Cell, target: e.ID}, 1.5*w.Aggression)
 		}
 	}
+	known := false // a raider knows where a building is
 	for _, id := range slices.Sorted(maps.Keys(ai.seen)) {
-		if !s.visible[v.Side][id] {
-			add(goal{kind: raid, cell: ai.seen[id], target: id}, w.Raid)
+		b := s.squad(id)
+		known = known || b.planetBuilding()
+		if !s.visible[v.Side][id] && (cp == nil || id != cp.ID) {
+			add(goal{kind: raid, cell: ai.seen[id], target: id}, raidValue(b, false))
 		}
+	}
+	if raider && !known && cp != nil {
+		// The buildings stand in the base: look for them round the Command Post.
+		add(goal{kind: scout, cell: cp.Cell}, assaultValue*w.Raid)
 	}
 	if len(enemies) == 0 {
 		// Toward where the enemy comes from, or else the middle of the map.
@@ -458,7 +508,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	need, members := make([]float64, len(goals)), make([]float64, len(goals))
 	for i, g := range goals {
 		need[i] = margin * w.Mass * threat[i]
-		if g.kind == defend {
+		if g.kind == defend && v.Side == Defender { // an attacker holding a Landing Zone under fire isn't worth more for it
 			// Worth leaving a quiet point for. Against Task Forces, at 2 the
 			// attacker won 59% of Starting Kit Battles; at 3, 51%.
 			values[i] *= 1 + 3*threat[i]/max(1, strength)
@@ -472,6 +522,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		limit := float64(s.rules.TimeCap * TicksPerSecond)
 		caution *= max(0, 1-float64(s.Tick-s.Setup)/limit)
 	}
+	chose := map[int]Choice{}
 	busy := map[int]bool{} // setup is for taking pads: jobs wait for the fighting
 	if !s.setup() {
 		busy = ai.assignRoles(v, own, enemies)
@@ -481,6 +532,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			continue
 		}
 		best, bestScore := -1, math.Inf(-1)
+		var bestWhy factors
 		current := ai.plans[sq.ID]
 		for i, g := range goals {
 			if g.target != 0 && s.tier(sq, s.squad(g.target)) == None {
@@ -489,27 +541,31 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			if g.kind == takePad && s.setup() && (!s.Builders[v.Side] || !ai.backInTime(v, sq, g.cell)) {
 				continue // no use to it yet, or it would still be out when the fighting starts
 			}
-			score := values[i] / (1 + dist(sq.Cell, g.cell)/distScale)
+			f := factors{value: values[i], dist: 1 + dist(sq.Cell, g.cell)/distScale, crowd: 1, matchup: 1, fear: 1, stick: 1}
 			if !g.kind.forms() || len(on[i]) >= minForce && members[i] >= need[i] {
-				score /= 1 + assigned[i] // spread out, once a Task Force has what it needs
+				f.crowd = 1 + assigned[i] // spread out, once a Task Force has what it needs
 			}
 			if g.target != 0 {
-				score *= matchup[s.tier(sq, s.squad(g.target))] // go after what it's good against
+				f.matchup = matchup[s.tier(sq, s.squad(g.target))] // go after what it's good against
 			}
 			if g.kind != defend { // a threatened point is the one to hold, not to shy from
-				score /= 1 + caution*threat[i]/max(1, strength)
+				f.fear = 1 + caution*threat[i]/max(1, strength)
 			}
 			if current != nil && current.goal.same(g) {
-				score *= stickiness
+				f.stick = stickiness
 			}
+			score := f.value / f.dist / f.crowd * f.matchup / f.fear * f.stick
 			if score > bestScore { // ties keep the earlier goal
-				best, bestScore = i, score
+				best, bestScore, bestWhy = i, score, f
 			}
 		}
 		if best < 0 {
 			continue
 		}
 		assigned[best]++
+		if ai.thinking != nil {
+			chose[sq.ID] = Choice{Squad: sq.ID, Goal: best, Score: bestScore, Why: bestWhy.why()}
+		}
 		if goals[best].kind.forms() {
 			on[best] = append(on[best], sq)
 			members[best] += float64(len(sq.Members))
@@ -524,20 +580,42 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	for _, tf := range ai.forces {
 		ai.pickTarget(v, tf, enemies)
 	}
+	ai.think(v, goals, values, threat, need, assigned, chose)
 }
 
-// backInTime is whether sq can walk to a pad, take it, and walk on to the
-// nearest point its side holds before the setup phase ends.
+// home is where a side falls back to: the Landing Zones it holds, and for
+// the defender its Command Post.
+func home(v View) []Cell {
+	var at []Cell
+	for _, p := range v.sim.Points {
+		if p.Owner == v.Side {
+			at = append(at, p.Cell)
+		}
+	}
+	if cp := v.sim.commandPost(); v.Side == Defender && cp != nil && cp.alive() {
+		at = append(at, cp.Cell)
+	}
+	return at
+}
+
+// backInTime is whether sq can walk into a pad's range, finish taking it,
+// and walk on to the nearest point its side holds before the setup phase
+// ends. Progress the side has made on the pad counts, so a squad partway
+// through doesn't give up on it.
 func (ai *AI) backInTime(v View, sq *Squad, pad Cell) bool {
 	s := v.sim
 	back := math.Inf(1)
-	for _, p := range s.Points {
-		if p.Owner == v.Side {
-			back = min(back, dist(pad, p.Cell))
+	for _, c := range home(v) {
+		back = min(back, dist(pad, c))
+	}
+	take := s.rules.CaptureSeconds
+	for _, p := range s.Pads {
+		if p.Cell == pad && p.Taker == v.Side {
+			take -= float64(p.Progress) / TicksPerSecond
 		}
 	}
-	walk := (dist(sq.Cell, pad) + back) / max(sq.speed, 0.1)
-	return walk+s.rules.CaptureSeconds <= float64(s.Setup-s.Tick)/TicksPerSecond
+	walk := (max(0, dist(sq.Cell, pad)-s.rules.CaptureRadius) + back) / max(sq.speed, 0.1)
+	return walk+take <= float64(s.Setup-s.Tick)/TicksPerSecond
 }
 
 // walkBeat sends an idle guard to the next stop on its beat round its point,
@@ -876,6 +954,13 @@ func (ai *AI) assignRoles(v View, own, enemies []*Squad) map[int]bool {
 				ai.rested[sq.ID] = v.Tick()
 				continue
 			}
+		case r == scouting && len(ai.sighted) > 0 && !ai.inContact(v, sq):
+			// The enemy's found: back to the usual goals. Scouting on, a
+			// Warthog roamed empty corners while its base fell (seed 246130).
+			delete(ai.roles, sq.ID)
+			delete(ai.plans, sq.ID)
+			ai.rested[sq.ID] = v.Tick()
+			continue
 		case !ai.inContact(v, sq):
 		case r == skirmish && ai.prey(v, sq, enemies) != nil:
 			e := ai.prey(v, sq, enemies)
@@ -925,7 +1010,7 @@ func (ai *AI) assignRoles(v View, own, enemies []*Squad) map[int]bool {
 	// A small force sends one scout out once: after it has fallen back, the
 	// points need every squad more.
 	scoutedOnce := len(ai.rested) > 0 && len(mobile) < minForRepeat
-	if v.Side == Defender && len(mobile) >= minForScouts && w.Scout > 0 && !scoutedOnce {
+	if v.Side == Defender && len(mobile) >= minForScouts && w.Scout > 0 && !scoutedOnce && len(ai.sighted) == 0 {
 		scouts = min(max(1, int(math.Round(float64(len(mobile))*scoutShare*w.Scout))), maxScouts, len(mobile)-1)
 	}
 	if want := scouts - count(scouting); want > 0 {
@@ -1050,12 +1135,7 @@ func (ai *AI) prey(v View, sq *Squad, enemies []*Squad) *Squad {
 // safety is where a squad falls back to: the nearest point its side holds,
 // or else the nearest friendly squad, or else where it is.
 func (ai *AI) safety(v View, sq *Squad) Cell {
-	var at []Cell
-	for _, p := range v.sim.Points {
-		if p.Owner == v.Side {
-			at = append(at, p.Cell)
-		}
-	}
+	at := home(v)
 	if len(at) == 0 {
 		for _, o := range ai.own {
 			if o != sq && !o.Building && ai.roles[o.ID] == noRole {
@@ -1147,7 +1227,7 @@ func (s *Sim) coverAt(c Cell) int {
 func (ai *AI) want(v View, sq *Squad, g goal) facts {
 	w := ai.weightsOf(sq)
 	switch g.kind {
-	case kill, raid:
+	case kill, raid, assault:
 		want := inRange
 		if t := v.sim.squad(g.target); t != nil && v.sim.standoff(sq, t) > 0 {
 			want |= atStandoff // it kites this one

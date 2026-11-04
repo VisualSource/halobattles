@@ -46,8 +46,13 @@ toStack():number {
   return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
 }
 
+raid():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 12);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startReorderArmy(builder:flatbuffers.Builder) {
-  builder.startObject(4);
+  builder.startObject(5);
 }
 
 static addSeq(builder:flatbuffers.Builder, seq:number) {
@@ -66,17 +71,22 @@ static addToStack(builder:flatbuffers.Builder, toStack:number) {
   builder.addFieldInt8(3, toStack, 0);
 }
 
+static addRaid(builder:flatbuffers.Builder, raid:boolean) {
+  builder.addFieldInt8(4, +raid, +false);
+}
+
 static endReorderArmy(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createReorderArmy(builder:flatbuffers.Builder, seq:number, army:number, toPlanetOffset:flatbuffers.Offset, toStack:number):flatbuffers.Offset {
+static createReorderArmy(builder:flatbuffers.Builder, seq:number, army:number, toPlanetOffset:flatbuffers.Offset, toStack:number, raid:boolean):flatbuffers.Offset {
   ReorderArmy.startReorderArmy(builder);
   ReorderArmy.addSeq(builder, seq);
   ReorderArmy.addArmy(builder, army);
   ReorderArmy.addToPlanet(builder, toPlanetOffset);
   ReorderArmy.addToStack(builder, toStack);
+  ReorderArmy.addRaid(builder, raid);
   return ReorderArmy.endReorderArmy(builder);
 }
 
@@ -85,7 +95,8 @@ unpack(): ReorderArmyT {
     this.seq(),
     this.army(),
     this.toPlanet(),
-    this.toStack()
+    this.toStack(),
+    this.raid()
   );
 }
 
@@ -95,6 +106,7 @@ unpackTo(_o: ReorderArmyT): void {
   _o.army = this.army();
   _o.toPlanet = this.toPlanet();
   _o.toStack = this.toStack();
+  _o.raid = this.raid();
 }
 }
 
@@ -103,7 +115,8 @@ constructor(
   public seq: number = 0,
   public army: number = 0,
   public toPlanet: string|Uint8Array|null = null,
-  public toStack: number = 0
+  public toStack: number = 0,
+  public raid: boolean = false
 ){}
 
 
@@ -114,7 +127,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.seq,
     this.army,
     toPlanet,
-    this.toStack
+    this.toStack,
+    this.raid
   );
 }
 }

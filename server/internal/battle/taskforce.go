@@ -50,7 +50,7 @@ const (
 )
 
 // forms reports whether a goal is a Task Force's rather than one squad's.
-func (k goalKind) forms() bool { return k == capture || k == kill || k == raid }
+func (k goalKind) forms() bool { return k == capture || k == kill || k == raid || k == assault }
 
 // forceKey picks out a Task Force across the Commander's passes: the job,
 // and its place on it.
@@ -158,7 +158,9 @@ func (ai *AI) placeStage(v View, tf *taskForce) {
 	}
 	n := float64(len(tf.members))
 	mid := Cell{int(math.Round(x / n)), int(math.Round(y / n))}
-	urgent := v.Side == Defender && s.Hold > 0 // the attacker's hold timer is running: no time to gather
+	// The Command Post is under fire: no time to gather.
+	cp := s.commandPost()
+	urgent := v.Side == Defender && cp != nil && cp.alive() && cp.damaged(s.rules.CommandPost)
 	if urgent || tf.goal.kind == kill || dist(mid, tf.goal.cell) <= stageDist+closeEnough {
 		tf.going = true
 		return
@@ -264,6 +266,17 @@ func (ai *AI) pickTarget(v View, tf *taskForce, enemies []*Squad) {
 		}
 		return 1
 	}
+	// What shoots back comes first, then the force's own job (an assault's
+	// Command Post, a raid's building), then anything else unarmed.
+	threat := func(e *Squad) int {
+		switch {
+		case e.Armed:
+			return 0
+		case e.ID == tf.goal.target:
+			return 1
+		}
+		return 2
+	}
 	pick := func(fits func(*Squad) bool, current int) int {
 		var best *Squad
 		for _, e := range enemies { // in id order, so a tie keeps the lower id
@@ -272,6 +285,7 @@ func (ai *AI) pickTarget(v View, tf *taskForce, enemies []*Squad) {
 			}
 			if best == nil || cmp.Or(
 				cmp.Compare(first(tf.shotBy(v, e)), first(tf.shotBy(v, best))),
+				cmp.Compare(threat(e), threat(best)),
 				cmp.Compare(first(e.ID == current), first(best.ID == current)),
 				-cmp.Compare(hurt(e), hurt(best)),
 				cmp.Compare(len(e.Members), len(best.Members)),

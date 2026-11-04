@@ -7,15 +7,20 @@ import {
   ArmyViewT,
   BattleEndedT,
   BattlefieldT,
+  BattleOrder,
+  BattleOrderKind,
   BattleSquadT,
   BattleStartedT,
   BattleTickT,
   BattleViewT,
   BuildPadT,
+  CellT,
   ControlPointT,
+  DefenceLayoutT,
   EconomyT,
   Exchange,
   LabT,
+  LayoutStartT,
   LobbyStateT,
   MatchEndedT,
   MoveUnits,
@@ -31,12 +36,14 @@ import {
   QueueBuilding,
   QueueItemT,
   QueueUnit,
+  RaidTurnedBackT,
   RemoveBot,
   ResearchFieldT,
   ResearchT,
   RichnessT,
   SavedProjectT,
   SeatT,
+  SetBattleControl,
   StackT,
   UnitSlotT,
   ViewDeltaT,
@@ -44,8 +51,9 @@ import {
   VolleyT,
   WinHoldT,
 } from "../gen/wire";
-import { MatchConnection, type SocketLike } from "./connection";
-import { projectDone } from "./store";
+import { settings } from "../settings";
+import { MatchConnection, type SocketLike, toLayout } from "./connection";
+import { projectDone, type View } from "./store";
 
 function fakeSocket() {
   const calls: string[] = [];
@@ -350,6 +358,7 @@ describe("MatchConnection", () => {
             destination: "reach",
             toStack: 2,
             path: ["reach"],
+            raid: false,
           },
         ],
       ]),
@@ -729,8 +738,6 @@ describe("MatchConnection", () => {
       ],
       [new ControlPointT(2, 1, 1, 0, 3)],
       [new BuildPadT(5, 6, 1, 0, 2, 0, "base:plasma-turret", 60)],
-      0,
-      true,
       60,
       false,
       true,
@@ -777,6 +784,10 @@ describe("MatchConnection", () => {
           shield: 0,
           armor: 0,
           hp: 12,
+          commandPost: false,
+          goal: null,
+          target: 0,
+          dropship: false,
         },
         {
           id: 2,
@@ -790,6 +801,10 @@ describe("MatchConnection", () => {
           shield: 9.5,
           armor: 0,
           hp: 70,
+          commandPost: false,
+          goal: null,
+          target: 0,
+          dropship: false,
         },
       ],
       points: [
@@ -805,12 +820,16 @@ describe("MatchConnection", () => {
           turret: 0,
           building: "base:plasma-turret",
           readyAt: 60,
+          coolsAt: 0,
         },
       ],
-      hold: 0,
-      holdPaused: true,
       retreatAt: 60,
       retreating: { attacker: false, defender: true },
+      raid: false,
+      buildingsLeft: 0,
+      buildings: 0,
+      commanded: false,
+      drops: [],
     });
     expect(ticks).toEqual([
       {
@@ -1017,6 +1036,18 @@ describe("MatchConnection", () => {
     expect(r?.squads.get(1)).toMatchObject({ count: 4, start: 10 });
   });
 
+  it("sends RaidTurnedBack out as a raidTurnedBack event", async () => {
+    const { conn, send } = await playing();
+    const got: unknown[] = [];
+    conn.events.addEventListener("raidTurnedBack", (e) =>
+      got.push((e as CustomEvent).detail),
+    );
+
+    send(Op.RaidTurnedBack, pack(new RaidTurnedBackT(30000n, "c")));
+
+    expect(got).toEqual([{ planet: "c" }]);
+  });
+
   it("sends PlanetCaptured out as a captured event", async () => {
     const { conn, send } = await playing();
     const got: unknown[] = [];
@@ -1056,6 +1087,40 @@ describe("MatchConnection", () => {
       [0, "base:marine", 4],
       [2, "base:odst", 1],
     ]);
+  });
+
+  it("sends a BattleOrder for a group, and Settings' Battles choice", async () => {
+    const { socket } = fakeSocket();
+    const sent: { op: number; data: Uint8Array }[] = [];
+    socket.sendMatchState = async (_id, op, data) => {
+      sent.push({ op, data: data as Uint8Array });
+    };
+    const conn = new MatchConnection(socket, { log: false });
+    await conn.open({} as Session, "m1");
+
+    conn.battleOrder("c", [3, 4], { kind: "attackMove", cell: { x: 7, y: 9 } });
+    const o = BattleOrder.getRootAsBattleOrder(
+      new flatbuffers.ByteBuffer(sent[0]?.data ?? new Uint8Array()),
+    ).unpack();
+    expect([o.planet, o.kind, o.squads, o.x, o.y]).toEqual([
+      "c",
+      BattleOrderKind.AttackMove,
+      [3, 4],
+      7,
+      9,
+    ]);
+
+    conn.store.setState({ view: { spectating: false } as View });
+    settings.setState({ battles: "command" });
+    const c = sent.at(-1);
+    expect(c?.op).toBe(Op.SetBattleControl);
+    expect(
+      SetBattleControl.getRootAsSetBattleControl(
+        new flatbuffers.ByteBuffer(c?.data ?? new Uint8Array()),
+      ).command(),
+    ).toBe(true);
+    settings.setState({ battles: "auto" });
+    await conn.close();
   });
 
   it("sends PaydayPaid out as a payday event", async () => {
@@ -1108,5 +1173,24 @@ describe("MatchConnection", () => {
       expect.stringContaining('"base:credits":1000'),
     );
     debug.mockRestore();
+  });
+});
+
+describe("toLayout", () => {
+  it("reads -1 as a default or no site", () => {
+    const t = Object.assign(new DefenceLayoutT(), {
+      planet: "a",
+      commandPost: new CellT(5, 6),
+      sites: [new CellT(1, 2)],
+      buildingSites: [0, -1],
+      setSites: [-1, 0],
+      setStarts: [new LayoutStartT(2, 7, 8)],
+      reach: 8,
+    });
+    const l = toLayout(t);
+    expect(l.commandPost).toEqual({ x: 5, y: 6 });
+    expect(l.buildingSites).toEqual([0, null]);
+    expect(l.setSites).toEqual([null, 0]);
+    expect(l.setStarts).toEqual(new Map([[2, { x: 7, y: 8 }]]));
   });
 });

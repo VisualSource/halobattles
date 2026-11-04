@@ -2,5 +2,6 @@
   "$schema": "../../../../schema/content/unit-class.schema.json",
   "id": "vehicle",
   "name": "Vehicle",
+  "squadSize": 2,
   "taskForceRole": "lead"
 }

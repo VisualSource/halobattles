@@ -6,5 +6,5 @@
   "field": "military",
   "rarity": "common",
   "cost": 300,
-  "unlocks": { "buildings": ["vehicle-depot"], "units": ["warthog"] }
+  "unlocks": { "buildings": ["vehicle-depot"], "units": ["jackrabbit"] }
 }

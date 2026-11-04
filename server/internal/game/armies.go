@@ -25,6 +25,9 @@ type Army struct {
 	// Retreating after a lost Battle: it passes through any Planet without
 	// stopping, and can't be re-ordered.
 	Retreating bool
+	// Raid: it fights for the target's buildings, never the Planet, and only
+	// its owner sees it on the way.
+	Raid bool
 }
 
 // ArmyUnits is part of an order: count of a unit from one Stack.
@@ -32,6 +35,12 @@ type ArmyUnits struct {
 	Stack int
 	Unit  string
 	Count int
+}
+
+// RaidTurnedBack tells a Raid's owner it found no buildings at Planet.
+type RaidTurnedBack struct {
+	Seat   int
+	Planet string
 }
 
 // PlanetCaptured tells Viewers that a Planet changed hands.
@@ -147,10 +156,65 @@ func (s *State) ReorderArmy(seat int, id uint32, to string, toStack int) error {
 	if !ok || !a.Waiting && len(route) > 1 && !s.passable(seat, s.Planets[a.To]) {
 		return fmt.Errorf("no route to %s", to)
 	}
-	a.Path, a.ToStack = route[1:], toStack
+	a.Path, a.ToStack, a.Raid = route[1:], toStack, false // re-ordered as an Attack; ReorderRaid makes it a Raid again
 	if a.Waiting && len(a.Path) > 0 {
 		a.Waiting = false
 		a.hop(s.Lanes, s.Time)
+	}
+	return nil
+}
+
+// OrderRaid sends units as a Raid on to: an Army after its buildings, hidden
+// from everyone but its owner on the way.
+func (s *State) OrderRaid(c *cs.Content, seat int, from string, units []ArmyUnits, to string, toStack int) error {
+	var slots []UnitSlot
+	for _, u := range units {
+		slots = append(slots, UnitSlot{Unit: u.Unit, Count: u.Count})
+	}
+	if err := s.raidable(c, seat, slots, to); err != nil {
+		return err
+	}
+	if err := s.OrderArmy(seat, from, units, to, toStack); err != nil {
+		return err
+	}
+	s.Armies[s.LastID].Raid = true
+	return nil
+}
+
+// ReorderRaid is ReorderArmy for a Raid: it raids its new target.
+func (s *State) ReorderRaid(c *cs.Content, seat int, id uint32, to string, toStack int) error {
+	if a := s.Armies[id]; a != nil && a.Owner == seat {
+		if err := s.raidable(c, seat, a.Units, to); err != nil {
+			return err
+		}
+	}
+	if err := s.ReorderArmy(seat, id, to, toStack); err != nil {
+		return err
+	}
+	s.Armies[id].Raid = true
+	return nil
+}
+
+// raidable checks a Raid: on a Planet that isn't the raider's own, by units
+// that all have one of the Ruleset's raidRoles, within its raidCap of
+// Command Points.
+func (s *State) raidable(c *cs.Content, seat int, units []UnitSlot, to string) error {
+	if p := s.Planets[to]; p != nil && p.Owner == seat {
+		return errors.New("you can't Raid your own Planet")
+	}
+	rules := c.Rulesets[RulesetID].Battle
+	cp := 0
+	for _, u := range units {
+		def := c.Units[u.Unit]
+		if !slices.ContainsFunc(def.Roles, func(r cs.UnitRolesElem) bool {
+			return slices.Contains(rules.RaidRoles, cs.RulesetBattleRaidRolesElem(r))
+		}) {
+			return fmt.Errorf("%s can't Raid", def.Name)
+		}
+		cp += def.CommandPoints * u.Count
+	}
+	if limit := rules.RaidCap; cp > limit {
+		return fmt.Errorf("a Raid holds at most %d Command Points; these are %d", limit, cp)
 	}
 	return nil
 }
@@ -219,7 +283,10 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 		}
 		p := s.Planets[a.To]
 		if p.Locked {
-			continue // waits until the Battle ends, then resolves against the new owner
+			if len(a.Path) == 0 { // it ends here; one passing through keeps its order
+				s.reinforce(c, a, p) // with Dropships, it lands what they carry
+			}
+			continue // the rest waits until the Battle ends, then resolves against the new owner
 		}
 		if len(a.Path) > 0 {
 			// It waited out a Battle on the way: go on if it still may.
@@ -231,7 +298,21 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 			a.Path = nil // taken by an enemy: the move ends here
 		}
 		switch {
-		case p.Owner == Neutral && p.empty():
+		case a.Raid && !s.Allied(a.Owner, p.Owner) && !p.built():
+			// Nothing to raid: home, seen like any Retreat.
+			ev.TurnedBack = append(ev.TurnedBack, RaidTurnedBack{Seat: a.Owner, Planet: p.ID})
+			a.Waiting, a.Retreating = false, true
+			if !s.retreat(a, now) {
+				delete(s.Armies, a.ID)
+			}
+			continue
+		case a.Raid && !s.Allied(a.Owner, p.Owner):
+			s.startBattle(c, a, p, ev) // even with no units there: a Raid never takes the Planet
+			continue
+		case p.Owner == Neutral && p.empty(),
+			// An enemy Planet with no units and no buildings has nothing to
+			// fight with: taken without a Battle.
+			!s.Allied(a.Owner, p.Owner) && p.empty() && !p.built():
 			s.capture(p, a.Owner, ev)
 		case p.Owner != a.Owner && s.Allied(a.Owner, p.Owner):
 			// A Teammate took it first: it can't land, so it heads home, as a
@@ -245,8 +326,14 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 			s.startBattle(c, a, p, ev)
 			continue
 		}
+		a.Raid = false // home: what's left in orbit is an ordinary Army
 		s.land(c, a, p)
 	}
+}
+
+// built is whether the Planet has any buildings.
+func (p *Planet) built() bool {
+	return slices.ContainsFunc(p.Buildings, func(b string) bool { return b != "" })
 }
 
 // land merges an Army into its Stack, with overflow. Units that don't fit
@@ -277,6 +364,7 @@ func (s *State) capture(p *Planet, to int, ev *Events) {
 		p.Buildings[i] = ""
 	}
 	p.Owner, p.Queue, p.UnitQueues, p.Rally, p.RallyPoint = to, nil, nil, 0, ""
+	p.Layout.Starts = nil
 	for _, q := range s.Planets { // the loser's Rally Points on it go
 		if q.Owner == from && q.RallyPoint == p.ID {
 			q.RallyPoint = ""

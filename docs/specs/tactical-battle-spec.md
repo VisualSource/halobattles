@@ -9,7 +9,7 @@ Every number below is Ruleset or content data. The values given are base-Mod def
 ## Overview
 
 - A Battle is a **real-time, server-authoritative simulation** on a square-grid **Battlefield** generated for its Planet. The two sides watch it live in the Battle window, which can go full-screen.
-- Each Unit Slot fights as one **Squad** token. Squads move, take cover, hold high ground and fight over **Control Points**. It is not a fight to the death.
+- Each Unit Slot fights as one or more **Squad** tokens. Squads move, take cover, hold high ground and fight over **Landing Zones**, and the attacker goes for the defender's **Command Post**. It is not a fight to the death.
 - Both sides are run by **Controllers**. In v1 every Controller is the AI, and the only order a player gives is **Retreat**. The AI issues the same orders a player will later, so player control can be added without changing the sim.
 - **Fog of war:** a side sees enemy units only within its Sight.
 - The damage model is unchanged: Shield → Armor → HP layers, Weapon Types, the To-hit roll, Damage rolls and tiers ([ADR 0003](../adr/0003-dice-damage.md)). Position and terrain change **who can hit whom and how easily**, never how damage is worked out.
@@ -19,7 +19,7 @@ Every number below is Ruleset or content data. The values given are base-Mod def
 ### Size and seed
 
 - The default size is **64 × 48 cells**. A Planet can set its own `battlefield.width` and `battlefield.height`.
-- A Battlefield is generated from **the Match seed + the Planet id**, so the same Planet has the same Battlefield for the whole Match and players can learn it. It's generated once, on the Planet's first Battle, and cached for the Match.
+- A Battlefield is generated from **the Match seed + the Planet id**, and the **defending Faction**, whose base it holds (a neutral garrison's base when nobody owns the Planet). The ground is the same for the whole Match, so players can learn it; whoever defends shows their own base on it. Each is generated on the Planet's first Battle with that defender, and cached for the Match.
 - The client never generates terrain. `BattleStarted` carries the finished grid (see [On the wire](#on-the-wire)).
 
 ### Generation
@@ -31,15 +31,21 @@ Generation follows [Red Blob Games: terrain from noise](https://www.redblobgames
 3. Elevation is cut into **bands**, lowest first. The base presets use `water`, `lowland`, `highland` and `peak`, and each band sets its height level.
 4. Moisture splits each band into Terrains, driest first. For example, lowland comes out as rough, open or forest.
 5. A **Terrain Preset** supplies the noise parameters, the bands, and the Terrains in each. A desert Planet comes out mostly sand and rough; an ice Planet turns its lakes into ice you can walk on. A Planet names its preset in `battlefield.terrainPreset`; otherwise the Ruleset's `battlefield.terrainPreset` applies.
-6. **Connectivity:** the largest region the Ruleset's `pathClass` (Infantry) can walk is the main region. Any edge's deployment strip that doesn't touch it gets the fewest blocked cells along a path cleared to the preset's `clear` Terrain. That's a ford through a lake, or a pass through peaks.
-7. **Control Points** are placed in the main region (see [Control Points](#control-points)).
-8. **Layout round the points** (#64). It keeps the noise terrain and shapes it round the points:
-   - **Attacker starts:** `battlefield.attackerStarts` (3) cells on the map's edges, each at least 9 cells from a corner. The first is random; each later one is as far as it can be from those before. Each gets a zone 19 cells wide and `deployDepth` (4) deep, turned to the preset's `clear` Terrain.
-   - **Point areas:** every cell within `battlefield.pointArea` (3) of a point becomes `clear` Terrain, level with the point. Over a band from 1.5 cells inside that edge to 1.5 outside it, about a third of the cells become the preset's `pointCover` Terrain (`rough` in the base presets), so guards inside the capture radius have cover. With the cover only outside the clear ground, guards had none on their points, and Starting Kit attackers won 61% / 60% instead of 54% / 54%.
-   - **Main lanes**, `battlefield.laneWidth` (2) cells wide: the shortest links that join every point (a spanning tree), then a ring round the points (each to the next by angle round their middle), so guards can go round them; then each start to its nearest point. A lane is the cheapest 4-way path, preferring ground every ground Unit Class crosses and existing lanes. A link between two points keeps off the others' ground. Anything on a lane a ground Unit Class can't cross becomes `clear` Terrain, so vehicles and infantry reach every point and start.
-   - **Building sites:** 2 per point, dealt round the points in turn, from just outside a point's clear ground to 9 cells out. They prefer high ground, then ground vehicles can't reach (a dead end), then ground away from the starts. Each gets a 1-cell **side lane** from the nearest main lane that clears only what the path class (Infantry) can't cross, so it may be infantry's alone.
-   - **Build pads:** see [Build pads](#build-pads).
-9. Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
+6. **Archetype** (#99): a [Battlefield Archetype](#archetypes-and-fixtures) shapes the map, picked by the preset's `archetypes` weights or forced by the Planet's `battlefield.archetype`, along with the **defender's edge**:
+   - **open:** the noise as it is;
+   - **river:** a band across the attack sunk to the lowest band (water, or ice), with 2 or 3 fords cleared 3 cells wide;
+   - **ridge:** the line of the attack raised to high ground, or (a valley) the ground either side of it;
+   - **ruins:** a grid of 5-cell blocks, each cover or now and then impassable rubble, with 2-cell streets of clear ground.
+7. **The base:** a base [fixture](#archetypes-and-fixtures) for the defending Faction (its own, else a neutral one; a plain Command Post with sites round it if none fits) is stamped in the third of the map by the defender's edge. It holds the **Command Post**, the **building sites**, the defender's **unit starts**, and any pads it marks. Then 1 to 3 **feature** fixtures go in open ground between, clear of the base; one that doesn't fit is left out.
+8. **Connectivity:** the largest region the Ruleset's `pathClass` (Infantry) can walk is the main region. Any edge's deployment strip that doesn't touch it, and the Command Post, gets the fewest blocked cells along a path cleared to the preset's `clear` Terrain. That's a ford through a lake, or a pass through peaks.
+9. **Landing Zones** (Control Points in the code) are spread over the main region, clear of the base (see [Landing Zones](#landing-zones)). The farther half from the Command Post are where an attacker can land.
+10. **Layout round the Landing Zones** (#64). It keeps the terrain and shapes it round them:
+   - **Landing Zone areas:** every cell within `battlefield.pointArea` (3) of one becomes `clear` Terrain, level with it. Over a band from 1.5 cells inside that edge to 1.5 outside it, about a third of the cells become the preset's `pointCover` Terrain (`rough` in the base presets), so guards inside the capture radius have cover.
+   - **Main lanes**, `battlefield.laneWidth` (2) cells wide: the shortest links that join every Landing Zone (a spanning tree), then a ring round them, so guards can go round; then the base to its nearest Landing Zone. A lane is the cheapest 4-way path, preferring ground every ground Unit Class crosses and existing lanes, and going round fixtures where it can. Anything on a lane a ground Unit Class can't cross becomes `clear` Terrain, except in a fixture, which keeps what it was drawn with; a lane never runs over a fixture's pad.
+   - **Build pads:** a fixture's first, then the rest; see [Build pads](#build-pads).
+   - **Building sites:** the base's, then more up to `battlefield.buildingSites` (10) in all, spread over the defender's side (at least 0.35 of the way to its edge): each the reachable cell farthest from the Command Post and every site so far, off the lanes and the cells touching them, the Landing Zone areas, the fixtures and the edge strips, and 3 cells from pads. The base's come first, so they're the defaults ([Deployment](#deployment)); the rest are for the [defence layout](#defence-layout).
+11. Each stage draws from its own PCG stream: 1 elevation, 2 moisture, 3 Landing Zones, 7 point cover, 8 archetype and edge, 9 base, 10 features, 11 fords and ruins (6 was the old edge starts). A new stage takes the next number.
+12. Deployment and buildings are placed per Battle9. Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
 
 ### Terrain
 
@@ -73,15 +79,16 @@ Base-Mod Terrains:
 
 ## Squads
 
-- A **Squad** is one Unit Slot in battle: one unit type, a count, and **each member's own Shield, Armor and HP**. It sits in one cell, whatever its count.
+- A **Squad** is a Unit Slot, or part of one, in battle: one unit type, a count, and **each member's own Shield, Armor and HP**. It sits in one cell, whatever its count.
+- **Squad size:** a Unit Slot deploys as squads of at most its Unit Class's `squadSize` members (base Mod: infantry 4, vehicles, aircraft and artillery 2; structures and a class without one, a single squad). 10 Marines fight as squads of 4, 4 and 2. Every squad of a slot keeps the slot's place, so the survivors go back to it together.
 - Squads never split or merge mid-Battle.
 - Each armed or unarmed building is a stationary combatant in one cell, whatever its size; bigger footprints can come with building sites (see [Later](#later)). Unarmed buildings are now targets (see [Buildings](#buildings)).
 - **Occupancy:** one ground Squad or building per cell. An Aircraft Squad can share a cell with one ground Squad, but not with another Aircraft Squad. Squads can't pass through each other; pathfinding routes around them.
 
 ### Deployment
 
-- **Defender:** each of the Planet's three Stacks deploys on one Control Point (Stack 1 at point A, and so on). Building Slot *n* stands on the Battlefield's building site *n*. With more slots than sites, the rest stand 3 cells behind the points, away from the attacker's edge.
-- **Attacker:** deploys round one of the Battlefield's attacker starts, which the Battle seed picks, 4 cells deep in from that edge. A player choosing their start is for later.
+- **Defender:** in its base, as its owner's [defence layout](#defence-layout) places it. A building the layout places takes its site; the rest take their own slot's site (Building Slot *n*, site *n*) if it's free, else the first free one, and past the sites stand by the Command Post. Stack *n* deploys round the start the layout gives it, else round the base's unit start *n*; past the base's starts, round the [Command Post](#the-command-post).
+- **Attacker:** lands at one of the Landing Zones in the farther half from the base, which the Battle seed picks, and holds it from the start. It Retreats off the map edge nearest it. A player choosing where to land is for later (#92, #57).
 - **Formations:** a Stack deploys in the shape of its 3 × 5 slot grid. The front row faces the enemy, and empty slots leave gaps. An attacking Army's slots are laid out the same way, 15 slots per formation, in slot order. A slot that lands on a blocked cell moves to the nearest free passable cell (breadth-first, ties to the lowest cell index).
 
 ## Time and movement
@@ -147,7 +154,7 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 ## Sight and fog of war
 
 - Each unit has a `sight` radius, plus its height bonus. A **side sees the union** of its Squads' and buildings' Sight.
-- **Always visible to both sides:** the terrain, every Control Point with its owner and capture progress, and the hold timer.
+- **Always visible to both sides:** the terrain, every Landing Zone with its owner and capture progress, and the Command Post with its health.
 - **Visible only within Sight:** enemy Squads.
 - **Muzzle flash:** a Squad that fires is seen by the side it fired on for 3 s after each volley, wherever it stands. A turret that outranges the Sight of what it shoots still gives itself away, and the side being hit always knows its shooter.
 - **Buildings:** the defender always sees its own. An attacker sees an enemy building once it comes into Sight, and the client keeps a **last-seen marker** for it after that.
@@ -156,24 +163,29 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 ## Objectives
 
-### Control Points
+### The Command Post
 
-- The generator places **3 Control Points** in the main region, in the middle half of the map each way, at least `controlPointSpacing` (10) cells apart. Where they don't fit, the spacing shrinks until they do. This placement is good enough for v1; revisit it with handmade maps or the capital-world variant.
-- The **defender holds all three** when the Battle starts.
+- Every Battlefield has a **Command Post**, the defender's, neutral garrisons included: an objective structure that exists only for the Battle and takes no Building Slot. It never fires.
+- **Its stats** are the Ruleset's `battle.commandPost` (base Mod, first pass: Structure class, 0 Shield, 60 Armor, 150 HP), with no Tech Boosts.
+- **Where:** the main-region cell nearest the middle of the map that holds no Landing Zone, pad, start or building site. #99's archetypes will place it on the defender's ground instead.
+
+### Landing Zones
+
+Landing Zones are what the code calls Control Points. Until reinforcements (#57) land on them, holding one changes nothing; both sides still fight over them.
+
+- The generator places **3 Landing Zones** in the main region, at least `deployDepth + 3` cells in from the edges and 14 from the Command Post, at least `controlPointSpacing` (10) cells apart, the first in the half of the map away from the base. Where they don't fit, the spacing shrinks until they do.
+- **Nobody holds them** when the Battle starts, except the one the attacker lands at. The defender takes them like anyone else.
 - **Capture:** a point changes hands after one side has a ground Squad within **2 cells** of it, and the other side has none, for **5 s** in a row. If the lone side leaves or the other side arrives, progress resets.
 - **Aircraft** neither capture nor contest a point, and nor do buildings: only ground Squads hold ground.
 - **Contested:** when both sides are in range, nothing changes.
 
 ### Winning
 
-- **Attacker wins** by:
-  - holding **2 of 3 points for 30 s in a row**; the hold timer resets the moment it holds fewer than 2, and **pauses**, keeping its count, while a defender ground squad stands within capture radius of one of the points it holds (as on Empire at War's maps). The Battle window shows it as paused;
-  - **elimination**: the defender has no Squads and no armed buildings left.
+- **Attacker wins** only by **destroying the Command Post**. Wiping out the defence leaves it standing to be destroyed, and the time cap still runs. A defender that Retreats abandons the Battle: once its Retreat is over, its Command Post blows up and the attacker wins. An empty Planet, enemy or neutral, with no units and no buildings, is captured with no Battle at all.
 - **Defender wins** by:
   - the **time cap, 3 min** of fighting, counted after the start delay;
   - **elimination**: the attacker has no Squads left;
   - the attacker **Retreating** ([Retreat](#retreat-in-battle)).
-- The attacker also wins when the defender Retreats.
 - **Mutual wipe-out**, or both sides finishing a Retreat on the same tick: the defender keeps the Planet, as before.
 - An attacker win captures the Planet; a defender win sends the attacker into Retreat. A beaten defender's surviving units, whether escaped or still on the field, Retreat too, unless they're a neutral garrison, which loses them. All of this follows the game-design spec's [Ending](game-design-spec.md#ending) rules.
 
@@ -193,6 +205,7 @@ Spots on the Battlefield where a side that holds one can build a turret, as on E
 - **Building:** the side holding an empty pad can build one turret on it. A turret is a Building with `padTurret: true` and a `combat` block, of the side's own Faction. It costs that Building's `cost`, paid at once from the player's Resources, the same pool as the galaxy. It's built after `battle.padBuildSeconds` (10 s), and it exists only for this Battle. The base Mod's pad turrets are the Turret and the Plasma Turret.
 - **Who decides:** a player builds with the Battle window's button; the Battle AI never spends a player's money, but a galaxy Bot buys for its own side (see the Bot spec). A **neutral garrison** has no economy, so it gets `battle.neutralFunds` (400 Credits, 100 Materials and 40 Alloys, two turrets' worth) for the Battle, and its AI builds turrets on the pads it holds, the cheapest it can afford first.
 - **Winning:** a defender's pad turrets count against its elimination, like its armed buildings. An attacker's don't: an attacker with only turrets left has lost.
+- **Cooldown:** a pad whose turret is destroyed can be taken at once, but can't be built on again for `battle.padCooldown` (20 s).
 - **After the Battle:** pad turrets are gone, whoever won. They aren't Planet buildings.
 - **Fog:** a side sees a pad's owner, capture, turret and build as they are only for its own pads and those in its Sight; others as it last saw them, which at the start is unowned. A side that loses one of its pads out of Sight learns it has, but not what's built on it after. A pad's cell is always shown, as part of the map. The Battle AI plans from the same picture.
 - **On the wire:** each pad in `BattleView`, as the side sees it: its cell, owner, capture progress, any turret's squad id, and any build under way with the tick it finishes. The command is `BattleBuildTurret {planet, pad, building}`.
@@ -250,7 +263,8 @@ The AI Controller has a Commander and a planner per Squad ([ADR 0005](../adr/000
 - **Sentry beats:** a guard settled on its point walks a short beat every 8 s, but only while its side knows of no enemy: to a covered cell within 2 cells of the point, or else a spot that far out each way. It pauses there 3 s, then returns. Staying inside the capture radius keeps the point contested. Walking out to 4 cells and to nearby pads got guards caught away from their points: attacker wins rose from 54% to 59%. This version costs about 2 points.
 - **Under fire:** a squad an armed building fired on in the last 3 s breaks off its plan for it. If it can hurt the building, it goes after it (stopping to fire once in range) until the building is dead or out of sight. If it can't hurt it, it moves to the nearest cell outside the building's reach. Enemy squads that fire on it are left to the Commander, which sees them by their muzzle flash: breaking off for every shooter won Starting Kit attackers 70% of Battles instead of 50%.
 - **Leash:** a squad guarding a point goes after the enemy it can see and hurt, best matchup first and then nearest, that comes within 6 cells × its aggression weight of the point, moving to a firing position and stopping to fire. It goes back to the point once that enemy dies or leaves the leash. Its goal stays "defend" throughout. Armed buildings count as enemies here, and a shooter it can hurt comes first, out to the leash plus its own range: a Warthog (range 7) firing on a guard from just off its leash isn't left unanswered. At 8 cells, guards left their points open often enough to tip balance toward the attacker. Without answering shooters past the leash, Task Force attackers won 71% / 75% of Starting Kit Battles and 86–88% of big ones.
-- While the attacker's hold timer runs, the defender values retaking a point at 5 instead of 3.
+- **The Command Post:** the attacker values assaulting it at 4, more than any other goal. The defender values holding it at 3, scaled up by the threat near it as a point's defence is, except in setup, where it's 1, so pads come first. A Landing Zone is worth 1.2 to take, 1 to the defender to hold and 0.6 to the attacker. First-pass numbers, untuned (#95). Threat raises only the defender's defend goals: an attacker holding a Landing Zone under fire isn't worth more for it, or it stands there and dies.
+- **Targets:** when a squad or a Task Force picks what to fire on, an armed enemy comes before an unarmed one (a building, the Command Post), unless it's the force's own job: an assault's Command Post, a raid's building.
 - **Urgency:** the attacker's caution falls as the time cap nears: × (1 − fighting time ÷ time cap), so a stalled attack pushes rather than sitting out the clock on the points it holds. A Bot attack that took one point and sat on it till the cap, short of the two it needed, was what showed this.
 - **Goals:**
   - `capturePoint(p)`
@@ -265,7 +279,7 @@ The AI Controller has a Commander and a planner per Squad ([ADR 0005](../adr/000
 - A Squad the Commander gives a capture, kill or raid goal joins that goal's **Task Force**. A Task Force has at most 4 Squads; a goal with more gets more Task Forces. A Squad stays in the Task Force it was in, and new ones fill free places in id order, so a Task Force going in is never pulled back to gather.
 - **Gathering:** a new Task Force first meets at a **stage** 8 cells from its goal, toward where its Squads are. Each further Task Force on the goal stages on a bearing turned about 51° from the last, alternating sides, so a big force comes in from more than one side. The stage is the nearest cell to that point every member can stand on.
 - **Going in:** the Task Forces on a goal go in together once all have gathered, or once one has waited 20 s. A member counts as gathered within 3 cells of the stage, or once it has got as near as it can. One stopped by a fight on the way is sent on to the stage after it.
-- No gathering for a Task Force already within 11 cells of its goal, after a moving target (kill), or retaking a point for the defender while the attacker's hold timer runs.
+- No gathering for a Task Force already within 11 cells of its goal, after a moving target (kill), or for the defender while its Command Post is under fire.
 - **Moving together:** once going, every Move a member's plan sends carries the Task Force's **pace**, its slowest member's speed, so faster units don't arrive alone.
 - **One target:** once a second, each Task Force names a target among the enemies in contact with it: ones that fired on a member in the last 3 s, or that a member that can hurt them has within its range + 2 cells. It picks one that fired on a member first, then the one it already has, then the one most of its members can hurt, then the fewest members left, then the nearest. Each member gets an `attack` order on it and fires on it whenever it's in range, while it goes on with its plan. With the sim's focus fire, a Task Force finishes one squad at a time. Measured with three Stacks a side, attacker wins went from 64% / 60% to 61% / 57%; with Starting Kits they were unchanged at 53% / 51%.
 - **Roles by Unit Class:** each Unit Class has a `taskForceRole`, which defaults to `follow`:
@@ -326,7 +340,7 @@ On top of the usual goals, the Commander gives some squads a job:
 
 ## On the wire
 
-- **`BattleView`**, in each side's View: the Battle as that side sees it. That's the sim tick, the attacker's edge, the side's own squads plus the enemies in its Sight, every Control Point and the hold timer. Each squad carries its id, side, unit, cell, count, starting count, and its front member's layers.
+- **`BattleView`**, in each side's View: the Battle as that side sees it. That's the sim tick, the attacker's edge, the side's own squads plus the enemies in its Sight, every Landing Zone, and the Command Post, which both sides always see. Each squad carries its id, side, unit, cell, count, starting count, its front member's layers, and whether it's the Command Post.
   - It's diffed and upserted in `ViewDelta` like any other entity, so it changes every tick while anything moves. Fog is enforced where the server builds it, in the sim's `Snapshot(side)`.
   - **The Battlefield** goes only in `ViewFull` and `BattleStarted`: width, height, the Terrain id table, then one Terrain index and one height level per cell. Deltas leave it out, and the client keeps it.
 - **`BattleStarted`**: the two sides, the Planet, the start time and the Battlefield.
@@ -386,6 +400,7 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
 - Two evenly matched forces should fight for about **1–3 minutes**.
 - The two Starting Kits should stay roughly even, with a lean to the defender allowed: either one attacking wins 40–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights. A heavy lean to the defender is as much a problem as one to the attacker.
 - A Go test checks both over 100 seeds per matchup. When last tuned (Battlefield layout, #64): about 77 s per Battle; UNSC attacking wins 54%, Covenant attacking 54%. Three Stacks a side, still skipped under #40: 50% / 54%.
+- **During v3 (#95) the test is skipped**, since the AI and the rules are changing; `HALO_BALANCE=1` runs it to measure. After the Command Post (#98), Starting Kit attackers win 69% / 63%. Balance is tuned once every v3 sub-issue is in.
 - The test covers **big Battles** too (three Starting Kit Stacks a side), skipped under #40 until the map generation rework (#64) settles; the current figures are in the line above. They were 73% / 67% before roles, the paused hold timer, guard posts, and cover for any positive weight, and 64% / 54% before focus fire.
 - Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
 
@@ -401,21 +416,23 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battlefield.controlPoints` | 3 |
 | `battlefield.controlPointSpacing` | 10 cells |
 | `battlefield.deployDepth` | 4 cells |
-| `battlefield.attackerStarts` | 3 |
 | `battlefield.laneWidth` | 2 cells |
 | `battlefield.pointArea` | 3 cells |
 | `battle.startDelay` | 15 s |
 | `battle.timeCap` | 180 s |
+| `battle.raidTime` | 100 s |
+| `battle.raidCap` | 10 Command Points |
 | `battle.captureRadius` | 2 cells |
 | `battle.captureSeconds` | 5 |
-| `battle.holdPoints` | 2 |
-| `battle.holdSeconds` | 30 |
+| `battle.commandPost` | Structure class, 0 Shield, 60 Armor, 150 HP |
 | `battle.highGroundToHit` | +2 |
 | `battle.heightSight` | +1 per level |
 | `battle.structure` | Unit Class Structure, 0/20/30 |
 | `battle.classDefaults` | see [Stats](#stats) |
 | `battle.retreatCountdown` | 10 s |
+| `battle.startReach` | 8 cells |
 | `battlefield.buildPads` | 4 |
+| `battlefield.buildingSites` | 10 |
 | `battle.padBuildSeconds` | 10 s |
 | `battle.neutralFunds` | 400 Credits, 100 Materials, 40 Alloys |
 
@@ -424,17 +441,164 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 - **`terrains`** kind: `cover`, `colour`, and `movement` (a cost per Unit Class).
 - **`terrainPresets`** kind:
   - `noise`: frequency, octaves and persistence;
-  - `pointCover`: an optional Terrain scattered round each Control Point's clear ground as cover;
+  - `pointCover`: an optional Terrain scattered round each Landing Zone's clear ground as cover;
+  - `archetypes`: optional weights for `open`, `river`, `ridge` and `ruins` (none: an open field);
   - `bands`: each with `upTo`, `height`, and its `terrains` by moisture `upTo`;
   - `clear`: the Terrain and height used to cut a path.
 
   The base Mod ships `base:temperate`, `base:desert` and `base:ice`.
-- **Planet** (in a map): an optional `battlefield {terrainPreset, width, height}`.
+- **Planet** (in a map): an optional `battlefield {terrainPreset, archetype, width, height}`.
+- **`fixtures`** kind (#99): a hand-made piece of Battlefield as ASCII art, with `kind` `base` or `feature`, an optional `faction` (a base's), `archetypes`, `weight`, `rotate`, `mirror`, a `key` from characters to a `terrain` (or `clear` or `cover`) and an optional `height`, `markers` (`commandPost`, `site`, `unitStart`, `pad`, `cover`), and the `map` rows. A base has exactly one `commandPost`. The base Mod ships a UNSC firebase, a Covenant outpost and a neutral outpost, plus a crash site, trench line, Forerunner ruin and bridge.
 - **Faction:** an optional `ai` weight block.
 - **Building:** an optional `padTurret` flag: it can be built on a build pad in Battle (it needs a `combat` block).
+- **Unit Class:** an optional `squadSize`, the most members one of its squads has (see [Squads](#squads)); none means one squad per Unit Slot.
 - **Unit Class:** an optional `taskForceRole`, `lead`, `follow` or `hunt`: its part in a Battle AI Task Force (see [Task Forces](#task-forces)). The base Vehicles lead and Aircraft hunt.
 - **Unit:** an optional `roles` list, `scout` and/or `skirmisher`: hints for which units the Battle AI picks for those jobs first.
 - **`combat` block:** see [Stats](#stats).
+
+## Tactical Battles v3
+
+Planned (#95), not built. Each part below is its own issue. As each one lands it replaces the matching section above, and this section shrinks. Research: [procedural RTS map generation](../research/procedural-rts-map-generation.md), [RTS bots that are fun to fight](../research/rts-bot-ai-fun.md).
+
+Why: Battles have 2–6 tokens a side on a 64×48 grid, the maps read as haphazard, and three Control Points don't feel like a military objective. Before changing any of that, we need a way to see what the AI is thinking.
+
+### The Battle Lab
+
+Built (#97). A dev and design tool, never shipped to players.
+
+- **Where:** a `/lab` route in the game client, present only in dev builds. It reuses the client's sign-in, socket and Battlefield drawing.
+- **How it runs:** a `battle_lab` Nakama match type that is registered only when the server starts with `HALO_DEV=1`. The page creates one, then sends it setup and control messages. The match loop steps the sim at the chosen speed and sends back the state and the AI's decision trace. The same logic is testable from Go.
+- **Setup:** the Terrain Preset or archetype, the seed, and each side's units, Faction and AI weights.
+- **Running:** pause, step, speed, and restart on the same seed.
+- **Viewing:**
+  - fog for both sides, the attacker only, or the defender only;
+  - each Task Force's goal, route and target drawn on the map;
+  - a decision log that can be filtered by squad.
+- **Replays:** load a Battle from a match log (`HALO_MATCH_LOG`) and replay it.
+- **Command:** either side, or both, can be put under your command instead of the AI. This is the test bed for [Command](#command). Until #92 there are no controls to give orders, so a commanded side's squads hold and fire.
+- **The AI's reasons:** each Commander pass, a side's AI records every goal it listed (its worth, the threat seen near it, the strength it needs), the goal each squad took with its score broken into factors (worth, distance, others on it, matchup, threat, already on it), and its Task Forces.
+- **Mockup first:** an HTML mockup of the page is agreed before the page is built.
+
+### The Command Post (built, #98)
+
+Now in [Objectives](#objectives). As planned:
+
+- Every Battlefield has a **Command Post** on the defender's side, neutral garrisons included. It's an objective structure that exists only for the Battle and takes no Building Slot. The defender's buildings form a base around it.
+- **The attacker wins** by destroying the Command Post, and only that; a defender that Retreats blows its own.
+- **The defender wins** at the time cap, by eliminating the attacker, or when the attacker Retreats.
+- **The hold timer is dropped.**
+- Control Points become **Landing Zones**. The side that holds one can land [reinforcements](#reinforcements) there. Build pads stay as they are.
+
+### Archetypes and fixtures
+
+Built (#99): now in [Generation](#generation), [Deployment](#deployment) and [Landing Zones](#landing-zones). As planned:
+
+Battlefields get structure from authored content. Noise only dresses the space in between.
+
+- **Archetypes** set a Battlefield's shape. Each Terrain Preset gives weights for the ones it can use. The first four:
+  - an open field;
+  - a river with 2–3 crossings;
+  - a ridge line or a valley;
+  - ruins: a city grid of blocks and streets.
+- **Fixtures** are hand-authored pieces stamped into open space. Examples: a firebase, a bridge, a crash site, a Forerunner structure, a trench line. Each is a JSONC file in the Mod, drawn as ASCII art:
+  - a key maps each character to a Terrain or a height;
+  - markers place cover, pads and building sites;
+  - it says which archetypes and presets can use it, and whether it may be rotated or mirrored.
+- Generation stamps a weighted few fixtures, each stage in a new PCG stream (8 and up). The existing streams keep their numbers, so seeds keep their maps where nothing else changed.
+- **Later:** an editor page for fixtures; a [3D drawing](#later) of the Battlefield (#93), with the 2D view kept as the overview.
+
+### Raids
+
+**Raid** is a galaxy order alongside Attack (#66). Built.
+
+- **Raiders:** a unit with one of the Ruleset's `battle.raidRoles` (`scout`, `infiltration` and `shock` in the base Mod) can raid. A Stack can raid only if every unit in it can, and its Command Points are at most the Ruleset's `battle.raidCap` (10). In the base Mod:
+  - UNSC: the ODST (`infiltration`) and a new M121 Jackrabbit, a light scout vehicle from the Vehicle Depot (`scout`). The Warthog loses `scout`.
+  - Covenant: the Elite and the Jackal Sniper (`infiltration`), the Spectre (`shock`), and the Revenant (`scout`). The Ghost loses `scout`.
+- **Ordering:** while a Stack that can raid is dragged on the galaxy map, each Planet it could raid shows a **raid slot** left of its name: "raid" and an empty Stack oval, lit like a Stack pile when the drag is over it. Dropping the Stack there orders a Raid. Any Planet that isn't yours or a Teammate's can be raided. A Raid can be re-ordered like any Army and stays a Raid; dropped on a Planet's ordinary target it becomes an Attack. The slot gets an HTML mockup first.
+- **Hidden:** a raiding Army is seen only by its owner and spectators, all the way to its target, even past Planets the defender can see. The defender learns of it when the Battle starts.
+- **Arrival:** at a Planet with no buildings, there's no Battle; the raiders Retreat home, and their owner is told why. The raid slot doesn't show on a Planet you can see has no buildings.
+- **The Battle:** the same Battlefield, Landing Zone and setup phase as an Attack.
+  - **The goal** is destroying the Planet's buildings within `battle.raidTime` (100 s) of fighting; the raiders need time to find them.
+  - **The ends:** the raiders win by destroying every building. The defender wins by wiping them out, or when the time is up; the raiders may also Retreat, as now.
+  - **The Command Post** stands, but isn't a raid target, and destroying it decides nothing.
+  - **The defender can't Retreat:** there's nothing to save by leaving.
+- **Afterwards:** buildings destroyed are gone from the Planet, whoever won, and the Planet never changes hands. The surviving raiders go home as an ordinary, visible Retreating Army.
+- **The AI:** raiders get no assault or Landing Zone goals, and their raid goals are worth what an assault is (4 × the Raid weight). The defender gets a defend goal on each of its buildings, worth more under threat, besides holding the Command Post. Bots don't order Raids yet.
+- **Shown:** the Battle panel shows "Raid", the time left, and the buildings left and destroyed, a count public to both sides; the report says how many were destroyed. A Raid's marker is dimmed for its owner. The Lab's setup has a Raid option.
+- **Later** (#101): a Tech and a detector building that spot Raids coming to your Planets within a number of hops of it, larger Raids easier to spot; and taking Techs by raiding a Lab.
+
+### Command
+
+A player can command their side of a Battle instead of the AI (#92). The AI then serves only as the **Auto-resolve**. Built.
+
+- **Choosing:**
+  - Each player sets a default, **Command** or **Auto** (the default), in a new full-screen **Settings** dialog (the house Base UI `Dialog`, as the faction picker) opened from a gear in the play screen's header, the main menu's bottom-right corner, and the header on the lobby and results screens (an icon only, there); later settings go there too. It's kept in the browser and sent to the server on joining a Match and on each change, so it carries over between Matches. A change affects only Battles that start after it.
+  - The Battle window has the same switch, Auto or You command, for your side of that Battle: yours to change during its setup, starting from the default.
+  - A Battle you defend uses your default. Bots always auto-resolve; Teammates and spectators watch.
+- **The choice is fixed when the fighting starts.** Change it in the Battle window during setup; after that, on Auto you watch and can't take over. If you're commanding and you disconnect, the AI takes over for the rest of that Battle, and reconnecting doesn't hand it back. A replay records each change and its tick.
+- **When a Battle you command starts,** its window opens on its own, with a toast.
+- **Controls,** RTS-style:
+  - **Selecting:** click a squad, drag a box, Shift to add or take away, Esc to clear. Only your own mobile squads: not buildings or turrets.
+  - **Orders:** right-click the ground to **Move**, an enemy to **Attack** it; **A** then a click to **Attack-move** (move, stopping to fight what it meets); **H** to **Hold**. Several squads sent to one spot keep their shape round it.
+  - **Shown:** selected squads draw a line to where they're going, red to an attack target, and a marker flashes where you clicked.
+  - **The selection strip** in the Battle window lists what's selected (unit, count, health), with Hold and Attack-move buttons, so it all works without the keyboard.
+  - **Setup:** a commanding defender can move squads, and take pads by moving onto them. The attacker's orders wait for the fighting, as now.
+  - Retreat and pad turrets work as now. Guard, scout and control groups are for later.
+- **Squads you haven't ordered** hold their position and fire at whatever comes in range.
+- **Wire:** one `BattleOrder` op (planet, kind, squads, cell, target). The server checks the squads are yours and the Battle is yours to command; orders go into the Battle's log, so replays stay exact.
+- **The Lab** uses the same controls, so "You command" there works, and is where they're tried first.
+- **Mockup first:** an HTML mockup of the Settings window, the Army window's toggle, and a commanded Battle (drag box, selection, order lines, selection strip) is agreed before they're built.
+
+### Reinforcements
+
+Late game: an Army can join a Battle already running (#57). Built.
+
+- **The Dropship:** a UNSC **Pelican** or a Covenant **Phantom**, unlocked by a Rare Tech (Pelican Dropship after Air Wing, trained at the Air Pad; Phantom Dropship after Banshee Flight, trained at the Summit). It has a `carry` capacity in Command Points (12 each for now), and combat stats, because anti-air can shoot it down, but it never fires.
+- **Who lands:** an Army with a Dropship ending its move at a Planet Locked by a Battle in which its owner or a Teammate is a side. One only passing through waits, as now, and keeps its order. Battles stay one player against one: anyone else waits, as now, and so does an Army with no Dropship. What fits in the Dropships lands; the rest waits in orbit.
+- **Raids:** only the defender can reinforce one; raiders can't.
+- **Only at a Landing Zone** the side holds. A side holding none keeps its reinforcements in orbit until it takes one.
+- **Once a Battle:** each Dropship lands troops once per Battle. After it flies out it waits in orbit, and can't land again until the next Battle; units it couldn't carry wait with it. (This feeds picking which units to land, #102.)
+- **The flight:** the Dropship enters the field at the corner opposite the Landing Zone and flies there, over everything; it drops its units round the Landing Zone and flies back out the way it came. Both sides see it, as a squad in flight.
+- **Where:** a commanding player sees their Dropships in orbit as a list in the Battle window, and drags one onto a Landing Zone they hold to send it. Otherwise the AI sends it once it has waited `battle.landingDelay` (20 s) in orbit, so a commander has that long to choose: the attacker to the Landing Zone it holds nearest the Command Post, the defender to the one nearest its own.
+- **In the sim:** a landing is a logged input that adds the Dropship and, on touchdown, its squads; the AI takes new squads into its plans as it thinks. Each squad records the player who owns it.
+- **Anti-air** (#100): only units and buildings with the `aa` role can fire on a Dropship: the UNSC M9 Wolverine, the Covenant AA Wraith, and the AA Turret and AA Plasma Turret, Planet buildings that can also go on build pads. Each fires on a Dropship in reach before anything else, even an ordered target. This is automatic: nobody orders it, the AI doesn't chase Dropships, and a Landing Zone's holder gets no protection for now.
+  - The Dropship takes normal damage, on the way in and on the way out.
+  - At touchdown it loses the same share of each kind of troop as it has lost of its total Shield, Armor and HP, rounded to the nearest unit. A Pelican that has taken half of its 60 lands half its troops.
+  - Shot down before touchdown, everything aboard is lost. Shot down on the way out, only the ship is.
+- **Afterwards:** survivors go back to their own owners. A Teammate's Retreat home, as they can't stop on another player's Planet. The Dropship rejoins its owner's survivors, or goes home alone if none are left.
+- **Cost:** none for now, neither Resources nor Command Points. The Dropship's carry capacity is the only limit. Add a cost later if playtests show it's needed.
+- **Shown:** a Reinforcements line in the Battle window (for example "Pelican · 8 units · landing at LZ B"), the list of Dropships in orbit to drag from when you command, and a note in the Army window that it will land in the Battle. A small mockup is agreed first.
+- **Bots** don't build or use Dropships yet.
+- **Later:**
+  - an orbit panel in the Battle window: pick units waiting in orbit and place them at a Landing Zone, and a Dropship flies them there (#102);
+
+### Defence layout
+
+A Planet's owner lays out its defence ahead of time, as on Empire at War's ground maps (#91). Built.
+
+- **Where:** a **Layout** button next to **Stacks** in the Planet window, on your own Planets, opens the Layout window, built like the Battle window. It shows the Battlefield you'd defend the Planet on (the Match's, with your Faction's base) with no fog: the base, the Command Post, its building sites, your Stacks' starts, and the Landing Zones and pads for context.
+- **Who:** only the owner. Teammates can't, and Bots keep the default.
+- **Buildings** go only on building sites: the base's, and the rest the generator spreads over the defender's side of the map. Drag one onto another site; onto a taken one, the two swap. A building the layout doesn't place, a new one included, takes a free site (see [Deployment](#deployment)).
+- **Stacks:** drag a Stack's start anywhere within `battle.startReach` (8) cells of the Command Post or a site with one of your buildings on it. It still deploys in its 3 × 5 shape round it, front row facing the attacker. A start that's out of reach by the next Battle (its building gone) falls back to the default.
+- **When:** any time but while the Planet is Locked by a Battle. Changes apply to the next Battle there. **Reset to default** clears it.
+- **Raids** use it too. Armies waiting at the Planet that join as defenders deploy round the Command Post, as before.
+- **A capture** clears the Stacks' starts and keeps the sites the Building Slots stand on.
+- **The Command Post** stays where the base puts it. Turrets and pads are unchanged.
+- **Wire:** `RequestDefenceLayout {planet}` and `SetDefenceLayout {planet, sites, starts}` (the whole layout; empty resets it), each answered with a `DefenceLayout` to the sender: the Battlefield, its Command Post, sites, Landing Zones, attacker landings and pads, the reach, where each building and Stack starts, and the layout as set. The layout lives on the Planet in the game state and goes into the defender's `Force`, so replays stay exact.
+- **The Lab:** a Defender layout toggle shows the same editor on the Lab's Battlefield, in place of the map; each change rebuilds the Battle on it, paused at the start, and Reset layout clears it. The setup sends the layout with the defender's side, and the Field message says where each building and Stack starts.
+
+### Order of work
+
+1. ~~Squads by Unit Class~~ (#96): now in [Squads](#squads).
+2. ~~The Battle Lab~~ (#97): built.
+3. ~~The Command Post and Landing Zones~~ (#98): now in [Objectives](#objectives).
+4. ~~Archetypes and fixtures~~ (#99): now in [Generation](#generation).
+5. ~~Raids~~ (#66): built; see [Raids](#raids).
+6. ~~Command~~ (#92): built; see [Command](#command).
+7. ~~Reinforcements~~ (#57): built; see [Reinforcements](#reinforcements).
+8. 3D drawing (#93).
+
+Related: ~~the defence layout~~ (#91), built; see [Defence layout](#defence-layout). Measured in the Lab: big Battles favouring the attacker (#40), and an AI that chooses to Retreat (#61).
 
 ## Later
 
@@ -443,6 +607,7 @@ Not in v1, but kept in mind:
 - **Player control** of Squads, beyond Retreat; and AI that chooses to Retreat.
 - **Per-unit AI behaviour:** a unit's own `ai` weights layered on its Faction's. For example, artillery (long `range`, `minRange`) would weigh `takeHighGround` and `keepDistance` heavily and hang back behind friendly Squads instead of moving to the front, while a Ghost would weigh `raid`.
 - **Line-of-sight** blocking.
+- **Unit vision needs a rework.** Seen commanding squads in the Lab (#92): four squads moved into an area together, and only about one of them fired. Likely causes to check: squads sent somewhere hold there and fire only at what's in their own range (short next to Sight), so those behind the front never get a shot; nothing in a group moves up to engage what its neighbours can see. To be scoped before balancing.
 - **Capital-world variant:** a defender HQ the attacker must reach and hold or destroy.
 - **Building sites:** fixed spots on each Planet's Battlefield, with the player choosing what goes where.
 - **Richer contest rules** for Control Points.

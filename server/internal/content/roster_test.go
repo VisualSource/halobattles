@@ -195,6 +195,15 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 		"a Ruleset missing a Rarity": {"base/data/rulesets/rules.jsonc",
 			strings.Replace(baseRules, `"legendary": {"from": 14, "weight": 1}`, `"mythic": {"from": 20, "weight": 1}`, 1),
 			"rulesets base:rules (from base/data/rulesets/rules.jsonc): at /tech/rarities"},
+		"a base with no Command Post": {"base/data/fixtures/camp.jsonc",
+			`{"id": "camp", "kind": "base", "key": {"#": {"clear": true}}, "markers": {"s": "site"}, "map": ["#s"]}`,
+			"fixtures base:camp: a base needs exactly one commandPost marker; it has 0"},
+		"a feature with a Faction and a Command Post": {"base/data/fixtures/ruin.jsonc",
+			`{"id": "ruin", "kind": "feature", "faction": "unsc", "key": {}, "markers": {"C": "commandPost"}, "map": ["C."]}`,
+			"fixtures base:ruin: only a base has a faction; fixtures base:ruin: a feature can't hold the Command Post"},
+		"a fixture's bad key and ragged rows": {"base/data/fixtures/camp.jsonc",
+			`{"id": "camp", "kind": "base", "key": {"#": {"clear": true, "cover": true}, "C": {"clear": true}}, "markers": {"C": "commandPost"}, "map": ["#C", "#"]}`,
+			`fixtures base:camp: key "#" says 2 of terrain, clear and cover; it must say exactly one; fixtures base:camp: "C" is both a key and a marker; fixtures base:camp: map row 2 is 1 long; the first is 2`},
 		"dangling reference": {"base/data/buildings/barracks.jsonc",
 			strings.Replace(rosterFiles()["base/data/buildings/barracks.jsonc"], `["marine"]`, `["spartan"]`, 1),
 			"buildings base:barracks: trains: unknown Unit base:spartan"},
@@ -206,15 +215,16 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 	}
 }
 
-// The real base Mod, against the numbers in the game-design spec.
+// The real base Mod: how much it holds, then spot checks against the
+// game-design spec's tables.
 func TestBaseModMatchesTheSpec(t *testing.T) {
 	c := mustLoad(t, []string{filepath.Join("..", "..", "..", "mods", "base")})
 	d := c.Doc
 
 	counts := map[string][2]int{
-		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 26}, "techs": {len(d.Techs), 23},
-		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
-		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 3},
+		"factions": {len(d.Factions), 3}, "units": {len(d.Units), 33}, "buildings": {len(d.Buildings), 28}, "techs": {len(d.Techs), 27},
+		"unitClasses": {len(d.UnitClasses), 5}, "weaponTypes": {len(d.WeaponTypes), 5},
+		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 3}, "resources": {len(d.Resources), 3},
 		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
 	}
 	for kind, n := range counts {
@@ -226,13 +236,6 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 		if b.CommandPointBonus != 0 {
 			t.Errorf("%s: commandPointBonus %d, want 0", id, b.CommandPointBonus)
 		}
-	}
-	perFaction := map[string]int{}
-	for _, u := range d.Units {
-		perFaction[string(u.Faction)]++
-	}
-	if perFaction["base:unsc"] != 5 || perFaction["base:covenant"] != 5 {
-		t.Errorf("units per Faction = %v, want 5 each", perFaction)
 	}
 
 	// Spot checks against the spec tables.
@@ -288,8 +291,8 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 		}
 		techs[f]++
 	}
-	if techs["shared"] != 7 || techs["base:unsc"] != 8 || techs["base:covenant"] != 8 {
-		t.Errorf("Techs per Faction = %v, want 7 shared and 8 each", techs)
+	if techs["shared"] != 7 || techs["base:unsc"] != 10 || techs["base:covenant"] != 10 {
+		t.Errorf("Techs per Faction = %v, want 7 shared and 10 each", techs)
 	}
 	if mbt := d.Techs["base:main-battle-tank"]; mbt.Cost != 600 || mbt.Requires.Techs[0] != "base:motor-pool" || mbt.Unlocks.Units[0] != "base:scorpion" {
 		t.Errorf("main-battle-tank = %+v", mbt)

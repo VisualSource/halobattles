@@ -79,7 +79,7 @@ const outputOf = (b: Producer, richness: Map<string, string>) => {
     out.set(
       r,
       (out.get(r) ?? 0) +
-      Math.floor(n * (RICHNESS[richness.get(r) ?? ""] ?? 0)),
+        Math.floor(n * (RICHNESS[richness.get(r) ?? ""] ?? 0)),
     );
   return Object.fromEntries(out);
 };
@@ -244,7 +244,10 @@ export function Tag(props: { className: string; children: ReactNode }) {
 }
 
 /** The Planet the selection points at: live, or as last seen. */
-function useSelectedPlanet(conn: MatchConnection, content: ContentLookups) {
+export function useSelectedPlanet(
+  conn: MatchConnection,
+  content: ContentLookups,
+) {
   const selected = useStore(conn.local, (s) => s.selected);
   const view = useStore(conn.store, (s) => s.view);
   const lastSeen = useStore(conn.local, (s) => s.lastSeen);
@@ -278,6 +281,8 @@ export function PlanetWindow(props: {
   content: ContentLookups;
   stacksOpen: boolean;
   onOpenStacks: () => void;
+  layoutOpen: boolean;
+  onOpenLayout: () => void;
 }) {
   const { conn, content } = props;
   const sel = useSelectedPlanet(conn, content);
@@ -314,21 +319,50 @@ export function PlanetWindow(props: {
       }
       tools={
         planet && (
-          <button
-            type="button"
-            aria-pressed={props.stacksOpen}
-            onClick={props.onOpenStacks}
-            className="border-edge bg-raised flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <g fill="none" stroke="var(--color-ink-2)" strokeWidth="1.5">
-                <rect x="1" y="1" width="12" height="3" rx="1" />
-                <rect x="1" y="5.5" width="12" height="3" rx="1" />
-                <rect x="1" y="10" width="12" height="3" rx="1" />
-              </g>
-            </svg>
-            Stacks
-          </button>
+          <>
+            <button
+              type="button"
+              aria-pressed={props.stacksOpen}
+              onClick={props.onOpenStacks}
+              className="border-edge bg-raised flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                aria-hidden="true"
+              >
+                <g fill="none" stroke="var(--color-ink-2)" strokeWidth="1.5">
+                  <rect x="1" y="1" width="12" height="3" rx="1" />
+                  <rect x="1" y="5.5" width="12" height="3" rx="1" />
+                  <rect x="1" y="10" width="12" height="3" rx="1" />
+                </g>
+              </svg>
+              Stacks
+            </button>
+            {mine && (
+              <button
+                type="button"
+                aria-pressed={props.layoutOpen}
+                onClick={props.onOpenLayout}
+                className="border-edge bg-raised flex min-h-7 items-center gap-1.5 rounded px-2.5 text-xs"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  aria-hidden="true"
+                >
+                  <g fill="none" stroke="var(--color-ink-2)" strokeWidth="1.5">
+                    <rect x="1" y="1" width="12" height="12" rx="1" />
+                    <rect x="8" y="3" width="3" height="3" />
+                    <circle cx="4.5" cy="9.5" r="1.5" />
+                  </g>
+                </svg>
+                Layout
+              </button>
+            )}
+          </>
         )
       }
     >
@@ -929,10 +963,10 @@ function BuildingsTab(props: {
                         researching={
                           planet.owner === view?.you
                             ? (view?.research.projects ?? [])
-                              .filter(
-                                (p) => p.planet === planet.id && p.slot === i,
-                              )
-                              .map((p) => p.tech)
+                                .filter(
+                                  (p) => p.planet === planet.id && p.slot === i,
+                                )
+                                .map((p) => p.tech)
                             : []
                         }
                         slots={b.techSlots}
@@ -1342,11 +1376,11 @@ function BuildQueue(props: {
       const b = content.buildings.get(id);
       return b?.trains?.length
         ? [
-          {
-            title: b.name,
-            items: planet.unitQueue.filter((q) => q.slot === slot),
-          },
-        ]
+            {
+              title: b.name,
+              items: planet.unitQueue.filter((q) => q.slot === slot),
+            },
+          ]
         : [];
     }),
   ];
@@ -1560,7 +1594,10 @@ export function StacksWindow(props: {
                     Stack {i + 1}
                   </span>
                   {rally && (
-                    <Tooltip side="right" content="Newly trained units are placed in this Stack.">
+                    <Tooltip
+                      side="right"
+                      content="Newly trained units are placed in this Stack."
+                    >
                       <button
                         type="button"
                         aria-label="Rally Stack: newly trained units are placed in this Stack"
@@ -1833,6 +1870,7 @@ export function sendStack(
   stack: number,
   to: string,
   toStack = toStackAt(conn, to),
+  raid = false,
 ) {
   const units =
     conn.store.getState().view?.planets.get(from)?.stacks[stack] ?? [];
@@ -1842,6 +1880,7 @@ export function sendStack(
     units.map((u) => ({ stack, ...u })),
     to,
     toStack,
+    raid,
   );
 }
 
@@ -1876,6 +1915,10 @@ export function ArmyWindow(props: {
     return live ? live.owner : (lastSeen.get(p)?.planet.owner ?? null);
   };
   const mine = army.owner === view.you;
+  // A Dropship in it: the Army can land in a Battle already under way.
+  const ship = army.units
+    .map((u) => content.units.get(u.unit))
+    .find((d) => d?.carry);
   const lanes = laneTimes(map, content.rules);
   // A Spectator sees where every Army is going.
   const route = mine || view.spectating ? [army.to, ...army.path] : [army.to];
@@ -1966,6 +2009,13 @@ export function ArmyWindow(props: {
             </li>
           ))}
         </ul>
+        {mine && ship && (
+          <p className="text-ink-2 text-xs">
+            Has a {ship.name}: it lands up to {ship.carry} Command Points in a
+            Battle your side is fighting, at a Landing Zone you hold. The rest
+            waits in orbit.
+          </p>
+        )}
         {mine && (
           <p className="text-ink-4 text-xs">
             Drag the Army onto a Planet to re-order it. It finishes this Lane

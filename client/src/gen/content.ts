@@ -48,6 +48,9 @@ export interface Content {
   terrainPresets: {
     [k: string]: TerrainPreset;
   };
+  fixtures: {
+    [k: string]: Fixture;
+  };
   techs: {
     [k: string]: Tech;
   };
@@ -353,13 +356,13 @@ export interface BattlefieldRules {
    */
   deployDepth: number;
   /**
+   * Building sites on a Battlefield, the base's first and the rest spread over the defender's side; where a Planet's owner can place its buildings.
+   */
+  buildingSites: number;
+  /**
    * Build pads the generator places: spots a side can capture and build a turret on.
    */
   buildPads: number;
-  /**
-   * Places on the map's edges an attacker can deploy around; each Battle's seed picks one. Defaults to 3.
-   */
-  attackerStarts?: number;
   /**
    * Width in cells of the lanes the generator clears between the Control Points and from each attacker start. Defaults to 2.
    */
@@ -378,6 +381,18 @@ export interface BattleRules {
    */
   startDelay: number;
   /**
+   * How far, in cells, a build pad sees for the side holding it.
+   */
+  padSight: number;
+  /**
+   * Seconds after a pad turret is destroyed before its pad can be built on again.
+   */
+  padCooldown: number;
+  /**
+   * How far, in cells, from the Command Post or one of its buildings a Planet's owner can place a Stack's start in its defence layout.
+   */
+  startReach: number;
+  /**
    * Seconds a turret takes to build on a build pad.
    */
   padBuildSeconds: number;
@@ -387,21 +402,29 @@ export interface BattleRules {
    */
   timeCap: number;
   /**
-   * How near, in cells, a ground Squad must be to a Control Point to hold or take it.
+   * Seconds of fighting a Raid has to destroy the Planet's buildings; then the raiders go home.
+   */
+  raidTime: number;
+  /**
+   * The most Command Points a raiding Stack can hold.
+   */
+  raidCap: number;
+  /**
+   * Seconds a Dropship waits in orbit over a Battle before the AI sends it to a Landing Zone; a commanding player can send it sooner.
+   */
+  landingDelay: number;
+  /**
+   * The unit roles that can Raid: a Stack raids only if every unit has one.
+   */
+  raidRoles: ("scout" | "skirmisher" | "infiltration" | "shock")[];
+  /**
+   * How near, in cells, a ground Squad must be to a Landing Zone to hold or take it.
    */
   captureRadius: number;
   /**
-   * How long one side alone must be in range to take a Control Point.
+   * How long one side alone must be in range to take a Landing Zone.
    */
   captureSeconds: number;
-  /**
-   * How many Control Points the attacker must hold to start the hold timer.
-   */
-  holdPoints: number;
-  /**
-   * How long the attacker must hold them to win.
-   */
-  holdSeconds: number;
   /**
    * Added to the To-hit roll of a ground attack from a higher height level.
    */
@@ -415,6 +438,7 @@ export interface BattleRules {
    */
   heightSight: number;
   structure: Structure;
+  commandPost: CommandPost;
   /**
    * Battle stats per Unit Class id, for any a unit or building doesn't set. Every Unit Class needs one.
    */
@@ -432,6 +456,18 @@ export interface ResourceMap2 {
  * What a building without a combat block is in a Battle: a target that never fires.
  */
 export interface Structure {
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  unitClass: string;
+  shield: number;
+  armor: number;
+  hp: number;
+}
+/**
+ * The defender's objective structure, on every Battlefield: destroying it wins the Battle for the attacker. It never fires.
+ */
+export interface CommandPost {
   /**
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
@@ -620,9 +656,13 @@ export interface Unit {
    */
   trainable?: boolean;
   /**
-   * Hints for the Battle AI: which roles it picks this unit for first. A scout roams to look and falls back from the enemy; a skirmisher patrols between points and hunts what it's good against.
+   * Hints for the Battle AI: which roles it picks this unit for first. A scout roams to look and falls back from the enemy; a skirmisher patrols between points and hunts what it's good against. A scout, infiltration or shock unit can Raid. Only an aa unit can fire on a Dropship.
    */
-  roles?: ("scout" | "skirmisher")[];
+  roles?: ("scout" | "skirmisher" | "infiltration" | "shock" | "aa")[];
+  /**
+   * A Dropship: the Command Points of units it lands in a Battle already under way, once a Battle. It never fires.
+   */
+  carry?: number;
   combat: Combat;
   /**
    * An asset in a Mod's assets/ folder, written `__mod__/path`.
@@ -733,6 +773,10 @@ export interface Building {
    */
   trains?: string[];
   /**
+   * An aa building can fire on a Dropship.
+   */
+  roles?: "aa"[];
+  /**
    * Can be built on a build pad in Battle, lasting only that Battle. Needs a combat block.
    */
   padTurret?: boolean;
@@ -800,6 +844,10 @@ export interface UnitClass {
    * Flies: ignores cover and high ground both ways, and shares a cell with one ground unit.
    */
   air?: boolean;
+  /**
+   * The most members one squad of this class has in a Battle: a Unit Slot with more fights as several squads. Defaults to no limit, one squad per Unit Slot.
+   */
+  squadSize?: number;
   /**
    * Its part in a Battle AI Task Force: lead (goes in first, ahead of the rest), follow (keeps behind the leaders) or hunt (goes for enemies it fights at a better tier than the rest of the force). Defaults to follow.
    */
@@ -929,13 +977,17 @@ export interface Position {
   y: number;
 }
 /**
- * Overrides the Ruleset's Battlefield size and Terrain Preset for this Planet.
+ * Overrides the Ruleset's Battlefield size, Terrain Preset and Archetype for this Planet.
  */
 export interface PlanetBattlefield {
   /**
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   terrainPreset?: string;
+  /**
+   * Forces this Planet's Battlefield Archetype, over its preset's weights.
+   */
+  archetype?: "open" | "river" | "ridge" | "ruins";
   width?: number;
   height?: number;
 }
@@ -1041,6 +1093,7 @@ export interface TerrainPreset {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   pointCover?: string;
+  archetypes?: ArchetypeWeights;
   clear: Clear;
 }
 export interface Noise {
@@ -1078,6 +1131,15 @@ export interface BandTerrain {
   terrain: string;
 }
 /**
+ * How often each Battlefield Archetype is picked for a Planet with this preset. Left out: an open field only.
+ */
+export interface ArchetypeWeights {
+  open?: number;
+  river?: number;
+  ridge?: number;
+  ruins?: number;
+}
+/**
  * What the generator turns blocked cells into when it cuts a path to connect the map.
  */
 export interface Clear {
@@ -1086,6 +1148,74 @@ export interface Clear {
    */
   terrain: string;
   height: number;
+}
+/**
+ * A hand-made piece of Battlefield, drawn as ASCII art, that generation stamps in. A base holds the defender's Command Post, building sites and unit starts; a feature is a landmark placed in open space.
+ */
+export interface Fixture {
+  $schema?: string;
+  /**
+   * Replace an existing definition with this id.
+   */
+  replace?: boolean;
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  id: string;
+  /**
+   * base: the defender's, holding its Command Post; feature: a landmark.
+   */
+  kind: "base" | "feature";
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  faction?: string;
+  /**
+   * The Battlefield Archetypes it can appear in; left out, any.
+   */
+  archetypes?: ("open" | "river" | "ridge" | "ruins")[];
+  /**
+   * How often it's picked among those that fit, against the others' weights. Defaults to 1.
+   */
+  weight?: number;
+  /**
+   * Whether generation may turn it a quarter, half or three quarters.
+   */
+  rotate?: boolean;
+  /**
+   * Whether generation may flip it.
+   */
+  mirror?: boolean;
+  /**
+   * What each character in map is. A character that's in neither key nor markers leaves the Battlefield as it is; a marker's cell is made clear.
+   */
+  key: {
+    [k: string]: FixtureCell;
+  };
+  /**
+   * Characters that place something, on an open cell: commandPost (a base's one), site (a building site), unitStart (where a defending Stack deploys, in order), pad (a build pad), cover (the preset's point cover).
+   */
+  markers?: {
+    [k: string]: "commandPost" | "site" | "unitStart" | "pad" | "cover";
+  };
+  /**
+   * Its cells, row by row, top first; every row the same length.
+   *
+   * @minItems 1
+   */
+  map: [string, ...string[]];
+}
+/**
+ * Exactly one of terrain, clear (the preset's clear ground) or cover (its point cover), so a fixture suits any preset; height, if given, sets the height level.
+ */
+export interface FixtureCell {
+  /**
+   * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
+   */
+  terrain?: string;
+  clear?: boolean;
+  cover?: boolean;
+  height?: number;
 }
 /**
  * Researched by a player and held in a Lab: it unlocks units and buildings, and gives effects, while held. See docs/specs/tech-spec.md.

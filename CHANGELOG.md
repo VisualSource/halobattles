@@ -4,9 +4,47 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ## Unreleased
 
+## 0.6.0 - 2026-11-04
+
 ### Added
 
+- Defence layout: the Layout button beside Stacks in a Planet's window shows the Battlefield you'd defend it on. Drag your buildings between building sites, in the base or spread over your side of the map, and your Stacks to where they start the Battle, near the Command Post or your buildings. It applies to every Battle there until you change it.
+
 ### Changed
+
+- Battles: switch between Auto and You command in the Battle window, until the fighting starts; the Army window no longer has the switch.
+- Battles: build pad turrets by right-clicking a pad you hold on the map, in place of the Battle window's list of pads.
+- Battles: pads hide in the fog unless they're yours, and a pad your side holds sees a little way round itself.
+- Battles: a pad whose turret was destroyed can't be built on again for 20 s.
+
+### Fixed
+
+- The Battle window's squad list shows how worn down turrets, buildings and the Command Post are, not only whether they're still standing.
+
+## 0.5.0 - 2026-11-03
+
+### Added
+
+- Raids: drag a Stack of raiders (scouts, infiltrators and shock troops, up to 10 Command Points) onto a Planet's raid slot to send it after the buildings there. Nobody else sees a Raid coming. The raiders have 100 s to destroy every building, then head home; the Planet never changes hands, but what they destroy stays destroyed. A Raid that finds no buildings turns back, and tells you so.
+- The UNSC M121 Jackrabbit, a light scout vehicle built at the Vehicle Depot.
+- Command your own Battles: pick Command in the new Settings screen (the gear on the main menu, in the lobby and in the game), or for one Army in its window. Click or drag to select squads, right-click to move or attack, A to Attack-move, H to Hold. A Battle you command opens when it starts. If you disconnect, the AI takes over that Battle.
+- A Settings screen, for choices that carry over between Matches.
+- Reinforcements: research the Pelican (UNSC) or Phantom (Covenant) Dropship, and an Army with one that reaches a Battle your side or a Teammate is fighting flies its troops in, up to 12 Command Points a Dropship, at a Landing Zone your side holds. When you command, drag it from the In orbit list onto a Landing Zone; otherwise it goes in after 20 s. Each Dropship lands once a Battle.
+- Anti-air: the UNSC M9 Wolverine, the Covenant AA Wraith, and AA Turrets can shoot down Dropships. A damaged Dropship lands fewer troops, and one shot down loses everything aboard.
+
+### Changed
+
+- New scouts: the Jackrabbit replaces the Warthog as the UNSC's scout, and the Revenant, now with real stats, replaces the Ghost as the Covenant's. ODSTs, Elites, Jackal Snipers and Spectres can raid.
+- The Warthog now needs the Hog Wild Tech, after Motor Pool. The Summoning Foundry has its own Tech, which Ghost and Wraith Fabrication need.
+
+- Battles are won differently: the attacker wins by destroying the defender's Command Post, a new structure on every Battlefield. Wiping out the defence isn't enough; the Command Post still has to fall before time runs out. A defender that Retreats abandons it, and it blows up.
+- An enemy Planet with no units and no buildings is taken on arrival, with no Battle.
+- Battlefields have shape: open fields, rivers with fords, ridges and valleys, and ruined cities, with landmarks such as crash sites, trench lines, Forerunner ruins and bridges.
+- The defender fights from a base, a UNSC firebase, a Covenant outpost or a garrison's outpost, holding its Command Post and buildings, far from where the attacker lands.
+- The attacker lands at a Landing Zone and holds it; the others start held by nobody, for either side to take. Holding Control Points no longer wins a Battle; they're now Landing Zones.
+- A defender's scout comes home to fight once the enemy is found, instead of roaming the map while its base is attacked.
+- In Battles, a squad picks off enemies that fire back before buildings.
+- In Battles, units fight in smaller squads: infantry in fours, vehicles and aircraft in pairs. 10 Marines take the field as three squads instead of one.
 
 ### Fixed
 

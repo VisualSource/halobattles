@@ -10,6 +10,7 @@ import type {
   ControlPoint,
   Side,
   Squad,
+  SquadOrder,
   Volley,
 } from "../match/store";
 
@@ -29,6 +30,8 @@ export type BattlefieldLook = {
   sight: (sq: Squad, height: number) => number;
   /** Whether a squad flies: drawn as a triangle. */
   flies: (sq: Squad) => boolean;
+  /** How far a build pad sees for the side holding it, in cells. */
+  padSight: number;
   /** How near a squad must be to a Control Point, in cells. */
   captureRadius: number;
   /** Sim ticks to take a Control Point. */
@@ -53,6 +56,7 @@ type Marker = {
 };
 
 type PadMark = {
+  group: THREE.Group; // hidden in the fog, unless it's yours
   outline: THREE.Mesh;
   fill: THREE.Mesh;
   arc: THREE.Mesh;
@@ -65,6 +69,14 @@ const UNHELD = "#9ca3af";
 
 /** Control Points by index, as the Battle window names them. */
 export const POINT_NAMES = "ABCDEFGH";
+
+/** A line drawn over the Battlefield, cell to cell: the Battle Lab's AI overlays. */
+export type OverlayLine = {
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  colour: string;
+  dashed?: boolean;
+};
 
 type Effect = { obj: THREE.Line | THREE.Mesh; t0: number; ms: number };
 
@@ -133,6 +145,49 @@ export class BattlefieldScene {
   private zoom = 1; // 1 shows the whole map; smaller is closer
   private fit = 1; // world units top to bottom that show the whole map
   private drag: { x: number; y: number } | null = null;
+  private pressed: { x: number; y: number } | null = null;
+  // Whose Sight clears the fog: a side, both (null), or no fog at all (false).
+  private fogOf: Side | null | false;
+  private lastSquads: Squad[] = [];
+  private lastPoints: ControlPoint[] = [];
+  private lastPads: BuildPad[] = [];
+  private readonly overlays = new THREE.Group();
+  private readonly ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.55, 0.7, 24),
+    new THREE.MeshBasicMaterial({ color: "#f2f5f7" }),
+  );
+  private selected: number | null = null;
+  /** Hears a click on the map: the squad under it, or null. */
+  onPick?: (squad: number | null) => void;
+  // Commanding a side: the left button picks its squads, by click or a
+  // dragged box; the right button orders them; the middle button pans.
+  private commandSide: Side | null = null;
+  private readonly picked = new Set<number>();
+  private armed = false; // the next left click is an Attack-move
+  private readonly rings = new Map<number, THREE.Mesh>();
+  private readonly moveLines = new THREE.LineSegments(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({
+      color: "#e6ebef",
+      transparent: true,
+      opacity: 0.7,
+    }),
+  );
+  private readonly attackLines = new THREE.LineSegments(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({ color: "#f08a7a" }),
+  );
+  private readonly pickedRing = new THREE.MeshBasicMaterial({
+    color: "#facc15",
+  });
+  private readonly box = document.createElement("div");
+  private boxFrom: { x: number; y: number } | null = null;
+  /** Hears a right-click on a build pad: its index, and the screen point. */
+  onPadMenu?: (pad: number, clientX: number, clientY: number) => void;
+  /** Hears the squads you've picked, when that changes. */
+  onSelect?: (squads: number[]) => void;
+  /** Hears an order to the picked squads. */
+  onOrder?: (squads: number[], order: SquadOrder) => void;
 
   constructor(
     private readonly container: HTMLElement,
@@ -140,6 +195,19 @@ export class BattlefieldScene {
     private readonly look: BattlefieldLook,
   ) {
     this.scene.background = new THREE.Color("#04070a");
+    this.fogOf = look.you;
+    this.overlays.position.z = 1.2;
+    this.ring.visible = false;
+    this.ring.position.z = 1.3;
+    this.scene.add(this.overlays, this.ring, this.moveLines, this.attackLines);
+    this.moveLines.position.z = this.attackLines.position.z = 1.25;
+    Object.assign(this.box.style, {
+      position: "absolute",
+      display: "none",
+      border: "1px dashed #e6ebef",
+      background: "#4fa3e014",
+      pointerEvents: "none",
+    });
     this.camera.position.z = 50;
     this.centre = new THREE.Vector2(field.width / 2, -field.height / 2);
 
@@ -167,7 +235,11 @@ export class BattlefieldScene {
     this.labels.domElement.style.position = "absolute";
     this.labels.domElement.style.inset = "0";
     this.labels.domElement.style.pointerEvents = "none";
-    container.append(this.renderer.domElement, this.labels.domElement);
+    container.append(
+      this.renderer.domElement,
+      this.labels.domElement,
+      this.box,
+    );
 
     const canvas = this.renderer.domElement;
     canvas.style.touchAction = "none";
@@ -175,6 +247,7 @@ export class BattlefieldScene {
     canvas.addEventListener("pointerdown", this.onDown);
     canvas.addEventListener("pointermove", this.onMove);
     canvas.addEventListener("pointerup", this.onUp);
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault()); // the right button orders
 
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(container);
@@ -221,7 +294,11 @@ export class BattlefieldScene {
         t.to.copy(at);
         t.t0 = now;
       }
-      t.label.element.textContent = String(sq.count);
+      t.label.element.textContent = sq.commandPost
+        ? "CP"
+        : sq.dropship
+          ? "Dropship"
+          : String(sq.count);
       t.label.element.style.opacity = sq.count < sq.start ? "0.85" : "1";
     }
     for (const [id, t] of this.tokens) {
@@ -233,8 +310,185 @@ export class BattlefieldScene {
       this.tokens.delete(id);
     }
     this.drawPoints(battle.points);
+    this.lastPoints = battle.points;
     this.drawPads(battle.pads);
+    this.lastPads = battle.pads;
+    this.lastSquads = battle.squads;
     this.drawFog(battle.squads);
+    // Squads that died or left drop out of the selection.
+    const gone = [...this.picked].filter((id) => !seen.has(id));
+    if (gone.length > 0)
+      this.pick([...this.picked].filter((id) => seen.has(id)));
+  }
+
+  /** Whose Sight clears the fog: a side, both sides (null), or none: no fog (false). */
+  setFog(of: Side | null | false) {
+    this.fogOf = of;
+    this.drawFog(this.lastSquads);
+  }
+
+  /** Replaces the overlay lines. */
+  overlay(lines: OverlayLine[]) {
+    for (const obj of this.overlays.children) {
+      const line = obj as THREE.Line;
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    }
+    this.overlays.clear();
+    for (const l of lines) {
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(l.from.x + 0.5, -(l.from.y + 0.5), 0),
+          new THREE.Vector3(l.to.x + 0.5, -(l.to.y + 0.5), 0),
+        ]),
+        l.dashed
+          ? new THREE.LineDashedMaterial({
+              color: l.colour,
+              dashSize: 0.8,
+              gapSize: 0.5,
+            })
+          : new THREE.LineBasicMaterial({ color: l.colour }),
+      );
+      if (l.dashed) line.computeLineDistances();
+      this.overlays.add(line);
+    }
+  }
+
+  /** Rings a squad, following it; null rings none. */
+  select(squad: number | null) {
+    this.selected = squad;
+  }
+
+  /** Commands side's squads from the map, or with null stops. */
+  command(side: Side | null) {
+    const changed = side !== this.commandSide;
+    this.commandSide = side;
+    if (changed) this.pick([]); // the other side's squads aren't yours to order
+  }
+
+  /** Sets the picked squads, ringing each, and tells onSelect. */
+  pick(squads: number[]) {
+    this.picked.clear();
+    for (const id of squads) this.picked.add(id);
+    this.armed = false;
+    this.renderer.domElement.style.cursor = "";
+    this.onSelect?.([...this.picked]);
+  }
+
+  /** The Landing Zone under a screen point (a drop), by index, or null. */
+  pointAt(clientX: number, clientY: number) {
+    const at = this.world({ clientX, clientY } as MouseEvent);
+    const r = this.look.captureRadius + 0.5;
+    const i = this.lastPoints.findIndex(
+      (p) => Math.hypot(p.x + 0.5 - at.x, -(p.y + 0.5) - at.y) <= r,
+    );
+    return i < 0 ? null : i;
+  }
+
+  /** The next left click sends the picked squads on an Attack-move. */
+  armAttackMove() {
+    if (this.picked.size === 0) return;
+    this.armed = true;
+    this.renderer.domElement.style.cursor = "crosshair";
+  }
+
+  /** A squad you can order: your own, alive and able to move. */
+  private orderable(sq: Squad) {
+    return sq.side === this.commandSide && !sq.building && !sq.commandPost;
+  }
+
+  /** The world point under a pointer event. */
+  private world(e: MouseEvent) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    return new THREE.Vector2(
+      this.camera.left +
+        ((e.clientX - rect.left) / rect.width) *
+          (this.camera.right - this.camera.left),
+      this.camera.top -
+        ((e.clientY - rect.top) / rect.height) *
+          (this.camera.top - this.camera.bottom),
+    );
+  }
+
+  /** The nearest squad within a cell of a world point that passes ok, if any. */
+  private squadAt(at: THREE.Vector2, ok: (sq: Squad) => boolean = () => true) {
+    let best: number | null = null;
+    let bestD = 0.8;
+    for (const sq of this.lastSquads) {
+      const t = this.tokens.get(sq.id);
+      if (!t || !ok(sq)) continue;
+      const d = Math.hypot(t.mesh.position.x - at.x, t.mesh.position.y - at.y);
+      if (d < bestD) [best, bestD] = [sq.id, d];
+    }
+    return best;
+  }
+
+  /** Orders the picked squads at a world point, and marks where. */
+  private order(at: THREE.Vector2, kind: "move" | "attackMove") {
+    if (this.picked.size === 0) return;
+    const enemy = this.squadAt(at, (sq) => sq.side !== this.commandSide);
+    const cell = {
+      x: Math.min(Math.max(Math.floor(at.x), 0), this.field.width - 1),
+      y: Math.min(Math.max(Math.floor(-at.y), 0), this.field.height - 1),
+    };
+    this.onOrder?.(
+      [...this.picked],
+      enemy !== null && kind === "move"
+        ? { kind: "attack", target: enemy }
+        : { kind, cell },
+    );
+    const mark = new THREE.Mesh(
+      new THREE.RingGeometry(0.35, 0.55, 20),
+      new THREE.MeshBasicMaterial({
+        color: enemy !== null && kind === "move" ? "#f08a7a" : "#7fdca0",
+        transparent: true,
+      }),
+    );
+    mark.position.set(cell.x + 0.5, -(cell.y + 0.5), 1.3);
+    this.scene.add(mark);
+    this.effects.push({ obj: mark, t0: performance.now(), ms: 600 });
+  }
+
+  /** Rings each picked squad, and lines to where each is going or firing. */
+  private drawOrders() {
+    for (const [id, ring] of this.rings) {
+      if (this.picked.has(id)) continue;
+      this.scene.remove(ring);
+      this.rings.delete(id);
+    }
+    const moves: number[] = [];
+    const attacks: number[] = [];
+    for (const sq of this.lastSquads) {
+      const t = this.tokens.get(sq.id);
+      if (!t || !this.picked.has(sq.id)) continue;
+      let ring = this.rings.get(sq.id);
+      if (!ring) {
+        ring = new THREE.Mesh(this.ring.geometry, this.pickedRing);
+        this.rings.set(sq.id, ring);
+        this.scene.add(ring);
+      }
+      const { x, y } = t.mesh.position;
+      ring.position.set(x, y, 1.3);
+      const target = sq.target ? this.tokens.get(sq.target) : undefined;
+      if (target)
+        attacks.push(
+          x,
+          y,
+          0,
+          target.mesh.position.x,
+          target.mesh.position.y,
+          0,
+        );
+      else if (sq.goal)
+        moves.push(x, y, 0, sq.goal.x + 0.5, -(sq.goal.y + 0.5), 0);
+    }
+    const set = (lines: THREE.LineSegments, points: number[]) =>
+      lines.geometry.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(points, 3),
+      );
+    set(this.moveLines, moves);
+    set(this.attackLines, attacks);
   }
 
   /** A tick's fire: a tracer from each shooter you can see to its target. */
@@ -315,6 +569,7 @@ export class BattlefieldScene {
       new THREE.MeshBasicMaterial({ color: this.look.sideColour[sq.side] }),
     );
     mesh.position.set(at.x, at.y, this.look.flies(sq) ? 1.2 : 1);
+    if (sq.commandPost) mesh.scale.setScalar(1.8); // the objective: bigger than any building
     mesh.renderOrder = 3;
     const el = document.createElement("div");
     el.className =
@@ -369,18 +624,18 @@ export class BattlefieldScene {
         const el = document.createElement("div");
         el.className =
           "font-display font-bold text-base text-white [text-shadow:0_0_4px_#000,0_0_2px_#000]";
-        el.textContent = POINT_NAMES[i] ?? "?";
+        el.textContent = `LZ ${POINT_NAMES[i] ?? "?"}`;
         const label = new CSS2DObject(el);
         group.add(label);
         this.scene.add(group);
         m = { disc, ring, arc, label, progress: 0 };
         this.markers.push(m);
       }
-      const owner = this.look.sideColour[p.owner];
+      const owner = p.owner ? this.look.sideColour[p.owner] : UNHELD;
       (m.disc.material as THREE.MeshBasicMaterial).color.set(owner);
       (m.ring.material as THREE.MeshBasicMaterial).color.set(owner);
       (m.arc.material as THREE.MeshBasicMaterial).color.set(
-        this.look.sideColour[p.taker],
+        p.taker ? this.look.sideColour[p.taker] : UNHELD,
       );
       if (p.progress !== m.progress) {
         m.progress = p.progress;
@@ -447,7 +702,7 @@ export class BattlefieldScene {
         label.center.set(0.5, 1.6);
         group.add(label);
         this.scene.add(group);
-        m = { outline, fill, arc, label, progress: 0 };
+        m = { group, outline, fill, arc, label, progress: 0 };
         this.padMarks.push(m);
       }
       const colour = (s: Side | null) => (s ? this.look.sideColour[s] : UNHELD);
@@ -482,10 +737,24 @@ export class BattlefieldScene {
   private drawFog(squads: Squad[]) {
     const { width: w, height: h, heights } = this.field;
     const data = this.fog.image.data as Uint8Array;
-    const alpha = new Float32Array(w * h).fill(FOG);
-    for (const sq of squads) {
-      if (this.look.you && sq.side !== this.look.you) continue;
-      const r = this.look.sight(sq, heights[sq.y * w + sq.x] ?? 0);
+    const alpha = new Float32Array(w * h).fill(this.fogOf === false ? 0 : FOG);
+    // Each squad's Sight, and each held pad's: a pad sees round itself.
+    const eyes = [
+      ...squads.map((sq) => ({
+        x: sq.x,
+        y: sq.y,
+        side: sq.side,
+        r: this.look.sight(sq, heights[sq.y * w + sq.x] ?? 0),
+      })),
+      ...this.lastPads.flatMap((p) =>
+        p.owner
+          ? [{ x: p.x, y: p.y, side: p.owner, r: this.look.padSight }]
+          : [],
+      ),
+    ];
+    for (const sq of eyes) {
+      if (this.fogOf && sq.side !== this.fogOf) continue;
+      const r = sq.r;
       for (
         let y = Math.max(0, Math.floor(sq.y - r));
         y <= Math.min(h - 1, sq.y + r);
@@ -506,6 +775,14 @@ export class BattlefieldScene {
       }
     }
     this.fog.needsUpdate = true;
+    // A pad shows only where you can see it, or if it's yours.
+    this.lastPads.forEach((p, i) => {
+      const m = this.padMarks[i];
+      if (m)
+        m.group.visible =
+          (alpha[p.y * w + p.x] ?? 0) === 0 ||
+          (!!this.fogOf && p.owner === this.fogOf);
+    });
   }
 
   private tick(t: number) {
@@ -515,6 +792,12 @@ export class BattlefieldScene {
       tok.mesh.position.x = at.x;
       tok.mesh.position.y = at.y;
     }
+    const sel =
+      this.selected === null ? undefined : this.tokens.get(this.selected);
+    this.ring.visible = !!sel;
+    if (this.commandSide !== null || this.rings.size > 0) this.drawOrders();
+    if (sel)
+      this.ring.position.set(sel.mesh.position.x, sel.mesh.position.y, 1.3);
     for (let i = this.effects.length - 1; i >= 0; i--) {
       const e = this.effects[i];
       if (!e) continue;
@@ -569,10 +852,28 @@ export class BattlefieldScene {
 
   private readonly onDown = (e: PointerEvent) => {
     this.renderer.domElement.setPointerCapture(e.pointerId);
-    this.drag = { x: e.clientX, y: e.clientY };
+    this.pressed = { x: e.clientX, y: e.clientY };
+    if (this.commandSide !== null && e.button === 0) {
+      this.boxFrom = { x: e.clientX, y: e.clientY }; // a click, or a box
+    } else if (this.commandSide === null || e.button === 1) {
+      if (e.button === 1) e.preventDefault(); // not the browser's autoscroll
+      this.drag = { x: e.clientX, y: e.clientY };
+    }
   };
 
   private readonly onMove = (e: PointerEvent) => {
+    const from = this.boxFrom;
+    if (from) {
+      const rect = this.container.getBoundingClientRect();
+      Object.assign(this.box.style, {
+        display: "block",
+        left: `${Math.min(from.x, e.clientX) - rect.left}px`,
+        top: `${Math.min(from.y, e.clientY) - rect.top}px`,
+        width: `${Math.abs(e.clientX - from.x)}px`,
+        height: `${Math.abs(e.clientY - from.y)}px`,
+      });
+      return;
+    }
     if (!this.drag) return;
     const perPixel = (this.fit * this.zoom) / this.container.clientHeight;
     this.centre.x -= (e.clientX - this.drag.x) * perPixel;
@@ -581,7 +882,91 @@ export class BattlefieldScene {
     this.place();
   };
 
-  private readonly onUp = () => {
+  private readonly onUp = (e: PointerEvent) => {
     this.drag = null;
+    const p = this.pressed;
+    this.pressed = null;
+    const from = this.boxFrom;
+    this.boxFrom = null;
+    this.box.style.display = "none";
+    // A right-click on a pad you can see opens its menu: commanding, only on
+    // one you hold, since right-clicking another sends squads to take it.
+    if (
+      e.button === 2 &&
+      p &&
+      Math.hypot(e.clientX - p.x, e.clientY - p.y) <= 4
+    ) {
+      const at = this.world(e);
+      const pad = this.lastPads.findIndex(
+        (q, i) =>
+          this.padMarks[i]?.group.visible &&
+          (this.commandSide === null || q.owner === this.commandSide) &&
+          Math.abs(q.x + 0.5 - at.x) <= 0.8 &&
+          Math.abs(-(q.y + 0.5) - at.y) <= 0.8,
+      );
+      if (pad >= 0 && this.onPadMenu) {
+        this.onPadMenu(pad, e.clientX, e.clientY);
+        return;
+      }
+    }
+    if (this.commandSide !== null && p) {
+      const click = Math.hypot(e.clientX - p.x, e.clientY - p.y) <= 4;
+      if (e.button === 2) {
+        this.armed = false;
+        this.renderer.domElement.style.cursor = "";
+        this.order(this.world(e), "move");
+      } else if (e.button === 0 && click && this.armed) {
+        this.order(this.world(e), "attackMove");
+        this.armed = false;
+        this.renderer.domElement.style.cursor = "";
+      } else if (e.button === 0 && click) {
+        const id = this.squadAt(this.world(e), (sq) => this.orderable(sq));
+        const next = new Set(e.shiftKey ? this.picked : []);
+        if (id !== null && e.shiftKey && next.has(id)) next.delete(id);
+        else if (id !== null) next.add(id);
+        this.pick([...next]);
+      } else if (e.button === 0 && from) {
+        const a = this.world(e);
+        const b = this.world({
+          clientX: from.x,
+          clientY: from.y,
+        } as MouseEvent);
+        const next = new Set(e.shiftKey ? this.picked : []);
+        for (const sq of this.lastSquads) {
+          const t = this.tokens.get(sq.id);
+          const at = t?.mesh.position;
+          if (
+            at &&
+            this.orderable(sq) &&
+            at.x >= Math.min(a.x, b.x) &&
+            at.x <= Math.max(a.x, b.x) &&
+            at.y >= Math.min(a.y, b.y) &&
+            at.y <= Math.max(a.y, b.y)
+          )
+            next.add(sq.id);
+        }
+        this.pick([...next]);
+      }
+      return;
+    }
+    // A click, not a pan: the nearest squad within a cell, if any.
+    if (!this.onPick || !p || Math.hypot(e.clientX - p.x, e.clientY - p.y) > 4)
+      return;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const wx =
+      this.camera.left +
+      ((e.clientX - rect.left) / rect.width) *
+        (this.camera.right - this.camera.left);
+    const wy =
+      this.camera.top -
+      ((e.clientY - rect.top) / rect.height) *
+        (this.camera.top - this.camera.bottom);
+    let best: number | null = null;
+    let bestD = 0.8;
+    for (const [id, t] of this.tokens) {
+      const d = Math.hypot(t.mesh.position.x - wx, t.mesh.position.y - wy);
+      if (d < bestD) [best, bestD] = [id, d];
+    }
+    this.onPick(best);
   };
 }

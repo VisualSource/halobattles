@@ -8,6 +8,7 @@
   "upkeep": { "credits": 10 },
   "buildTime": 25,
   "commandPoints": 2,
+  "roles": ["infiltration"],
   "combat": {
     "unitClass": "infantry",
     "weaponType": "explosive",

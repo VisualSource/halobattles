@@ -64,7 +64,6 @@
   --animate-eq: eq 0.9s ease-in-out infinite;
 
   @keyframes eq {
-
     0%,
     100% {
       transform: scaleY(0.3);
@@ -147,7 +146,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*) {

@@ -63,7 +63,8 @@
     "controlPointSpacing": 10,
     "deployDepth": 4,
     "buildPads": 4,
-    "attackerStarts": 3,
+    // The base's sites plus more spread over the defender's side, for its defence layout.
+    "buildingSites": 10,
     "laneWidth": 2,
     "pointArea": 3
   },
@@ -71,19 +72,31 @@
     // Seconds to open the Battle before the fighting starts.
     "startDelay": 15,
     "timeCap": 180,
+    // A Raid: 100 s to find and destroy the buildings, with up to 10 Command Points.
+    "raidTime": 100,
+    "raidCap": 10,
+    "raidRoles": ["scout", "infiltration", "shock"],
+    // A Dropship waits this long in orbit before the AI sends it in.
+    "landingDelay": 20,
+    // A build pad its side holds sees this far round itself.
+    "padSight": 4,
+    // A pad whose turret was destroyed waits this long before it can be built on.
+    "padCooldown": 20,
+    // A defence layout places a Stack this near the Command Post or a building.
+    "startReach": 8,
     "padBuildSeconds": 10,
     // A neutral garrison's budget for pad turrets, having no economy: two
     // turrets' worth (each costs 200 Credits and 50 Materials).
     "neutralFunds": { "credits": 400, "materials": 100, "alloys": 40 },
     "captureRadius": 2,
     "captureSeconds": 5,
-    "holdPoints": 2,
-    "holdSeconds": 30,
     "highGroundToHit": 2,
     "heightSight": 1,
     "retreatCountdown": 10,
     // Buildings without a combat block: targets that never fire.
     "structure": { "unitClass": "structure", "shield": 0, "armor": 20, "hp": 30 },
+    // First pass, untuned (#95: balance once v3 is in).
+    "commandPost": { "unitClass": "structure", "shield": 0, "armor": 60, "hp": 150 },
     "classDefaults": {
       "infantry": { "speed": 1.5, "range": 5, "fireInterval": 1.5, "sight": 8 },
       "vehicle": { "speed": 2.5, "range": 7, "fireInterval": 2, "sight": 9 },

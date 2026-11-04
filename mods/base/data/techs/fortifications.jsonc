@@ -5,5 +5,5 @@
   "field": "military",
   "rarity": "uncommon",
   "cost": 600,
-  "unlocks": { "buildings": ["turret", "plasma-turret"] }
+  "unlocks": { "buildings": ["turret", "plasma-turret", "aa-turret", "aa-plasma-turret"] }
 }

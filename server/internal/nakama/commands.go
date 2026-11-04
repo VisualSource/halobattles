@@ -3,8 +3,10 @@ package nakama
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 
+	"github.com/VisualSource/halobattles/server/internal/battle"
 	"github.com/VisualSource/halobattles/server/internal/game"
 	"github.com/VisualSource/halobattles/server/internal/gen/wire"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -46,6 +48,11 @@ func (s *matchState) handleCommands(logger runtime.Logger, dispatcher runtime.Ma
 			s.reject(logger, dispatcher, msg, seq, err)
 			continue
 		}
+		if s.reply != nil {
+			if err := dispatcher.BroadcastMessage(int64(wire.OpDefenceLayout), s.reply, []runtime.Presence{msg}, nil, true); err != nil {
+				logger.Error("send DefenceLayout: %v", err)
+			}
+		}
 		changed = true
 	}
 	return changed
@@ -61,6 +68,7 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 		}
 	}()
 	doc := &s.content.Doc
+	s.reply = nil
 
 	phase := wire.PhaseLobby // the phase the command works in
 	var apply func(l *game.Lobby) error
@@ -124,11 +132,17 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 			units = append(units, game.ArmyUnits{Stack: int(u.Stack), Unit: u.Unit, Count: int(u.Count)})
 		}
 		seq, phase, apply = c.Seq, wire.PhasePlay, func(*game.Lobby) error {
+			if c.Raid {
+				return s.play.OrderRaid(doc, s.seat(user), c.FromPlanet, units, c.ToPlanet, int(c.ToStack))
+			}
 			return s.play.OrderArmy(s.seat(user), c.FromPlanet, units, c.ToPlanet, int(c.ToStack))
 		}
 	case wire.OpReorderArmy:
 		c := wire.GetRootAsReorderArmy(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			if c.Raid() {
+				return s.play.ReorderRaid(doc, s.seat(user), c.Army(), string(c.ToPlanet()), int(c.ToStack()))
+			}
 			return s.play.ReorderArmy(s.seat(user), c.Army(), string(c.ToPlanet()), int(c.ToStack()))
 		}
 	case wire.OpSurrender:
@@ -151,6 +165,63 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 		c := wire.GetRootAsBattleBuildTurret(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
 			return s.play.BuildTurret(doc, s.seat(user), string(c.Planet()), int(c.Pad()), string(c.Building()))
+		}
+	case wire.OpSetBattleControl:
+		c := wire.GetRootAsSetBattleControl(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			s.play.SetBattleControl(s.seat(user), c.Command())
+			return nil
+		}
+	case wire.OpSetBattleCommand:
+		c := wire.GetRootAsSetBattleCommand(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.SetBattleCommand(s.seat(user), string(c.Planet()), c.Command())
+		}
+	case wire.OpBattleLand:
+		c := wire.GetRootAsBattleLand(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.BattleLand(s.seat(user), string(c.Planet()), int(c.Drop()), int(c.Point()))
+		}
+	case wire.OpBattleOrder:
+		c := wire.GetRootAsBattleOrder(data, 0).UnPack()
+		kind, ok := orderKinds[c.Kind]
+		var squads []int
+		for _, id := range c.Squads {
+			squads = append(squads, int(id))
+		}
+		seq, phase, apply = c.Seq, wire.PhasePlay, func(*game.Lobby) error {
+			if !ok {
+				return errors.New("unknown order")
+			}
+			return s.play.BattleOrder(s.seat(user), c.Planet, kind, squads, battle.Cell{X: int(c.X), Y: int(c.Y)}, int(c.Target))
+		}
+	case wire.OpRequestDefenceLayout:
+		c := wire.GetRootAsRequestDefenceLayout(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.replyLayout(s.seat(user), string(c.Planet()))
+		}
+	case wire.OpSetDefenceLayout:
+		c := wire.GetRootAsSetDefenceLayout(data, 0).UnPack()
+		var l battle.Layout
+		for slot, k := range c.Sites {
+			if k >= 0 {
+				if l.Sites == nil {
+					l.Sites = map[int]int{}
+				}
+				l.Sites[slot] = int(k)
+			}
+		}
+		for _, st := range c.Starts {
+			if l.Starts == nil {
+				l.Starts = map[int]battle.Cell{}
+			}
+			l.Starts[int(st.Stack)] = battle.Cell{X: int(st.X), Y: int(st.Y)}
+		}
+		seq, phase, apply = c.Seq, wire.PhasePlay, func(*game.Lobby) error {
+			if err := s.play.SetDefenceLayout(doc, s.seat(user), c.Planet, l); err != nil {
+				return err
+			}
+			return s.replyLayout(s.seat(user), c.Planet)
 		}
 	case wire.OpExchange:
 		c := wire.GetRootAsExchange(data, 0)
@@ -227,4 +298,48 @@ func (s *matchState) reject(logger runtime.Logger, dispatcher runtime.MatchDispa
 	if err := dispatcher.BroadcastMessage(int64(wire.OpCommandRejected), data, []runtime.Presence{to}, nil, true); err != nil {
 		logger.Error("send CommandRejected: %v", err)
 	}
+}
+
+// orderKinds are the wire's squad orders, as the sim's.
+var orderKinds = map[wire.BattleOrderKind]battle.OrderKind{
+	wire.BattleOrderKindMove: battle.Move, wire.BattleOrderKindAttack: battle.Attack,
+	wire.BattleOrderKindAttackMove: battle.AttackMove, wire.BattleOrderKindHold: battle.Hold,
+}
+
+// replyLayout answers with seat's Planet's defence layout.
+func (s *matchState) replyLayout(seat int, planet string) error {
+	l, err := s.play.DefenceLayout(&s.content.Doc, seat, planet)
+	if err != nil {
+		return err
+	}
+	f := l.Field
+	t := &wire.DefenceLayoutT{
+		Planet: l.Planet, Field: field(f), CommandPost: cell(f.CommandPost),
+		Sites: cells(f.Sites), Points: cells(f.Points), Landings: cells(f.Starts), Pads: cells(f.Pads),
+		Reach: float32(l.Reach), StackStarts: cells(l.StackStarts),
+	}
+	for slot, k := range l.BuildingSites {
+		t.BuildingSites = append(t.BuildingSites, int8(k))
+		set, ok := l.Layout.Sites[slot]
+		if !ok {
+			set = -1
+		}
+		t.SetSites = append(t.SetSites, int8(set))
+	}
+	for _, k := range slices.Sorted(maps.Keys(l.Layout.Starts)) {
+		c := l.Layout.Starts[k]
+		t.SetStarts = append(t.SetStarts, &wire.LayoutStartT{Stack: uint8(k), X: uint16(c.X), Y: uint16(c.Y)})
+	}
+	s.reply = finish(t)
+	return nil
+}
+
+func cell(c battle.Cell) *wire.CellT { return &wire.CellT{X: uint16(c.X), Y: uint16(c.Y)} }
+
+func cells(cs []battle.Cell) []*wire.CellT {
+	out := make([]*wire.CellT, len(cs))
+	for i, c := range cs {
+		out[i] = cell(c)
+	}
+	return out
 }

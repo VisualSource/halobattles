@@ -4,6 +4,7 @@
 
 import * as flatbuffers from 'flatbuffers';
 
+import { BattleDrop, BattleDropT } from '../wire/battle-drop.js';
 import { BattleSquad, BattleSquadT } from '../wire/battle-squad.js';
 import { Battlefield, BattlefieldT } from '../wire/battlefield.js';
 import { BuildPad, BuildPadT } from '../wire/build-pad.js';
@@ -100,16 +101,6 @@ padsLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
-hold():number {
-  const offset = this.bb!.__offset(this.bb_pos, 26);
-  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
-}
-
-holdPaused():boolean {
-  const offset = this.bb!.__offset(this.bb_pos, 28);
-  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
-}
-
 retreatAt():number {
   const offset = this.bb!.__offset(this.bb_pos, 30);
   return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
@@ -125,8 +116,38 @@ defenderRetreating():boolean {
   return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
 }
 
+raid():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 36);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
+buildingsLeft():number {
+  const offset = this.bb!.__offset(this.bb_pos, 38);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+}
+
+buildings():number {
+  const offset = this.bb!.__offset(this.bb_pos, 40);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
+}
+
+commanded():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 42);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
+drops(index: number, obj?:BattleDrop):BattleDrop|null {
+  const offset = this.bb!.__offset(this.bb_pos, 44);
+  return offset ? (obj || new BattleDrop()).__init(this.bb!.__indirect(this.bb!.__vector(this.bb_pos + offset) + index * 4), this.bb!) : null;
+}
+
+dropsLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 44);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
 static startBattleView(builder:flatbuffers.Builder) {
-  builder.startObject(16);
+  builder.startObject(21);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -209,14 +230,6 @@ static startPadsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
-static addHold(builder:flatbuffers.Builder, hold:number) {
-  builder.addFieldInt32(11, hold, 0);
-}
-
-static addHoldPaused(builder:flatbuffers.Builder, holdPaused:boolean) {
-  builder.addFieldInt8(12, +holdPaused, +false);
-}
-
 static addRetreatAt(builder:flatbuffers.Builder, retreatAt:number) {
   builder.addFieldInt32(13, retreatAt, 0);
 }
@@ -227,6 +240,38 @@ static addAttackerRetreating(builder:flatbuffers.Builder, attackerRetreating:boo
 
 static addDefenderRetreating(builder:flatbuffers.Builder, defenderRetreating:boolean) {
   builder.addFieldInt8(15, +defenderRetreating, +false);
+}
+
+static addRaid(builder:flatbuffers.Builder, raid:boolean) {
+  builder.addFieldInt8(16, +raid, +false);
+}
+
+static addBuildingsLeft(builder:flatbuffers.Builder, buildingsLeft:number) {
+  builder.addFieldInt8(17, buildingsLeft, 0);
+}
+
+static addBuildings(builder:flatbuffers.Builder, buildings:number) {
+  builder.addFieldInt8(18, buildings, 0);
+}
+
+static addCommanded(builder:flatbuffers.Builder, commanded:boolean) {
+  builder.addFieldInt8(19, +commanded, +false);
+}
+
+static addDrops(builder:flatbuffers.Builder, dropsOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(20, dropsOffset, 0);
+}
+
+static createDropsVector(builder:flatbuffers.Builder, data:flatbuffers.Offset[]):flatbuffers.Offset {
+  builder.startVector(4, data.length, 4);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addOffset(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startDropsVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(4, numElems, 4);
 }
 
 static endBattleView(builder:flatbuffers.Builder):flatbuffers.Offset {
@@ -248,11 +293,14 @@ unpack(): BattleViewT {
     this.bb!.createObjList<BattleSquad, BattleSquadT>(this.squads.bind(this), this.squadsLength()),
     this.bb!.createObjList<ControlPoint, ControlPointT>(this.points.bind(this), this.pointsLength()),
     this.bb!.createObjList<BuildPad, BuildPadT>(this.pads.bind(this), this.padsLength()),
-    this.hold(),
-    this.holdPaused(),
     this.retreatAt(),
     this.attackerRetreating(),
-    this.defenderRetreating()
+    this.defenderRetreating(),
+    this.raid(),
+    this.buildingsLeft(),
+    this.buildings(),
+    this.commanded(),
+    this.bb!.createObjList<BattleDrop, BattleDropT>(this.drops.bind(this), this.dropsLength())
   );
 }
 
@@ -269,11 +317,14 @@ unpackTo(_o: BattleViewT): void {
   _o.squads = this.bb!.createObjList<BattleSquad, BattleSquadT>(this.squads.bind(this), this.squadsLength());
   _o.points = this.bb!.createObjList<ControlPoint, ControlPointT>(this.points.bind(this), this.pointsLength());
   _o.pads = this.bb!.createObjList<BuildPad, BuildPadT>(this.pads.bind(this), this.padsLength());
-  _o.hold = this.hold();
-  _o.holdPaused = this.holdPaused();
   _o.retreatAt = this.retreatAt();
   _o.attackerRetreating = this.attackerRetreating();
   _o.defenderRetreating = this.defenderRetreating();
+  _o.raid = this.raid();
+  _o.buildingsLeft = this.buildingsLeft();
+  _o.buildings = this.buildings();
+  _o.commanded = this.commanded();
+  _o.drops = this.bb!.createObjList<BattleDrop, BattleDropT>(this.drops.bind(this), this.dropsLength());
 }
 }
 
@@ -290,11 +341,14 @@ constructor(
   public squads: (BattleSquadT)[] = [],
   public points: (ControlPointT)[] = [],
   public pads: (BuildPadT)[] = [],
-  public hold: number = 0,
-  public holdPaused: boolean = false,
   public retreatAt: number = 0,
   public attackerRetreating: boolean = false,
-  public defenderRetreating: boolean = false
+  public defenderRetreating: boolean = false,
+  public raid: boolean = false,
+  public buildingsLeft: number = 0,
+  public buildings: number = 0,
+  public commanded: boolean = false,
+  public drops: (BattleDropT)[] = []
 ){}
 
 
@@ -304,6 +358,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const squads = BattleView.createSquadsVector(builder, builder.createObjectOffsetList(this.squads));
   const points = BattleView.createPointsVector(builder, builder.createObjectOffsetList(this.points));
   const pads = BattleView.createPadsVector(builder, builder.createObjectOffsetList(this.pads));
+  const drops = BattleView.createDropsVector(builder, builder.createObjectOffsetList(this.drops));
 
   BattleView.startBattleView(builder);
   BattleView.addId(builder, this.id);
@@ -317,11 +372,14 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   BattleView.addSquads(builder, squads);
   BattleView.addPoints(builder, points);
   BattleView.addPads(builder, pads);
-  BattleView.addHold(builder, this.hold);
-  BattleView.addHoldPaused(builder, this.holdPaused);
   BattleView.addRetreatAt(builder, this.retreatAt);
   BattleView.addAttackerRetreating(builder, this.attackerRetreating);
   BattleView.addDefenderRetreating(builder, this.defenderRetreating);
+  BattleView.addRaid(builder, this.raid);
+  BattleView.addBuildingsLeft(builder, this.buildingsLeft);
+  BattleView.addBuildings(builder, this.buildings);
+  BattleView.addCommanded(builder, this.commanded);
+  BattleView.addDrops(builder, drops);
 
   return BattleView.endBattleView(builder);
 }

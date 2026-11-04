@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ContentLookups } from "../content";
 import type { Unit } from "../gen/content";
-import { matchups, moves } from "./units";
+import { canRaid, matchups, moves } from "./units";
 
 const content = {
   unitClasses: new Map([
@@ -27,6 +27,24 @@ const tank = {
 } as unknown as Unit;
 
 describe("Units", () => {
+  it("raids only with raiders, within the cap", () => {
+    const c = {
+      units: new Map([
+        ["odst", { roles: ["infiltration"], commandPoints: 2 }],
+        ["marine", { commandPoints: 1 }],
+      ]),
+      rules: { battle: { raidCap: 10, raidRoles: ["infiltration"] } },
+    } as unknown as ContentLookups;
+    expect(canRaid(c, [{ unit: "odst", count: 5 }])).toBe(true);
+    expect(canRaid(c, [{ unit: "odst", count: 6 }])).toBe(false); // 12 Command Points
+    expect(
+      canRaid(c, [
+        { unit: "odst", count: 1 },
+        { unit: "marine", count: 1 },
+      ]),
+    ).toBe(false);
+  });
+
   it("gives each class its tier, counting one left out as normal", () => {
     expect(matchups(content, tank)).toEqual([
       { name: "Infantry", tier: "normal" },

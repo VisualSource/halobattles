@@ -39,6 +39,61 @@ type Force struct {
 	// Boosts are the side's Tech effects, by unit or building id, fixed for
 	// the Battle; pad turrets built later get them too.
 	Boosts map[string]Boost
+	Layout Layout // the defender's: where its buildings and Stacks start
+}
+
+// Layout is a Planet owner's defence layout: the base site each Building
+// Slot stands on, and where each Stack deploys, by index. Anything it leaves
+// out goes where the base puts it.
+type Layout struct {
+	Sites  map[int]int  `json:",omitempty"`
+	Starts map[int]Cell `json:",omitempty"`
+}
+
+// Deploy is where a defender's buildings (by Building Slot: an index into
+// Sites; -1 for an empty slot, or one with no free site, which stands by the
+// Command Post) and Stacks start. A
+// building the layout places takes its site first; the rest take their own
+// slot's site if it's free, else the first free one. A Stack's start counts
+// only within reach of the Command Post or a site with a building on it;
+// otherwise it starts at the base's unit start, or past those the Command Post.
+func (f *Field) Deploy(buildings []string, stacks int, l Layout, reach float64) (at []int, starts []Cell) {
+	at = make([]int, len(buildings))
+	taken := make([]bool, len(f.Sites))
+	for slot, id := range buildings {
+		at[slot] = -1
+		if k, ok := l.Sites[slot]; ok && id != "" && k >= 0 && k < len(f.Sites) && !taken[k] {
+			at[slot], taken[k] = k, true
+		}
+	}
+	for slot, id := range buildings {
+		switch {
+		case id == "" || at[slot] >= 0:
+		case slot < len(f.Sites) && !taken[slot]:
+			at[slot], taken[slot] = slot, true
+		default:
+			if k := slices.Index(taken, false); k >= 0 {
+				at[slot], taken[k] = k, true
+			}
+		}
+	}
+	held := []Cell{f.CommandPost}
+	for _, k := range at {
+		if k >= 0 {
+			held = append(held, f.Sites[k])
+		}
+	}
+	for k := range stacks {
+		p := f.CommandPost
+		if k < len(f.UnitStarts) {
+			p = f.UnitStarts[k]
+		}
+		if c, ok := l.Starts[k]; ok && f.inBounds(c) && slices.ContainsFunc(held, func(h Cell) bool { return dist(c, h) <= reach }) {
+			p = c
+		}
+		starts = append(starts, p)
+	}
+	return at, starts
 }
 
 // Boost is what Tech effects add to a unit's or building's combat stats.
@@ -64,6 +119,9 @@ type Squad struct {
 	Start           int      // members at the start
 	Escaped         bool     // it Retreated off the field, keeping its Members
 	OnPad           int      // a pad turret: its pad's index + 1; it isn't a Planet building
+	CommandPost     bool     // the defender's Command Post: destroying it wins; it isn't a Planet building
+	Dropship        bool     // a Dropship in flight: it never fires, only anti-air can fire on it, and both sides see it
+	Drop            int      // landed by a Dropship, or one: its Drop's index + 1; 0 for the rest
 
 	class                  string
 	air                    bool
@@ -83,6 +141,7 @@ type Squad struct {
 	target                 int // an ordered target's id, or 0
 	blocked                int // ticks spent waiting for a cell
 	retreating             bool
+	attackMove             bool     // on an Attack-move: it stops while it has something to hit
 	roles                  []string // the unit's AI role hints: "scout", "skirmisher"
 	exit                   int      // the edge it Retreats off: 0 top, 1 right, 2 bottom, 3 left
 	flashUntil             int      // the tick its muzzle flash fades: till then the enemy sees it
@@ -97,6 +156,10 @@ const flashSeconds = 3
 // Retreated off it.
 func (sq *Squad) alive() bool { return len(sq.Members) > 0 && !sq.Escaped }
 
+// planetBuilding is whether it's one of the Planet's buildings: not a pad
+// turret or the Command Post. A Raid is after these.
+func (sq *Squad) planetBuilding() bool { return sq.Building && sq.OnPad == 0 && !sq.CommandPost }
+
 // Pad is a build pad: a spot whoever holds it can build a turret on. One
 // with a turret can't change hands until the turret is destroyed.
 type Pad struct {
@@ -107,6 +170,7 @@ type Pad struct {
 	Turret   int    // the turret squad on it, or 0
 	Building string // the turret under construction, or ""
 	ReadyAt  int    // the tick it's built
+	CoolsAt  int    // its turret destroyed: the tick it can be built on again
 }
 
 // Point is a Control Point. Taker has been in range alone for Progress ticks.
@@ -120,9 +184,10 @@ type Point struct {
 // Reasons a Battle ends.
 const (
 	Eliminated = "elimination"
-	HeldPoints = "points"
+	Destroyed  = "commandPost" // the attacker destroyed the Command Post
 	TimeUp     = "time"
 	Retreated  = "retreat"
+	Raided     = "raided" // a Raid destroyed every Planet building
 )
 
 // Logged is a player's order and the tick it came in before, so a Battle can
@@ -156,13 +221,15 @@ type Sim struct {
 	// neutral garrison can, a player once a Tech unlocks one of their
 	// Faction's. Its AI takes pads in setup only if so.
 	Builders [2]bool
-	Hold     int // ticks the attacker has held enough points
-	// HoldPaused: the attacker holds enough points, but a defender stands on
-	// one, so the hold timer waits.
-	HoldPaused bool
-	Over       bool
-	Winner     Side
-	Reason     string
+	// Raid: the attacker wins by destroying every Planet building within
+	// raidTime, the Command Post decides nothing, and the defender can't
+	// Retreat. Set before the first Step.
+	Raid bool
+	// Drops are the Dropships over the Battle, in the order they arrived.
+	Drops  []Drop
+	Over   bool
+	Winner Side
+	Reason string
 	// RetreatAt is the tick each side's Retreat countdown ends, or 0; once it
 	// has, the side is Retreating and can't call it off.
 	RetreatAt  [2]int
@@ -202,9 +269,9 @@ func (s *Sim) layer(sq *Squad) []int {
 	return s.ground
 }
 
-// New deploys both sides on the Field. The defender holds every Control
-// Point. A side with nothing that can fight has already lost: the Sim
-// starts Over.
+// New deploys both sides on the Field: the attacker at a Landing Zone it
+// holds, the defender in its base. A side with nothing that can fight has
+// already lost: the Sim starts Over.
 func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed uint64) *Sim {
 	s := &Sim{
 		Field: f, content: c, rules: rules.Battle, toHit: rules.ToHit, pathClass: string(rules.Battlefield.PathClass), deployDepth: rules.Battlefield.DeployDepth,
@@ -214,8 +281,9 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	}
 	foot := s.costsFor(s.pathClass)
 	s.main = f.largestRegion(func(i int) bool { return foot[i] > 0 })
+	// Landing Zones start held by nobody but the one the attacker lands at.
 	for _, p := range f.Points {
-		s.Points = append(s.Points, Point{Cell: p, Owner: Defender, Taker: Defender})
+		s.Points = append(s.Points, Point{Cell: p, Owner: NoSide, Taker: NoSide})
 	}
 	for _, c := range f.Pads { // unowned: the defender takes them in setup
 		s.Pads = append(s.Pads, Pad{Cell: c, Owner: NoSide, Taker: NoSide})
@@ -223,12 +291,16 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	for side := range s.padSeen {
 		s.padSeen[side] = slices.Clone(s.Pads)
 	}
-	// The attacker deploys round one of the Field's starts, which the seed
-	// picks; a Field without any, round the middle of an edge.
+	// The attacker lands at one of the Field's starts, Landing Zones far from
+	// the base, which the seed picks, and holds it; it Retreats off the edge
+	// nearest. A Field without any: round the middle of an edge.
 	var origin Cell
 	if len(f.Starts) > 0 {
 		origin = f.Starts[s.rng.IntN(len(f.Starts))]
-		s.Edge = edgeOf(f, origin)
+		s.Edge = nearestEdge(f, origin)
+		if k := slices.Index(f.Points, origin); k >= 0 {
+			s.Points[k].Owner, s.Points[k].Taker = Attacker, Attacker
+		}
 	} else {
 		s.Edge = s.rng.IntN(4)
 		origin = [4]Cell{{f.W / 2, 0}, {f.W - 1, f.H / 2}, {f.W / 2, f.H - 1}, {0, f.H / 2}}[s.Edge]
@@ -236,31 +308,30 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	in, side := inward[s.Edge], along[s.Edge]
 
 	for k, form := range attack.Formations {
-		centre := (2*k - (len(attack.Formations) - 1)) * 3 // formations 6 cells apart, centred on the edge
+		centre := (2*k - (len(attack.Formations) - 1)) * 3 // formations 6 cells apart, centred on the Landing Zone
 		for _, sl := range form {
 			col, row := sl.Cell%5, sl.Cell/5
-			want := origin.add(side.scale(centre + col - 2)).add(in.scale(max(0, rules.Battlefield.DeployDepth-1-row)))
+			want := origin.add(side.scale(centre + col - 2)).add(in.scale(1 - row))
 			s.addUnit(Attacker, k, sl, want)
 		}
 	}
+	// Each Stack deploys round its start, its buildings on their sites.
+	sites, starts := f.Deploy(defend.Buildings, len(defend.Formations), defend.Layout, rules.Battle.StartReach)
 	for k, form := range defend.Formations {
-		if len(f.Points) == 0 {
-			break
-		}
-		p := f.Points[k%len(f.Points)]
 		for _, sl := range form {
 			col, row := sl.Cell%5, sl.Cell/5
 			// The front row faces the attacker, which is against the inward direction.
-			s.addUnit(Defender, k, sl, p.add(side.scale(col-2)).add(in.scale(row-1)))
+			s.addUnit(Defender, k, sl, starts[k].add(side.scale(col-2)).add(in.scale(row-1)))
 		}
 	}
+	s.addCommandPost(f.CommandPost)
 	for slot, id := range defend.Buildings {
 		switch {
-		case id == "" || len(f.Points) == 0:
-		case slot < len(f.Sites):
-			s.addBuilding(slot, id, f.Sites[slot])
-		default: // more Building Slots than sites: behind the points, away from the attacker
-			s.addBuilding(slot, id, f.Points[slot%len(f.Points)].add(in.scale(3)))
+		case id == "":
+		case sites[slot] < 0: // no free site: by the Command Post
+			s.addBuilding(slot, id, f.CommandPost)
+		default:
+			s.addBuilding(slot, id, f.Sites[sites[slot]])
 		}
 	}
 	s.see()
@@ -268,18 +339,39 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 	return s
 }
 
+// nearestEdge is the map edge nearest c: 0 top, 1 right, 2 bottom, 3 left.
+func nearestEdge(f *Field, c Cell) int {
+	d := [4]int{c.Y, f.W - 1 - c.X, f.H - 1 - c.Y, c.X}
+	best := 0
+	for e := range d {
+		if d[e] < d[best] {
+			best = e
+		}
+	}
+	return best
+}
+
+// addUnit deploys a Unit Slot as squads of at most its Unit Class's
+// squadSize members, each placed as near want as it can stand. All keep the
+// slot's formation and cell, so survivors go back to it together.
 func (s *Sim) addUnit(side Side, formation int, sl Slot, want Cell) {
 	cb := s.content.Units[sl.Unit].Combat
-	sq := &Squad{Side: side, Unit: sl.Unit, Armed: true, Formation: formation, Slot: sl.Cell}
-	for _, r := range s.content.Units[sl.Unit].Roles {
-		sq.roles = append(sq.roles, string(r))
+	size := sl.Count
+	if n := s.content.UnitClasses[string(cb.UnitClass)].SquadSize; n != nil {
+		size = *n
 	}
-	s.stats(sq, &cb)
-	sq.Members = make([]Layers, sl.Count)
-	for i := range sq.Members {
-		sq.Members[i] = sq.layers(&cb)
+	for left := sl.Count; left > 0; left -= size {
+		sq := &Squad{Side: side, Unit: sl.Unit, Armed: true, Formation: formation, Slot: sl.Cell}
+		for _, r := range s.content.Units[sl.Unit].Roles {
+			sq.roles = append(sq.roles, string(r))
+		}
+		s.stats(sq, &cb)
+		sq.Members = make([]Layers, min(left, size))
+		for i := range sq.Members {
+			sq.Members[i] = sq.layers(&cb)
+		}
+		s.place(sq, want)
 	}
-	s.place(sq, want)
 }
 
 func (s *Sim) addBuilding(slot int, id string, want Cell) {
@@ -295,6 +387,38 @@ func (s *Sim) addBuilding(slot int, id string, want Cell) {
 	sq.speed = 0
 	sq.Members = []Layers{sq.layers(cb)}
 	s.place(sq, want)
+}
+
+// addCommandPost stands the defender's Command Post at want: a target that
+// never fires, with the Ruleset's layers and no Boost.
+func (s *Sim) addCommandPost(want Cell) {
+	sq := &Squad{Side: Defender, Unit: CommandPostID, Building: true, CommandPost: true, Slot: -1}
+	cp := s.rules.CommandPost
+	cb := &cs.Combat{UnitClass: cp.UnitClass, Shield: cp.Shield, Armor: cp.Armor, Hp: cp.Hp}
+	s.stats(sq, cb)
+	sq.speed, sq.boost = 0, Boost{}
+	sq.Members = []Layers{sq.layers(cb)}
+	s.place(sq, want)
+}
+
+// damaged is whether the Command Post has taken any hit: hits come off its
+// Shield, then Armor, then HP, so all three count.
+func (sq *Squad) damaged(full cs.CommandPost) bool {
+	l := sq.Members[0]
+	return l.Shield+l.Armor+l.HP < float64(full.Shield+full.Armor+full.Hp)
+}
+
+// CommandPostID is the Command Post squad's Unit: no unit or building has it.
+const CommandPostID = "commandPost"
+
+// commandPost is the Command Post squad, or nil.
+func (s *Sim) commandPost() *Squad {
+	for _, sq := range s.Squads {
+		if sq.CommandPost {
+			return sq
+		}
+	}
+	return nil
 }
 
 // layers is a fresh member's Shield, Armor and HP, with its side's Boost.
@@ -438,9 +562,11 @@ func (s *Sim) Step() []Volley {
 	}
 	s.retreat()
 	s.raiseTurrets()
+	s.dropships()
 	s.move()
 	s.see()
 	volleys := s.fire()
+	s.shotDown()
 	s.capture()
 	s.Tick++
 	if !s.setup() {
@@ -484,7 +610,7 @@ func (s *Sim) apply(side Side, o Order) {
 		s.padSeen[side][o.Target] = *p // its own build shows at once
 		return
 	case Retreat:
-		if s.RetreatAt[side] == 0 {
+		if s.RetreatAt[side] == 0 && !(s.Raid && side == Defender) { // a raided defender has nothing to save by leaving
 			s.RetreatAt[side] = max(s.Tick, s.Setup) + max(1, ticks(s.rules.RetreatCountdown)) // ordered in setup: from the first fighting tick
 		}
 		return
@@ -493,17 +619,28 @@ func (s *Sim) apply(side Side, o Order) {
 			s.RetreatAt[side] = 0
 		}
 		return
-	}
-	sq := s.squad(o.Squad)
-	if sq == nil || sq.Side != side || !sq.alive() || sq.retreating {
+	case Arrive:
+		s.arrive(side, o)
+		return
+	case Land:
+		if s.CanLand(side, o.Target, o.Point) == nil {
+			s.launch(o.Target, o.Point)
+		}
 		return
 	}
+	sq := s.squad(o.Squad)
+	if sq == nil || sq.Side != side || !sq.alive() || sq.retreating || sq.Dropship {
+		return
+	}
+	if s.setup() && side == Attacker && o.Kind != Attack {
+		return // the attacker can't move yet
+	}
 	switch o.Kind {
-	case Move:
+	case Move, AttackMove:
 		if sq.speed == 0 || o.Cell.X < 0 || o.Cell.Y < 0 || o.Cell.X >= s.Field.W || o.Cell.Y >= s.Field.H {
 			return
 		}
-		sq.goal, sq.blocked, sq.pace = o.Cell, 0, o.Pace
+		sq.goal, sq.blocked, sq.pace, sq.attackMove = o.Cell, 0, o.Pace, o.Kind == AttackMove
 		sq.path = s.Field.path(s.costsFor(sq.class), sq.Cell, o.Cell, nil)
 	case Attack:
 		if o.Target == 0 {
@@ -512,7 +649,7 @@ func (s *Sim) apply(side Side, o Order) {
 			sq.target = t.ID
 		}
 	case Hold:
-		sq.path, sq.target = nil, 0
+		sq.path, sq.target, sq.attackMove = nil, 0, false
 	}
 }
 
@@ -553,8 +690,8 @@ const closeEnough = 3
 // second, or stops if it's close enough to its goal.
 func (s *Sim) move() {
 	for _, sq := range s.Squads {
-		if !sq.alive() || len(sq.path) == 0 {
-			sq.bank = 0
+		if !sq.alive() || len(sq.path) == 0 || sq.attackMove && !sq.retreating && s.targetOf(sq) != nil {
+			sq.bank = 0 // an Attack-move stops to fight
 			continue
 		}
 		c := s.costsFor(sq.class)
@@ -608,7 +745,7 @@ func (s *Sim) retreat() {
 		if at := s.RetreatAt[side]; at != 0 && !s.Retreating[side] && s.Tick >= at {
 			s.Retreating[side] = true
 			for _, sq := range s.Squads {
-				if sq.Side == Side(side) && sq.alive() && sq.speed > 0 {
+				if sq.Side == Side(side) && sq.alive() && sq.speed > 0 && !sq.Dropship {
 					sq.retreating, sq.target = true, 0
 					s.headOut(sq)
 				}
@@ -709,7 +846,7 @@ func (s *Sim) see() {
 			if !e.alive() {
 				continue
 			}
-			if e.Side == Side(side) || e.flashUntil > s.Tick {
+			if e.Side == Side(side) || e.flashUntil > s.Tick || e.Dropship {
 				vis[e.ID] = true
 				continue
 			}
@@ -721,6 +858,9 @@ func (s *Sim) see() {
 					}
 				}
 			}
+			// A pad the side holds sees round itself.
+			r := s.rules.PadSight
+			vis[e.ID] = vis[e.ID] || slices.ContainsFunc(s.Pads, func(p Pad) bool { return p.Owner == Side(side) && float64(dist2(p.Cell, e.Cell)) <= r*r })
 		}
 		s.visible[side] = vis
 		// Pads: what the side can see of them now, else as it last saw them.
@@ -749,7 +889,7 @@ func (s *Sim) tier(actor, target *Squad) string {
 }
 
 func (s *Sim) canHit(actor, target *Squad) bool {
-	if !target.alive() || target.Side == actor.Side || !s.visible[actor.Side][target.ID] || s.tier(actor, target) == None {
+	if !target.alive() || target.Dropship && !s.antiAir(actor) || target.Side == actor.Side || !s.visible[actor.Side][target.ID] || s.tier(actor, target) == None {
 		return false
 	}
 	d := dist(actor.Cell, target.Cell)
@@ -757,9 +897,14 @@ func (s *Sim) canHit(actor, target *Squad) bool {
 }
 
 // targetOf is the ordered target if it can be hit, or else the visible enemy
-// in range with the best tier, then one its side has hit lately (focus fire),
-// then the fewest members left, then the nearest, then the lowest id.
+// in range that fires back (an armed one) before one that doesn't, then with
+// the best tier, then one its side has hit lately (focus fire), then the
+// fewest members left, then the nearest, then the lowest id. A Dropship in
+// reach of anti-air comes before all of that.
 func (s *Sim) targetOf(sq *Squad) *Squad {
+	if t := s.dropshipFor(sq); t != nil {
+		return t
+	}
 	if t := s.squad(sq.target); t != nil && s.canHit(sq, t) {
 		return t
 	}
@@ -770,12 +915,19 @@ func (s *Sim) targetOf(sq *Squad) *Squad {
 		}
 		return 1
 	}
+	armed := func(t *Squad) int { // what shoots back first; an ordered target is above
+		if t.Armed {
+			return 0
+		}
+		return 1
+	}
 	var best *Squad
 	for _, t := range s.Squads {
 		if !s.canHit(sq, t) {
 			continue
 		}
 		if best == nil || cmp.Or(
+			cmp.Compare(armed(t), armed(best)),
 			cmp.Compare(tierRank[s.tier(sq, t)], tierRank[s.tier(sq, best)]),
 			cmp.Compare(notHit(t), notHit(best)), // focus fire: finish what friends are hitting
 			cmp.Compare(len(t.Members), len(best.Members)),
@@ -861,14 +1013,12 @@ func (s *Sim) fire() []Volley {
 	return out
 }
 
-// capture updates each Control Point, then each build pad. One changes
-// hands after one side alone has a ground squad in range for
+// capture updates each Landing Zone (a Control Point), then each build pad.
+// One changes hands after one side alone has a ground squad in range for
 // captureSeconds; a contested or empty one resets its progress, and so does
-// a pad with a turret on it. Then the attacker's hold timer runs while it
-// holds enough points.
+// a pad with a turret on it.
 func (s *Sim) capture() {
 	need := ticks(s.rules.CaptureSeconds)
-	held, contested := 0, false
 	for i := range s.Points {
 		p := &s.Points[i]
 		present := s.presence(p.Cell)
@@ -891,15 +1041,12 @@ func (s *Sim) capture() {
 				p.Owner, p.Progress = side, 0
 			}
 		}
-		if p.Owner == Attacker {
-			held++
-			contested = contested || present[Defender]
-		}
 	}
 	for i := range s.Pads {
 		p := &s.Pads[i]
 		if t := s.squad(p.Turret); t != nil && !t.alive() {
-			p.Turret = 0 // destroyed: the pad can be taken
+			p.Turret = 0 // destroyed: the pad can be taken, and built on after the cooldown
+			p.CoolsAt = s.Tick + ticks(s.rules.PadCooldown)
 		}
 		present := s.presence(p.Cell)
 		switch {
@@ -923,15 +1070,6 @@ func (s *Sim) capture() {
 			}
 		}
 	}
-	// The hold timer runs while the attacker holds enough points, and pauses,
-	// keeping its count, while a defender stands on one of them.
-	s.HoldPaused = held >= s.rules.HoldPoints && contested
-	switch {
-	case held < s.rules.HoldPoints:
-		s.Hold = 0
-	case !contested:
-		s.Hold++
-	}
 }
 
 // CanBuild reports why side can't build building on pad, or nil if it can:
@@ -949,6 +1087,8 @@ func (s *Sim) CanBuild(side Side, pad int, building string) error {
 		return errors.New("you don't hold that build pad")
 	case p.Turret != 0 || p.Building != "":
 		return errors.New("that build pad is taken")
+	case s.Tick < p.CoolsAt:
+		return errors.New("that build pad is cooling down after its turret was destroyed")
 	case !ok || b.PadTurret == nil || !*b.PadTurret || b.Combat == nil:
 		return errors.New("that can't be built on a build pad")
 	case s.Retreating[side]:
@@ -1000,11 +1140,11 @@ func (s *Sim) presence(c Cell) [2]bool {
 // other out, or both Retreating, goes to the defender.
 func (s *Sim) end() {
 	// Pad turrets don't keep an attacker in the fight.
-	attackers := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Attacker && sq.alive() && sq.OnPad == 0 })
-	defenders := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Defender && sq.alive() && sq.Armed })
+	attackers := slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.Side == Attacker && sq.alive() && sq.OnPad == 0 && !sq.Dropship })
+	cp := s.commandPost()
 	left := func(side Side) bool {
 		return s.Retreating[side] && !slices.ContainsFunc(s.Squads, func(sq *Squad) bool {
-			return sq.Side == side && sq.alive() && sq.speed > 0
+			return sq.Side == side && sq.alive() && sq.speed > 0 && !sq.Dropship
 		})
 	}
 	switch {
@@ -1012,12 +1152,22 @@ func (s *Sim) end() {
 		s.Over, s.Winner, s.Reason = true, Defender, Retreated
 	case !attackers:
 		s.Over, s.Winner, s.Reason = true, Defender, Eliminated
+	case s.Raid && !slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.planetBuilding() && sq.alive() }):
+		s.Over, s.Winner, s.Reason = true, Attacker, Raided
+	case s.Raid:
+		if s.Tick-s.Setup >= s.rules.RaidTime*TicksPerSecond {
+			s.Over, s.Winner, s.Reason = true, Defender, TimeUp
+		}
+	// A defender that Retreats abandons the Battle: its Command Post blows.
 	case left(Defender):
+		if cp != nil {
+			cp.Members = nil
+		}
 		s.Over, s.Winner, s.Reason = true, Attacker, Retreated
-	case !defenders:
-		s.Over, s.Winner, s.Reason = true, Attacker, Eliminated
-	case s.Hold > 0 && s.Hold >= ticks(s.rules.HoldSeconds):
-		s.Over, s.Winner, s.Reason = true, Attacker, HeldPoints
+	// Otherwise the attacker wins only by destroying the Command Post: a
+	// defence wiped out leaves it standing to be destroyed.
+	case cp != nil && !cp.alive():
+		s.Over, s.Winner, s.Reason = true, Attacker, Destroyed
 	case s.Tick-s.Setup >= s.rules.TimeCap*TicksPerSecond: // fighting time only
 		s.Over, s.Winner, s.Reason = true, Defender, TimeUp
 	}
@@ -1034,6 +1184,15 @@ type SquadView struct {
 	Count    int
 	Start    int
 	Front    Layers
+	// CommandPost: the defender's; both sides always see it, an objective
+	// marked on the map.
+	CommandPost bool
+	// Its own side's: whether it's on its way to Goal, and the enemy it was
+	// told to attack, or 0.
+	Moving   bool
+	Goal     Cell
+	Target   int
+	Dropship bool // in flight: both sides see it
 }
 
 // Snapshot is one side's picture of the Battle: its own squads, the enemies
@@ -1044,11 +1203,20 @@ type Snapshot struct {
 	Edge       int
 	Squads     []SquadView // on the field, by id
 	Points     []Point
-	Pads       []Pad // as the side last saw them: see PadsFor
-	Hold       int
-	HoldPaused bool
+	Pads       []Pad   // as the side last saw them: see PadsFor
 	RetreatAt  int     // the tick the side's own Retreat countdown ends, or 0
 	Retreating [2]bool // public: you see the enemy turn and run
+	// The Planet's buildings standing, and at the start: public in a Raid,
+	// its score.
+	BuildingsLeft, Buildings int
+	// Drops are the side's Dropships, by their index in the Sim's.
+	Drops []SideDrop
+}
+
+// SideDrop is one of a side's Drops, as it sees them.
+type SideDrop struct {
+	Drop
+	SendsAt int // in orbit: the tick the sim sends it
 }
 
 func (s *Sim) Snapshot(side Side) Snapshot { return s.snapshot(side, false) }
@@ -1059,18 +1227,35 @@ func (s *Sim) SnapshotAll() Snapshot { return s.snapshot(NoSide, true) }
 
 func (s *Sim) snapshot(side Side, all bool) Snapshot {
 	snap := Snapshot{
-		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: slices.Clone(s.Pads), Hold: s.Hold, HoldPaused: s.HoldPaused,
+		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: slices.Clone(s.Pads),
 		Retreating: s.Retreating,
+	}
+	for _, sq := range s.Squads {
+		if sq.planetBuilding() {
+			snap.Buildings++
+			if sq.alive() {
+				snap.BuildingsLeft++
+			}
+		}
 	}
 	if !all {
 		snap.Pads, snap.RetreatAt = s.PadsFor(side), s.RetreatAt[side]
 	}
+	for _, d := range s.Drops {
+		if all || d.Side == side {
+			snap.Drops = append(snap.Drops, SideDrop{d, s.SendsAt(d)})
+		}
+	}
 	for _, sq := range s.Squads {
-		if sq.alive() && (all || s.visible[side][sq.ID]) {
-			snap.Squads = append(snap.Squads, SquadView{
+		if sq.alive() && (all || s.visible[side][sq.ID] || sq.CommandPost) {
+			v := SquadView{
 				ID: sq.ID, Side: sq.Side, Unit: sq.Unit, Building: sq.Building, Cell: sq.Cell,
-				Count: len(sq.Members), Start: sq.Start, Front: sq.Members[0],
-			})
+				Count: len(sq.Members), Start: sq.Start, Front: sq.Members[0], CommandPost: sq.CommandPost, Dropship: sq.Dropship,
+			}
+			if all || sq.Side == side { // its orders: only its own side sees them
+				v.Moving, v.Goal, v.Target = len(sq.path) > 0, sq.goal, sq.target
+			}
+			snap.Squads = append(snap.Squads, v)
 		}
 	}
 	return snap

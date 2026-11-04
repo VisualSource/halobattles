@@ -15,6 +15,7 @@ type BuildPadT struct {
 	Turret   uint16 `json:"turret"`
 	Building string `json:"building"`
 	ReadyAt  uint32 `json:"ready_at"`
+	CoolsAt  uint32 `json:"cools_at"`
 }
 
 func (t *BuildPadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -34,6 +35,7 @@ func (t *BuildPadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BuildPadAddTurret(builder, t.Turret)
 	BuildPadAddBuilding(builder, buildingOffset)
 	BuildPadAddReadyAt(builder, t.ReadyAt)
+	BuildPadAddCoolsAt(builder, t.CoolsAt)
 	return BuildPadEnd(builder)
 }
 
@@ -46,6 +48,7 @@ func (rcv *BuildPad) UnPackTo(t *BuildPadT) {
 	t.Turret = rcv.Turret()
 	t.Building = string(rcv.Building())
 	t.ReadyAt = rcv.ReadyAt()
+	t.CoolsAt = rcv.CoolsAt()
 }
 
 func (rcv *BuildPad) UnPack() *BuildPadT {
@@ -184,8 +187,20 @@ func (rcv *BuildPad) MutateReadyAt(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(18, n)
 }
 
+func (rcv *BuildPad) CoolsAt() uint32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BuildPad) MutateCoolsAt(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(20, n)
+}
+
 func BuildPadStart(builder *flatbuffers.Builder) {
-	builder.StartObject(8)
+	builder.StartObject(9)
 }
 func BuildPadAddX(builder *flatbuffers.Builder, x uint16) {
 	builder.PrependUint16Slot(0, x, 0)
@@ -210,6 +225,9 @@ func BuildPadAddBuilding(builder *flatbuffers.Builder, building flatbuffers.UOff
 }
 func BuildPadAddReadyAt(builder *flatbuffers.Builder, readyAt uint32) {
 	builder.PrependUint32Slot(7, readyAt, 0)
+}
+func BuildPadAddCoolsAt(builder *flatbuffers.Builder, coolsAt uint32) {
+	builder.PrependUint32Slot(8, coolsAt, 0)
 }
 func BuildPadEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

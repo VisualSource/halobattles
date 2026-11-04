@@ -555,3 +555,28 @@ func TestRetreatingFromNoBattleIsRejected(t *testing.T) {
 		t.Errorf("rejection %q", r)
 	}
 }
+
+func TestALayoutSwapComesBackToItsSender(t *testing.T) {
+	h := newLobbyHarness(t)
+	h.start()
+	capital := ""
+	for _, p := range h.d.views[u1.session].Planets {
+		if p.Capital && p.Owner == 0 {
+			capital = p.Id
+		}
+	}
+	p := h.state.(*matchState).play.Planets[capital]
+	p.Buildings[0], p.Buildings[1] = "base:hall", "base:hall"
+	h.loop(cmd(u1, wire.OpRequestDefenceLayout, &wire.RequestDefenceLayoutT{Seq: 103, Planet: capital}))
+	if r := h.rejection(u1, 103); r != "" || h.d.layout == nil {
+		t.Fatalf("rejected %q; want a DefenceLayout", r)
+	}
+	a, b := h.d.layout.BuildingSites[0], h.d.layout.BuildingSites[1]
+	h.loop(cmd(u1, wire.OpSetDefenceLayout, &wire.SetDefenceLayoutT{Seq: 104, Planet: capital, Sites: []int8{b, a}}))
+	if r := h.rejection(u1, 104); r != "" {
+		t.Fatalf("swap rejected: %s", r)
+	}
+	if got := h.d.layout.BuildingSites; got[0] != b || got[1] != a {
+		t.Errorf("sites after the swap %v; want %d and %d swapped", got, a, b)
+	}
+}

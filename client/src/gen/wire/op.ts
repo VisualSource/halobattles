@@ -31,6 +31,12 @@ export enum Op {
   SetTeams = 25,
   SetTeam = 26,
   SetRallyPoint = 27,
+  SetBattleControl = 28,
+  SetBattleCommand = 29,
+  BattleOrder = 30,
+  BattleLand = 31,
+  RequestDefenceLayout = 32,
+  SetDefenceLayout = 33,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,
@@ -41,5 +47,7 @@ export enum Op {
   BattleTick = 107,
   BattleEnded = 108,
   PlayerEliminated = 109,
-  MatchEnded = 110
+  MatchEnded = 110,
+  RaidTurnedBack = 111,
+  DefenceLayout = 112
 }

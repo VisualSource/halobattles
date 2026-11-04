@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "phantom",
+  "name": "Type-52 Phantom",
+  "faction": "covenant",
+  "description": "The Covenant's dropship. It flies troops into a Battle already under way, at a Landing Zone your side holds, then flies out again. It doesn't fight.",
+  "cost": { "credits": 400, "materials": 150, "alloys": 60 },
+  "upkeep": { "credits": 30, "alloys": 2 },
+  "buildTime": 60,
+  "commandPoints": 4,
+  "carry": 12,
+  "combat": {
+    "unitClass": "aircraft",
+    "weaponType": "plasma",
+    "shield": 20,
+    "armor": 10,
+    "hp": 30,
+    "damage": "1d4",
+    "tiers": { "infantry": "none", "vehicle": "none", "aircraft": "none", "structure": "none" }
+  }
+}

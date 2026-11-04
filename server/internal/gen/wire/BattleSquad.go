@@ -7,17 +7,23 @@ import (
 )
 
 type BattleSquadT struct {
-	Id       uint16  `json:"id"`
-	Side     byte    `json:"side"`
-	Unit     string  `json:"unit"`
-	Building bool    `json:"building"`
-	X        uint16  `json:"x"`
-	Y        uint16  `json:"y"`
-	Count    uint32  `json:"count"`
-	Start    uint32  `json:"start"`
-	Shield   float32 `json:"shield"`
-	Armor    float32 `json:"armor"`
-	Hp       float32 `json:"hp"`
+	Id          uint16  `json:"id"`
+	Side        byte    `json:"side"`
+	Unit        string  `json:"unit"`
+	Building    bool    `json:"building"`
+	X           uint16  `json:"x"`
+	Y           uint16  `json:"y"`
+	Count       uint32  `json:"count"`
+	Start       uint32  `json:"start"`
+	Shield      float32 `json:"shield"`
+	Armor       float32 `json:"armor"`
+	Hp          float32 `json:"hp"`
+	CommandPost bool    `json:"command_post"`
+	Moving      bool    `json:"moving"`
+	GoalX       uint16  `json:"goal_x"`
+	GoalY       uint16  `json:"goal_y"`
+	Target      uint16  `json:"target"`
+	Dropship    bool    `json:"dropship"`
 }
 
 func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -40,6 +46,12 @@ func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleSquadAddShield(builder, t.Shield)
 	BattleSquadAddArmor(builder, t.Armor)
 	BattleSquadAddHp(builder, t.Hp)
+	BattleSquadAddCommandPost(builder, t.CommandPost)
+	BattleSquadAddMoving(builder, t.Moving)
+	BattleSquadAddGoalX(builder, t.GoalX)
+	BattleSquadAddGoalY(builder, t.GoalY)
+	BattleSquadAddTarget(builder, t.Target)
+	BattleSquadAddDropship(builder, t.Dropship)
 	return BattleSquadEnd(builder)
 }
 
@@ -55,6 +67,12 @@ func (rcv *BattleSquad) UnPackTo(t *BattleSquadT) {
 	t.Shield = rcv.Shield()
 	t.Armor = rcv.Armor()
 	t.Hp = rcv.Hp()
+	t.CommandPost = rcv.CommandPost()
+	t.Moving = rcv.Moving()
+	t.GoalX = rcv.GoalX()
+	t.GoalY = rcv.GoalY()
+	t.Target = rcv.Target()
+	t.Dropship = rcv.Dropship()
 }
 
 func (rcv *BattleSquad) UnPack() *BattleSquadT {
@@ -266,8 +284,80 @@ func (rcv *BattleSquad) MutateHp(n float32) bool {
 	return rcv._tab.MutateFloat32Slot(24, n)
 }
 
+func (rcv *BattleSquad) CommandPost() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleSquad) MutateCommandPost(n bool) bool {
+	return rcv._tab.MutateBoolSlot(26, n)
+}
+
+func (rcv *BattleSquad) Moving() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleSquad) MutateMoving(n bool) bool {
+	return rcv._tab.MutateBoolSlot(28, n)
+}
+
+func (rcv *BattleSquad) GoalX() uint16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
+	if o != 0 {
+		return rcv._tab.GetUint16(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleSquad) MutateGoalX(n uint16) bool {
+	return rcv._tab.MutateUint16Slot(30, n)
+}
+
+func (rcv *BattleSquad) GoalY() uint16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	if o != 0 {
+		return rcv._tab.GetUint16(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleSquad) MutateGoalY(n uint16) bool {
+	return rcv._tab.MutateUint16Slot(32, n)
+}
+
+func (rcv *BattleSquad) Target() uint16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(34))
+	if o != 0 {
+		return rcv._tab.GetUint16(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleSquad) MutateTarget(n uint16) bool {
+	return rcv._tab.MutateUint16Slot(34, n)
+}
+
+func (rcv *BattleSquad) Dropship() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(36))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleSquad) MutateDropship(n bool) bool {
+	return rcv._tab.MutateBoolSlot(36, n)
+}
+
 func BattleSquadStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(17)
 }
 func BattleSquadAddId(builder *flatbuffers.Builder, id uint16) {
 	builder.PrependUint16Slot(0, id, 0)
@@ -301,6 +391,24 @@ func BattleSquadAddArmor(builder *flatbuffers.Builder, armor float32) {
 }
 func BattleSquadAddHp(builder *flatbuffers.Builder, hp float32) {
 	builder.PrependFloat32Slot(10, hp, 0.0)
+}
+func BattleSquadAddCommandPost(builder *flatbuffers.Builder, commandPost bool) {
+	builder.PrependBoolSlot(11, commandPost, false)
+}
+func BattleSquadAddMoving(builder *flatbuffers.Builder, moving bool) {
+	builder.PrependBoolSlot(12, moving, false)
+}
+func BattleSquadAddGoalX(builder *flatbuffers.Builder, goalX uint16) {
+	builder.PrependUint16Slot(13, goalX, 0)
+}
+func BattleSquadAddGoalY(builder *flatbuffers.Builder, goalY uint16) {
+	builder.PrependUint16Slot(14, goalY, 0)
+}
+func BattleSquadAddTarget(builder *flatbuffers.Builder, target uint16) {
+	builder.PrependUint16Slot(15, target, 0)
+}
+func BattleSquadAddDropship(builder *flatbuffers.Builder, dropship bool) {
+	builder.PrependBoolSlot(16, dropship, false)
 }
 func BattleSquadEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

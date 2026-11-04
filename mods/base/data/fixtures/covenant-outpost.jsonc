@@ -1,0 +1,35 @@
+// A Covenant outpost: a ring of cover round the Command Post, open on two sides.
+{
+  "$schema": "../../../../schema/content/fixture.schema.json",
+  "id": "covenant-outpost",
+  "kind": "base",
+  "faction": "covenant",
+  "rotate": true,
+  "mirror": true,
+  "key": {
+    "#": {
+      "cover": true
+    },
+    ".": {
+      "clear": true
+    }
+  },
+  "markers": {
+    "C": "commandPost",
+    "s": "site",
+    "u": "unitStart",
+    "p": "pad",
+    "c": "cover"
+  },
+  "map": [
+    "....#####....",
+    "..##.s.s.##..",
+    ".#...u.u...#.",
+    "#...........#",
+    "#.s...C...s.#",
+    "#.....p.....#",
+    "..#.......#..",
+    "...#..u..#...",
+    "....#c.c#...."
+  ]
+}

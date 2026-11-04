@@ -9,15 +9,23 @@ import {
   BattleCancelRetreatT,
   BattleEnded,
   type BattlefieldT,
+  BattleLandT,
+  BattleOrderKind,
+  BattleOrderT,
   BattleRetreatT,
   BattleStarted,
   BattleTick,
   type BattleViewT,
   CancelProjectT,
   CancelQueueItemT,
+  type CellT,
   CommandRejected,
+  DefenceLayout as DefenceLayoutMsg,
+  type DefenceLayoutT,
+  DropState,
   type EconomyT,
   ExchangeT,
+  LayoutStartT,
   LobbyState,
   type LobbyStateT,
   MatchEnded,
@@ -33,10 +41,15 @@ import {
   QueueBuildingT,
   type QueueItemT,
   QueueUnitT,
+  RaidTurnedBack,
   RemoveBotT,
   ReorderArmyT,
+  RequestDefenceLayoutT,
   type ResearchT,
   SellBuildingT,
+  SetBattleCommandT,
+  SetBattleControlT,
+  SetDefenceLayoutT,
   SetFactionT,
   SetMapT,
   SetRallyPointT,
@@ -56,6 +69,7 @@ import {
   type ViewFullT,
   type WinHoldT,
 } from "../gen/wire";
+import { settings } from "../settings";
 import { type CommandKind, createLocalStore, updateLastSeen } from "./local";
 import {
   type Army,
@@ -64,6 +78,7 @@ import {
   type Battlefield,
   type BattleReport,
   createMatchStore,
+  type DefenceLayout,
   type ViewDelta as Delta,
   type Economy,
   type Lobby,
@@ -74,9 +89,17 @@ import {
   reportView,
   reportVolleys,
   type Side,
+  type SquadOrder,
   type View,
   type Volley,
 } from "./store";
+
+const WIRE_KINDS = {
+  move: BattleOrderKind.Move,
+  attack: BattleOrderKind.Attack,
+  attackMove: BattleOrderKind.AttackMove,
+  hold: BattleOrderKind.Hold,
+} as const;
 
 export type SocketLike = Pick<
   Socket,
@@ -185,9 +208,30 @@ const toArmy = (a: ArmyViewT): Army => ({
   destination: str(a.destination),
   toStack: a.toStack,
   path: a.path.map(str),
+  raid: a.raid,
 });
 
 const side = (n: number): Side => (n === 0 ? "attacker" : "defender");
+
+const toCell = (c: CellT | null) => ({ x: c?.x ?? 0, y: c?.y ?? 0 });
+const toSite = (k: number) => (k < 0 ? null : k);
+
+export const toLayout = (t: DefenceLayoutT): DefenceLayout => ({
+  planet: str(t.planet),
+  field: t.field
+    ? toField(t.field)
+    : { width: 0, height: 0, terrains: [], terrain: [], heights: [] },
+  commandPost: toCell(t.commandPost),
+  sites: t.sites.map(toCell),
+  points: t.points.map(toCell),
+  landings: t.landings.map(toCell),
+  pads: t.pads.map(toCell),
+  reach: t.reach,
+  buildingSites: t.buildingSites.map(toSite),
+  stackStarts: t.stackStarts.map(toCell),
+  setSites: t.setSites.map(toSite),
+  setStarts: new Map(t.setStarts.map((s) => [s.stack, { x: s.x, y: s.y }])),
+});
 
 const toField = (f: BattlefieldT): Battlefield => ({
   width: f.width,
@@ -222,12 +266,16 @@ const toBattle = (
     shield: q.shield,
     armor: q.armor,
     hp: q.hp,
+    commandPost: q.commandPost,
+    goal: q.moving ? { x: q.goalX, y: q.goalY } : null,
+    target: q.target,
+    dropship: q.dropship,
   })),
   points: b.points.map((p) => ({
     x: p.x,
     y: p.y,
-    owner: side(p.owner),
-    taker: side(p.taker),
+    owner: p.owner > 1 ? null : side(p.owner), // 255: nobody's
+    taker: p.taker > 1 ? null : side(p.taker),
     progress: p.progress,
   })),
   pads: b.pads.map((p) => ({
@@ -239,15 +287,31 @@ const toBattle = (
     turret: p.turret,
     building: str(p.building),
     readyAt: p.readyAt,
+    coolsAt: p.coolsAt,
   })),
-  hold: b.hold,
-  holdPaused: b.holdPaused,
   retreatAt: b.retreatAt,
   retreating: {
     attacker: b.attackerRetreating,
     defender: b.defenderRetreating,
   },
+  raid: b.raid,
+  buildingsLeft: b.buildingsLeft,
+  buildings: b.buildings,
+  commanded: b.commanded,
+  drops: b.drops.map((d) => ({
+    unit: str(d.unit),
+    units: d.units,
+    state: DROP_STATES[d.state] ?? "done",
+    point: d.point < 0 ? null : d.point,
+    aiAt: d.aiAt,
+  })),
 });
+
+const DROP_STATES = {
+  [DropState.Orbit]: "orbit",
+  [DropState.Flying]: "flying",
+  [DropState.Done]: "done",
+} as const;
 
 const toQueueItem = (q: QueueItemT): QueueItem => ({
   id: q.id,
@@ -353,7 +417,8 @@ const toDelta = (t: ViewDeltaT, fields: Map<number, Battlefield>): Delta => ({
  * "payday" the Map of what each Resource changed by, "captured" a Planet
  * that changed hands, as {planet, from, to} (Seats; null is neutral),
  * "battleStarted" {battle, planet}, "battleTick" {battle, tick, volleys},
- * "battleEnded" {battle, planet, winner}, "eliminated" {seat}, and
+ * "battleEnded" {battle, planet, winner}, "raidTurnedBack" {planet} for a Raid
+ * that found no buildings, "eliminated" {seat}, and
  * "matchEnded" {winner, reason}.
  */
 export class MatchConnection {
@@ -388,6 +453,7 @@ export class MatchConnection {
 
   /** Waits for the server to drop the Seat before disconnecting. */
   async close() {
+    this.unsubscribe();
     // Leaving on purpose isn't a lost connection: the socket's own close
     // handler calls ondisconnect even with disconnect(false).
     this.socket.ondisconnect = () => {};
@@ -513,20 +579,105 @@ export class MatchConnection {
     units: { stack: number; unit: string; count: number }[],
     to: string,
     toStack: number,
+    raid = false,
   ) {
     const list = units.map((u) => new ArmyUnitsT(u.stack, u.unit, u.count));
     this.send(
       Op.OrderArmy,
       "order",
-      (seq) => new OrderArmyT(seq, from, list, to, toStack),
+      (seq) => new OrderArmyT(seq, from, list, to, toStack, raid),
     );
   }
 
-  reorderArmy(army: number, to: string, toStack: number) {
+  reorderArmy(army: number, to: string, toStack: number, raid = false) {
     this.send(
       Op.ReorderArmy,
       "order",
-      (seq) => new ReorderArmyT(seq, army, to, toStack),
+      (seq) => new ReorderArmyT(seq, army, to, toStack, raid),
+    );
+  }
+
+  // Settings' Battles choice, sent again whenever it changes.
+  private readonly unsubscribe = settings.subscribe((s, prev) => {
+    if (s.battles !== prev.battles) this.sendBattleControl();
+  });
+
+  private sendBattleControl() {
+    const view = this.store.getState().view;
+    if (view && !view.spectating)
+      this.setBattleControl(settings.getState().battles === "command");
+  }
+
+  /** Your default for Battles from now on: command them, or Auto. */
+  setBattleControl(command: boolean) {
+    this.send(
+      Op.SetBattleControl,
+      "battleControl",
+      (seq) => new SetBattleControlT(seq, command),
+    );
+  }
+
+  /** Whether you command your side of the Battle on planet: only in its setup. */
+  setBattleCommand(planet: string, command: boolean) {
+    this.send(
+      Op.SetBattleCommand,
+      "battleCommand",
+      (seq) => new SetBattleCommandT(seq, planet, command),
+    );
+  }
+
+  /** Asks for your Planet's defence layout; it arrives in local.layout. */
+  requestLayout(planet: string) {
+    this.send(
+      Op.RequestDefenceLayout,
+      "layout",
+      (seq) => new RequestDefenceLayoutT(seq, planet),
+    );
+  }
+
+  /** Sets your Planet's defence layout, whole: each Building Slot's site (null its default), each Stack's start. */
+  setLayout(
+    planet: string,
+    sites: (number | null)[],
+    starts: Map<number, { x: number; y: number }>,
+  ) {
+    this.send(
+      Op.SetDefenceLayout,
+      "layout",
+      (seq) =>
+        new SetDefenceLayoutT(
+          seq,
+          planet,
+          sites.map((k) => k ?? -1),
+          [...starts].map(([k, c]) => new LayoutStartT(k, c.x, c.y)),
+        ),
+    );
+  }
+
+  /** Orders squads in the Battle on planet, which you command. */
+  battleOrder(planet: string, squads: number[], o: SquadOrder) {
+    this.send(
+      Op.BattleOrder,
+      "battleOrder",
+      (seq) =>
+        new BattleOrderT(
+          seq,
+          planet,
+          WIRE_KINDS[o.kind],
+          squads,
+          o.cell?.x ?? 0,
+          o.cell?.y ?? 0,
+          o.target ?? 0,
+        ),
+    );
+  }
+
+  /** Sends one of your side's Dropships, by its index in Battle.drops, to Landing Zone point. */
+  battleLand(planet: string, drop: number, point: number) {
+    this.send(
+      Op.BattleLand,
+      "battleOrder",
+      (seq) => new BattleLandT(seq, planet, drop, point),
     );
   }
 
@@ -650,6 +801,7 @@ export class MatchConnection {
           if (b.field) this.fields.set(b.id, b.field);
         this.store.setState({ view });
         this.seedReports(view.battles.values());
+        this.sendBattleControl(); // joining, or back after a drop: the server takes it from here
         this.local.setState((s) => ({
           lastSeen: updateLastSeen(
             s.lastSeen,
@@ -705,6 +857,23 @@ export class MatchConnection {
             },
           }),
         );
+        return;
+      }
+      case Op.RaidTurnedBack: {
+        const t = RaidTurnedBack.getRootAsRaidTurnedBack(bb).unpack();
+        this.debug("RaidTurnedBack", t);
+        this.syncClock(Number(t.matchTime));
+        this.events.dispatchEvent(
+          new CustomEvent("raidTurnedBack", {
+            detail: { planet: str(t.planet) },
+          }),
+        );
+        return;
+      }
+      case Op.DefenceLayout: {
+        const t = DefenceLayoutMsg.getRootAsDefenceLayout(bb).unpack();
+        this.debug("DefenceLayout", t);
+        this.local.setState({ layout: toLayout(t) });
         return;
       }
       case Op.BattleStarted: {

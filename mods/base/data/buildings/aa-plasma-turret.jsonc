@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../../schema/content/building.schema.json",
+  "id": "aa-plasma-turret",
+  "name": "AA Plasma Turret",
+  "description": "An armed Structure that fights only aircraft, in every Battle on this Planet. It can shoot down Dropships, and can also be built on a Battle's build pads.",
+  "faction": "covenant",
+  "cost": { "credits": 250, "materials": 75, "alloys": 30 },
+  "buildTime": 30,
+  "upkeep": { "credits": 10 },
+  "yield": {},
+  "padTurret": true,
+  "roles": ["aa"],
+  "combat": { "unitClass": "structure", "weaponType": "plasma", "shield": 19, "armor": 6, "hp": 38, "damage": "2d6", "tiers": { "infantry": "none", "vehicle": "none", "aircraft": "advantage", "structure": "none" } },
+  "commandPointBonus": 0
+}

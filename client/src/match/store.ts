@@ -77,6 +77,7 @@ export type Army = {
   destination: string; // own only
   toStack: number; // own only
   path: string[]; // own only: the Planets after `to`, in order
+  raid: boolean; // own only: nobody else sees a Raid at all
 };
 
 export type Side = "attacker" | "defender";
@@ -94,13 +95,36 @@ export type Squad = {
   shield: number; // the front member's layers: it takes the hits
   armor: number;
   hp: number;
+  commandPost: boolean; // the defender's Command Post: destroying it wins the Battle
+  // Your own squads' orders: where it's going, and the enemy it was told to
+  // attack, or 0.
+  goal: { x: number; y: number } | null;
+  target: number;
+  dropship: boolean; // a Dropship in flight: it can't be fired on
+};
+
+/** One of your side's Dropships over a Battle. */
+export type Drop = {
+  side?: Side; // the Lab's, which lists both sides'
+  unit: string; // the Dropship's
+  units: number; // the troops it carries
+  state: "orbit" | "flying" | "done"; // done: it has landed them, once a Battle
+  point: number | null; // the Landing Zone it's going to, or went to
+  aiAt: number; // in orbit: the tick the AI sends it, if nobody has
+};
+
+/** An order to squads in a Battle you command. */
+export type SquadOrder = {
+  kind: "move" | "attack" | "attackMove" | "hold";
+  cell?: { x: number; y: number }; // move and attackMove
+  target?: number; // attack: the enemy squad
 };
 
 export type ControlPoint = {
   x: number;
   y: number;
-  owner: Side;
-  taker: Side; // taking it while progress > 0
+  owner: Side | null; // a Landing Zone; null is nobody's
+  taker: Side | null; // taking it while progress > 0
   progress: number; // sim ticks the taker has held it alone
 };
 
@@ -114,6 +138,7 @@ export type BuildPad = {
   turret: number; // the turret squad on it, or 0
   building: string; // a turret under construction, or ""
   readyAt: number; // the tick it's built
+  coolsAt: number; // its turret destroyed: the tick it can be built on again
 };
 
 /** A Battle's grid, row by row; it never changes. */
@@ -123,6 +148,24 @@ export type Battlefield = {
   terrains: string[]; // Terrain ids; a cell holds an index into this
   terrain: number[];
   heights: number[];
+};
+
+export type Cell = { x: number; y: number };
+
+/** Your Planet's defence layout: the Battlefield you'd defend it on, and where your buildings and Stacks start. */
+export type DefenceLayout = {
+  planet: string;
+  field: Battlefield;
+  commandPost: Cell;
+  sites: Cell[]; // the base's building sites
+  points: Cell[]; // Landing Zones
+  landings: Cell[]; // the ones an attacker may land at
+  pads: Cell[];
+  reach: number; // a Stack starts this near the Command Post or a building
+  buildingSites: (number | null)[]; // per Building Slot: its site; null by the Command Post, or empty
+  stackStarts: Cell[];
+  setSites: (number | null)[]; // the layout as set, per Building Slot; null is its default
+  setStarts: Map<number, Cell>;
 };
 
 /** One squad's fire in one sim tick, added up. */
@@ -153,10 +196,13 @@ export type Battle = {
   squads: Squad[]; // your own, and enemies in Sight
   points: ControlPoint[];
   pads: BuildPad[];
-  hold: number; // sim ticks the attacker has held enough points
-  holdPaused: boolean; // a defender stands on one of them: the hold waits
   retreatAt: number; // the tick your side's Retreat countdown ends; 0 is none
   retreating: Record<Side, boolean>; // public: you see a side turn and run
+  raid: boolean; // the attacker is after the buildings, within raidTime
+  buildingsLeft: number; // public: the Planet's buildings standing, a Raid's score
+  buildings: number; // and at the start
+  commanded: boolean; // your side is yours to command: no AI runs it
+  drops: Drop[]; // your side's Dropships
 };
 
 /** The public part of every player. */
@@ -341,6 +387,7 @@ export type BattleReport = {
   damage: { attacker: number; defender: number }; // dealt by each side
   winner?: number | null; // set when it ends; null is neutral
   endedAt?: number; // Match Time
+  raid?: { left: number; of: number }; // a Raid's buildings, as last seen
 };
 
 const other = (s: Side): Side => (s === "attacker" ? "defender" : "attacker");
@@ -361,6 +408,7 @@ export function reportView(
     ...r,
     squads,
     ticks: Math.max(r?.ticks ?? 0, b.tick),
+    raid: b.raid ? { left: b.buildingsLeft, of: b.buildings } : undefined,
   };
 }
 

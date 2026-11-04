@@ -34,6 +34,12 @@ enum Op : int {
   SetTeams = 25,
   SetTeam = 26,
   SetRallyPoint = 27,
+  SetBattleControl = 28,
+  SetBattleCommand = 29,
+  BattleOrder = 30,
+  BattleLand = 31,
+  RequestDefenceLayout = 32,
+  SetDefenceLayout = 33,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -46,6 +52,8 @@ enum Op : int {
   BattleEnded = 108,
   PlayerEliminated = 109,
   MatchEnded = 110,
+  RaidTurnedBack = 111,
+  DefenceLayout = 112,
 }
 
 enum Phase : byte { Lobby, Play, Results }
@@ -172,6 +180,7 @@ table OrderArmy {         // owner only
   units: [ArmyUnits];      // from any of its Stacks
   to_planet: string;
   to_stack: ubyte;
+  raid: bool;              // a Raid: every unit can raid, within the Ruleset's raidCap
 }
 
 table ReorderArmy {       // owner only; finishes its current Lane hop first
@@ -179,6 +188,7 @@ table ReorderArmy {       // owner only; finishes its current Lane hop first
   army: uint32;
   to_planet: string;
   to_stack: ubyte;
+  raid: bool;              // a Raid stays one only if this is set; else it's an Attack
 }
 
 table Surrender {         // any Seat, in play: a Forfeit
@@ -204,6 +214,71 @@ table BattleBuildTurret {
   planet: string;
   pad: ubyte;              // the pad's index in BattleView.pads
   building: string;
+}
+
+// The player's default for their Battles: command them, or Auto. Sent on
+// joining a Match and on each change; a Battle takes it when it starts.
+table SetBattleControl {
+  seq: uint32;
+  command: bool;
+}
+
+// Whether you command your side of the Battle on planet, over your default:
+// only in its setup, before the fighting starts.
+table SetBattleCommand {
+  seq: uint32;
+  planet: string;
+  command: bool;
+}
+
+enum BattleOrderKind : ubyte { Move = 0, Attack = 1, AttackMove = 2, Hold = 3 }
+
+struct Cell {
+  x: ushort;
+  y: ushort;
+}
+
+// Asks for your Planet's defence layout; it comes back as a DefenceLayout.
+table RequestDefenceLayout {
+  seq: uint32;
+  planet: string;
+}
+
+// A Stack's start in a defence layout.
+table LayoutStart {
+  stack: ubyte;
+  x: ushort;
+  y: ushort;
+}
+
+// Sets your Planet's defence layout, whole; empty lists reset it. It's
+// answered with a DefenceLayout.
+table SetDefenceLayout {
+  seq: uint32;
+  planet: string;
+  sites: [byte];           // per Building Slot: the base site it stands on; -1 its default
+  starts: [LayoutStart];
+}
+
+// Sends one of your side's Dropships in orbit over the Battle on planet to a
+// Landing Zone your side holds; you must command the Battle.
+table BattleLand {
+  seq: uint32;
+  planet: string;
+  drop: ubyte;             // its index in BattleView.drops
+  point: ubyte;            // the Landing Zone's index in BattleView.points
+}
+
+// Orders squads of your side in a Battle you command. A group sent to a
+// cell keeps its shape round it.
+table BattleOrder {
+  seq: uint32;
+  planet: string;
+  kind: BattleOrderKind;
+  squads: [ushort];
+  x: ushort;               // Move and AttackMove
+  y: ushort;
+  target: ushort;          // Attack: the enemy squad
 }
 
 table Exchange {          // any time in play, even in debt
@@ -333,6 +408,7 @@ table ArmyView {
   destination: string;     // own only
   to_stack: ubyte;         // own only
   path: [string];          // own only: the Planets after to, in order
+  raid: bool;              // own only: others don't see a Raid at all
 }
 
 // A Battle's grid: one Terrain index and one height level per cell, row by
@@ -358,13 +434,31 @@ table BattleSquad {
   shield: float;           // the front member's layers: it takes the hits
   armor: float;
   hp: float;
+  command_post: bool;      // the defender's Command Post: destroying it wins the Battle
+  moving: bool;            // your own squads': on its way to goal
+  goal_x: ushort;
+  goal_y: ushort;
+  target: ushort;          // your own squads': the enemy it was told to attack, or 0
+  dropship: bool;          // a Dropship in flight: only anti-air can fire on it, and both sides see it
 }
 
-table ControlPoint {
+enum DropState : ubyte { Orbit = 0, Flying = 1, Done = 2 }
+
+// One of your side's Dropships over a Battle: waiting in orbit, on its way
+// to a Landing Zone, or done, having landed its troops (once a Battle).
+table BattleDrop {
+  unit: string;            // the Dropship's unit id
+  units: ushort;           // the troops it carries
+  state: DropState;
+  point: byte = -1;        // the Landing Zone it's going to, or went to
+  ai_at: uint32;           // in orbit: the tick the AI sends it, if nobody has
+}
+
+table ControlPoint {      // shown to players as a Landing Zone
   x: ushort;
   y: ushort;
-  owner: ubyte;            // 0 attacker, 1 defender
-  taker: ubyte;            // the side taking it, while progress > 0
+  owner: ubyte;            // 0 attacker, 1 defender, 255 nobody
+  taker: ubyte;            // the side taking it, while progress > 0; 255 nobody
   progress: ushort;        // sim ticks the taker has held it alone
 }
 
@@ -378,6 +472,7 @@ table BuildPad {
   turret: ushort;          // the turret squad on it, or 0
   building: string;        // a turret under construction, or ""
   ready_at: uint32;        // the tick it's built
+  cools_at: uint32;        // its turret destroyed: the tick it can be built on again
 }
 
 // A Battle you're a side of, as your side sees it: your own squads and the
@@ -394,11 +489,16 @@ table BattleView {
   squads: [BattleSquad];
   points: [ControlPoint];
   pads: [BuildPad];
-  hold: uint32;            // sim ticks the attacker has held enough points
-  hold_paused: bool;       // the attacker holds enough points, but a defender stands on one
+  hold: uint32 (deprecated);      // the hold timer, gone with the Command Post (#98)
+  hold_paused: bool (deprecated);
   retreat_at: uint32;      // the tick your side's Retreat countdown ends; 0 is none
   attacker_retreating: bool; // public: you see a side turn and run
   defender_retreating: bool;
+  raid: bool;              // a Raid: the attacker has raidTime to destroy the buildings
+  buildings_left: ubyte;    // public: the Planet's buildings standing, a Raid's score
+  buildings: ubyte;         // and at the start
+  commanded: bool;         // your side is yours to command: the AI doesn't run it
+  drops: [BattleDrop];     // your side's Dropships
 }
 
 // One squad's fire in one sim tick: every living member's shot at one
@@ -522,6 +622,12 @@ table ViewDelta {
   research: Research;      // absent when unchanged
 }
 
+// Sent to a Raid's owner: it found no buildings at planet and is heading home.
+table RaidTurnedBack {
+  match_time: long;
+  planet: string;
+}
+
 // Sent to everyone who can see the Planet, and its previous owner.
 table PlanetCaptured {
   match_time: long;
@@ -539,6 +645,7 @@ table BattleStarted {
   defender: byte = -1;
   started: long;
   field: Battlefield;
+  raid: bool;
 }
 
 // Sent to each side on a sim tick with fire it may know about.
@@ -575,4 +682,21 @@ table MatchEnded {
 table PaydayPaid {
   match_time: long;
   net: [Amount];
+}
+
+// Your Planet's defence layout: the Battlefield you'd defend it on, and
+// where your buildings and Stacks start on it.
+table DefenceLayout {
+  planet: string;
+  field: Battlefield;
+  command_post: Cell;
+  sites: [Cell];           // the base's building sites
+  points: [Cell];          // Landing Zones
+  landings: [Cell];        // the ones an attacker may land at
+  pads: [Cell];
+  reach: float;            // a Stack starts this near the Command Post or a building
+  building_sites: [byte];  // per Building Slot: the site it stands on; -1 by the Command Post, or empty
+  stack_starts: [Cell];    // where each Stack deploys
+  set_sites: [byte];       // the layout as set: per Building Slot, -1 is its default
+  set_starts: [LayoutStart];
 }

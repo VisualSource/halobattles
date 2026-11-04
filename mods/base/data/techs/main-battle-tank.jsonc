@@ -7,5 +7,5 @@
   "rarity": "uncommon",
   "cost": 600,
   "requires": { "techs": ["motor-pool"] },
-  "unlocks": { "units": ["scorpion"] }
+  "unlocks": { "units": ["scorpion", "wolverine"] }
 }
