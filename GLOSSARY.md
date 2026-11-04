@@ -288,6 +288,10 @@ _Avoid_: Category, branch, tree
 A building that holds Techs in its Tech Slots; losing it loses every Tech it holds. A Planet has at most three.
 _Avoid_: Archive, research building (a Lab holds Techs, it doesn't make Research)
 
+**Courier**:
+An Army with no units, carrying one held Tech from one of its owner's Labs to another; the Tech doesn't count while it travels, and is lost if the Courier reaches an enemy's Planet.
+_Avoid_: Transport, convoy, transfer
+
 **Tech Slot**:
 A place in a Lab that holds one Tech, reserved from the moment a Project for it starts there.
 _Avoid_: Research slot

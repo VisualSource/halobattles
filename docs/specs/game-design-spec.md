@@ -11,7 +11,7 @@ Every number below is Mod or map data. The values given are base-Mod defaults, a
 - Players build on Planets and send Armies along Lanes to capture enemy Planets. A **Battle** is ground only, a real-time AI-run fight over Control Points on a 2D Battlefield ([tactical Battle spec](tactical-battle-spec.md)), and its Planet is **Locked** while it runs. Players watch, and can only order a Retreat.
 - **Vision**: a player sees the Planets they own plus their neighbours one Lane away. They also see a Planet one of their Armies is at (passing through, waiting in orbit, landed, or attacking it), and for `armyVisionSeconds` after it leaves or is destroyed; only that Planet, not its neighbours, and never from a Retreating Army. When vision of a Planet ends, its client keeps it as last seen.
 - **Winning**: hold more than a map-set share of Planets for a set time, or be the last player not eliminated. Losing your Capital eliminates you.
-- **Tech**: players research Techs that unlock units and buildings or give effects, held in Labs an enemy can destroy ([tech spec](tech-spec.md)).
+- **Tech**: players research Techs that unlock units and buildings or give effects, held in Labs an enemy can destroy; a Tech can be moved to another Lab, at a price, as a Courier along the Lanes ([tech spec](tech-spec.md)).
 - **Bots**: the Host can fill empty Seats with Bots at Easy, Normal or Hard ([bot spec](bot-spec.md)).
 - There are no Pops and no space Battles. See [Out of scope](#out-of-scope).
 

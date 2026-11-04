@@ -30,7 +30,7 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 - Labs are shared: any Lab holds a Tech of any field.
 - A Planet holds at most **3 Labs**. That makes a dedicated research Planet possible, and a bigger target.
 - A held Tech applies on every Planet, while its Lab stands.
-- A Tech is held **once**. It can't be researched again while held, and it **never moves** to another Lab.
+- A Tech is held **once**. It can't be researched again while held. It stays in its Lab unless the player pays to move it to another (see [Moving Techs](#moving-techs)).
 - Each Faction's **Starting Kit** gains one Lab on the Capital: with 3 Tech Slots, every field can run from the start.
 - Labs don't make Research.
 
@@ -86,6 +86,23 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 - The threshold only controls the draw. Cards already in the hand and running Projects stay if the rate drops below it.
 - The thresholds aren't shown: a rarer card turning up is the sign Research has grown.
 
+## Moving Techs
+
+A player can pay to move a held Tech to another of their Labs, out of a Planet they expect to lose (#75). It travels the Lanes as a **Courier**, an Army with no units, and it doesn't count while it's on the way, so moving is a choice, not a free safety net.
+
+- **What moves:** one held Tech, from one of the player's Labs to a free Tech Slot in another of their Labs, on any of their Planets.
+- **Sending:** from the Planet window, a held Tech's **Move…** action lists the player's other Labs with a free Tech Slot, each with its travel time and the cost. Picking one pays at once and sends the Courier. Not from a Lab on a Locked Planet.
+- **Cost:** Resources, by the Tech's Rarity (Ruleset `techTransferCost`; first-pass, base Mod): Common 100 Credits; Uncommon 200 Credits; Rare 400 Credits and 50 Alloys; Legendary 800 Credits and 100 Alloys. Never refunded.
+- **Slots:** the Tech Slot it left and the one it's going to are both reserved while it travels, so it can always land at one of them; the one it doesn't land in frees when it does.
+- **On the way, the Tech doesn't count:** its units and buildings can't be queued, and its effects stop, until it lands, as for a lost Tech, except that it isn't offered back as a card. Items already queued finish. A Battle that started while it was held keeps its effects (see [Effects](#effects)).
+- **The Courier** takes the Lane times an Army does and is routed the same way: straight through the player's own Planets, their Teammates' and neutral ones; it waits in orbit at a Locked one. It carries one Tech; a player can have any number on the way. It's re-ordered like an Army, to another of their Labs with a free Tech Slot (which it then reserves in place of the old one) or back to the Lab it left, which calls the move off; either way the cost isn't refunded.
+- **It can't fight.** Reaching a Planet on its route that has become an enemy's, it's destroyed, and the Tech is lost: it comes back as a [guaranteed card](#guaranteed-cards), as a Tech lost with its Lab does.
+- **Its destination lost** (that Lab destroyed, sold or captured with its Planet): the Courier turns back for the Lab it left. If that one is lost too, by then or before it gets there, the Tech is lost, as above.
+- **Visibility:** other players see a Courier in their Vision as they see an Army, with the Tech it carries, as they see a Lab's Techs. Its owner sees it in the Armies tab.
+- **Elimination:** a player's Couriers go with them, and their Techs with them.
+- **Bots** don't move Techs yet.
+- **UI:** a small mockup of the Move… action and the Courier is agreed before it's built.
+
 ## Losing Techs
 
 - Losing a **Lab** loses every Tech it holds. A Lab is lost when:
@@ -136,7 +153,7 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 - The panel is a column of Project slots, one per field. Each slot has a header with the field's icon, name and Research rate. A running one shows its Tech, what it does, its Lab, and a progress bar with Research done and cost, or why it's paused. A free slot opens a popover: pick a card from that field's hand or back on offer (Resume, Recover), each tinted by its Rarity's colour, then a Lab with a free Tech Slot.
 - A slot with nothing on offer because its field's Research opens none of its remaining Techs names the Faction's buildings that raise that field's Research, without saying how many are needed: the thresholds stay hidden.
 - **Tech tree:** the panel's **Tech tree** button opens a read-only window of every Tech the player's Faction can research, its own and the shared ones, one Research field per tab, each tab counting the Techs held. Each field is a node graph on a canvas: Techs run left to right by depth, each centred beside the Techs that need it, with a curved line from a requirement to what it leads to. A Tech needing two in its field sits beside the first. Drag pans, the wheel zooms about the pointer, and **Fit**, **+** and **−** sit in a corner; tabbing to a card off-screen brings it into view. Each card shows its Rarity, what it does or needs, its cost now, and where it stands: **Held** (and on which Planets), **Researching** or **Saved** with progress, **In hand**, **Can be drawn**, or **Locked**, naming what's missing: a Tech, a building, or "more Research" in its field, never the threshold. Hovering a card, or clicking it, shows its details. Starting research stays in the panel.
-- The Planet window shows its Labs' Tech Slots, other players' in Vision too. Selling a Lab that holds Techs asks first, naming them.
+- The Planet window shows its Labs' Tech Slots, other players' in Vision too. Selling a Lab that holds Techs asks first, naming them. Each of your held Techs there has a **Move…** action (see [Moving Techs](#moving-techs)), and a slot reserved for a Tech on its way shows which, and when it lands.
 - Locked units and buildings show disabled, naming their Tech (see [Locked content](#locked-content)).
 
 ## Ruleset additions
@@ -147,6 +164,7 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 | Capital Research | 1 per second, in every field |
 | Tech cost scaling | +10% per Tech held |
 | Lost-Tech recovery cost | 50% |
+| `techTransferCost`, by Rarity | Common 100C; Uncommon 200C; Rare 400C 50A; Legendary 800C 100A |
 | Labs per Planet | 3 |
 | Rarity thresholds, by a field's rate | Uncommon 3, Rare 5, Legendary 9 |
 | Rarity draw weights | Common 10, Uncommon 6, Rare 3, Legendary 1 |
