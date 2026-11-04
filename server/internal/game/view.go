@@ -123,6 +123,10 @@ type BattleView struct {
 	Commanded bool          // the viewer's side is theirs to command: no AI runs it
 	Field     *battle.Field // the same for the whole Battle
 	battle.Snapshot
+	// Set by the match for each viewer: a Battle they don't have open, and
+	// the damage each side has dealt in the fire the viewer's side could see.
+	Summary bool
+	Damage  [2]float64
 }
 
 // visible is the set of Planets a player sees, sharing their Teammates'

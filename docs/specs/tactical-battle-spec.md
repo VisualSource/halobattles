@@ -31,21 +31,14 @@ Generation follows [Red Blob Games: terrain from noise](https://www.redblobgames
 3. Elevation is cut into **bands**, lowest first. The base presets use `water`, `lowland`, `highland` and `peak`, and each band sets its height level.
 4. Moisture splits each band into Terrains, driest first. For example, lowland comes out as rough, open or forest.
 5. A **Terrain Preset** supplies the noise parameters, the bands, and the Terrains in each. A desert Planet comes out mostly sand and rough; an ice Planet turns its lakes into ice you can walk on. A Planet names its preset in `battlefield.terrainPreset`; otherwise the Ruleset's `battlefield.terrainPreset` applies.
-6. **Archetype** (#99): a [Battlefield Archetype](#archetypes-and-fixtures) shapes the map, picked by the preset's `archetypes` weights or forced by the Planet's `battlefield.archetype`, along with the **defender's edge**:
-   - **open:** the noise as it is;
-   - **river:** a band across the attack sunk to the lowest band (water, or ice), with 2 or 3 fords cleared 3 cells wide;
-   - **ridge:** the line of the attack raised to high ground, or (a valley) the ground either side of it;
-   - **ruins:** a grid of 5-cell blocks, each cover or now and then impassable rubble, with 2-cell streets of clear ground.
-7. **The base:** a base [fixture](#archetypes-and-fixtures) for the defending Faction (its own, else a neutral one; a plain Command Post with sites round it if none fits) is stamped in the third of the map by the defender's edge. It holds the **Command Post**, the **building sites**, the defender's **unit starts**, and any pads it marks. Then 1 to 3 **feature** fixtures go in open ground between, clear of the base; one that doesn't fit is left out.
-8. **Connectivity:** the largest region the Ruleset's `pathClass` (Infantry) can walk is the main region. Any edge's deployment strip that doesn't touch it, and the Command Post, gets the fewest blocked cells along a path cleared to the preset's `clear` Terrain. That's a ford through a lake, or a pass through peaks.
-9. **Landing Zones** (Control Points in the code) are spread over the main region, clear of the base (see [Landing Zones](#landing-zones)). The farther half from the Command Post are where an attacker can land.
-10. **Layout round the Landing Zones** (#64). It keeps the terrain and shapes it round them:
-   - **Landing Zone areas:** every cell within `battlefield.pointArea` (3) of one becomes `clear` Terrain, level with it. Over a band from 1.5 cells inside that edge to 1.5 outside it, about a third of the cells become the preset's `pointCover` Terrain (`rough` in the base presets), so guards inside the capture radius have cover.
-   - **Main lanes**, `battlefield.laneWidth` (2) cells wide: the shortest links that join every Landing Zone (a spanning tree), then a ring round them, so guards can go round; then the base to its nearest Landing Zone. A lane is the cheapest 4-way path, preferring ground every ground Unit Class crosses and existing lanes, and going round fixtures where it can. Anything on a lane a ground Unit Class can't cross becomes `clear` Terrain, except in a fixture, which keeps what it was drawn with; a lane never runs over a fixture's pad.
-   - **Build pads:** a fixture's first, then the rest; see [Build pads](#build-pads).
-   - **Building sites:** the base's, then more up to `battlefield.buildingSites` (10) in all, spread over the defender's side (at least 0.35 of the way to its edge): each the reachable cell farthest from the Command Post and every site so far, off the lanes and the cells touching them, the Landing Zone areas, the fixtures and the edge strips, and 3 cells from pads. The base's come first, so they're the defaults ([Deployment](#deployment)); the rest are for the [defence layout](#defence-layout).
-11. Each stage draws from its own PCG stream: 1 elevation, 2 moisture, 3 Landing Zones, 7 point cover, 8 archetype and edge, 9 base, 10 features, 11 fords and ruins (6 was the old edge starts). A new stage takes the next number.
-12. Deployment and buildings are placed per Battle9. Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
+6. **Archetype and layout:** a [Battlefield Archetype](#archetypes-and-fixtures) is picked by the preset's `archetypes` weights or forced by the Planet's `battlefield.archetype`, along with the **defender's edge**. Then a hand-drawn [layout](#layouts) is picked among those tagged for that Archetype and preset (or the one the Planet names), turned so its base sits on the defender's edge, and remixed.
+7. **Shaped to the layout,** before the bands: the noise is levelled under its lanes and round its pads, sites and Landing Zones, then its own water, rock and high ground are set (see [Layouts](#layouts)).
+8. **The base:** a base [fixture](#archetypes-and-fixtures) for the defending Faction (its own, else a neutral one; a plain Command Post with sites round it if none fits) is stamped at the layout's base slot. It holds the **Command Post**, the **building sites**, the defender's **unit starts**, and any pads it marks. A **feature** fixture goes in each of the layout's feature slots, unless that's on the base.
+9. **Connectivity:** the largest region the Ruleset's `pathClass` (Infantry) can walk is the main region. Any edge's deployment strip that doesn't touch it, and the Command Post, gets the fewest blocked cells along a path cleared to the preset's `clear` Terrain. That's a ford through a lake, or a pass through peaks.
+10. **Landing Zones** (Control Points in the code) are the layout's, each on the nearest ground of the main region; those it marks are where an attacker can land. Every cell within `battlefield.pointArea` (3) of one becomes `clear` Terrain, level with it, and over a band from 1.5 cells inside that edge to 1.5 outside it, about a third of the cells become the preset's `pointCover` Terrain (`rough` in the base presets), so guards inside the capture radius have cover.
+11. **Lanes, pads and sites:** the layout's lanes are painted along their curves, anything on them a ground Unit Class can't cross cleared to `clear` Terrain (a fixture keeps what it was drawn with). Pads are the base's and features' that every ground Unit Class can reach, then the layout's; sites the base's, then the layout's. Each of the layout's goes on the nearest free cell within 6 of its point: reachable, off the lanes and the cells touching them, off the Landing Zones' ground, and 3 cells from other pads and sites.
+12. Each stage draws from its own PCG stream: 1 elevation, 2 moisture, 7 point cover, 8 archetype and edge, 9 base, 10 features, 14 the layout's pick and flip, 15 its nudges (3, 6, 11, 12 and 13 were stages since retired, and aren't reused). A new stage takes the next number.
+13. Deployment and buildings are placed per Battle (see [Deployment](#deployment)).
 
 ### Terrain
 
@@ -173,7 +166,7 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 Landing Zones are what the code calls Control Points. Until reinforcements (#57) land on them, holding one changes nothing; both sides still fight over them.
 
-- The generator places **3 Landing Zones** in the main region, at least `deployDepth + 3` cells in from the edges and 14 from the Command Post, at least `controlPointSpacing` (10) cells apart, the first in the half of the map away from the base. Where they don't fit, the spacing shrinks until they do.
+- A Battlefield has its layout's Landing Zones, each layout its own number (3 or 4 in the base Mod), in the main region; the layout marks those an attacker can land at, on its far side from the base.
 - **Nobody holds them** when the Battle starts, except the one the attacker lands at. The defender takes them like anyone else.
 - **Capture:** a point changes hands after one side has a ground Squad within **2 cells** of it, and the other side has none, for **5 s** in a row. If the lone side leaves or the other side arrives, progress resets.
 - **Aircraft** neither capture nor contest a point, and nor do buildings: only ground Squads hold ground.
@@ -199,7 +192,7 @@ Landing Zones are what the code calls Control Points. Until reinforcements (#57)
 
 Spots on the Battlefield where a side that holds one can build a turret, as on Empire at War's ground maps.
 
-- **Placement:** the generator places `battlefield.buildPads` (4) pads, dealt round the Control Points in turn. Each is beside a main lane: 2 cells off it, with a clear cell between it and any lane, so a turret never narrows one. It sits from just outside the point's clear ground to 8 cells out, on ground every ground Unit Class can reach, as far from the attacker starts as it can be, and at least 3 cells from other pads and sites. Where its point has no room, it goes by the next point that does.
+- **Placement:** where the layout draws them, and the base's and features' own (see [Generation](#generation)): never on a lane or the cells touching one, so a turret never narrows it; on ground every ground Unit Class can reach; at least 3 cells from other pads and sites.
 - **Owners at the start:** every pad starts with no owner. The defender takes them in the setup phase (see [Time and movement](#time-and-movement)).
 - **Capture:** like a Control Point, using the same radius and time: one side's ground squads alone near it for `captureSeconds` take it. A pad with a turret on it can't be captured; the enemy has to destroy the turret first. A pad being built on can be captured, which cancels the build without a refund.
 - **Building:** the side holding an empty pad can build one turret on it. A turret is a Building with `padTurret: true` and a `combat` block, of the side's own Faction. It costs that Building's `cost`, paid at once from the player's Resources, the same pool as the galaxy. It's built after `battle.padBuildSeconds` (10 s), and it exists only for this Battle. The base Mod's pad turrets are the Turret and the Plasma Turret.
@@ -413,10 +406,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battlefield.width` × `battlefield.height` | 64 × 48 |
 | `battlefield.terrainPreset` | `base:temperate` |
 | `battlefield.pathClass` | `base:infantry` |
-| `battlefield.controlPoints` | 3 |
-| `battlefield.controlPointSpacing` | 10 cells |
 | `battlefield.deployDepth` | 4 cells |
-| `battlefield.laneWidth` | 2 cells |
 | `battlefield.pointArea` | 3 cells |
 | `battle.startDelay` | 15 s |
 | `battle.timeCap` | 180 s |
@@ -431,8 +421,6 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battle.classDefaults` | see [Stats](#stats) |
 | `battle.retreatCountdown` | 10 s |
 | `battle.startReach` | 8 cells |
-| `battlefield.buildPads` | 4 |
-| `battlefield.buildingSites` | 10 |
 | `battle.padBuildSeconds` | 10 s |
 | `battle.neutralFunds` | 400 Credits, 100 Materials, 40 Alloys |
 
@@ -586,6 +574,46 @@ A Planet's owner lays out its defence ahead of time, as on Empire at War's groun
 - **The Command Post** stays where the base puts it. Turrets and pads are unchanged.
 - **Wire:** `RequestDefenceLayout {planet}` and `SetDefenceLayout {planet, sites, starts}` (the whole layout; empty resets it), each answered with a `DefenceLayout` to the sender: the Battlefield, its Command Post, sites, Landing Zones, attacker landings and pads, the reach, where each building and Stack starts, and the layout as set. The layout lives on the Planet in the game state and goes into the defender's `Force`, so replays stay exact.
 - **The Lab:** a Defender layout toggle shows the same editor on the Lab's Battlefield, in place of the map; each change rebuilds the Battle on it, paused at the start, and Reset layout clears it. The setup sends the layout with the defender's side, and the Field message says where each building and Stack starts.
+
+### 3D drawing
+
+A 3D view of the Battlefield (#93), replacing the 2D one in the Battle window; the 2D drawing stays for the defence layout and as the overview. The sim stays a grid with heights: only the drawing changes. Being prototyped in the Lab first; the working prototype stands as its mockup, and it moves to the Battle window once agreed.
+
+- **In the Lab:** a 2D / 3D switch on the map.
+- **Tech:** plain three.js, already a dependency.
+- **Camera:** RTS-style, a perspective camera tilted about 55°; pan by dragging or the arrow keys, zoom with the wheel, rotate with a middle-drag or Q/E; it stays over the map.
+- **Terrain:** a height mesh, terraced: each height level a step with cliffs between, in the Terrain colours with a little noise; water is a flat see-through plane.
+- **Cover:** placeholder dressing: instanced trees on forest, rocks on rough ground, low blocks for a fixture's cover cells.
+- **Units:** placeholder shapes in the side's colour (capsules for infantry, boxes for vehicles, cones for aircraft, flying; blocks for buildings and the Command Post), each squad's living members, up to 4, set out in its cell; instanced. Models come later, through content.
+- **Movement:** each move glides over the time updates are arriving at (a running average, so a squad keeps moving cell to cell rather than stopping between, whatever the Lab's speed), and vehicles and aircraft turn to their new heading at up to 7 radians a second rather than snapping.
+- **Effects and fog:** tracers and hit flashes as in 2D; fog darkens the ground from the same visibility; Landing Zones, pads, order lines and the selection drawn on the ground.
+- **Overview:** a 2D minimap in a corner; clicking it moves the camera there.
+- **Commanding:** the same controls: clicks go to the ground under the pointer, and the box select is on screen.
+- **Budget:** 60 fps at 45 squads a side of up to 4 members, plus buildings.
+- **Not watching** (the server side of #93; built): the Battle window tells the server which Battle you have open (`WatchBattle {planet}`, "" for none). Only that Battle's view carries squads' cells, orders and layers, pads, Landing Zones and the tick, and only its fire (`BattleTick`) is sent to you. Every other Battle you're a side of comes as a **summary** (`BattleView.summary`): its clock (from `started`), Retreat, the Raid score, Dropships and the commanded flag, and for the Battle report, every squad your side has seen, the dead too, at its last known count, with no cell or layers. The server keeps that report for each side from what it sees and the fire it could see, kills and all, and every view, open or not, carries each side's damage dealt from the same count, so the report is whole whichever Battles you opened. A summary changes only when a count does, not every tick. Bots read the game state, not the wire, so nothing changes for them.
+- **Order of work:** terrain and camera; units and effects; fog and overlays; commanding; the minimap; the not-watching change. Each is checked in the Lab before the next.
+
+### Layouts
+
+Hand-drawn lane plans that each Battlefield remixes (#104), as Empire at War's and Halo Wars 2's maps are made by hand: a person decides where the routes, objectives and defences go, and the generator only varies them. Every Battlefield is remixed from one, so content needs at least one (loading fails without); replays regenerate theirs the same way.
+
+- **Content:** a new kind, `layouts`, as JSON a map editor can edit. Every point is a share of the map's width and height (0 to 1), so a layout fits any size, and it's drawn with the attacker's edge at the top (y 0) and the defender's at the bottom (y 1):
+  - `base`: the base fixture's slot;
+  - `landingZones`: each with `at`, and `attacker: true` on those an attacker can land at; a layout sets its own number;
+  - `lanes`: each a line through `points`, `width` cells wide (2 if left out);
+  - `areas`: shapes (`points`) of `water`, `blocked` (cliff, rock), `high` (with its `height`) or `cover`;
+  - `pads`, `sites` and `features` (slots for feature fixtures): points;
+  - `archetypes`, `presets`, `weight` and `mirror`, as fixtures have.
+- **The base Mod's six:** two lanes, three lanes, a ring round a hill, river crossings, a pass through a ridge, and a ruined city grid.
+- **Remixing a layout:** it's turned (and flipped, if it allows) so its base sits on the defender's edge; each point is nudged by up to 2 cells, the same point by the same amount, so lanes stay joined; each lane follows a smooth curve through its points (Catmull-Rom, so bends are rounded, not corners), as a line of cells each sharing a side with the next; the ground is then molded to the lane, never the lane to the ground, and the lane painted on it; everything off the lanes and areas is the preset's noise terrain; each feature slot takes a feature fixture picked by weight. The terrain is molded to the plan before it's cut into bands: along each lane's route, and round each pad, site and Landing Zone, the elevation is set to the lowest band every ground Unit Class can cross, easing back to the noise over the next 6 cells, so lanes run on level ground and hills, peaks and lakes sit between them. Areas then set the elevation over that, so the preset decides their look: water is its lowest band (a lake, or ice), blocked its top band, high ground the band at that height, and cover its point cover.
+- **Choosing one:** a Planet in a map can name one (`battlefield.layout`); otherwise the seed picks one by weight among those that suit the Planet's Archetype and preset. Archetypes are tags on layouts: a layout draws its own river or ridge.
+- **The base:** the base fixture is stamped at the base slot; its own building sites and unit starts come first, then the layout's sites. Its pads, then the layout's.
+- **In the Lab:** a Layout picker ("any" lets the seed pick); SHOW → Routes draws each lane as it winds.
+- **Later:** a layout page in the editor.
+
+### Route graph (dropped)
+
+Tried for #104 and dropped for [layouts](#layouts): routes joining the base, Landing Zones and points of interest, laid over noise terrain, first filled round with Wave Function Collapse over 4 × 4 authored tiles, then winding over the noise. Both placed things in ways that didn't read as a made map.
 
 ### Order of work
 

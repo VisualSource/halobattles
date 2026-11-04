@@ -71,7 +71,7 @@ func (s *State) field(c *cs.Content, planet, faction string) *battle.Field {
 			override = mp.Battlefield
 		}
 	}
-	f := battle.GenerateFor(c, c.Rulesets[RulesetID].Battlefield, override, s.fieldSeed(planet), faction)
+	f := battle.GenerateLayout(c, c.Rulesets[RulesetID].Battlefield, override, s.fieldSeed(planet), faction, "")
 	if s.Fields == nil {
 		s.Fields = map[string]*battle.Field{}
 	}

@@ -21,10 +21,13 @@ import { SelectionStrip, useCommandKeys } from "../match/command";
 import { LayoutMap } from "../match/layout";
 import type { Side, Squad, SquadOrder, Volley } from "../match/store";
 import {
+  type BattlefieldDrawing,
+  type BattlefieldLook,
   BattlefieldScene,
   type OverlayLine,
   POINT_NAMES,
 } from "../scene/battlefield";
+import { Battlefield3DScene } from "../scene/battlefield3d";
 import { seatColour } from "../scene/galaxy";
 import {
   LabConnection,
@@ -82,10 +85,15 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
 
   const [setup, setSetup] = useState<LabSetup>(() => defaultSetup(content));
   const [fog, setFog] = useState<Fog>("none");
-  const [show, setShow] = useState({ forces: true, targets: true });
+  const [show, setShow] = useState({
+    forces: true,
+    targets: true,
+    routes: true,
+  });
   const [aiSide, setAiSide] = useState<0 | 1>(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [editLayout, setEditLayout] = useState(false);
+  const [view, setView] = useState<"2d" | "3d">("2d");
   // A new layout rebuilds the Battle on it, paused at the start.
   const relayout = (layout: LabSetup["layout"]) => {
     const next = { ...setup, layout };
@@ -150,8 +158,32 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
                 />
                 Targets
               </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={show.routes}
+                  onChange={(e) =>
+                    setShow({ ...show, routes: e.target.checked })
+                  }
+                />
+                Routes
+              </label>
             </fieldset>
             <Reinforce conn={conn} content={content} setup={setup} />
+            <fieldset
+              aria-label="View"
+              className="m-0 flex items-center gap-1.5 border-0 p-0"
+            >
+              <span className={tag}>VIEW</span>
+              <Segmented
+                value={view}
+                options={[
+                  ["2d", "2D"],
+                  ["3d", "3D"],
+                ]}
+                onChange={setView}
+              />
+            </fieldset>
             <label className="flex items-center gap-1.5">
               <input
                 type="checkbox"
@@ -186,6 +218,7 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
               selected={selected}
               onPick={setSelected}
               factions={[setup.sides[0].faction, setup.sides[1].faction]}
+              view={view}
             />
           )}
           <Status conn={conn} content={content} />
@@ -251,6 +284,7 @@ function defaultSetup(content: ContentLookups): LabSetup {
   return {
     preset: "",
     archetype: "",
+    plan: "",
     neutral: false,
     raid: false,
     seed: 1,
@@ -357,6 +391,7 @@ function Header(props: {
         {name(setup.sides[0].faction)} attacks {name(setup.sides[1].faction)} ·
         seed <span className="text-ink font-mono">{setup.seed}</span>
         {st.archetype && ` · ${st.archetype}`}
+        {st.generator && ` · ${st.generator}`}
       </span>
       <span className="flex-1" />
       <fieldset
@@ -508,6 +543,23 @@ function SetupPanel(props: {
                 {a}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-ink-3 text-xs">Layout</span>
+          <select
+            value={setup.plan}
+            onChange={(e) => onChange({ ...setup, plan: e.target.value })}
+            className="min-h-9 rounded-md px-2"
+          >
+            <option value="">Any: the seed picks</option>
+            {[...content.layouts]
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([id, l]) => (
+                <option key={id} value={id}>
+                  {l.name ?? id}
+                </option>
+              ))}
           </select>
         </label>
         <label className="flex items-center gap-2">
@@ -687,14 +739,24 @@ function SetupPanel(props: {
   );
 }
 
-/** Each Task Force's line from its stage to its goal, and each target line. */
+/** The Lab's overlays switched on. */
+type Show = {
+  forces: boolean;
+  targets: boolean;
+  routes: boolean;
+};
+
+/** The layout's lanes as they wind, each Task Force's line from its stage to its goal, and each target line. */
 function overlays(
   thinking: (Thinking | null)[],
   squads: Squad[],
-  show: { forces: boolean; targets: boolean },
+  show: Show,
+  routes: { from: { x: number; y: number }; to: { x: number; y: number } }[],
 ): OverlayLine[] {
   const at = new Map(squads.map((s) => [s.id, s]));
   const out: OverlayLine[] = [];
+  if (show.routes)
+    for (const r of routes) out.push({ ...r, colour: "#facc15", dashed: true });
   for (const th of thinking) {
     for (const [i, tf] of (th?.forces ?? []).entries()) {
       const colour = FORCE_COLOURS[i % FORCE_COLOURS.length] ?? "#f0a93b";
@@ -722,10 +784,11 @@ function Field(props: {
   conn: LabConnection;
   content: ContentLookups;
   fog: Fog;
-  show: { forces: boolean; targets: boolean };
+  show: Show;
   selected: number | null;
   onPick: (id: number | null) => void;
   factions: [string, string]; // each side's, for its pad turrets
+  view: "2d" | "3d"; // which drawing: the 3D one is the #93 prototype
 }) {
   const { conn, content } = props;
   const ref = useRef<HTMLDivElement>(null);
@@ -735,10 +798,11 @@ function Field(props: {
     y: number;
     side: Side | null;
   } | null>(null);
-  const scene = useRef<BattlefieldScene | null>(null);
+  const scene = useRef<BattlefieldDrawing | null>(null);
   const field = useStore(conn.store, (s) => s.field);
   const battle = useStore(conn.store, (s) => s.battle);
   const thinking = useStore(conn.store, (s) => s.thinking);
+  const routes = useStore(conn.store, (s) => s.routes);
   const { onPick } = props;
   // A side with no AI is yours to command from the map; with both, the one
   // picked to order.
@@ -771,8 +835,9 @@ function Field(props: {
       statsOf(unit)?.unitClass ?? rules.structure.unitClass;
     const flies = (sq: Squad) =>
       !!content.unitClasses.get(classOf(sq.unit))?.air;
-    const s = new BattlefieldScene(ref.current, field, {
-      terrainColour: (t) => content.terrains.get(t)?.colour ?? "#555555",
+    const look: BattlefieldLook = {
+      terrainColour: (t: string) =>
+        content.terrains.get(t)?.colour ?? "#555555",
       sideColour: { attacker: seatColour(0), defender: seatColour(1) },
       you: null,
       sight: (sq, height) =>
@@ -783,7 +848,29 @@ function Field(props: {
       padSight: rules.padSight,
       captureRadius: rules.captureRadius,
       captureTicks: rules.captureSeconds * 5,
-    });
+    };
+    const path = content.rules.battlefield.pathClass;
+    const s: BattlefieldDrawing =
+      props.view === "3d"
+        ? new Battlefield3DScene(ref.current, field, {
+            ...look,
+            blocked: (t) =>
+              !(path in (content.terrains.get(t)?.movement ?? {})),
+            cover: (t) => content.terrains.get(t)?.cover ?? 0,
+            // Vehicles lead a Task Force: boxes; the rest that walk, capsules.
+            form: (sq) =>
+              sq.commandPost
+                ? "post"
+                : sq.building
+                  ? "building"
+                  : flies(sq)
+                    ? "air"
+                    : content.unitClasses.get(classOf(sq.unit))
+                          ?.taskForceRole === "lead"
+                      ? "vehicle"
+                      : "infantry",
+          })
+        : new BattlefieldScene(ref.current, field, look);
     s.onPick = onPick;
     s.onSelect = (ids) => {
       setPicked(ids);
@@ -797,25 +884,27 @@ function Field(props: {
       s.dispose();
       scene.current = null;
     };
-  }, [conn, content, field, onPick]);
+  }, [conn, content, field, onPick, props.view]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: view: a new scene takes the Battle too
   useEffect(() => {
     if (battle) scene.current?.update(battle);
-  }, [battle]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: field: a new scene takes the setting too
+  }, [battle, props.view]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: field, view: a new scene takes the setting too
   useEffect(() => {
     scene.current?.setFog(props.fog === "none" ? false : props.fog);
-  }, [props.fog, field]);
+  }, [props.fog, field, props.view]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: view: a new scene takes the overlays too
   useEffect(() => {
     scene.current?.overlay(
-      overlays(thinking, battle?.squads ?? [], props.show),
+      overlays(thinking, battle?.squads ?? [], props.show, routes),
     );
-  }, [thinking, battle, props.show]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: field: a new scene takes the selection too
+  }, [thinking, battle, props.show, props.view, routes]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: field, view: a new scene takes the selection too
   useEffect(() => {
     scene.current?.select(props.selected);
-  }, [props.selected, field]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: field: a new scene takes it too
+  }, [props.selected, field, props.view]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: field, view: a new scene takes it too
   useEffect(() => {
     const s = scene.current;
     if (!s) return;
@@ -823,7 +912,7 @@ function Field(props: {
     s.command(commandSide);
     // Tagged with the side it's for: one from before a change never shows.
     s.onPadMenu = (pad, x, y) => setPadMenu({ pad, x, y, side: commandSide });
-  }, [commandSide, order, field]);
+  }, [commandSide, order, field, props.view]);
 
   return (
     <div className="border-line flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">

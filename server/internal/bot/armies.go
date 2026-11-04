@@ -119,19 +119,30 @@ const turretShare = 0.5
 
 // garrisonTurrets is what a neutral garrison's Battle budget buys: a pad
 // turret per build pad, the cheapest it can still afford, as its AI buys.
+// The Bot can't see which layout the Battlefield will be, so it counts the
+// fewest pads any layout has.
 func (b *Bot) garrisonTurrets() []fighter {
 	r := b.c.Rulesets[game.RulesetID]
 	left := maps.Clone(r.Battle.NeutralFunds)
+	pads := math.MaxInt
+	for _, l := range b.c.Layouts {
+		pads = min(pads, len(l.Pads))
+	}
 	var out []fighter
-	for range r.Battlefield.BuildPads {
+	for len(out) < pads { // until the pads run out, or the budget does
+		bought := false
 		for _, id := range battle.PadTurrets(b.c) {
 			if cost := b.c.Buildings[id].Cost; battle.Affords(left, cost) {
 				for res, n := range cost {
 					left[res] -= n
 				}
 				out = append(out, fighter{b.c.Buildings[id].Combat, turretShare})
+				bought = true
 				break
 			}
+		}
+		if !bought {
+			break
 		}
 	}
 	return out

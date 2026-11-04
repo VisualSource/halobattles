@@ -53,11 +53,7 @@ const rules: Ruleset = {
     height: 48,
     terrainPreset: "base:temperate",
     pathClass: "base:infantry",
-    controlPoints: 3,
-    controlPointSpacing: 10,
     deployDepth: 4,
-    buildPads: 4,
-    buildingSites: 10,
   },
   battle: {
     startDelay: 30,
@@ -102,6 +98,7 @@ function doc(creditsName: string): Content {
     terrains: {},
     terrainPresets: {},
     fixtures: {},
+    layouts: {},
     techs: {},
     soundtracks: {},
   };

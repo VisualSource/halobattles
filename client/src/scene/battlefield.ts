@@ -65,7 +65,7 @@ type PadMark = {
 };
 
 /** The colour of a build pad nobody holds. */
-const UNHELD = "#9ca3af";
+export const UNHELD = "#9ca3af";
 
 /** Control Points by index, as the Battle window names them. */
 export const POINT_NAMES = "ABCDEFGH";
@@ -79,6 +79,51 @@ export type OverlayLine = {
 };
 
 type Effect = { obj: THREE.Line | THREE.Mesh; t0: number; ms: number };
+
+/**
+ * How dark each cell's fog is, row by row: FOG out of Sight, 0 within it.
+ * Sight is each of the side's squads' (of: a side; null both; false no fog
+ * at all) and each pad it holds, which sees round itself.
+ */
+export function fogOver(
+  field: Battlefield,
+  look: Pick<BattlefieldLook, "sight" | "padSight">,
+  squads: Squad[],
+  pads: BuildPad[],
+  of: Side | null | false,
+) {
+  const { width: w, height: h, heights } = field;
+  const alpha = new Float32Array(w * h).fill(of === false ? 0 : FOG);
+  const eyes = [
+    ...squads.map((sq) => ({
+      x: sq.x,
+      y: sq.y,
+      side: sq.side,
+      r: look.sight(sq, heights[sq.y * w + sq.x] ?? 0),
+    })),
+    ...pads.flatMap((p) =>
+      p.owner ? [{ x: p.x, y: p.y, side: p.owner, r: look.padSight }] : [],
+    ),
+  ];
+  for (const e of eyes) {
+    if (of && e.side !== of) continue;
+    const r = e.r;
+    for (
+      let y = Math.max(0, Math.floor(e.y - r));
+      y <= Math.min(h - 1, e.y + r);
+      y++
+    ) {
+      for (
+        let x = Math.max(0, Math.floor(e.x - r));
+        x <= Math.min(w - 1, e.x + r);
+        x++
+      ) {
+        if ((x - e.x) ** 2 + (y - e.y) ** 2 <= r * r) alpha[y * w + x] = 0;
+      }
+    }
+  }
+  return alpha;
+}
 
 /**
  * A point k of the way from `from` to `to` on a Catmull-Rom-style curve:
@@ -107,6 +152,25 @@ function curve(
 
 /** A cell's centre in world space: x right, y up, so a row goes down. */
 const centre = (x: number, y: number) => new THREE.Vector2(x + 0.5, -(y + 0.5));
+
+/** What the Lab drives a Battlefield drawing through: this 2D scene, or the 3D one (#93). */
+export type BattlefieldDrawing = Pick<
+  BattlefieldScene,
+  | "dispose"
+  | "update"
+  | "setFog"
+  | "overlay"
+  | "select"
+  | "command"
+  | "pick"
+  | "pointAt"
+  | "armAttackMove"
+  | "fire"
+  | "onPick"
+  | "onPadMenu"
+  | "onSelect"
+  | "onOrder"
+>;
 
 /**
  * A Battle seen from straight above: Terrain shaded by height, the fog
@@ -735,40 +799,15 @@ export class BattlefieldScene {
 
   /** Clears the fog within each of your squads' Sight. */
   private drawFog(squads: Squad[]) {
-    const { width: w, height: h, heights } = this.field;
+    const { width: w, height: h } = this.field;
     const data = this.fog.image.data as Uint8Array;
-    const alpha = new Float32Array(w * h).fill(this.fogOf === false ? 0 : FOG);
-    // Each squad's Sight, and each held pad's: a pad sees round itself.
-    const eyes = [
-      ...squads.map((sq) => ({
-        x: sq.x,
-        y: sq.y,
-        side: sq.side,
-        r: this.look.sight(sq, heights[sq.y * w + sq.x] ?? 0),
-      })),
-      ...this.lastPads.flatMap((p) =>
-        p.owner
-          ? [{ x: p.x, y: p.y, side: p.owner, r: this.look.padSight }]
-          : [],
-      ),
-    ];
-    for (const sq of eyes) {
-      if (this.fogOf && sq.side !== this.fogOf) continue;
-      const r = sq.r;
-      for (
-        let y = Math.max(0, Math.floor(sq.y - r));
-        y <= Math.min(h - 1, sq.y + r);
-        y++
-      ) {
-        for (
-          let x = Math.max(0, Math.floor(sq.x - r));
-          x <= Math.min(w - 1, sq.x + r);
-          x++
-        ) {
-          if ((x - sq.x) ** 2 + (y - sq.y) ** 2 <= r * r) alpha[y * w + x] = 0;
-        }
-      }
-    }
+    const alpha = fogOver(
+      this.field,
+      this.look,
+      squads,
+      this.lastPads,
+      this.fogOf,
+    );
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         data[((h - 1 - y) * w + x) * 4 + 3] = (alpha[y * w + x] ?? 0) * 255;

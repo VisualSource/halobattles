@@ -49,9 +49,11 @@ type matchState struct {
 	bots      map[string]*botRunner // the running Bots, by Seat user
 	logger    runtime.Logger
 	matchID   string
-	log       *matchLog               // nil unless HALO_MATCH_LOG is set
-	battles   map[uint32]*game.Battle // running Battles, for the log's replays
-	reply     []byte                  // a DefenceLayout for the command being handled's sender
+	log       *matchLog                // nil unless HALO_MATCH_LOG is set
+	battles   map[uint32]*game.Battle  // running Battles, for the log's replays
+	reply     []byte                   // a DefenceLayout for the command being handled's sender
+	watching  map[string]string        // the Planet whose Battle each user has open
+	reports   map[uint32]*battleReport // each running Battle's, for its summaries
 }
 
 // lobbyFactions are the Factions players and Bots can pick: every one not hidden.
@@ -99,6 +101,8 @@ func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		seed:      rand.Uint64(),
 		presences: map[string]runtime.Presence{},
 		lastSeq:   map[string]uint32{},
+		watching:  map[string]string{},
+		reports:   map[uint32]*battleReport{},
 		sent:      map[string]game.View{},
 	}
 	return s, tickRate, s.label()
@@ -284,21 +288,29 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		s.sendToPresences(logger, dispatcher, wire.OpBattleStarted, finish(t), watchers)
 	}
 	for _, bt := range ev.Ticks {
-		if len(watchers) > 0 { // a Spectator sees both sides' fire
-			t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: bt.Battle.ID, Planet: bt.Battle.Planet, Tick: uint32(bt.Battle.Sim.Tick), Volleys: volleys(bt.Volleys)}
-			s.sendToPresences(logger, dispatcher, wire.OpBattleTick, finish(t), watchers)
+		b := bt.Battle
+		rep := s.report(b.ID)
+		rep.fire(2, b, bt.Volleys)
+		// Fire goes only to those with the Battle open; the rest get its damage in their summary.
+		if to := s.watchingIn(watchers, b.Planet); len(to) > 0 { // a Spectator sees both sides' fire
+			t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Tick: uint32(b.Sim.Tick), Volleys: volleys(bt.Volleys)}
+			s.sendToPresences(logger, dispatcher, wire.OpBattleTick, finish(t), to)
 		}
-		for side, seat := range map[battle.Side]int{battle.Attacker: bt.Battle.Attacker, battle.Defender: bt.Battle.Defender} {
-			vs := bt.Battle.Sim.VolleysFor(side, bt.Volleys)
+		for side, seat := range map[battle.Side]int{battle.Attacker: b.Attacker, battle.Defender: b.Defender} {
+			vs := b.Sim.VolleysFor(side, bt.Volleys)
 			if len(vs) == 0 {
 				continue
 			}
+			rep.fire(int(side), b, vs)
 			// The side's Teammates watch it as that side does.
-			t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: bt.Battle.ID, Planet: bt.Battle.Planet, Tick: uint32(bt.Battle.Sim.Tick), Volleys: volleys(vs)}
-			s.sendTo(logger, dispatcher, wire.OpBattleTick, finish(t), s.team(seat)...)
+			if to := s.watchingIn(s.presencesOf(s.team(seat)), b.Planet); len(to) > 0 {
+				t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Tick: uint32(b.Sim.Tick), Volleys: volleys(vs)}
+				s.sendToPresences(logger, dispatcher, wire.OpBattleTick, finish(t), to)
+			}
 		}
 	}
 	for _, e := range ev.Ended {
+		delete(s.reports, e.Battle)
 		if b := s.battles[e.Battle]; b != nil {
 			s.log.write("battle", s.play.Time, replay(b, e.Winner))
 			delete(s.battles, e.Battle)
@@ -380,16 +392,117 @@ func (s *matchState) viewer() func(user string) (game.View, bool) {
 		seat := s.seat(user)
 		switch {
 		case seat >= 0 && !s.play.Players[seat].Eliminated:
-			return s.play.View(&s.content.Doc, seat), true
+			return s.watched(user, seat, s.play.View(&s.content.Doc, seat)), true
 		case seat >= 0 || s.play.IsSpectator(user):
 			if spectating == nil {
 				v := s.play.SpectatorView(&s.content.Doc)
 				spectating = &v
 			}
-			return *spectating, true
+			return s.watched(user, -1, *spectating), true
 		}
 		return game.View{}, false
 	}
+}
+
+// watched is v as user gets it: each Battle with its damage totals, and
+// every one but the one they have open cut down to a summary, the counts the
+// Battle report needs and no positions. seat is theirs, or -1 watching.
+func (s *matchState) watched(user string, seat int, v game.View) game.View {
+	out := make([]game.BattleView, len(v.Battles))
+	for i, b := range v.Battles {
+		side := 2
+		if seat >= 0 {
+			side = int(battle.Defender)
+			if s.play.Allied(seat, b.Attacker) {
+				side = int(battle.Attacker)
+			}
+		}
+		rep := s.report(b.ID)
+		rep.see(side, b.Squads)
+		b.Damage = rep.damage[side]
+		if s.watching[user] != b.Planet {
+			b = rep.summary(side, b)
+		}
+		out[i] = b
+	}
+	v.Battles = out
+	return v
+}
+
+// battleReport is a running Battle as each side (and Spectators, index 2)
+// has seen it, for the Battle report: every squad it has seen, at its last
+// known count, less kills in the fire it saw; and the damage each side dealt.
+type battleReport struct {
+	squads [3]map[int]battle.SquadView
+	damage [3][2]float64
+}
+
+func (s *matchState) report(id uint32) *battleReport {
+	r := s.reports[id]
+	if r == nil {
+		r = &battleReport{}
+		for i := range r.squads {
+			r.squads[i] = map[int]battle.SquadView{}
+		}
+		s.reports[id] = r
+	}
+	return r
+}
+
+// see records the squads a side sees now, counts and all, but no positions.
+func (r *battleReport) see(side int, squads []battle.SquadView) {
+	for _, sq := range squads {
+		r.squads[side][sq.ID] = battle.SquadView{ID: sq.ID, Side: sq.Side, Unit: sq.Unit, Building: sq.Building, Count: sq.Count, Start: sq.Start, CommandPost: sq.CommandPost, Dropship: sq.Dropship}
+	}
+}
+
+// fire adds the volleys a side saw: each one's damage to its shooter's
+// side, and its kills off its target.
+func (r *battleReport) fire(side int, b *game.Battle, vs []battle.Volley) {
+	for _, v := range vs {
+		if v.Actor >= 1 && v.Actor <= len(b.Sim.Squads) { // squad ids index Squads from 1
+			r.damage[side][b.Sim.Squads[v.Actor-1].Side] += v.ShieldDmg + v.ArmorDmg + v.HPDmg
+		}
+		if sq, ok := r.squads[side][v.Target]; ok {
+			sq.Count = max(0, sq.Count-v.Kills)
+			r.squads[side][v.Target] = sq
+		}
+	}
+}
+
+// summary is a Battle view without what only an open Battle window needs:
+// positions, orders, layers, pads, Landing Zones and the tick. Its squads
+// are the side's report: every one it has seen, the dead too.
+func (r *battleReport) summary(side int, b game.BattleView) game.BattleView {
+	b.Summary = true
+	b.Tick, b.Edge, b.Points, b.Pads = 0, 0, nil, nil
+	b.Squads = nil
+	for _, id := range slices.Sorted(maps.Keys(r.squads[side])) { // by id, as the (key) needs
+		b.Squads = append(b.Squads, r.squads[side][id])
+	}
+	return b
+}
+
+// presencesOf is the connected, uneliminated players among seats.
+func (s *matchState) presencesOf(seats []int) []runtime.Presence {
+	var out []runtime.Presence
+	for _, seat := range seats {
+		if p := s.presences[s.play.Players[seat].User]; p != nil && !s.play.Players[seat].Eliminated {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// watchingIn is those of ps with planet's Battle open.
+func (s *matchState) watchingIn(ps []runtime.Presence, planet string) []runtime.Presence {
+	var out []runtime.Presence
+	for _, p := range ps {
+		if s.watching[p.GetUserId()] == planet {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // watchers are the connected Spectators and eliminated players.
@@ -548,6 +661,7 @@ func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 			Tick: uint32(b.Tick), Edge: uint8(b.Edge), RetreatAt: uint32(b.RetreatAt),
 			AttackerRetreating: b.Retreating[battle.Attacker], DefenderRetreating: b.Retreating[battle.Defender], Raid: b.Raid,
 			BuildingsLeft: uint8(b.BuildingsLeft), Buildings: uint8(b.Buildings), Commanded: b.Commanded,
+			Summary: b.Summary, AttackerDamage: float32(b.Damage[battle.Attacker]), DefenderDamage: float32(b.Damage[battle.Defender]),
 		}
 		if withField {
 			bv.Field = field(b.Field)

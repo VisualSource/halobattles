@@ -40,6 +40,7 @@ enum Op : int {
   BattleLand = 31,
   RequestDefenceLayout = 32,
   SetDefenceLayout = 33,
+  WatchBattle = 34,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -258,6 +259,14 @@ table SetDefenceLayout {
   planet: string;
   sites: [byte];           // per Building Slot: the base site it stands on; -1 its default
   starts: [LayoutStart];
+}
+
+// The Battle you have open, by its Planet; "" is none. Only that one's view
+// carries squads' positions, pads, Landing Zones and fire; the rest are a
+// summary (see BattleView.summary).
+table WatchBattle {
+  seq: uint32;
+  planet: string;
 }
 
 // Sends one of your side's Dropships in orbit over the Battle on planet to a
@@ -499,6 +508,11 @@ table BattleView {
   buildings: ubyte;         // and at the start
   commanded: bool;         // your side is yours to command: the AI doesn't run it
   drops: [BattleDrop];     // your side's Dropships
+  // A Battle you don't have open: squads carry only their id, side, unit,
+  // building flags and counts; no pads, Landing Zones, tick or fire.
+  summary: bool;
+  attacker_damage: float;  // dealt by each side, in the fire your side could see
+  defender_damage: float;
 }
 
 // One squad's fire in one sim tick: every living member's shot at one

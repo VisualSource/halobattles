@@ -33,8 +33,11 @@ type Field struct {
 	// UnitStarts are where its Stacks deploy, Stack 1 first.
 	CommandPost Cell
 	UnitStarts  []Cell
-	lane        []bool // main lane cells, for tests
-	side        []bool // side lane cells, for tests
+	// Generator names the layout it was remixed from (#104): "layout: <id>".
+	// Routes are its lanes, as they wind, for the Lab's overlay.
+	Generator string    `json:",omitempty"`
+	Routes    [][2]Cell `json:",omitempty"`
+	lane      []bool    // main lane cells, for tests
 }
 
 func (f *Field) index(c Cell) int { return c.Y*f.W + c.X }
@@ -43,21 +46,22 @@ func (f *Field) cell(i int) Cell { return Cell{i % f.W, i / f.W} }
 
 func (f *Field) inBounds(c Cell) bool { return c.X >= 0 && c.Y >= 0 && c.X < f.W && c.Y < f.H }
 
-// Generate builds a Planet's Battlefield for a neutral garrison: the
-// tests' shorthand, since the game and the Lab call GenerateFor.
+// Generate builds a Planet's Battlefield for a neutral garrison, from a
+// layout the seed picks: the tests' shorthand for GenerateLayout.
 func Generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlefield, seed uint64) *Field {
-	return GenerateFor(c, rules, planet, seed, "")
+	return GenerateLayout(c, rules, planet, seed, "", "")
 }
 
-// GenerateFor builds a Planet's Battlefield from the Ruleset's defaults and
-// the Planet's own overrides, if any, with the defending Faction's base (""
-// for a neutral garrison). The same inputs give the same Field.
+// generate builds a Planet's Battlefield by remixing lay: the Ruleset's
+// defaults and the Planet's own overrides, with the defending Faction's
+// base ("" for a neutral garrison). The same inputs give the same Field.
 //
 // Each stage draws from its own PCG stream, numbered in the order they were
-// added: 1 elevation, 2 moisture, 3 Landing Zones, 6 (attacker starts,
-// unused since #99), 7 point cover, 8 archetype and base edge, 9 base, 10
-// features, 11 river fords and ruins. A new stage takes the next number.
-func GenerateFor(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlefield, seed uint64, faction string) *Field {
+// added; a retired stage's number isn't reused: 1 elevation, 2 moisture, 7
+// point cover, 8 archetype and base edge, 9 base, 10 features, 14 the
+// layout's pick and flip, 15 its nudges (3, 6, 11, 12 and 13 were the
+// classic generator's and the route graph's). A new stage takes the next.
+func generate(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBattlefield, seed uint64, faction, layoutID string) *Field {
 	presetID, w, h := string(rules.TerrainPreset), rules.Width, rules.Height
 	if planet != nil {
 		if planet.TerrainPreset != nil {
@@ -70,14 +74,21 @@ func GenerateFor(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBatt
 
 	shape := rand.New(rand.NewPCG(seed, 8))
 	f.Archetype = pickArchetype(preset, planet, shape)
-	edge := shape.IntN(4) // the defender's end: its base is in the third by it
+	edge := shape.IntN(4) // the defender's edge: the layout turns its base to it
 	baseRng, featureRng := rand.New(rand.NewPCG(seed, 9)), rand.New(rand.NewPCG(seed, 10))
 	base, ok := weighted(fixturesFor(c, cs.FixtureKindBase, f.Archetype, faction), baseRng)
 	if !ok {
 		base = plainBase
 	}
+	pick := rand.New(rand.NewPCG(seed, 14))
+	lay, ok := pickLayout(c, layoutID, f.Archetype, presetID, pick)
+	if !ok { // content always has one; a test's may not
+		lay = plainLayout
+	}
+	f.Generator = "layout: " + string(lay.ID)
+	place := &placer{f: f, edge: edge, mirror: lay.Mirror != nil && *lay.Mirror && pick.IntN(2) == 1, nudge: 2, rng: rand.New(rand.NewPCG(seed, 15)), moved: map[[2]float64]Cell{}}
 	var features []cs.Fixture
-	for range 1 + featureRng.IntN(3) {
+	for range lay.Features { // one in each slot
 		if fx, ok := weighted(fixturesFor(c, cs.FixtureKindFeature, f.Archetype, faction), featureRng); ok {
 			features = append(features, fx)
 		}
@@ -100,9 +111,19 @@ func GenerateFor(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBatt
 		return uint8(i)
 	}
 
+	// The noise, shaped to the layout: level ground under its lanes, then its
+	// own water, rock and high ground, before it's cut into the preset's bands.
 	elevation := f.ranked(preset.Noise, newPerlin(rand.New(rand.NewPCG(seed, 1))))
 	moisture := f.ranked(preset.Noise, newPerlin(rand.New(rand.NewPCG(seed, 2))))
-	f.shapeElevation(elevation, f.Archetype, edge, shape)
+	walkable := func(b cs.Band) bool {
+		return !slices.ContainsFunc(b.Terrains, func(t cs.BandTerrain) bool {
+			_, ok := c.Terrains[string(t.Terrain)].Movement[string(rules.PathClass)]
+			return !ok
+		})
+	}
+	place.routeLanes(lay)
+	place.moldLanes(lay, preset.Bands, walkable, elevation)
+	place.shapeAreas(lay, preset.Bands, elevation)
 	for i := range f.Terrain {
 		b := preset.Bands[slices.IndexFunc(preset.Bands, func(b cs.Band) bool { return elevation[i] <= b.UpTo })]
 		t := b.Terrains[slices.IndexFunc(b.Terrains, func(t cs.BandTerrain) bool { return moisture[i] <= t.UpTo })]
@@ -114,33 +135,24 @@ func GenerateFor(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBatt
 		cover = int(terrain(*preset.PointCover))
 	}
 	l := newLayout(c, f, string(rules.PathClass), terrain(preset.Clear.Terrain), uint8(preset.Clear.Height), cover)
-	detail := rand.New(rand.NewPCG(seed, 11))
-	switch f.Archetype {
-	case River:
-		l.riverFords(edge, detail)
-	case Ruins:
-		l.ruinBlocks(detail)
-	}
+	place.coverAreas(lay, l)
 
-	// The base, in the third of the map by the defender's edge; the features
-	// in open ground between, clear of it and of the edges.
+	// The base at the layout's base slot; each feature in its slot, unless that's on the base.
 	taken := make([]bool, w*h)
 	rot, mirror := orient(base, baseRng)
 	g := fixtureGrid(base, rot, mirror)
-	o, ok := l.place(g, taken, func(mid Cell) bool { return f.towardBase(mid, edge) >= 0.72 }, baseRng)
+	o, ok := place.at(g, place.cell(lay.Base)), g.w+2 < w && g.h+2 < h
 	if !ok { // too small a map for it: the plain base, wherever it fits
 		base, g = plainBase, fixtureGrid(plainBase, 0, false)
 		o, _ = l.place(g, taken, func(Cell) bool { return true }, baseRng)
 	}
 	got := l.stamp(base, g, o, terrain)
 	l.take(g, o, 4, taken)
-	for _, fx := range features {
+	for k, fx := range features {
 		rot, mirror := orient(fx, featureRng)
 		g := fixtureGrid(fx, rot, mirror)
-		between := func(mid Cell) bool { t := f.towardBase(mid, edge); return t > 0.15 && t < 0.8 }
-		if o, ok := l.place(g, taken, between, featureRng); ok {
-			st := l.stamp(fx, g, o, terrain)
-			got.pads = append(got.pads, st.pads...)
+		if o := place.at(g, place.cell(lay.Features[k])); !l.overlaps(g, o, taken) {
+			got.pads = append(got.pads, l.stamp(fx, g, o, terrain).pads...)
 			l.take(g, o, 3, taken)
 		}
 	}
@@ -162,23 +174,43 @@ func GenerateFor(c *cs.Content, rules cs.BattlefieldRules, planet *cs.PlanetBatt
 		}
 	}
 
-	f.Points = f.placeLandingZones(main, rules.ControlPoints, rules.ControlPointSpacing, rules.DeployDepth+3, f.CommandPost, edge, rand.New(rand.NewPCG(seed, 3)))
-	f.Starts = attackerStarts(f.Points, f.CommandPost)
-	area, width := 3, 2
+	// The layout's Landing Zones, each on the nearest ground joined to the rest.
+	for _, z := range lay.LandingZones {
+		c, _ := l.spot(place.cell(z.At), max(w, h), func(i int) bool { return main[i] })
+		f.Points = append(f.Points, c)
+		if z.Attacker != nil && *z.Attacker {
+			f.Starts = append(f.Starts, c)
+		}
+	}
+	area := 3
 	if rules.PointArea != nil {
 		area = *rules.PointArea
 	}
-	if rules.LaneWidth != nil {
-		width = *rules.LaneWidth
-	}
 	l.shapePoints(area, rand.New(rand.NewPCG(seed, 7)))
-	l.mainLanes([]Cell{f.CommandPost}, area, width) // the base's lane to its nearest Landing Zone
-	f.Sites = got.sites
-	f.Pads = got.pads[:min(len(got.pads), rules.BuildPads)]
-	f.Pads = append(f.Pads, l.placePads(max(0, rules.BuildPads-len(f.Pads)), area, f.Starts, f.Sites)...)
-	f.Sites = l.placeSites(rules.BuildingSites, edge, rules.DeployDepth+1, f.Pads) // the base's first: they're the defaults
-	f.lane, f.side = l.lane, l.side
+	f.Routes = l.paintLanes(place)
+	// The base's and features' pads, where every ground Unit Class can reach,
+	// then the layout's; the base's sites, then the layout's.
+	reached := l.reachAll()
+	f.Pads = slices.DeleteFunc(got.pads, func(c Cell) bool { return !reached[f.index(c)] })
+	f.Pads = append(f.Pads, l.placeLayoutSpots(place, lay.Pads, f.Pads)...)
+	f.Sites = append(got.sites, l.placeLayoutSpots(place, lay.Sites, append(slices.Clone(f.Pads), got.sites...))...)
+	f.lane = l.lane
 	return f
+}
+
+// plainLayout stands in when content has no layouts (only a test's): two
+// lanes from the attacker's Landing Zones to the base.
+var plainLayout = cs.Layout{
+	ID:   "plain",
+	Base: cs.Point{0.5, 0.86},
+	LandingZones: []cs.LayoutLandingZone{
+		{At: cs.Point{0.25, 0.15}, Attacker: new(true)}, {At: cs.Point{0.75, 0.15}, Attacker: new(true)}, {At: cs.Point{0.5, 0.5}},
+	},
+	Lanes: []cs.LayoutLane{
+		{Points: []cs.Point{{0.25, 0.15}, {0.5, 0.5}, {0.5, 0.86}}},
+		{Points: []cs.Point{{0.75, 0.15}, {0.5, 0.5}}},
+	},
+	Pads: cs.Points{{0.42, 0.62}, {0.58, 0.62}},
 }
 
 func deref(p *int) int {

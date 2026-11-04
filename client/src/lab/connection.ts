@@ -33,6 +33,7 @@ export type LabSide = {
 export type LabSetup = {
   preset: string;
   archetype: string; // "" is the preset's pick
+  plan: string; // which layout; "" lets the seed pick
   neutral: boolean; // the defender is a neutral garrison: its base and turret funds
   raid: boolean; // the attacker Raids: after the buildings, within raidTime
   seed: number;
@@ -79,6 +80,8 @@ export type LabDecision = {
 export type LabState = {
   field: Battlefield | null;
   archetype: string; // the Battlefield's, as generated
+  generator: string; // the layout it was remixed from: "layout: <id>"
+  routes: { from: Cell; to: Cell }[]; // a layout's lanes, as they wind, step by step
   /** Where the defender's layout put things, without the layout as set: the page has that. */
   layout: Omit<DefenceLayout, "setSites" | "setStarts"> | null;
   battle: Battle | null;
@@ -243,6 +246,8 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
       point: d.Point < 0 ? null : d.Point,
       aiAt: d.SendsAt,
     })),
+    summary: false, // the Lab always has its Battle open
+    damage: { attacker: 0, defender: 0 },
   };
 }
 
@@ -250,6 +255,8 @@ export class LabConnection {
   readonly store = createStore<LabState>(() => ({
     field: null,
     layout: null,
+    generator: "",
+    routes: [],
     archetype: "",
     battle: null,
     tick: 0,
@@ -311,6 +318,7 @@ export class LabConnection {
     this.send(OP.setup, {
       preset: s.preset,
       archetype: s.archetype,
+      layout: s.plan || undefined,
       neutral: s.neutral,
       raid: s.raid,
       seed: s.seed,
@@ -403,6 +411,8 @@ export class LabConnection {
           BuildingSites: number[] | null;
           StackStarts: GoCell[] | null;
           Reach: number;
+          Generator?: string;
+          Routes?: [GoCell, GoCell][];
         };
         const cells = (cs: GoCell[] | null) =>
           (cs ?? []).map((c) => ({ x: c.X, y: c.Y }));
@@ -430,6 +440,11 @@ export class LabConnection {
             stackStarts: cells(f.StackStarts),
           },
           archetype: f.Archetype,
+          generator: f.Generator ?? "",
+          routes: (f.Routes ?? []).map(([a, b]) => ({
+            from: { x: a.X, y: a.Y },
+            to: { x: b.X, y: b.Y },
+          })),
           battle: null,
           log: [],
           thinking: [null, null],

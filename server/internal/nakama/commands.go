@@ -223,6 +223,12 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 			}
 			return s.replyLayout(s.seat(user), c.Planet)
 		}
+	case wire.OpWatchBattle:
+		c := wire.GetRootAsWatchBattle(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			s.watching[user] = string(c.Planet())
+			return nil
+		}
 	case wire.OpExchange:
 		c := wire.GetRootAsExchange(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {

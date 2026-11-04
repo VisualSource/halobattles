@@ -1,9 +1,7 @@
 package battle
 
 import (
-	"cmp"
 	"maps"
-	"math"
 	"math/rand/v2"
 	"slices"
 
@@ -64,109 +62,6 @@ func deref64(p *float64) float64 {
 		return 0
 	}
 	return *p
-}
-
-// towardBase is how far c is along the attack, from the attacker's end (0)
-// to the defender's edge (1), the base edge being 0 top, 1 right, 2 bottom,
-// 3 left; across is where it is the other way, 0 to 1.
-func (f *Field) towardBase(c Cell, edge int) float64 {
-	switch edge {
-	case 0:
-		return 1 - float64(c.Y)/float64(max(1, f.H-1))
-	case 2:
-		return float64(c.Y) / float64(max(1, f.H-1))
-	case 1:
-		return float64(c.X) / float64(max(1, f.W-1))
-	}
-	return 1 - float64(c.X)/float64(max(1, f.W-1))
-}
-
-func (f *Field) across(c Cell, edge int) float64 {
-	if edge == 0 || edge == 2 {
-		return float64(c.X) / float64(max(1, f.W-1))
-	}
-	return float64(c.Y) / float64(max(1, f.H-1))
-}
-
-// riverHalf is half a river's width, as a share of the attack's length.
-const riverHalf = 0.035
-
-// shapeElevation bends the ranked elevation to the archetype before it's
-// banded: an open field keeps the preset's look; a river sinks a band across the attack
-// to the lowest Terrain; a ridge raises the line of the attack, a valley
-// the ground either side of it.
-func (f *Field) shapeElevation(e []float64, archetype string, edge int, rng *rand.Rand) {
-	valley := rng.IntN(2) == 0 // drawn whatever the archetype, so the stream stays put
-	for i := range e {
-		c := f.cell(i)
-		switch archetype {
-		case River:
-			if math.Abs(f.towardBase(c, edge)-0.5) < riverHalf {
-				e[i] = 0
-			}
-		case Ridge:
-			a := f.across(c, edge) - 0.5
-			g := math.Exp(-(a * a) / (0.18 * 0.18))
-			if valley {
-				g = 1 - g
-			}
-			e[i] = min(1, e[i]*0.6+0.45*g)
-		}
-	}
-}
-
-// riverFords clears 2 or 3 crossings, 3 cells wide, across the river.
-func (l *layout) riverFords(edge int, rng *rand.Rand) {
-	f := l.f
-	n := 2 + rng.IntN(2)
-	for k := range n {
-		at := (float64(k) + 0.5 + (rng.Float64()-0.5)*0.4) / float64(n) // spread across, jittered
-		for i := range f.Terrain {
-			c := f.cell(i)
-			if math.Abs(f.towardBase(c, edge)-0.5) < riverHalf+0.02 && math.Abs(f.across(c, edge)-at) < 1.5/float64(max(f.W, f.H)) {
-				l.clear(i)
-			}
-		}
-	}
-}
-
-// ruinBlocks lays a grid of blocks with streets between: each block cover,
-// or now and then impassable rubble.
-func (l *layout) ruinBlocks(rng *rand.Rand) {
-	f := l.f
-	const block, street = 5, 2
-	period := block + street
-	rubble := map[Cell]bool{}
-	for by := 0; by*period < f.H; by++ {
-		for bx := 0; bx*period < f.W; bx++ {
-			rubble[Cell{bx, by}] = rng.IntN(10) < 3
-		}
-	}
-	peak := l.highest()
-	for i := range f.Terrain {
-		c := f.cell(i)
-		if c.X%period >= block || c.Y%period >= block {
-			l.clear(i) // a street
-			continue
-		}
-		switch b := (Cell{c.X / period, c.Y / period}); {
-		case rubble[b] && peak >= 0:
-			f.Terrain[i] = uint8(peak)
-		case l.cover >= 0:
-			f.Terrain[i] = uint8(l.cover)
-		}
-	}
-}
-
-// highest is the Terrain of the preset's top band, the one no ground unit
-// crosses, if it's in the table; else -1.
-func (l *layout) highest() int {
-	for i := range l.f.Terrains {
-		if !slices.ContainsFunc(l.ground, func(ok []bool) bool { return ok[i] }) {
-			return i
-		}
-	}
-	return -1
 }
 
 // grid is a fixture's cells, turned and flipped as placed.
@@ -382,55 +277,4 @@ func fixtureTerrains(fxs ...cs.Fixture) []string {
 		}
 	}
 	return ids
-}
-
-// placeLandingZones picks n Landing Zones in the main region, a few cells in
-// from the edges and clear of the base, at least spacing apart, the first in
-// the half of the map away from the base (an attacker's to land at). Where
-// they don't fit, it tries again with less spacing.
-func (f *Field) placeLandingZones(main []bool, n, spacing, margin int, post Cell, edge int, rng *rand.Rand) []Cell {
-	var far, near []Cell
-	for i, m := range main {
-		c := f.cell(i)
-		if !m || c.X < margin || c.Y < margin || c.X >= f.W-margin || c.Y >= f.H-margin || dist(c, post) < baseClearance {
-			continue
-		}
-		if f.towardBase(c, edge) < 0.5 {
-			far = append(far, c)
-		} else {
-			near = append(near, c)
-		}
-	}
-	rng.Shuffle(len(far), func(i, j int) { far[i], far[j] = far[j], far[i] })
-	rng.Shuffle(len(near), func(i, j int) { near[i], near[j] = near[j], near[i] })
-	all := append(slices.Clone(far), near...)
-	rng.Shuffle(len(all), func(i, j int) { all[i], all[j] = all[j], all[i] })
-	for s := spacing; ; s-- {
-		var points []Cell
-		if len(far) > 0 {
-			points = append(points, far[0])
-		}
-		for _, c := range all {
-			if len(points) >= n {
-				break
-			}
-			if !slices.ContainsFunc(points, func(p Cell) bool { return dist2(p, c) < s*s }) {
-				points = append(points, c)
-			}
-		}
-		if len(points) >= n || s <= 1 { // at 1 every distinct cell fits; 0 would take far[0] twice
-			return points
-		}
-	}
-}
-
-// baseClearance is the fewest cells from the Command Post to a Landing Zone.
-const baseClearance = 14
-
-// attackerStarts are the Landing Zones an attacker may land at: the farther
-// half from the Command Post, farthest first.
-func attackerStarts(points []Cell, post Cell) []Cell {
-	byFar := slices.Clone(points)
-	slices.SortStableFunc(byFar, func(a, b Cell) int { return cmp.Compare(dist2(b, post), dist2(a, post)) })
-	return byFar[:(len(byFar)+1)/2]
 }

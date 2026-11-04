@@ -235,8 +235,11 @@ func TestANeutralGarrisonCountsTheTurretsItsBudgetBuys(t *testing.T) {
 	}
 	r := b.c.Rulesets[game.RulesetID]
 	r.Battle.NeutralFunds = map[string]int{"base:credits": 250} // two cheap ones, not a dear one
-	r.Battlefield.BuildPads = 4
 	b.c.Rulesets[game.RulesetID] = r
+	b.c.Layouts = map[string]cs.Layout{ // the fewest pads any layout has: 4
+		"base:few":  {Pads: make(cs.Points, 4)},
+		"base:more": {Pads: make(cs.Points, 6)},
+	}
 	v := view(nil, 0)
 	turrets := func(fs []fighter) (n int) {
 		for _, f := range fs {
@@ -261,6 +264,12 @@ func TestANeutralGarrisonCountsTheTurretsItsBudgetBuys(t *testing.T) {
 	b.seen["b"] = sighting{game.PlanetView{ID: "b", Owner: game.Neutral}, v.Time}
 	if got := b.defenders(v, "b"); len(got) != 0 {
 		t.Errorf("an empty neutral Planet: %d fighters; want none, as there's no Battle to buy turrets for", len(got))
+	}
+	r.Battle.NeutralFunds = map[string]int{"base:credits": 1000} // ten cheap ones' worth, but pads for 4
+	b.c.Rulesets[game.RulesetID] = r
+	b.seen["b"] = sighting{game.PlanetView{ID: "b", Owner: game.Neutral, Stacks: marines(3)}, v.Time}
+	if got := b.defenders(v, "b"); turrets(got) != 4 {
+		t.Errorf("a rich neutral garrison: %d turrets; want 4, one on each pad of the layout with fewest", turrets(got))
 	}
 }
 
