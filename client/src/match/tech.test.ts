@@ -291,6 +291,7 @@ describe("Techs", () => {
         homeSlot: 0,
         destPlanet: dest,
         destSlot: 0,
+        turned: false,
       }) as Army;
     const free = () =>
       labs(content, v).map((l) => [l.planet, l.slot, l.free, l.couriers]);
@@ -338,6 +339,7 @@ describe("Techs", () => {
         homeSlot,
         destPlanet: dest,
         destSlot: 0,
+        turned: false,
       }) as Army;
     const a = planet("a", 0, ["lab"], [[0, ["relic"]]]);
     const lost = (c: Army) => {

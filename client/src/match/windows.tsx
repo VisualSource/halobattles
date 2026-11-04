@@ -27,13 +27,14 @@ import {
   roleOf,
 } from "./buildings";
 import type { MatchConnection } from "./connection";
-import { isPending, type LocalState } from "./local";
+import { isPending } from "./local";
 import { CommandPoints, CostIcons } from "./resources";
 import { laneTimes } from "./route";
 import { freeCell, moveSlot } from "./stacks";
 import { ConfirmDialog } from "./status";
 import {
   allied,
+  knownOwner,
   type PlanetView,
   type QueueItem,
   type UnitSlot,
@@ -59,16 +60,6 @@ import { UnitInfo } from "./units";
 /** A Planet's name on map, or its id if it isn't there. */
 export const planetNameOn = (map: GalaxyMap | undefined, id: string) =>
   map?.planets.find((p) => p.id === id)?.name ?? id;
-
-/** A Planet's owner as the player knows it: live, else as last seen, else neutral. */
-export function knownOwner(
-  view: View,
-  lastSeen: LocalState["lastSeen"],
-  id: string,
-) {
-  const live = view.planets.get(id);
-  return live ? live.owner : (lastSeen.get(id)?.planet.owner ?? null);
-}
 
 export const label =
   "font-mono text-[11px] text-ink-3 uppercase tracking-[0.08em]";
@@ -1997,7 +1988,10 @@ export function ArmyWindow(props: {
     if (i > 0) at += lanes.get(route[i - 1] ?? "")?.get(p) ?? 0;
     const owner = ownerOf(p);
     const last = i === route.length - 1;
-    const enemy = owner !== null && !allied(view, owner, army.owner);
+    const enemy =
+      owner !== null &&
+      !allied(view, owner, army.owner) &&
+      !(i === 0 && army.turned);
     const fight = mine && (enemy || (!courier && last && owner !== army.owner));
     const does = !mine
       ? ""

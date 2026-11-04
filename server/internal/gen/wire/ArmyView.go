@@ -24,6 +24,7 @@ type ArmyViewT struct {
 	HomeSlot    byte         `json:"home_slot"`
 	DestPlanet  string       `json:"dest_planet"`
 	DestSlot    byte         `json:"dest_slot"`
+	Turned      bool         `json:"turned"`
 }
 
 func (t *ArmyViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -98,6 +99,7 @@ func (t *ArmyViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	ArmyViewAddHomeSlot(builder, t.HomeSlot)
 	ArmyViewAddDestPlanet(builder, destPlanetOffset)
 	ArmyViewAddDestSlot(builder, t.DestSlot)
+	ArmyViewAddTurned(builder, t.Turned)
 	return ArmyViewEnd(builder)
 }
 
@@ -129,6 +131,7 @@ func (rcv *ArmyView) UnPackTo(t *ArmyViewT) {
 	t.HomeSlot = rcv.HomeSlot()
 	t.DestPlanet = string(rcv.DestPlanet())
 	t.DestSlot = rcv.DestSlot()
+	t.Turned = rcv.Turned()
 }
 
 func (rcv *ArmyView) UnPack() *ArmyViewT {
@@ -405,8 +408,20 @@ func (rcv *ArmyView) MutateDestSlot(n byte) bool {
 	return rcv._tab.MutateByteSlot(36, n)
 }
 
+func (rcv *ArmyView) Turned() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(38))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *ArmyView) MutateTurned(n bool) bool {
+	return rcv._tab.MutateBoolSlot(38, n)
+}
+
 func ArmyViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(17)
+	builder.StartObject(18)
 }
 func ArmyViewAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -464,6 +479,9 @@ func ArmyViewAddDestPlanet(builder *flatbuffers.Builder, destPlanet flatbuffers.
 }
 func ArmyViewAddDestSlot(builder *flatbuffers.Builder, destSlot byte) {
 	builder.PrependByteSlot(16, destSlot, 0)
+}
+func ArmyViewAddTurned(builder *flatbuffers.Builder, turned bool) {
+	builder.PrependBoolSlot(17, turned, false)
 }
 func ArmyViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

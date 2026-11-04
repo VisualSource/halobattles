@@ -12,6 +12,7 @@ import {
   allyPlanet,
   type createMatchStore,
   type PlanetView,
+  routeOwner,
 } from "../match/store";
 import { formatAge } from "../match/time";
 import { hash, PLANET_RADIUS, planetModel, UNSEEN } from "./planet-model";
@@ -506,16 +507,7 @@ export class GalaxyScene {
       view && from && hovered
         ? route(
             this.orders.lanes,
-            // What the player knows: live, else as last seen, else neutral.
-            // A Teammate's Planet is passed as your own, as on the server.
-            (id) => {
-              const live = view.planets.get(id);
-              const owner = live
-                ? live.owner
-                : (this.stores.local.getState().lastSeen.get(id)?.planet
-                    .owner ?? null);
-              return allied(view, owner, view.you) ? view.you : owner;
-            },
+            (id) => routeOwner(view, this.stores.local.getState().lastSeen, id),
             view.you,
             from,
             hovered,

@@ -402,6 +402,47 @@ func TestACourierReorderedOnTheLastHopIntoACapturedDestinationStillGetsThrough(t
 	}
 }
 
+func TestCallingACourierBackTheTickItsDestinationIsCapturedStillGetsItHome(t *testing.T) {
+	s, c := courierCase(t)
+	s.Planets["b"].Owner = 0
+	holdTech(s, "b", 0)
+	if err := s.SendTech(c, 0, "base:drill", "b", 0); err != nil {
+		t.Fatal(err)
+	}
+	a := s.Armies[s.LastID]
+	s.Advance(c, 10_000)
+	s.capture(s.Planets["b"], 1, &Events{})
+	if err := s.ReorderCourier(c, 0, a.ID, "a", 2); err != nil { // before the next tick
+		t.Fatal(err)
+	}
+	s.Advance(c, 30_000)
+	s.Advance(c, 60_000)
+	wantDrillHome(t, s, a)
+}
+
+func TestACourierIsRefusedARouteThroughAnEnemyPlanet(t *testing.T) {
+	s, c := courierCase(t)
+	s.Planets["b"].Owner = 1
+	before := s.Players[0].Resources["base:credits"]
+	if err := s.SendTech(c, 0, "base:drill", "c", 0); err == nil {
+		t.Fatal("sent through an enemy Planet")
+	}
+	if got := s.Players[0].Resources["base:credits"]; got != before || len(s.Armies) != 0 {
+		t.Errorf("Credits %d, want %d; Armies %v", got, before, s.Armies)
+	}
+
+	s.Planets["b"].Owner = Neutral
+	a := sent(t, s, c)
+	s.Advance(c, 31_000) // on its way from b to c
+	s.Planets["b"].Owner = 1
+	if err := s.ReorderCourier(c, 0, a.ID, "a", 2); err == nil {
+		t.Error("re-ordered back through an enemy Planet")
+	}
+	if a.Courier.Dest != (LabRef{"c", 0}) {
+		t.Errorf("Dest %+v, want it still c", a.Courier.Dest)
+	}
+}
+
 func TestACourierOnTheLastHopHomeWhenItsCapturedLosesTheTech(t *testing.T) {
 	s, c := courierCase(t)
 	s.Planets["a"].Techs[2] = []string{"base:drill"}

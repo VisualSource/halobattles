@@ -134,8 +134,13 @@ destSlot():number {
   return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
 }
 
+turned():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 38);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startArmyView(builder:flatbuffers.Builder) {
-  builder.startObject(17);
+  builder.startObject(18);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -230,12 +235,16 @@ static addDestSlot(builder:flatbuffers.Builder, destSlot:number) {
   builder.addFieldInt8(16, destSlot, 0);
 }
 
+static addTurned(builder:flatbuffers.Builder, turned:boolean) {
+  builder.addFieldInt8(17, +turned, +false);
+}
+
 static endArmyView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createArmyView(builder:flatbuffers.Builder, id:number, owner:number, unitsOffset:flatbuffers.Offset, fromOffset:flatbuffers.Offset, toOffset:flatbuffers.Offset, departed:bigint, arrives:bigint, waiting:boolean, destinationOffset:flatbuffers.Offset, toStack:number, pathOffset:flatbuffers.Offset, raid:boolean, techOffset:flatbuffers.Offset, homePlanetOffset:flatbuffers.Offset, homeSlot:number, destPlanetOffset:flatbuffers.Offset, destSlot:number):flatbuffers.Offset {
+static createArmyView(builder:flatbuffers.Builder, id:number, owner:number, unitsOffset:flatbuffers.Offset, fromOffset:flatbuffers.Offset, toOffset:flatbuffers.Offset, departed:bigint, arrives:bigint, waiting:boolean, destinationOffset:flatbuffers.Offset, toStack:number, pathOffset:flatbuffers.Offset, raid:boolean, techOffset:flatbuffers.Offset, homePlanetOffset:flatbuffers.Offset, homeSlot:number, destPlanetOffset:flatbuffers.Offset, destSlot:number, turned:boolean):flatbuffers.Offset {
   ArmyView.startArmyView(builder);
   ArmyView.addId(builder, id);
   ArmyView.addOwner(builder, owner);
@@ -254,6 +263,7 @@ static createArmyView(builder:flatbuffers.Builder, id:number, owner:number, unit
   ArmyView.addHomeSlot(builder, homeSlot);
   ArmyView.addDestPlanet(builder, destPlanetOffset);
   ArmyView.addDestSlot(builder, destSlot);
+  ArmyView.addTurned(builder, turned);
   return ArmyView.endArmyView(builder);
 }
 
@@ -275,7 +285,8 @@ unpack(): ArmyViewT {
     this.homePlanet(),
     this.homeSlot(),
     this.destPlanet(),
-    this.destSlot()
+    this.destSlot(),
+    this.turned()
   );
 }
 
@@ -298,6 +309,7 @@ unpackTo(_o: ArmyViewT): void {
   _o.homeSlot = this.homeSlot();
   _o.destPlanet = this.destPlanet();
   _o.destSlot = this.destSlot();
+  _o.turned = this.turned();
 }
 }
 
@@ -319,7 +331,8 @@ constructor(
   public homePlanet: string|Uint8Array|null = null,
   public homeSlot: number = 0,
   public destPlanet: string|Uint8Array|null = null,
-  public destSlot: number = 0
+  public destSlot: number = 0,
+  public turned: boolean = false
 ){}
 
 
@@ -350,7 +363,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     homePlanet,
     this.homeSlot,
     destPlanet,
-    this.destSlot
+    this.destSlot,
+    this.turned
   );
 }
 }

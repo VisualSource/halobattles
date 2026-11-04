@@ -364,6 +364,7 @@ describe("MatchConnection", () => {
             homeSlot: 0,
             destPlanet: "",
             destSlot: 0,
+            turned: false,
           },
         ],
       ]),
@@ -1110,6 +1111,7 @@ describe("MatchConnection", () => {
       homeSlot: 2,
       destPlanet: "c",
       destSlot: 1,
+      turned: false,
     });
 
     conn.sendTech("base:radar", "c", 1);

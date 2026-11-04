@@ -217,6 +217,7 @@ const toArmy = (a: ArmyViewT): Army => ({
   homeSlot: a.homeSlot,
   destPlanet: str(a.destPlanet),
   destSlot: a.destSlot,
+  turned: a.turned,
 });
 
 const side = (n: number): Side => (n === 0 ? "attacker" : "defender");

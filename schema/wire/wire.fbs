@@ -446,6 +446,9 @@ table ArmyView {
   home_slot: ubyte;
   dest_planet: string;
   dest_slot: ubyte;
+  // Own only: a Courier's `to` is the captured Planet it's turned back from,
+  // which it just leaves.
+  turned: bool;
 }
 
 // A Battle's grid: one Terrain index and one height level per cell, row by

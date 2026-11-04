@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
 import type { MatchConnection } from "./connection";
@@ -5,13 +6,12 @@ import { isPending } from "./local";
 import { LabRows } from "./research";
 import { CostIcons } from "./resources";
 import { laneTimes, route } from "./route";
-import { allied } from "./store";
+import { routeOwner } from "./store";
 import { labs, otherLabs } from "./tech";
 import { useMatchNow } from "./time";
 import {
   besidePlanet,
   Floating,
-  knownOwner,
   label,
   planetNameOn,
   windowTitle,
@@ -38,15 +38,22 @@ export function MoveTechWindow(props: {
   const pending = useStore(conn.local, (s) => isPending(s, "courier"));
   const now = useMatchNow(conn.local);
   const map = view && content.maps.get(view.map);
-  if (!moving || !view || !map || view.spectating) return null;
-  const { tech } = moving;
   const army =
-    moving.army === undefined ? undefined : view.armies.get(moving.army);
+    moving?.army === undefined ? undefined : view?.armies.get(moving.army);
   const from = army
     ? army.to
-    : labs(content, view).find((l) => l.holds.includes(tech))?.planet;
+    : view &&
+      labs(content, view).find((l) => l.holds.includes(moving?.tech ?? ""))
+        ?.planet;
   // Landed, lost or gone: this picker's price would be out of date.
-  if (!from || (moving.army !== undefined && !army)) return null;
+  const stale =
+    !!moving && !!view && (!from || (moving.army !== undefined && !army));
+  useEffect(() => {
+    if (stale) conn.local.setState({ moving: null });
+  }, [stale, conn]);
+  if (!moving || !view || !map || view.spectating || !from || stale)
+    return null;
+  const { tech } = moving;
 
   const close = () => conn.local.setState({ moving: null });
   const name = content.techs.get(tech)?.name ?? tech;
@@ -59,12 +66,13 @@ export function MoveTechWindow(props: {
   );
   const lanes = laneTimes(map, content.rules);
   const planetName = (id: string) => planetNameOn(map, id);
-  // A Teammate's Planet is passed as your own, as on the server.
-  const owner = (id: string) => {
-    const o = knownOwner(view, lastSeen, id);
-    return allied(view, o, view.you) ? view.you : o;
+  const owner = (id: string) => routeOwner(view, lastSeen, id);
+  // The server refuses a route into a Planet you know is an enemy's.
+  const enemy = (id: string) => ![null, view.you].includes(owner(id));
+  const trip = (to: string) => {
+    const t = route(lanes, owner, view.you, from, to);
+    return t && !t.path.slice(1).some(enemy) ? t : null;
   };
-  const trip = (to: string) => route(lanes, owner, view.you, from, to);
   // A Courier finishes its Lane hop first.
   const hop = army && !army.waiting ? army.arrives - now : 0;
   const locked = !army && view.planets.get(from)?.locked;
@@ -104,7 +112,7 @@ export function MoveTechWindow(props: {
           planetName={planetName}
           time={(l) => {
             const t = trip(l.planet);
-            return t ? duration(hop + t.ms) : "no route";
+            return t ? duration(hop + t.ms) : "no safe route";
           }}
           onPick={(l) => {
             if (army) conn.reorderCourier(army.id, l.planet, l.slot);

@@ -97,9 +97,9 @@ func (s *State) SendTech(c *cs.Content, seat int, tech, toPlanet string, toSlot 
 	case free < 1:
 		return errors.New("that Lab has no free Tech Slot")
 	}
-	route, _, ok := Route(s.Lanes, s.ownerFor(seat), seat, home.Planet, toPlanet)
-	if !ok {
-		return fmt.Errorf("no route from %s to %s", home.Planet, toPlanet)
+	route, err := s.courierRoute(seat, home.Planet, toPlanet)
+	if err != nil {
+		return err
 	}
 	cost := c.Rulesets[RulesetID].TechTransferCost[string(c.Techs[tech].Rarity)]
 	for r, n := range cost {
@@ -126,6 +126,17 @@ func (s *State) SendTech(c *cs.Content, seat int, tech, toPlanet string, toSlot 
 	return nil
 }
 
+// courierRoute is the route a new order gives a Courier, refused if it would
+// enter an enemy's Planet. from itself isn't entered: a turned-back Courier
+// can be leaving one.
+func (s *State) courierRoute(seat int, from, to string) ([]string, error) {
+	route, _, ok := Route(s.Lanes, s.ownerFor(seat), seat, from, to)
+	if !ok || slices.ContainsFunc(route[1:], func(id string) bool { return !s.passable(seat, s.Planets[id]) }) {
+		return nil, fmt.Errorf("no safe route from %s to %s", from, to)
+	}
+	return route, nil
+}
+
 // ReorderCourier sends a Courier to another of seat's Labs with a free Tech
 // Slot, or back to the one it left, which calls the move off. The cost isn't
 // refunded. Like ReorderArmy, it finishes its current Lane hop first.
@@ -142,9 +153,9 @@ func (s *State) ReorderCourier(c *cs.Content, seat int, id uint32, toPlanet stri
 	case free < 1 && to != a.Courier.Home && to != a.Courier.Dest:
 		return errors.New("that Lab has no free Tech Slot")
 	}
-	route, _, ok := Route(s.Lanes, s.ownerFor(seat), seat, a.To, toPlanet)
-	if !ok {
-		return fmt.Errorf("no route to %s", toPlanet)
+	route, err := s.courierRoute(seat, a.To, toPlanet)
+	if err != nil {
+		return err
 	}
 	a.Courier.Dest = to
 	a.redirect(route, s.Lanes, s.Time)
@@ -165,6 +176,9 @@ func (s *State) courierLabLost(lab LabRef) {
 			co.Home = LabRef{}
 		}
 		if co.Dest == lab {
+			if len(a.Path) == 0 {
+				co.Turned = lab.Planet // now: a re-order before moveCourier mustn't lose it
+			}
 			if co.Dest = co.Home; co.Dest.Planet == "" {
 				s.loseCourier(a)
 			}
@@ -189,9 +203,6 @@ func (s *State) moveCourier(c *cs.Content, a *Army, now int64) {
 		co.Turned = "" // left it
 	}
 	if dest := co.Dest.Planet; dest != a.destination() {
-		if len(a.Path) == 0 {
-			co.Turned = a.To
-		}
 		route, _, ok := Route(s.Lanes, s.ownerFor(a.Owner), a.Owner, a.To, dest)
 		if !ok {
 			s.loseCourier(a)
