@@ -4,6 +4,8 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ## Unreleased
 
+## 0.5.0 - 2026-11-03
+
 ### Added
 
 - Raids: drag a Stack of raiders (scouts, infiltrators and shock troops, up to 10 Command Points) onto a Planet's raid slot to send it after the buildings there. Nobody else sees a Raid coming. The raiders have 100 s to destroy every building, then head home; the Planet never changes hands, but what they destroy stays destroyed. A Raid that finds no buildings turns back, and tells you so.
