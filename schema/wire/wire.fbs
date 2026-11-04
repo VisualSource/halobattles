@@ -409,7 +409,7 @@ table BattleSquad {
   goal_x: ushort;
   goal_y: ushort;
   target: ushort;          // your own squads': the enemy it was told to attack, or 0
-  dropship: bool;          // a Dropship in flight: it can't be fired on, and both sides see it
+  dropship: bool;          // a Dropship in flight: only anti-air can fire on it, and both sides see it
 }
 
 enum DropState : ubyte { Orbit = 0, Flying = 1, Done = 2 }

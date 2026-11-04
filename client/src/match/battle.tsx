@@ -706,7 +706,9 @@ function Reinforcements(props: {
           const at = d.point === null ? "" : `LZ ${POINT_NAMES[d.point]}`;
           const note =
             d.state === "done"
-              ? "landed · can't land again this Battle"
+              ? d.units > 0
+                ? "landed · can't land again this Battle"
+                : "shot down"
               : d.state === "flying"
                 ? `landing at ${at}`
                 : !held

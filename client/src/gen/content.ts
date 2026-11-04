@@ -640,9 +640,9 @@ export interface Unit {
    */
   trainable?: boolean;
   /**
-   * Hints for the Battle AI: which roles it picks this unit for first. A scout roams to look and falls back from the enemy; a skirmisher patrols between points and hunts what it's good against. A scout, infiltration or shock unit can Raid.
+   * Hints for the Battle AI: which roles it picks this unit for first. A scout roams to look and falls back from the enemy; a skirmisher patrols between points and hunts what it's good against. A scout, infiltration or shock unit can Raid. Only an aa unit can fire on a Dropship.
    */
-  roles?: ("scout" | "skirmisher" | "infiltration" | "shock")[];
+  roles?: ("scout" | "skirmisher" | "infiltration" | "shock" | "aa")[];
   /**
    * A Dropship: the Command Points of units it lands in a Battle already under way, once a Battle. It never fires.
    */
@@ -756,6 +756,10 @@ export interface Building {
    * Items: A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   trains?: string[];
+  /**
+   * An aa building can fire on a Dropship.
+   */
+  roles?: "aa"[];
   /**
    * Can be built on a build pad in Battle, lasting only that Battle. Needs a combat block.
    */

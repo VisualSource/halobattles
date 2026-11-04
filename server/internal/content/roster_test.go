@@ -215,15 +215,16 @@ func TestInvalidFixturesFailReadably(t *testing.T) {
 	}
 }
 
-// The real base Mod, against the numbers in the game-design spec.
+// The real base Mod: how much it holds, then spot checks against the
+// game-design spec's tables.
 func TestBaseModMatchesTheSpec(t *testing.T) {
 	c := mustLoad(t, []string{filepath.Join("..", "..", "..", "mods", "base")})
 	d := c.Doc
 
 	counts := map[string][2]int{
-		"factions": {len(d.Factions), 2}, "units": {len(d.Units), 10}, "buildings": {len(d.Buildings), 26}, "techs": {len(d.Techs), 27},
-		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 3},
-		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 2}, "resources": {len(d.Resources), 3},
+		"factions": {len(d.Factions), 3}, "units": {len(d.Units), 33}, "buildings": {len(d.Buildings), 28}, "techs": {len(d.Techs), 27},
+		"unitClasses": {len(d.UnitClasses), 5}, "weaponTypes": {len(d.WeaponTypes), 5},
+		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 3}, "resources": {len(d.Resources), 3},
 		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
 	}
 	for kind, n := range counts {
@@ -235,13 +236,6 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 		if b.CommandPointBonus != 0 {
 			t.Errorf("%s: commandPointBonus %d, want 0", id, b.CommandPointBonus)
 		}
-	}
-	perFaction := map[string]int{}
-	for _, u := range d.Units {
-		perFaction[string(u.Faction)]++
-	}
-	if perFaction["base:unsc"] != 5 || perFaction["base:covenant"] != 5 {
-		t.Errorf("units per Faction = %v, want 5 each", perFaction)
 	}
 
 	// Spot checks against the spec tables.

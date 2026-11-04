@@ -141,7 +141,7 @@ What players call a Control Point: a spot the two sides fight over, where (once 
 _Avoid_: Drop zone, LZ in docs, beachhead
 
 **Dropship**:
-A unit unlocked by a Tech that carries an Army's units into a Battle already running, as reinforcements: it flies them to a Landing Zone its side holds, once a Battle, and never fights. The UNSC's is the Pelican, the Covenant's the Phantom.
+A unit unlocked by a Tech that carries an Army's units into a Battle already running, as reinforcements: it flies them to a Landing Zone its side holds, once a Battle, and never fires, though anti-air can shoot it down. The UNSC's is the Pelican, the Covenant's the Phantom.
 _Avoid_: Transport, Pelican/Phantom as the generic term (those are Faction units)
 
 **Battlefield Archetype**:

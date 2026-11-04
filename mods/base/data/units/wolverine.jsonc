@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../schema/content/unit.schema.json",
+  "id": "wolverine",
+  "name": "M9 Wolverine",
+  "faction": "unsc",
+  "description": "The UNSC's anti-air vehicle: twin missile pods on a tracked hull. Strong against aircraft, weak against everything else, and it can shoot down Dropships.",
+  "cost": { "credits": 200, "materials": 80, "alloys": 25 },
+  "upkeep": { "credits": 20, "alloys": 2 },
+  "buildTime": 40,
+  "commandPoints": 3,
+  "roles": ["aa"],
+  "combat": {
+    "unitClass": "vehicle",
+    "weaponType": "explosive",
+    "shield": 0,
+    "armor": 25,
+    "hp": 30,
+    "damage": "3d6",
+    "range": 9,
+    "tiers": { "infantry": "disadvantage", "vehicle": "disadvantage", "aircraft": "advantage", "structure": "disadvantage" }
+  }
+}

@@ -25,8 +25,8 @@ export function canRaid(
   let cp = 0;
   for (const u of units) {
     const def = content.units.get(u.unit);
-    if (!def?.roles?.some((r) => content.rules.battle.raidRoles.includes(r)))
-      return false;
+    const raiders: string[] = content.rules.battle.raidRoles;
+    if (!def?.roles?.some((r) => raiders.includes(r))) return false;
     cp += def.commandPoints * u.count;
   }
   return cp <= content.rules.battle.raidCap;

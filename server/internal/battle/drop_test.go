@@ -101,3 +101,70 @@ func TestACommandingPlayerSendsADropshipAtOnceAndOnlyOnce(t *testing.T) {
 		t.Error("a Dropship already used could land again")
 	}
 }
+
+// flying is a dropSim with its Pelican in the air, over a defending AA Wraith
+// and Grunt, the Battle's fighting under way.
+func flying(t *testing.T) (s *Sim, ship, aa, grunt *Squad) {
+	t.Helper()
+	s = dropSim(t)
+	s.Setup = 0
+	s.Points[0].Owner = Attacker
+	s.launch(0, 0)
+	ship = s.squad(s.Drops[0].Squad)
+	s.addUnit(Defender, 0, Slot{"base:wraith-aa", 1, 0}, ship.Cell)
+	aa = s.Squads[len(s.Squads)-1]
+	s.addUnit(Defender, 0, Slot{"base:grunt", 1, 0}, ship.Cell)
+	grunt = s.Squads[len(s.Squads)-1]
+	s.see()
+	return s, ship, aa, grunt
+}
+
+func TestOnlyAntiAirFiresOnADropship(t *testing.T) {
+	s, ship, aa, grunt := flying(t)
+	if !s.canHit(aa, ship) {
+		t.Error("an aa unit in range can't hit the Dropship")
+	}
+	if s.canHit(grunt, ship) {
+		t.Error("a Grunt can hit the Dropship")
+	}
+	if !s.antiAir(&Squad{Building: true, Unit: "base:aa-turret"}) {
+		t.Error("an AA turret isn't anti-air")
+	}
+	if s.antiAir(&Squad{Building: true, Unit: "base:turret"}) {
+		t.Error("a plain Turret is anti-air")
+	}
+}
+
+func TestAntiAirPicksADropshipFirst(t *testing.T) {
+	s, ship, aa, _ := flying(t)
+	s.addUnit(Attacker, 0, Slot{"base:marine", 1, 0}, aa.Cell)
+	s.see()
+	aa.target = s.Squads[len(s.Squads)-1].ID
+	if got := s.targetOf(aa); got != ship {
+		t.Errorf("target = %+v, want the Dropship, over its ordered target", got)
+	}
+}
+
+func TestADamagedDropshipLandsThatShareOfItsTroops(t *testing.T) {
+	s, ship, _, _ := flying(t)
+	ship.Members[0] = Layers{Armor: 10, HP: 20} // half of a Pelican's 60
+	s.unload(0)
+	n := 0
+	for _, sq := range s.Squads {
+		if sq.Drop == 1 && !sq.Dropship {
+			n += len(sq.Members)
+		}
+	}
+	if n != 2 || s.Drops[0].TroopCount() != 2 {
+		t.Errorf("%d landed, cargo %d; want 2 of its 4 Marines", n, s.Drops[0].TroopCount())
+	}
+}
+
+func TestADropshipShotDownLosesEverythingAboard(t *testing.T) {
+	s, ship, _, _ := flying(t)
+	ship.Members = nil
+	s.Step()
+	if d := s.Drops[0]; d.State != Done || d.TroopCount() != 0 {
+		t.Errorf("drop %+v; want it gone with its troops", d)
+	}
+}

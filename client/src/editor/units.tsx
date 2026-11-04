@@ -1,9 +1,11 @@
+import { cn } from "cn";
 import type { ReactNode } from "react";
 import type { ContentLookups } from "../content";
 import type { Unit } from "../gen/content";
 import { average } from "../match/threat";
 import { UnitInfo } from "../match/units";
 import { UnitCard } from "../match/windows";
+import { MultiSelect } from "../ui/select";
 import {
   Choice,
   type Content,
@@ -31,6 +33,14 @@ const TIERS = [
   { id: "disadvantage", name: "Weak", className: "bg-danger-wash text-danger" },
   { id: "none", name: "Can't hit", className: "bg-raised text-ink-3" },
 ] as const;
+type Role = NonNullable<Unit["roles"]>[number];
+const ROLES: { value: Role; label: string }[] = [
+  { value: "scout", label: "Scout" },
+  { value: "skirmisher", label: "Skirmisher" },
+  { value: "infiltration", label: "Infiltration" },
+  { value: "shock", label: "Shock" },
+  { value: "aa", label: "Anti-air" },
+];
 const DICE = /^[1-9][0-9]*d[1-9][0-9]*(\+[0-9]+)?$/;
 
 const blank = (): Unit => ({
@@ -222,7 +232,6 @@ export function UnitsPage(props: {
         const setC = (f: (c: Unit["combat"]) => Unit["combat"]) =>
           set((x) => ({ ...x, combat: f(x.combat) }));
         const d = defaults(c.unitClass);
-        const roles = new Set(u.roles ?? []);
         const parent = parentOf(u);
         /** A field's name, marked when it overrides the parent, with a reset. */
         const inh = (name: string, path: string[]) => {
@@ -233,6 +242,7 @@ export function UnitsPage(props: {
             reset: () => set((x) => resetAt(x, parent as never, path)),
           };
         };
+        const rolesField = inh("Roles", ["roles"]);
         return (
           <>
             <Section title="Unit">
@@ -305,34 +315,22 @@ export function UnitsPage(props: {
                   </select>
                 </Field>
                 <div className="flex flex-col gap-0.5">
-                  <span className={label}>
-                    {inh("AI roles", ["roles"]).name}
+                  <span className={cn(label, "flex items-center gap-1")}>
+                    {rolesField.name}
+                    {rolesField.reset && <Reset onClick={rolesField.reset} />}
                   </span>
-                  <span className="flex h-7 items-center gap-3">
-                    {(["scout", "skirmisher"] as const).map((r) => (
-                      <label
-                        key={r}
-                        className="flex items-center gap-1.5 text-[13px] capitalize"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={roles.has(r)}
-                          onChange={(e) =>
-                            set((x) => {
-                              const next = new Set(x.roles ?? []);
-                              if (e.target.checked) next.add(r);
-                              else next.delete(r);
-                              const { roles: _, ...rest } = x;
-                              return next.size
-                                ? { ...rest, roles: [...next] }
-                                : rest;
-                            })
-                          }
-                        />
-                        {r}
-                      </label>
-                    ))}
-                  </span>
+                  <MultiSelect
+                    label="Roles"
+                    className="w-56"
+                    none="None"
+                    options={ROLES}
+                    value={u.roles ?? []}
+                    onChange={(picked) =>
+                      set(({ roles: _, ...x }) =>
+                        picked.length ? { ...x, roles: picked } : x,
+                      )
+                    }
+                  />
                 </div>
               </div>
               <Field {...inh("Description", ["description"])}>

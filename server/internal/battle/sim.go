@@ -65,7 +65,7 @@ type Squad struct {
 	Escaped         bool     // it Retreated off the field, keeping its Members
 	OnPad           int      // a pad turret: its pad's index + 1; it isn't a Planet building
 	CommandPost     bool     // the defender's Command Post: destroying it wins; it isn't a Planet building
-	Dropship        bool     // a Dropship in flight: it never fires, can't be fired on, and both sides see it
+	Dropship        bool     // a Dropship in flight: it never fires, only anti-air can fire on it, and both sides see it
 	Drop            int      // landed by a Dropship, or one: its Drop's index + 1; 0 for the rest
 
 	class                  string
@@ -514,6 +514,7 @@ func (s *Sim) Step() []Volley {
 	s.move()
 	s.see()
 	volleys := s.fire()
+	s.shotDown()
 	s.capture()
 	s.Tick++
 	if !s.setup() {
@@ -833,7 +834,7 @@ func (s *Sim) tier(actor, target *Squad) string {
 }
 
 func (s *Sim) canHit(actor, target *Squad) bool {
-	if !target.alive() || target.Dropship || target.Side == actor.Side || !s.visible[actor.Side][target.ID] || s.tier(actor, target) == None {
+	if !target.alive() || target.Dropship && !s.antiAir(actor) || target.Side == actor.Side || !s.visible[actor.Side][target.ID] || s.tier(actor, target) == None {
 		return false
 	}
 	d := dist(actor.Cell, target.Cell)
@@ -843,8 +844,12 @@ func (s *Sim) canHit(actor, target *Squad) bool {
 // targetOf is the ordered target if it can be hit, or else the visible enemy
 // in range that fires back (an armed one) before one that doesn't, then with
 // the best tier, then one its side has hit lately (focus fire), then the
-// fewest members left, then the nearest, then the lowest id.
+// fewest members left, then the nearest, then the lowest id. A Dropship in
+// reach of anti-air comes before all of that.
 func (s *Sim) targetOf(sq *Squad) *Squad {
+	if t := s.dropshipFor(sq); t != nil {
+		return t
+	}
 	if t := s.squad(sq.target); t != nil && s.canHit(sq, t) {
 		return t
 	}

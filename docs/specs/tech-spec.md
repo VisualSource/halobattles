@@ -174,7 +174,7 @@ A draft for review. Requirements in parentheses; "UNSC" units below means the ho
 |---|---|---|---|
 | Refining | Industry | Common | unlocks Foundry / Forge |
 | Expanded Storage | Industry | Common | unlocks Depot / Reliquary |
-| Fortifications | Military | Uncommon | unlocks Turret / Plasma Turret |
+| Fortifications | Military | Uncommon | unlocks Turret / Plasma Turret, AA Turret / AA Plasma Turret |
 | Deep Core Extraction | Industry | Uncommon | +15% extractor yields |
 | Research Networks | Logistics | Rare | +15% Research, every field |
 | Efficient Supply Lines | Logistics | Rare | −10% Upkeep, units and buildings |
@@ -188,7 +188,7 @@ A draft for review. Requirements in parentheses; "UNSC" units below means the ho
 | Hog Wild | Military | Common (Motor Pool) | unlocks Warthog |
 | Marine Training Program | Military | Common | +10% Infantry HP |
 | ONI Data Mining | Industry | Common | +1 Industry Research |
-| Main Battle Tank | Military | Uncommon (Motor Pool) | unlocks Scorpion |
+| Main Battle Tank | Military | Uncommon (Motor Pool) | unlocks Scorpion, M9 Wolverine |
 | Air Wing | Military | Uncommon (Motor Pool) | unlocks Air Pad, Hornet |
 | Pelican Dropship | Military | Rare (Air Wing) | unlocks Pelican, which lands troops in a Battle under way |
 | Titanium-A Plating | Military | Uncommon | +10% Vehicle and Aircraft Armor |
@@ -203,7 +203,7 @@ A draft for review. Requirements in parentheses; "UNSC" units below means the ho
 | Ghost Fabrication | Military | Common (Summoning Foundry) | unlocks Ghost |
 | Unggoy Conscription | Military | Common | −10% Infantry build time |
 | San'Shyuum Archives | Industry | Common | +1 Industry Research |
-| Wraith Fabrication | Military | Uncommon (Summoning Foundry) | unlocks Wraith |
+| Wraith Fabrication | Military | Uncommon (Summoning Foundry) | unlocks Wraith, AA Wraith |
 | Banshee Flight | Military | Uncommon (Ghost Fabrication) | unlocks Summit, Banshee |
 | Phantom Dropship | Military | Rare (Banshee Flight) | unlocks Phantom, which lands troops in a Battle under way |
 | Shield Harmonics | Military | Uncommon | +10% Shield, every unit |

@@ -314,6 +314,9 @@ type Building struct {
 	// Planet.
 	Research map[string]int `json:"research,omitempty,omitzero"`
 
+	// An aa building can fire on a Dropship.
+	Roles []BuildingRolesElem `json:"roles,omitempty,omitzero"`
+
 	// Raises its owner's Stockpile caps.
 	Storage map[string]int `json:"storage,omitempty,omitzero"`
 
@@ -329,6 +332,10 @@ type Building struct {
 	// Paid at each Payday.
 	Yield map[string]int `json:"yield"`
 }
+
+type BuildingRolesElem string
+
+const BuildingRolesElemAa BuildingRolesElem = "aa"
 
 // A Unit Class's default Battle stats.
 type ClassStats struct {
@@ -1271,7 +1278,7 @@ type Unit struct {
 	// Hints for the Battle AI: which roles it picks this unit for first. A scout
 	// roams to look and falls back from the enemy; a skirmisher patrols between
 	// points and hunts what it's good against. A scout, infiltration or shock unit
-	// can Raid.
+	// can Raid. Only an aa unit can fire on a Dropship.
 	Roles []UnitRolesElem `json:"roles,omitempty,omitzero"`
 
 	// The most of this unit one Unit Slot holds; more take another slot. Unset is no
@@ -1327,6 +1334,7 @@ const UnitClassTaskForceRoleLead UnitClassTaskForceRole = "lead"
 
 type UnitRolesElem string
 
+const UnitRolesElemAa UnitRolesElem = "aa"
 const UnitRolesElemInfiltration UnitRolesElem = "infiltration"
 const UnitRolesElemScout UnitRolesElem = "scout"
 const UnitRolesElemShock UnitRolesElem = "shock"

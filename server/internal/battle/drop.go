@@ -1,12 +1,17 @@
 package battle
 
-import "slices"
+import (
+	"math"
+	"slices"
+
+	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
+)
 
 // Reinforcements (#57): a Dropship over the Battle, waiting in orbit until
 // it's sent to a Landing Zone its side holds, by a commanding player or, after
 // the Ruleset's landingDelay, by the sim. It flies in from the corner opposite
 // the Landing Zone, drops its troops round it, and flies back out, once a
-// Battle. It never fires and can't be fired on (#100 adds anti-air).
+// Battle. It never fires; anti-air can shoot it down (#100).
 
 // DropState is where a Dropship is.
 type DropState int
@@ -138,6 +143,37 @@ func (s *Sim) dropships() {
 	}
 }
 
+// antiAir is whether sq can fire on a Dropship: a unit or building with the
+// aa role.
+func (s *Sim) antiAir(sq *Squad) bool {
+	if sq.Building {
+		return slices.Contains(s.content.Buildings[sq.Unit].Roles, cs.BuildingRolesElemAa)
+	}
+	return slices.Contains(s.content.Units[sq.Unit].Roles, cs.UnitRolesElemAa)
+}
+
+// dropshipFor is the Dropship sq should fire on, if it can hit one.
+func (s *Sim) dropshipFor(sq *Squad) *Squad {
+	for _, d := range s.Drops {
+		if d.State == Flying {
+			if t := s.squad(d.Squad); s.canHit(sq, t) {
+				return t
+			}
+		}
+	}
+	return nil
+}
+
+// shotDown ends the Drops whose Dropship died this tick, with whatever is
+// still aboard. Before the Battle can end, or the troops would go home.
+func (s *Sim) shotDown() {
+	for k := range s.Drops {
+		if d := &s.Drops[k]; d.State == Flying && !s.squad(d.Squad).alive() {
+			d.State, d.Cargo = Done, nil
+		}
+	}
+}
+
 // landingFor is the Landing Zone the sim sends side's Dropships to: the one
 // it holds nearest the Command Post, the attacker's way in and the
 // defender's home; -1 holding none, so it waits in orbit.
@@ -152,12 +188,21 @@ func (s *Sim) landingFor(side Side) int {
 	return best
 }
 
+func total(l Layers) float64 { return l.Shield + l.Armor + l.HP }
+
 // unload drops Drop k's troops round its Landing Zone: new squads, with
 // their Drop, that the side's AI takes into its plans as it next thinks.
 func (s *Sim) unload(k int) {
 	d := &s.Drops[k]
 	at := s.Points[d.Point].Cell
 	first := len(s.Squads)
+	// Troops are lost in the share the Dropship took of its Shield, Armor and HP.
+	ship := s.squad(d.Squad)
+	cb := s.content.Units[d.Unit].Combat
+	left := total(ship.Members[0]) / total(ship.layers(&cb))
+	for i := range d.Cargo {
+		d.Cargo[i].Count -= int(math.Round(float64(d.Cargo[i].Count) * (1 - left)))
+	}
 	for i, sl := range d.Cargo {
 		sl.Cell = i
 		s.addUnit(d.Side, 0, sl, at.add(along[s.Edge].scale(i%5-2)).add(inward[s.Edge].scale(i/5)))

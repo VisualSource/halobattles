@@ -7,5 +7,5 @@
   "rarity": "uncommon",
   "cost": 600,
   "requires": { "techs": ["summoning-foundry"] },
-  "unlocks": { "units": ["wraith"] }
+  "unlocks": { "units": ["wraith", "wraith-aa"] }
 }

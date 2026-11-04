@@ -549,21 +549,24 @@ A player can command their side of a Battle instead of the AI (#92). The AI then
 
 Late game: an Army can join a Battle already running (#57). Built.
 
-- **The Dropship:** a UNSC **Pelican** or a Covenant **Phantom**, unlocked by a Rare Tech (Pelican Dropship after Air Wing, trained at the Air Pad; Phantom Dropship after Banshee Flight, trained at the Summit). It has a `carry` capacity in Command Points (12 each for now), and combat stats for anti-air later (#100), but it never fires.
+- **The Dropship:** a UNSC **Pelican** or a Covenant **Phantom**, unlocked by a Rare Tech (Pelican Dropship after Air Wing, trained at the Air Pad; Phantom Dropship after Banshee Flight, trained at the Summit). It has a `carry` capacity in Command Points (12 each for now), and combat stats, because anti-air can shoot it down, but it never fires.
 - **Who lands:** an Army with a Dropship ending its move at a Planet Locked by a Battle in which its owner or a Teammate is a side. One only passing through waits, as now, and keeps its order. Battles stay one player against one: anyone else waits, as now, and so does an Army with no Dropship. What fits in the Dropships lands; the rest waits in orbit.
 - **Raids:** only the defender can reinforce one; raiders can't.
 - **Only at a Landing Zone** the side holds. A side holding none keeps its reinforcements in orbit until it takes one.
 - **Once a Battle:** each Dropship lands troops once per Battle. After it flies out it waits in orbit, and can't land again until the next Battle; units it couldn't carry wait with it. (This feeds picking which units to land, #102.)
-- **The flight:** the Dropship enters the field at the corner opposite the Landing Zone and flies there, over everything; it drops its units round the Landing Zone and flies back out the way it came. It can't be targeted yet (#100 adds anti-air). Both sides see it, as a squad in flight.
+- **The flight:** the Dropship enters the field at the corner opposite the Landing Zone and flies there, over everything; it drops its units round the Landing Zone and flies back out the way it came. Both sides see it, as a squad in flight.
 - **Where:** a commanding player sees their Dropships in orbit as a list in the Battle window, and drags one onto a Landing Zone they hold to send it. Otherwise the AI sends it once it has waited `battle.landingDelay` (20 s) in orbit, so a commander has that long to choose: the attacker to the Landing Zone it holds nearest the Command Post, the defender to the one nearest its own.
 - **In the sim:** a landing is a logged input that adds the Dropship and, on touchdown, its squads; the AI takes new squads into its plans as it thinks. Each squad records the player who owns it.
+- **Anti-air** (#100): only units and buildings with the `aa` role can fire on a Dropship: the UNSC M9 Wolverine, the Covenant AA Wraith, and the AA Turret and AA Plasma Turret, Planet buildings that can also go on build pads. Each fires on a Dropship in reach before anything else, even an ordered target. This is automatic: nobody orders it, the AI doesn't chase Dropships, and a Landing Zone's holder gets no protection for now.
+  - The Dropship takes normal damage, on the way in and on the way out.
+  - At touchdown it loses the same share of each kind of troop as it has lost of its total Shield, Armor and HP, rounded to the nearest unit. A Pelican that has taken half of its 60 lands half its troops.
+  - Shot down before touchdown, everything aboard is lost. Shot down on the way out, only the ship is.
 - **Afterwards:** survivors go back to their own owners. A Teammate's Retreat home, as they can't stop on another player's Planet. The Dropship rejoins its owner's survivors, or goes home alone if none are left.
 - **Cost:** none for now, neither Resources nor Command Points. The Dropship's carry capacity is the only limit. Add a cost later if playtests show it's needed.
 - **Shown:** a Reinforcements line in the Battle window (for example "Pelican · 8 units · landing at LZ B"), the list of Dropships in orbit to drag from when you command, and a note in the Army window that it will land in the Battle. A small mockup is agreed first.
 - **Bots** don't build or use Dropships yet.
 - **Later:**
   - an orbit panel in the Battle window: pick units waiting in orbit and place them at a Landing Zone, and a Dropship flies them there (#102);
-  - anti-air shooting Dropships down (#100).
 
 ### Order of work
 
