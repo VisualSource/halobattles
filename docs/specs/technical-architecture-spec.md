@@ -324,7 +324,7 @@ React, fixed to the screen, not anchored to 3D.
   - **Out of vision:** the last-seen copy, greyed, with its age.
   - **Locked:** commands are disabled, and "Watch Battle" is offered if you are a side.
 - **Forces panel:** on the right edge, a fixed-size panel with two tabs. **Planets** lists yours. **Armies** lists your Armies on the move (destination, units, strength, seconds to arrive) and then each non-empty Stack by Planet. A click selects one, a double-click or Enter centres the map on it.
-- **Battle panel:** shows the Battlefield in a three.js orthographic top-down view inside the Battle window, with a full-screen toggle and the Retreat button ([Watching](tactical-battle-spec.md#watching)). It interpolates Squad positions between `BattleTick`s. It sits behind its own module, so a 3D Battle view can replace it later.
+- **Battle panel:** shows the Battlefield in a three.js orthographic top-down view inside the Battle window, with a full-screen toggle and the Retreat button ([Watching](tactical-battle-spec.md#watching)). It interpolates Squad positions between `BattleTick`s. With `VITE_USE_3D_BATTLE_VIEW=true` it draws the [3D view](tactical-battle-spec.md#3d-drawing) instead; both share one interface (`BattlefieldDrawing`), as the Lab's 2D / 3D switch does.
 - **Player badges:** a disconnected badge with a forfeit countdown (from `graceEndsAt`) for each player.
 - **Animating between ticks:** progress bars use CSS animations set once per change (from the current progress to 100% over the remaining ms). A paused queue freezes its bar. Countdown text (Payday, win-hold, forfeit) ticks from a 1 Hz `useMatchNow` hook.
 

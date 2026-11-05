@@ -2,6 +2,7 @@
 
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
@@ -42,6 +43,14 @@ function enabledModAssets(mods: string[]): Plugin {
   return {
     name: "enabled-mod-assets",
     enforce: "pre",
+    // ../mods is outside the root, so unwatched: an asset added there wouldn't join the glob until a restart.
+    configureServer(server) {
+      server.watcher.add(
+        mods.map((m) =>
+          fileURLToPath(new URL(`../mods/${m}/assets`, import.meta.url)),
+        ),
+      );
+    },
     transform(code, id) {
       if (!id.endsWith("/src/assets.ts")) return;
       if (!code.includes(all))

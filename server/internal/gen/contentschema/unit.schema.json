@@ -27,6 +27,7 @@
     },
     "carry": { "description": "A Dropship: the Command Points of units it lands in a Battle already under way, once a Battle. It never fires.", "type": "integer", "minimum": 1 },
     "combat": { "$ref": "defs.schema.json#/definitions/combat" },
-    "icon": { "$ref": "defs.schema.json#/definitions/asset" }
+    "icon": { "$ref": "defs.schema.json#/definitions/asset" },
+    "model": { "description": "Its 3D model in a Battle: a .glb, forward along +z, a cell 1 unit wide: one body mesh coloured by vertex colours, plus an optional mesh whose material is named trim, drawn in the side's colour. Left out, a placeholder shape.", "$ref": "defs.schema.json#/definitions/asset" }
   }
 }

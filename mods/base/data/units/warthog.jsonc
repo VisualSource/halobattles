@@ -3,6 +3,7 @@
   "id": "warthog",
   "name": "M12 Warthog",
   "faction": "unsc",
+  "model": "__base__/models/warthog.glb",
   "description": "The M12 Force Application Vehicle (M12-FAV), commonly referred to as the Warthog or simply the Hog, is a fast attack vehicle serving as the United Nations Space Command Armed Forces' primary joint light tactical ground vehicle.",
   "cost": { "credits": 150, "materials": 50, "alloys": 15 },
   "upkeep": { "credits": 15, "alloys": 1 },

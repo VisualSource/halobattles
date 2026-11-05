@@ -281,6 +281,16 @@
           "type": "null"
         }
       ]
+    },
+    "model": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/model"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   }
 }

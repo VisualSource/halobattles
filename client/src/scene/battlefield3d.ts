@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import {
   CSS2DObject,
   CSS2DRenderer,
@@ -72,12 +73,18 @@ export type BattlefieldLook3D = BattlefieldLook & {
   cover: (id: string) => number;
   /** The shape a squad is drawn as. */
   form: (sq: Squad) => Form;
+  /** Its model's URL (a .glb), drawn in place of the shape once loaded. */
+  model: (sq: Squad) => string | undefined;
 };
+
+// A model, instanced: its body in its own colours, its trim in the side's.
+type Model = { body: THREE.InstancedMesh; trim: THREE.InstancedMesh | null };
 
 // A squad as drawn: where it's moving from and to, in cells, over ms from t0.
 type Token = {
   sq: Squad;
   form: Form;
+  model: string | undefined;
   from: THREE.Vector2;
   to: THREE.Vector2;
   t0: number;
@@ -169,6 +176,9 @@ export class Battlefield3DScene implements BattlefieldDrawing {
   );
   private readonly effects: Effect[] = [];
   private readonly forms: Record<Form, THREE.InstancedMesh>;
+  // By URL; null while it loads, or if it couldn't (its squads keep their shape).
+  private readonly models = new Map<string, Model | null>();
+  private disposed = false;
   private readonly still = window.matchMedia(
     "(prefers-reduced-motion: reduce)",
   ).matches;
@@ -288,8 +298,12 @@ export class Battlefield3DScene implements BattlefieldDrawing {
     canvas.addEventListener("pointermove", this.onMove);
     canvas.addEventListener("pointerup", this.onUp);
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-    window.addEventListener("keydown", this.onKey);
-    window.addEventListener("keyup", this.onKey);
+    // On the container, so moving onto the minimap over the canvas still counts.
+    container.addEventListener("pointerenter", this.onHover);
+    container.addEventListener("pointerleave", this.onHover);
+    // Captured, so it's taken before the galaxy map under the Battle window pans too.
+    window.addEventListener("keydown", this.onKey, true);
+    window.addEventListener("keyup", this.onKey, true);
     window.addEventListener("blur", this.onBlur);
 
     this.observer = new ResizeObserver(() => this.resize());
@@ -299,11 +313,14 @@ export class Battlefield3DScene implements BattlefieldDrawing {
   }
 
   dispose() {
+    this.disposed = true;
     cancelAnimationFrame(this.frame);
     this.observer.disconnect();
-    window.removeEventListener("keydown", this.onKey);
-    window.removeEventListener("keyup", this.onKey);
+    window.removeEventListener("keydown", this.onKey, true);
+    window.removeEventListener("keyup", this.onKey, true);
     window.removeEventListener("blur", this.onBlur);
+    this.container.removeEventListener("pointerenter", this.onHover);
+    this.container.removeEventListener("pointerleave", this.onHover);
     this.scene.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.Line) {
         obj.geometry.dispose();
@@ -332,9 +349,12 @@ export class Battlefield3DScene implements BattlefieldDrawing {
       const at = new THREE.Vector2(sq.x + 0.5, sq.y + 0.5);
       const t = this.tokens.get(sq.id);
       if (!t) {
+        const model = this.look.model(sq);
+        if (model && !this.models.has(model)) this.loadModel(model);
         this.tokens.set(sq.id, {
           sq,
           form: this.look.form(sq),
+          model,
           from: at.clone(),
           to: at,
           t0: now,
@@ -1080,10 +1100,53 @@ export class Battlefield3DScene implements BattlefieldDrawing {
     this.frame = requestAnimationFrame((n) => this.tick(n));
   }
 
+  /** Loads a model: its body and trim, each instanced. */
+  private loadModel(url: string) {
+    this.models.set(url, null);
+    const instanced = (
+      geometry: THREE.BufferGeometry,
+      vertexColors: boolean,
+    ) => {
+      const m = new THREE.InstancedMesh(
+        geometry,
+        new THREE.MeshLambertMaterial({ vertexColors, flatShading: true }),
+        MAX_PER_FORM,
+      );
+      m.count = 0;
+      m.frustumCulled = false; // instances move; the base geometry's bounds don't
+      this.scene.add(m);
+      return m;
+    };
+    new GLTFLoader().load(
+      url,
+      (gltf) => {
+        if (this.disposed) return;
+        let body: THREE.InstancedMesh | null = null;
+        let trim: THREE.InstancedMesh | null = null;
+        gltf.scene.updateMatrixWorld();
+        gltf.scene.traverse((o) => {
+          if (!(o instanceof THREE.Mesh)) return;
+          const g = o.geometry.clone().applyMatrix4(o.matrixWorld);
+          if ((o.material as THREE.Material).name === "trim")
+            trim = instanced(g, false);
+          else if (body)
+            console.warn(
+              url,
+              "has more than one body mesh: only its first is drawn",
+            );
+          else body = instanced(g, !!g.attributes.color);
+        });
+        if (body) this.models.set(url, { body, trim });
+      },
+      undefined,
+      () => {}, // its squads keep their placeholder shape
+    );
+  }
+
   /**
    * Every squad's living members (up to 4) in its cell, moving between
    * ticks; aircraft fly above the ground; vehicles and aircraft face the way
-   * they last moved.
+   * they last moved, and so does infantry with a model.
    */
   private drawSquads(now: number, dt: number) {
     const counts: Record<Form, number> = {
@@ -1093,6 +1156,7 @@ export class Battlefield3DScene implements BattlefieldDrawing {
       building: 0,
       post: 0,
     };
+    const modelCounts = new Map<Model, number>();
     const o = new THREE.Object3D();
     const sides: Record<Side, THREE.Color> = {
       attacker: new THREE.Color(this.look.sideColour.attacker),
@@ -1115,30 +1179,42 @@ export class Battlefield3DScene implements BattlefieldDrawing {
         t.form === "air" ? this.ceiling + FLY : this.heightAt(x, z),
         z,
       );
-      const mesh = this.forms[t.form];
+      const model = t.model ? this.models.get(t.model) : null;
+      const mesh = model?.body ?? this.forms[t.form];
       const many =
         t.form === "infantry" || t.form === "vehicle" || t.form === "air";
       const spots = SPOTS[many ? Math.min(4, t.sq.count) : 1] ?? [];
       for (const [sx, sz] of spots) {
-        const n = counts[t.form]++;
+        const n = model ? (modelCounts.get(model) ?? 0) : counts[t.form]++;
+        if (model) modelCounts.set(model, n + 1);
         if (n >= MAX_PER_FORM) break;
         o.position.set(
           x + sx,
           t.form === "air" ? t.pos.y : this.heightAt(x + sx, z + sz),
           z + sz,
         );
-        o.rotation.set(0, t.form === "infantry" ? 0 : t.facing, 0);
+        // A capsule looks the same any way round; a model faces where it's going.
+        o.rotation.set(0, t.form === "infantry" && !model ? 0 : t.facing, 0);
         o.scale.setScalar(t.sq.dropship ? 2.4 : 1);
         o.updateMatrix();
         mesh.setMatrixAt(n, o.matrix);
-        mesh.setColorAt(n, sides[t.sq.side]);
+        if (model) {
+          model.trim?.setMatrixAt(n, o.matrix);
+          model.trim?.setColorAt(n, sides[t.sq.side]);
+        } else mesh.setColorAt(n, sides[t.sq.side]);
       }
     }
-    for (const form of Object.keys(this.forms) as Form[]) {
-      const mesh = this.forms[form];
-      mesh.count = Math.min(MAX_PER_FORM, counts[form]);
+    const done = (mesh: THREE.InstancedMesh, count: number) => {
+      mesh.count = Math.min(MAX_PER_FORM, count);
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    };
+    for (const form of Object.keys(this.forms) as Form[])
+      done(this.forms[form], counts[form]);
+    for (const model of this.models.values()) {
+      if (!model) continue;
+      done(model.body, modelCounts.get(model) ?? 0);
+      if (model.trim) done(model.trim, modelCounts.get(model) ?? 0);
     }
   }
 
@@ -1304,9 +1380,16 @@ export class Battlefield3DScene implements BattlefieldDrawing {
       this.held.delete(k);
       return;
     }
+    // Only with the pointer over it: the galaxy map pans on the same keys.
+    if (!this.hovered) return;
     if (isTyping(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
     this.held.add(k);
-    e.preventDefault();
+    e.preventDefault(); // the galaxy map skips a used key
+  };
+
+  private hovered = false;
+  private readonly onHover = (e: PointerEvent) => {
+    this.hovered = e.type === "pointerenter";
   };
 
   private readonly onBlur = () => this.held.clear();

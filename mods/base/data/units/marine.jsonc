@@ -3,6 +3,7 @@
   "id": "marine",
   "name": "Marine",
   "faction": "unsc",
+  "model": "__base__/models/marine.glb",
   "description": "The UNSC's line infantry: cheap, quick to train, and best against other infantry. Mass them to hold points.",
   "cost": { "credits": 50 },
   "upkeep": { "credits": 5 },

@@ -1384,6 +1384,11 @@ type Unit struct {
 	// Per-player limit, counted from queue to death.
 	MaxCount *int `json:"maxCount,omitempty,omitzero"`
 
+	// Its 3D model in a Battle: a .glb, forward along +z, a cell 1 unit wide: one
+	// body mesh coloured by vertex colours, plus an optional mesh whose material is
+	// named trim, drawn in the side's colour. Left out, a placeholder shape.
+	Model *Asset `json:"model,omitempty,omitzero"`
+
 	// Name corresponds to the JSON schema field "name".
 	Name Name `json:"name"`
 

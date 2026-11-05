@@ -8,9 +8,19 @@ import {
   useState,
 } from "react";
 import { useStore } from "zustand";
+import { assetUrl } from "../assets";
 import type { ContentLookups } from "../content";
 import type { Building } from "../gen/content";
-import { BattlefieldScene, POINT_NAMES } from "../scene/battlefield";
+import {
+  type BattlefieldDrawing,
+  type BattlefieldLook,
+  BattlefieldScene,
+  POINT_NAMES,
+} from "../scene/battlefield";
+import {
+  Battlefield3DScene,
+  type BattlefieldLook3D,
+} from "../scene/battlefield3d";
 import { seatColour } from "../scene/galaxy";
 import { amounts } from "./buildings";
 import { type Commander, SelectionStrip, useCommandKeys } from "./command";
@@ -572,9 +582,41 @@ export function BattlePanel(props: {
   );
 }
 
+/** A unit's or building's combat stats. */
+export const statsOf = (content: ContentLookups, unit: string) =>
+  content.units.get(unit)?.combat ?? content.buildings.get(unit)?.combat;
+
+/** A unit's class; a building without one is a structure. */
+export const classOf = (content: ContentLookups, unit: string) =>
+  statsOf(content, unit)?.unitClass ?? content.rules.battle.structure.unitClass;
+
+/** What the 3D drawing needs from content beyond the 2D look: ground and shapes. */
+export function look3D(
+  content: ContentLookups,
+): Pick<BattlefieldLook3D, "blocked" | "cover" | "form" | "model"> {
+  const path = content.rules.battlefield.pathClass;
+  return {
+    blocked: (t) => !(path in (content.terrains.get(t)?.movement ?? {})),
+    cover: (t) => content.terrains.get(t)?.cover ?? 0,
+    // Vehicles lead a Task Force: boxes; the rest that walk, capsules.
+    form: (sq) => {
+      const c = content.unitClasses.get(classOf(content, sq.unit));
+      if (sq.commandPost) return "post";
+      if (sq.building) return "building";
+      if (c?.air) return "air";
+      return c?.taskForceRole === "lead" ? "vehicle" : "infantry";
+    },
+    model: (sq) => assetUrl(content.units.get(sq.unit)?.model),
+  };
+}
+
+/** The 3D Battle view (#93) while it's tried out; the 2D one is the default. */
+const USE_3D = import.meta.env.VITE_USE_3D_BATTLE_VIEW === "true";
+
 /**
- * The Battlefield, drawn by a BattlefieldScene that follows the Battle in
- * the Match store and plays each tick's fire, without re-rendering React.
+ * The Battlefield, drawn by a BattlefieldScene (or, with USE_3D, a
+ * Battlefield3DScene) that follows the Battle in the Match store and plays
+ * each tick's fire, without re-rendering React.
  */
 function BattlefieldView(props: {
   conn: MatchConnection;
@@ -617,13 +659,9 @@ function BattlefieldView(props: {
     const battle = view?.battles.get(id);
     if (!ref.current || !view || !battle?.field || battle.summary) return;
     const rules = content.rules.battle;
-    const statsOf = (unit: string) =>
-      content.units.get(unit)?.combat ?? content.buildings.get(unit)?.combat;
-    const classOf = (unit: string) =>
-      statsOf(unit)?.unitClass ?? rules.structure.unitClass;
     const flies = (sq: Squad) =>
-      !!content.unitClasses.get(classOf(sq.unit))?.air;
-    const scene = new BattlefieldScene(ref.current, battle.field, {
+      !!content.unitClasses.get(classOf(content, sq.unit))?.air;
+    const look: BattlefieldLook = {
       terrainColour: (t) => content.terrains.get(t)?.colour ?? "#555555",
       sideColour: {
         attacker: colourOf(battle.attacker),
@@ -631,14 +669,20 @@ function BattlefieldView(props: {
       },
       you: sideOf(view, battle),
       sight: (sq, height) =>
-        (statsOf(sq.unit)?.sight ??
-          rules.classDefaults[classOf(sq.unit)]?.sight ??
+        (statsOf(content, sq.unit)?.sight ??
+          rules.classDefaults[classOf(content, sq.unit)]?.sight ??
           0) + (flies(sq) ? 0 : rules.heightSight * height),
       flies,
       padSight: rules.padSight,
       captureRadius: rules.captureRadius,
       captureTicks: rules.captureSeconds * BATTLE_TICKS,
-    });
+    };
+    const scene: BattlefieldDrawing = USE_3D
+      ? new Battlefield3DScene(ref.current, battle.field, {
+          ...look,
+          ...look3D(content),
+        })
+      : new BattlefieldScene(ref.current, battle.field, look);
     scene.onSelect = (ids) => command.current?.onSelect(ids);
     scene.onPadMenu = (pad, x, y) => padMenu.current?.(pad, x, y);
     scene.onOrder = (ids, o) => command.current?.onOrder(ids, o);

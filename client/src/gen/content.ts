@@ -700,6 +700,10 @@ export interface Unit {
    * An asset in a Mod's assets/ folder, written `__mod__/path`.
    */
   icon?: string;
+  /**
+   * An asset in a Mod's assets/ folder, written `__mod__/path`.
+   */
+  model?: string;
 }
 /**
  * Amounts keyed by Resource id.

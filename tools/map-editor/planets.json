@@ -2,75 +2,55 @@
   {
     "id": "onyx",
     "name": "Onyx",
-    "tags": [
-      "forerunner-world"
-    ],
+    "tags": ["forerunner-world"],
     "url": "https://www.halopedia.org/Onyx"
   },
   {
     "id": "aktis-iv",
     "name": "Aktis IV",
-    "tags": [
-      "forerunner-world"
-    ],
+    "tags": ["forerunner-world"],
     "url": "https://www.halopedia.org/Aktis_IV"
   },
   {
     "id": "aleria",
     "name": "Aleria",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Aleria"
   },
   {
     "id": "alluvion",
     "name": "Alluvion",
-    "tags": [
-      "forerunner-world",
-      "human-colony"
-    ],
+    "tags": ["forerunner-world", "human-colony"],
     "url": "https://www.halopedia.org/Alluvion"
   },
   {
     "id": "alpha-corvi-ii",
     "name": "Alpha Corvi II",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Alpha_Corvi_II"
   },
   {
     "id": "andesia",
     "name": "Andesia",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Andesia"
   },
   {
     "id": "ansket-iv",
     "name": "Ansket IV",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Ansket_IV"
   },
   {
     "id": "anvarl",
     "name": "Anvarl",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Anvarl"
   },
   {
     "id": "arcadia",
     "name": "Arcadia",
-    "tags": [
-      "forerunner-world",
-      "human-colony"
-    ],
+    "tags": ["forerunner-world", "human-colony"],
     "url": "https://www.halopedia.org/Arcadia"
   },
   {
@@ -82,18 +62,13 @@
   {
     "id": "balaho",
     "name": "Balaho",
-    "tags": [
-      "covenant-world",
-      "homeworld"
-    ],
+    "tags": ["covenant-world", "homeworld"],
     "url": "https://www.halopedia.org/Balaho"
   },
   {
     "id": "barugi",
     "name": "Barugi",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Barugi"
   },
   {
@@ -105,42 +80,31 @@
   {
     "id": "beta-gabriel",
     "name": "Beta Gabriel",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Beta_Gabriel"
   },
   {
     "id": "bhedalon",
     "name": "Bhedalon",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Bhedalon"
   },
   {
     "id": "binterall",
     "name": "Binterall",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Binterall"
   },
   {
     "id": "carrow",
     "name": "Carrow",
-    "tags": [
-      "covenant-world",
-      "human-colony"
-    ],
+    "tags": ["covenant-world", "human-colony"],
     "url": "https://www.halopedia.org/Carrow"
   },
   {
     "id": "cassidy-iii",
     "name": "Cassidy III",
-    "tags": [
-      "forerunner-world"
-    ],
+    "tags": ["forerunner-world"],
     "url": "https://www.halopedia.org/Cassidy_III"
   },
   {
@@ -158,97 +122,73 @@
   {
     "id": "charybdis-ix",
     "name": "Charybdis IX",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Charybdis_IX"
   },
   {
     "id": "chi-ceti-iv",
     "name": "Chi Ceti IV",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Chi_Ceti_IV"
   },
   {
     "id": "chi-rho",
     "name": "Chi Rho",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Chi_Rho"
   },
   {
     "id": "chu-ot",
     "name": "Chu'ot",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Chu'ot"
   },
   {
     "id": "circinius-iv",
     "name": "Circinius IV",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Circinius_IV"
   },
   {
     "id": "circumstance",
     "name": "Circumstance",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Circumstance"
   },
   {
     "id": "cleyell",
     "name": "Cleyell",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Cleyell"
   },
   {
     "id": "concord",
     "name": "Concord",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Concord"
   },
   {
     "id": "coral",
     "name": "Coral",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Coral"
   },
   {
     "id": "cote-d-azure",
     "name": "Cote d'Azure",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Cote_d'Azure"
   },
   {
     "id": "creck",
     "name": "Creck",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Creck"
   },
   {
     "id": "criterion",
     "name": "Criterion",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Criterion_(planet)"
   },
   {
@@ -260,41 +200,31 @@
   {
     "id": "crystal",
     "name": "Crystal",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Crystal"
   },
   {
     "id": "cygnus",
     "name": "Cygnus",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Cygnus"
   },
   {
     "id": "cyrus-vii",
     "name": "Cyrus VII",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Cyrus_VII"
   },
   {
     "id": "dekum",
     "name": "Dekum",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Dekum"
   },
   {
     "id": "desdoron-v",
     "name": "Desdoron V",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Desdoron_V"
   },
   {
@@ -306,10 +236,7 @@
   {
     "id": "doisac",
     "name": "Doisac",
-    "tags": [
-      "covenant-world",
-      "homeworld"
-    ],
+    "tags": ["covenant-world", "homeworld"],
     "url": "https://www.halopedia.org/Doisac"
   },
   {
@@ -321,27 +248,19 @@
   {
     "id": "dormire-iii",
     "name": "Dormire III",
-    "tags": [
-      "forerunner-world",
-      "human-colony"
-    ],
+    "tags": ["forerunner-world", "human-colony"],
     "url": "https://www.halopedia.org/Dormire_III"
   },
   {
     "id": "draco-iii",
     "name": "Draco III",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Draco_III"
   },
   {
     "id": "draetheus-v",
     "name": "Draetheus V",
-    "tags": [
-      "forerunner-world",
-      "human-colony"
-    ],
+    "tags": ["forerunner-world", "human-colony"],
     "url": "https://www.halopedia.org/Draetheus_V"
   },
   {
@@ -353,42 +272,31 @@
   {
     "id": "duraan",
     "name": "Duraan",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Duraan"
   },
   {
     "id": "dwarka",
     "name": "Dwarka",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Dwarka"
   },
   {
     "id": "ealen-iv",
     "name": "Ealen IV",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Ealen_IV"
   },
   {
     "id": "earth",
     "name": "Earth",
-    "tags": [
-      "homeworld",
-      "sol"
-    ],
+    "tags": ["homeworld", "sol"],
     "url": "https://www.halopedia.org/Earth"
   },
   {
     "id": "endymion",
     "name": "Endymion",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Endymion"
   },
   {
@@ -400,81 +308,61 @@
   {
     "id": "epsilon-eridani-iv",
     "name": "Epsilon Eridani IV",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Epsilon_Eridani_IV"
   },
   {
     "id": "erebus-vii",
     "name": "Erebus VII",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Erebus_VII"
   },
   {
     "id": "eridanus-ii",
     "name": "Eridanus II",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Eridanus_II"
   },
   {
     "id": "escala-iii",
     "name": "Escala III",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Escala_III"
   },
   {
     "id": "eshin",
     "name": "Eshin",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Eshin"
   },
   {
     "id": "estuary",
     "name": "Estuary",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Estuary"
   },
   {
     "id": "etalan",
     "name": "Etalan",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Etalan"
   },
   {
     "id": "eudolaan",
     "name": "Eudolaan",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Eudolaan"
   },
   {
     "id": "falaknuma",
     "name": "Falaknuma",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Falaknuma"
   },
   {
     "id": "far-isle",
     "name": "Far Isle",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Far_Isle"
   },
   {
@@ -486,9 +374,7 @@
   {
     "id": "fumirole",
     "name": "Fumirole",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Fumirole"
   },
   {
@@ -518,19 +404,13 @@
   {
     "id": "gao",
     "name": "Gao",
-    "tags": [
-      "forerunner-world",
-      "human-colony",
-      "independent-colony"
-    ],
+    "tags": ["forerunner-world", "human-colony", "independent-colony"],
     "url": "https://www.halopedia.org/Gao"
   },
   {
     "id": "gathved",
     "name": "Gathved",
-    "tags": [
-      "jiralhanae-colony"
-    ],
+    "tags": ["jiralhanae-colony"],
     "url": "https://www.halopedia.org/Gathved"
   },
   {
@@ -542,67 +422,49 @@
   {
     "id": "ghibalb",
     "name": "Ghibalb",
-    "tags": [
-      "forerunner-world",
-      "homeworld"
-    ],
+    "tags": ["forerunner-world", "homeworld"],
     "url": "https://www.halopedia.org/Ghibalb"
   },
   {
     "id": "gilgamesh",
     "name": "Gilgamesh",
-    "tags": [
-      "human-colony",
-      "independent-colony"
-    ],
+    "tags": ["human-colony", "independent-colony"],
     "url": "https://www.halopedia.org/Gilgamesh"
   },
   {
     "id": "glyke",
     "name": "Glyke",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Glyke"
   },
   {
     "id": "green-hills",
     "name": "Green Hills",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Green_Hills"
   },
   {
     "id": "greydowns",
     "name": "Greydowns",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Greydowns"
   },
   {
     "id": "groombridge-1830",
     "name": "Groombridge-1830",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Groombridge-1830"
   },
   {
     "id": "harmony",
     "name": "Harmony",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Harmony"
   },
   {
     "id": "harvest",
     "name": "Harvest",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Harvest"
   },
   {
@@ -614,18 +476,13 @@
   {
     "id": "hellas",
     "name": "Hellas",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Hellas"
   },
   {
     "id": "hesduros",
     "name": "Hesduros",
-    "tags": [
-      "covenant-world",
-      "forerunner-world"
-    ],
+    "tags": ["covenant-world", "forerunner-world"],
     "url": "https://www.halopedia.org/Hesduros"
   },
   {
@@ -637,73 +494,55 @@
   {
     "id": "installation-01",
     "name": "Installation 01",
-    "tags": [
-      "halo-ring"
-    ],
+    "tags": ["halo-ring"],
     "url": "https://www.halopedia.org/Installation_01"
   },
   {
     "id": "installation-02",
     "name": "Installation 02",
-    "tags": [
-      "halo-ring"
-    ],
+    "tags": ["halo-ring"],
     "url": "https://www.halopedia.org/Installation_02"
   },
   {
     "id": "installation-03",
     "name": "Installation 03",
-    "tags": [
-      "halo-ring"
-    ],
+    "tags": ["halo-ring"],
     "url": "https://www.halopedia.org/Installation_03"
   },
   {
     "id": "installation-04",
     "name": "Installation 04",
-    "tags": [
-      "halo-ring"
-    ],
+    "tags": ["halo-ring"],
     "url": "https://www.halopedia.org/Installation_04"
   },
   {
     "id": "installation-05",
     "name": "Installation 05",
-    "tags": [
-      "halo-ring"
-    ],
+    "tags": ["halo-ring"],
     "url": "https://www.halopedia.org/Installation_05"
   },
   {
     "id": "installation-06",
     "name": "Installation 06",
-    "tags": [
-      "halo-ring"
-    ],
+    "tags": ["halo-ring"],
     "url": "https://www.halopedia.org/Installation_06"
   },
   {
     "id": "installation-07",
     "name": "Installation 07",
-    "tags": [
-      "halo-ring"
-    ],
+    "tags": ["halo-ring"],
     "url": "https://www.halopedia.org/Installation_07"
   },
   {
     "id": "installation-08",
     "name": "Installation 08",
-    "tags": [
-      "halo-ring"
-    ],
+    "tags": ["halo-ring"],
     "url": "https://www.halopedia.org/Installation_08"
   },
   {
     "id": "installation-09",
     "name": "Installation 09",
-    "tags": [
-      "halo-ring"
-    ],
+    "tags": ["halo-ring"],
     "url": "https://www.halopedia.org/Installation_09"
   },
   {
@@ -715,9 +554,7 @@
   {
     "id": "janjur-qom",
     "name": "Janjur Qom",
-    "tags": [
-      "homeworld"
-    ],
+    "tags": ["homeworld"],
     "url": "https://www.halopedia.org/Janjur_Qom"
   },
   {
@@ -729,25 +566,19 @@
   {
     "id": "jericho-vii",
     "name": "Jericho VII",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Jericho_VII"
   },
   {
     "id": "jupiter",
     "name": "Jupiter",
-    "tags": [
-      "sol"
-    ],
+    "tags": ["sol"],
     "url": "https://www.halopedia.org/Jupiter"
   },
   {
     "id": "kamchatka",
     "name": "Kamchatka",
-    "tags": [
-      "forerunner-world"
-    ],
+    "tags": ["forerunner-world"],
     "url": "https://www.halopedia.org/Kamchatka"
   },
   {
@@ -759,33 +590,25 @@
   {
     "id": "karava",
     "name": "Karava",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Karava"
   },
   {
     "id": "khael-mothka",
     "name": "Khael'mothka",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Khael'mothka"
   },
   {
     "id": "kholo",
     "name": "Kholo",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Kholo"
   },
   {
     "id": "kroedis-ii",
     "name": "Kroedis II",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Kroedis_II"
   },
   {
@@ -797,41 +620,31 @@
   {
     "id": "laika-iii",
     "name": "Laika III",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Laika_III"
   },
   {
     "id": "levosia",
     "name": "Levosia",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Levosia"
   },
   {
     "id": "lodestone",
     "name": "Lodestone",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Lodestone"
   },
   {
     "id": "losing-hand",
     "name": "Losing Hand",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Losing_Hand"
   },
   {
     "id": "lostwithiel",
     "name": "Lostwithiel",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Lostwithiel"
   },
   {
@@ -843,25 +656,19 @@
   {
     "id": "mackintosh",
     "name": "Mackintosh",
-    "tags": [
-      "forerunner-world"
-    ],
+    "tags": ["forerunner-world"],
     "url": "https://www.halopedia.org/Mackintosh"
   },
   {
     "id": "madrigal",
     "name": "Madrigal",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Madrigal"
   },
   {
     "id": "malurok",
     "name": "Malurok",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Malurok"
   },
   {
@@ -873,50 +680,37 @@
   {
     "id": "mars",
     "name": "Mars",
-    "tags": [
-      "sol",
-      "human-colony"
-    ],
+    "tags": ["sol", "human-colony"],
     "url": "https://www.halopedia.org/Mars"
   },
   {
     "id": "mercury",
     "name": "Mercury",
-    "tags": [
-      "sol"
-    ],
+    "tags": ["sol"],
     "url": "https://www.halopedia.org/Mercury"
   },
   {
     "id": "mesa",
     "name": "Mesa",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Mesa"
   },
   {
     "id": "minab",
     "name": "Minab",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Minab"
   },
   {
     "id": "minister",
     "name": "Minister",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Minister_(planet)"
   },
   {
     "id": "miridem",
     "name": "Miridem",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Miridem"
   },
   {
@@ -928,9 +722,7 @@
   {
     "id": "neos-atlantis",
     "name": "Neos Atlantis",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Neos_Atlantis"
   },
   {
@@ -948,57 +740,43 @@
   {
     "id": "new-caracas",
     "name": "New Caracas",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/New_Caracas"
   },
   {
     "id": "new-jerusalem",
     "name": "New Jerusalem",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/New_Jerusalem"
   },
   {
     "id": "newsaka",
     "name": "Newsaka",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Newsaka"
   },
   {
     "id": "nouveau-montreal",
     "name": "Nouveau Montreal",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Nouveau_Montreal"
   },
   {
     "id": "oasis-vi",
     "name": "Oasis VI",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Oasis_VI"
   },
   {
     "id": "okal-supen",
     "name": "Okal'supen",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Okal'supen"
   },
   {
     "id": "ordun-dal",
     "name": "Ordun Dal",
-    "tags": [
-      "jiralhanae-colony"
-    ],
+    "tags": ["jiralhanae-colony"],
     "url": "https://www.halopedia.org/Ordun_Dal"
   },
   {
@@ -1010,59 +788,43 @@
   {
     "id": "otraak",
     "name": "Otraak",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Otraak"
   },
   {
     "id": "palamok",
     "name": "Palamok",
-    "tags": [
-      "covenant-world",
-      "homeworld"
-    ],
+    "tags": ["covenant-world", "homeworld"],
     "url": "https://www.halopedia.org/Palamok"
   },
   {
     "id": "paradise-falls",
     "name": "Paradise Falls",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Paradise_Falls"
   },
   {
     "id": "paris-iv",
     "name": "Paris IV",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Paris_IV"
   },
   {
     "id": "persia-ix",
     "name": "Persia IX",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Persia_IX"
   },
   {
     "id": "rahnelo",
     "name": "Rahnelo",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Rahnelo"
   },
   {
     "id": "reach",
     "name": "Reach",
-    "tags": [
-      "forerunner-world",
-      "human-colony"
-    ],
+    "tags": ["forerunner-world", "human-colony"],
     "url": "https://www.halopedia.org/Reach"
   },
   {
@@ -1080,9 +842,7 @@
   {
     "id": "ruthersburg",
     "name": "Ruthersburg",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Ruthersburg"
   },
   {
@@ -1100,34 +860,25 @@
   {
     "id": "sanghelios",
     "name": "Sanghelios",
-    "tags": [
-      "covenant-world",
-      "homeworld"
-    ],
+    "tags": ["covenant-world", "homeworld"],
     "url": "https://www.halopedia.org/Sanghelios"
   },
   {
     "id": "savadok",
     "name": "Savadok",
-    "tags": [
-      "jiralhanae-colony"
-    ],
+    "tags": ["jiralhanae-colony"],
     "url": "https://www.halopedia.org/Savadok"
   },
   {
     "id": "sedra",
     "name": "Sedra",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Sedra"
   },
   {
     "id": "sephune-iii",
     "name": "Sephune III",
-    "tags": [
-      "covenant-world"
-    ],
+    "tags": ["covenant-world"],
     "url": "https://www.halopedia.org/Sephune_III"
   },
   {
@@ -1139,33 +890,25 @@
   {
     "id": "shaps-iii",
     "name": "Shaps III",
-    "tags": [
-      "forerunner-world"
-    ],
+    "tags": ["forerunner-world"],
     "url": "https://www.halopedia.org/Shaps_III"
   },
   {
     "id": "sigma-octanus-iv",
     "name": "Sigma Octanus IV",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Sigma_Octanus_IV"
   },
   {
     "id": "skopje",
     "name": "Skopje",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Skopje"
   },
   {
     "id": "sundown",
     "name": "Sundown",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Sundown"
   },
   {
@@ -1177,17 +920,13 @@
   {
     "id": "terceira",
     "name": "Terceira",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Terceira"
   },
   {
     "id": "terra-nova",
     "name": "Terra Nova",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Terra_Nova"
   },
   {
@@ -1199,67 +938,49 @@
   {
     "id": "tribute",
     "name": "Tribute",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Tribute"
   },
   {
     "id": "triniel",
     "name": "Triniel",
-    "tags": [
-      "forerunner-world"
-    ],
+    "tags": ["forerunner-world"],
     "url": "https://www.halopedia.org/Triniel"
   },
   {
     "id": "troy",
     "name": "Troy",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Troy"
   },
   {
     "id": "venezia",
     "name": "Venezia",
-    "tags": [
-      "human-colony",
-      "independent-colony"
-    ],
+    "tags": ["human-colony", "independent-colony"],
     "url": "https://www.halopedia.org/Venezia"
   },
   {
     "id": "venus",
     "name": "Venus",
-    "tags": [
-      "sol"
-    ],
+    "tags": ["sol"],
     "url": "https://www.halopedia.org/Venus"
   },
   {
     "id": "verent",
     "name": "Verent",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Verent"
   },
   {
     "id": "verge",
     "name": "Verge",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Verge"
   },
   {
     "id": "victoria",
     "name": "Victoria",
-    "tags": [
-      "human-colony",
-      "independent-colony"
-    ],
+    "tags": ["human-colony", "independent-colony"],
     "url": "https://www.halopedia.org/Victoria"
   },
   {
@@ -1283,18 +1004,13 @@
   {
     "id": "vodin",
     "name": "Vodin",
-    "tags": [
-      "human-colony"
-    ],
+    "tags": ["human-colony"],
     "url": "https://www.halopedia.org/Vodin"
   },
   {
     "id": "zehar-vi",
     "name": "Zehar VI",
-    "tags": [
-      "forerunner-world",
-      "human-colony"
-    ],
+    "tags": ["forerunner-world", "human-colony"],
     "url": "https://www.halopedia.org/Zehar_VI"
   }
 ]

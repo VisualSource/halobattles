@@ -12,10 +12,13 @@ import { useHideHeader } from "../backdrop";
 import type { ContentLookups } from "../content";
 import {
   COMMAND_POST,
+  classOf,
   commandPostHealth,
   DROP_DRAG,
+  look3D,
   PadMenu,
   Reinforcements,
+  statsOf,
 } from "../match/battle";
 import { SelectionStrip, useCommandKeys } from "../match/command";
 import { LayoutMap } from "../match/layout";
@@ -788,7 +791,7 @@ function Field(props: {
   selected: number | null;
   onPick: (id: number | null) => void;
   factions: [string, string]; // each side's, for its pad turrets
-  view: "2d" | "3d"; // which drawing: the 3D one is the #93 prototype
+  view: "2d" | "3d"; // which drawing: the Battle window's is the 3D one
 }) {
   const { conn, content } = props;
   const ref = useRef<HTMLDivElement>(null);
@@ -829,46 +832,27 @@ function Field(props: {
   useEffect(() => {
     if (!ref.current || !field) return;
     const rules = content.rules.battle;
-    const statsOf = (unit: string) =>
-      content.units.get(unit)?.combat ?? content.buildings.get(unit)?.combat;
-    const classOf = (unit: string) =>
-      statsOf(unit)?.unitClass ?? rules.structure.unitClass;
     const flies = (sq: Squad) =>
-      !!content.unitClasses.get(classOf(sq.unit))?.air;
+      !!content.unitClasses.get(classOf(content, sq.unit))?.air;
     const look: BattlefieldLook = {
       terrainColour: (t: string) =>
         content.terrains.get(t)?.colour ?? "#555555",
       sideColour: { attacker: seatColour(0), defender: seatColour(1) },
       you: null,
       sight: (sq, height) =>
-        (statsOf(sq.unit)?.sight ??
-          rules.classDefaults[classOf(sq.unit)]?.sight ??
+        (statsOf(content, sq.unit)?.sight ??
+          rules.classDefaults[classOf(content, sq.unit)]?.sight ??
           0) + (flies(sq) ? 0 : rules.heightSight * height),
       flies,
       padSight: rules.padSight,
       captureRadius: rules.captureRadius,
       captureTicks: rules.captureSeconds * 5,
     };
-    const path = content.rules.battlefield.pathClass;
     const s: BattlefieldDrawing =
       props.view === "3d"
         ? new Battlefield3DScene(ref.current, field, {
             ...look,
-            blocked: (t) =>
-              !(path in (content.terrains.get(t)?.movement ?? {})),
-            cover: (t) => content.terrains.get(t)?.cover ?? 0,
-            // Vehicles lead a Task Force: boxes; the rest that walk, capsules.
-            form: (sq) =>
-              sq.commandPost
-                ? "post"
-                : sq.building
-                  ? "building"
-                  : flies(sq)
-                    ? "air"
-                    : content.unitClasses.get(classOf(sq.unit))
-                          ?.taskForceRole === "lead"
-                      ? "vehicle"
-                      : "infantry",
+            ...look3D(content),
           })
         : new BattlefieldScene(ref.current, field, look);
     s.onPick = onPick;

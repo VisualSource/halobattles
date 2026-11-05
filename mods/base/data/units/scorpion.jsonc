@@ -3,6 +3,7 @@
   "id": "scorpion",
   "name": "Scorpion (M808C)",
   "faction": "unsc",
+  "model": "__base__/models/scorpion.glb",
   "description": "he M808 Main Battle Tank, commonly known as the Scorpion, is the UNSC's premier armored mobile weapons platform. The tank was originally manufactured by Chalybs Defense Solutions, until Acheron Security took claim following the Human-Covenant War and the destruction of numerous CDS facilities on Meridian.",
   "cost": { "credits": 250, "materials": 100, "alloys": 30 },
   "upkeep": { "credits": 25, "alloys": 2 },

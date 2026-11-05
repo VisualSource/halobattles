@@ -577,14 +577,15 @@ A Planet's owner lays out its defence ahead of time, as on Empire at War's groun
 
 ### 3D drawing
 
-A 3D view of the Battlefield (#93), replacing the 2D one in the Battle window; the 2D drawing stays for the defence layout and as the overview. The sim stays a grid with heights: only the drawing changes. Being prototyped in the Lab first; the working prototype stands as its mockup, and it moves to the Battle window once agreed.
+A 3D view of the Battlefield (#93), replacing the 2D one in the Battle window; the 2D drawing stays for the defence layout and as the overview. The sim stays a grid with heights: only the drawing changes. Prototyped in the Lab first, the working prototype standing as its mockup; built into the Battle window behind `VITE_USE_3D_BATTLE_VIEW=true` while it's tried out, the 2D view staying the default until then.
 
 - **In the Lab:** a 2D / 3D switch on the map.
+- **Keys:** the camera's keys work while the pointer is over the Battlefield, and there they're taken before the galaxy map's, so it doesn't pan too.
 - **Tech:** plain three.js, already a dependency.
 - **Camera:** RTS-style, a perspective camera tilted about 55°; pan by dragging or the arrow keys, zoom with the wheel, rotate with a middle-drag or Q/E; it stays over the map.
 - **Terrain:** a height mesh, terraced: each height level a step with cliffs between, in the Terrain colours with a little noise; water is a flat see-through plane.
 - **Cover:** placeholder dressing: instanced trees on forest, rocks on rough ground, low blocks for a fixture's cover cells.
-- **Units:** placeholder shapes in the side's colour (capsules for infantry, boxes for vehicles, cones for aircraft, flying; blocks for buildings and the Command Post), each squad's living members, up to 4, set out in its cell; instanced. Models come later, through content.
+- **Units:** placeholder shapes in the side's colour (capsules for infantry, boxes for vehicles, cones for aircraft, flying; blocks for buildings and the Command Post), each squad's living members, up to 4, set out in its cell; instanced. A unit with a `model` (a .glb in its Mod's assets, facing +z, a cell 1 unit wide) is drawn as that instead, facing where it's going, infantry too. A model is one body mesh coloured by vertex colours, plus an optional mesh whose material is named `trim`, which takes the side's colour; a second body mesh is left out, with a console warning. The base Mod's are low-poly placeholders from `tools/models/gen.mjs` (the Marine, Scorpion, Grunt and Banshee) and a Warthog made apart from it; variants inherit their parent's.
 - **Movement:** each move glides over the time updates are arriving at (a running average, so a squad keeps moving cell to cell rather than stopping between, whatever the Lab's speed), and vehicles and aircraft turn to their new heading at up to 7 radians a second rather than snapping.
 - **Effects and fog:** tracers and hit flashes as in 2D; fog darkens the ground from the same visibility; Landing Zones, pads, order lines and the selection drawn on the ground.
 - **Overview:** a 2D minimap in a corner; clicking it moves the camera there.
@@ -624,7 +625,7 @@ Tried for #104 and dropped for [layouts](#layouts): routes joining the base, Lan
 5. ~~Raids~~ (#66): built; see [Raids](#raids).
 6. ~~Command~~ (#92): built; see [Command](#command).
 7. ~~Reinforcements~~ (#57): built; see [Reinforcements](#reinforcements).
-8. 3D drawing (#93).
+8. ~~3D drawing~~ (#93): built, behind a flag; see [3D drawing](#3d-drawing).
 
 Related: ~~the defence layout~~ (#91), built; see [Defence layout](#defence-layout). Measured in the Lab: big Battles favouring the attacker (#40), and an AI that chooses to Retreat (#61).
 

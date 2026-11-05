@@ -272,6 +272,7 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		c.resourceKeys(where+": upkeep", u.Upkeep)
 		c.combat(where, &u.Combat)
 		c.asset(where, u.Icon)
+		c.asset(where, u.Model)
 	}
 	for _, id := range slices.Sorted(maps.Keys(doc.Buildings)) {
 		b := doc.Buildings[id]
