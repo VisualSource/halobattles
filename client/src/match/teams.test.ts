@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { allied, allyPlanet, type View, winnerName } from "./store";
+import {
+  allied,
+  allyPlanet,
+  routeOwner,
+  truce,
+  type View,
+  winnerName,
+} from "./store";
 
 const player = (seat: number, team: number) =>
-  ({ seat, team, displayName: `P${seat}` }) as View["players"][number];
+  ({
+    seat,
+    team,
+    displayName: `P${seat}`,
+    truces: [],
+  }) as unknown as View["players"][number];
 
 const view = (you: number, teams: number[]) =>
   ({
@@ -30,6 +42,15 @@ describe("Teams", () => {
   it("a free-for-all has no allies", () => {
     const v = view(0, [0, 1, 2]);
     expect(allied(v, 0, 1)).toBe(false);
+  });
+
+  it("routes through a Truce partner's Planet as a neutral one", () => {
+    const v = view(0, [0, 1, 2]);
+    (v.players[0] as { truces: number[] }).truces = [1];
+    expect(truce(v, 1)).toBe(true);
+    expect(truce(v, 2)).toBe(false);
+    expect(routeOwner(v, new Map(), "b")).toBe(null);
+    expect(routeOwner(v, new Map(), "c")).toBe(2);
   });
 
   it("names the winner as a Team, or as a player with Teams off", () => {

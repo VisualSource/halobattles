@@ -37,6 +37,7 @@ import {
   knownOwner,
   type PlanetView,
   type QueueItem,
+  truce,
   type UnitSlot,
   type View,
 } from "./store";
@@ -284,6 +285,7 @@ export function useSelectedPlanet(
     ally:
       (live ?? last?.planet)?.owner !== view.you &&
       allied(view, (live ?? last?.planet)?.owner ?? null, view.you),
+    truce: truce(view, (live ?? last?.planet)?.owner ?? null),
     // Orders need your own Planet, and none run while it's Locked.
     editable: live?.owner === view.you && !live.locked,
   };
@@ -321,6 +323,7 @@ export function PlanetWindow(props: {
             </Tag>
           )}
           {sel.ally && <Tag className="bg-ok-wash text-ok">Ally</Tag>}
+          {sel.truce && <Tag className="bg-ok-wash text-ok">Truce</Tag>}
           {sel.last && (
             <Tag className="bg-idle-wash text-idle">
               Last seen <LastSeenAge conn={conn} seenAt={sel.last.seenAt} /> ago

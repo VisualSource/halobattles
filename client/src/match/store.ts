@@ -233,8 +233,9 @@ export type PlayerView = {
   stats: PlayerStats | null; // only in a Spectator's View
   team: number; // with Teams on, Team 1 is 0; with them off, the Seat
   truces: number[]; // the Seats this player has a Truce with that you may see (#81)
-  // Between this player and you, as Match Times (0 for none): their offer of
-  // a Truce to you, yours to them, and when you may offer them again.
+  // Between this player and you, as Match Times (0 for none): when their
+  // offer of a Truce to you lapses, when yours to them does, and when you may
+  // offer them again.
   offerFrom: number;
   offerTo: number;
   retryAt: number;
@@ -265,8 +266,13 @@ export function routeOwner(
   id: string,
 ) {
   const owner = knownOwner(view, lastSeen, id);
-  return allied(view, owner, view.you) ? view.you : owner;
+  if (allied(view, owner, view.you)) return view.you;
+  return truce(view, owner) ? null : owner; // passed through like a neutral one, as on the server
 }
+
+/** Whether you have a Truce with a Seat. */
+export const truce = (view: View | null, seat: number | null) =>
+  seat !== null && !!view?.players[view.you]?.truces.includes(seat);
 
 /** Whether a Planet in view is a Teammate's: passed through, never stopped at. */
 export const allyPlanet = (view: View | null, id: string) => {

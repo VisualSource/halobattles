@@ -13,6 +13,7 @@ import {
   type createMatchStore,
   type PlanetView,
   routeOwner,
+  truce,
 } from "../match/store";
 import { formatAge } from "../match/time";
 import { hash, PLANET_RADIUS, planetModel, UNSEEN } from "./planet-model";
@@ -158,6 +159,8 @@ export class GalaxyScene {
   >;
   /** Follows the pointer while dragging, naming what's dragged. */
   private readonly ghost = document.createElement("div");
+  /** Beside the ghost over a Truce partner's Planet: arriving ends the Truce. */
+  private readonly truceWarning = document.createElement("div");
   /** The yellow line follows a moving Army, so it's redrawn every frame. */
   private trackRoute = false;
   /** The Stack pile a drag is over, lit to show it'll land there. */
@@ -249,6 +252,20 @@ export class GalaxyScene {
       opacity: "0.7",
     });
     container.append(this.ghost);
+    Object.assign(this.truceWarning.style, {
+      position: "absolute",
+      pointerEvents: "none",
+      display: "none",
+      width: "250px",
+      padding: "8px 10px",
+      border: "1px solid #f0a93b",
+      borderRadius: "6px",
+      background: "#231d12ee",
+      color: "#e6ebef",
+      font: "13px 'IBM Plex Sans', sans-serif",
+      transform: "translate(24px, 16px)", // clear of the ghost
+    });
+    container.append(this.truceWarning);
 
     this.listen();
     this.cleanup.push(
@@ -311,6 +328,7 @@ export class GalaxyScene {
     this.renderer.domElement.remove();
     this.labels.domElement.remove();
     this.ghost.remove();
+    this.truceWarning.remove();
   }
 
   private buildMap() {
@@ -550,6 +568,21 @@ export class GalaxyScene {
             : DROP_ATTACK,
       );
     }
+    const partner = target ? (view?.planets.get(target)?.owner ?? null) : null;
+    const warn = !!path && partner !== null && truce(view, partner);
+    this.truceWarning.style.display = warn ? "block" : "none";
+    if (warn) {
+      const name =
+        view?.players[partner]?.displayName || `Player ${partner + 1}`;
+      const head = document.createElement("strong");
+      head.style.color = "#f0c27a";
+      head.textContent = `Arriving attacks ${name}`;
+      this.truceWarning.replaceChildren(
+        head,
+        document.createElement("br"),
+        "and ends your Truce with them. Drop to send it anyway.",
+      );
+    }
   }
 
   private listen() {
@@ -589,11 +622,13 @@ export class GalaxyScene {
       }
       if (o.moved) {
         const rect = this.container.getBoundingClientRect();
-        Object.assign(this.ghost.style, {
-          display: "block",
-          left: `${e.clientX - rect.left}px`,
-          top: `${e.clientY - rect.top}px`,
-        });
+        for (const el of [this.ghost, this.truceWarning]) {
+          Object.assign(el.style, {
+            left: `${e.clientX - rect.left}px`,
+            top: `${e.clientY - rect.top}px`,
+          });
+        }
+        this.ghost.style.display = "block";
       }
       // Over a Stack pile, the drag targets that pile's Planet and Stack.
       const pile = o.moved ? this.pileAt(e) : null;
@@ -609,6 +644,7 @@ export class GalaxyScene {
       this.ordering = null;
       canvas.style.cursor = "";
       this.ghost.style.display = "none";
+      this.truceWarning.style.display = "none";
       this.lightPile(null);
       // Dropped on a Stack pile: that Planet, landing in that Stack.
       const pile = o.moved ? this.pileAt(e) : null;

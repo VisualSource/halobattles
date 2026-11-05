@@ -8,6 +8,7 @@ import {
   useState,
   ViewTransition,
 } from "react";
+import { toast } from "react-toastify";
 import { useNotificationCenter } from "react-toastify/addons/use-notification-center";
 import { useStore } from "zustand";
 import { useHideHeader } from "../backdrop";
@@ -17,7 +18,7 @@ import { planetIconsQuery } from "../scene/planet-icons";
 import { SettingsButton } from "../settings";
 import { BattlePanel } from "./battle";
 import { BotTag } from "./bot-tag";
-import type { MatchConnection } from "./connection";
+import type { MatchConnection, TruceChange } from "./connection";
 import { moneyOf, presets, quote } from "./exchange";
 import { LayoutWindow } from "./layout";
 import { isPending } from "./local";
@@ -28,10 +29,10 @@ import { CommandIcon, ResourceIcon } from "./resources";
 import { arrival, laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import { ConfirmDialog } from "./status";
-import { allied, teamName, type View, winnerName } from "./store";
+import { allied, teamName, truce, type View, winnerName } from "./store";
 import { finishedProjects, rarityColour } from "./tech";
 import { formatAge, useMatchNow, useWallNow } from "./time";
-import { notify } from "./toasts";
+import { Note, notify } from "./toasts";
 import { canRaid } from "./units";
 import {
   ArmyWindow,
@@ -39,6 +40,7 @@ import {
   StacksWindow,
   Strength,
   sendStack,
+  Tag,
   toStackAt,
   useDismiss,
 } from "./windows";
@@ -397,6 +399,14 @@ function ArmiesList(props: { conn: MatchConnection; content: ContentLookups }) {
                     ? `waiting to go on to ${name(a.destination)}`
                     : !courier && `from ${name(a.from)}`}
                 </span>
+                {truce(
+                  view,
+                  view.planets.get(a.destination)?.owner ?? null,
+                ) && (
+                  <span className="text-accent text-xs">
+                    ends your Truce on arrival
+                  </span>
+                )}
               </span>
               <span className="flex flex-col items-end gap-0.5 font-mono text-xs">
                 <span className="text-ink-2">
@@ -1117,7 +1127,17 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
   const teams = useStore(conn.store, (s) => !!s.lobby?.teams);
   const now = useMatchNow(conn.local);
   const [pop, popRef] = usePopover();
+  // The player whose Truce popover is open beside the list.
+  const [chosen, setChosen] = useState<number | null>(null);
   if (!view) return null;
+  const name = (s: number) => view.players[s]?.displayName || `Player ${s + 1}`;
+  // Truces are only between players on different Teams, both still in.
+  const truceable = (s: number) =>
+    !view.spectating &&
+    !view.players[view.you]?.eliminated &&
+    !view.players[s]?.eliminated &&
+    !allied(view, s, view.you);
+  const picked = pop.open && chosen !== null ? view.players[chosen] : undefined;
   return (
     <div ref={popRef} className="absolute bottom-4 left-4 z-10">
       <button
@@ -1151,6 +1171,8 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
                 "flex items-center gap-2 rounded px-1.5 py-1",
                 p.seat === view.you && "bg-highlight",
                 p.eliminated && "opacity-50",
+                truceable(p.seat) && "hover:bg-item",
+                chosen === p.seat && "outline-accent outline",
               )}
             >
               <span
@@ -1159,7 +1181,18 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
                 style={{ background: seatColour(p.seat) }}
               />
               <span className="flex-1">
-                {p.displayName || `Player ${p.seat + 1}`}
+                {truceable(p.seat) ? (
+                  <button
+                    type="button"
+                    aria-expanded={chosen === p.seat}
+                    onClick={() => setChosen(chosen === p.seat ? null : p.seat)}
+                    className="border-0 bg-transparent p-0 text-left"
+                  >
+                    {name(p.seat)}
+                  </button>
+                ) : (
+                  name(p.seat)
+                )}
                 {p.seat === view.you && (
                   <span className="text-ink-3"> (you)</span>
                 )}
@@ -1180,12 +1213,174 @@ function Players(props: { conn: MatchConnection; content: ContentLookups }) {
                   </span>
                 )}
               </span>
+              {!p.eliminated && truce(view, p.seat) && (
+                <Tag className="bg-ok-wash text-ok">Truce</Tag>
+              )}
+              {view.spectating && p.truces.length > 0 && (
+                <span className="text-ok text-xs">
+                  Truce with {p.truces.map(name).join(", ")}
+                </span>
+              )}
+              {p.offerFrom > now && (
+                <span className="text-accent text-xs">
+                  offers a Truce ·{" "}
+                  <span className="font-mono">{clock(p.offerFrom - now)}</span>
+                </span>
+              )}
+              {p.offerTo > now && (
+                <span className="text-ink-3 text-xs">
+                  your offer ·{" "}
+                  <span className="font-mono">{clock(p.offerTo - now)}</span>
+                </span>
+              )}
               {p.eliminated && <span className="font-mono text-sm">out</span>}
             </li>
           ))}
         </ul>
       )}
+      {picked && truceable(picked.seat) && (
+        <TruceActions conn={conn} player={picked} now={now} name={name} />
+      )}
     </div>
+  );
+}
+
+/** One player's Truce with you: offer one, answer theirs, or end it. */
+function TruceActions(props: {
+  conn: MatchConnection;
+  player: View["players"][number];
+  now: number;
+  name: (seat: number) => string;
+}) {
+  const { conn, player: p, now } = props;
+  const view = useStore(conn.store, (s) => s.view);
+  const pending = useStore(conn.local, (s) => isPending(s, "truce"));
+  const who = props.name(p.seat);
+  const button = "min-h-8.5 rounded-md px-3 text-sm disabled:opacity-50";
+  const box = cn(
+    popover,
+    "bottom-11 left-78 flex w-68 flex-col gap-2 p-3 text-sm",
+  );
+  if (truce(view, p.seat))
+    return (
+      <section aria-label={`Truce with ${who}`} className={box}>
+        <strong>Truce with {who}</strong>
+        <p className="text-ink-2 text-xs">
+          Your Armies and theirs pass through each other's Planets. Attacking
+          one of theirs ends it.
+        </p>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => conn.endTruce(p.seat)}
+          className={cn(button, "border-accent bg-accent-wash text-accent")}
+        >
+          End Truce
+        </button>
+      </section>
+    );
+  if (p.offerFrom > now)
+    return (
+      <section aria-label={who} className={box}>
+        <strong>{who} offers a Truce</strong>
+        <p className="text-ink-2 text-xs">
+          Your Armies and theirs pass through each other's Planets with no
+          Battle. You stay enemies otherwise.
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => conn.answerTruce(p.seat, true)}
+            className={cn(button, "border-accent flex-1")}
+          >
+            Accept
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => conn.answerTruce(p.seat, false)}
+            className={cn(button, "border-edge bg-raised flex-1")}
+          >
+            Decline
+          </button>
+        </div>
+      </section>
+    );
+  const why =
+    p.offerTo > now
+      ? "Your offer is open"
+      : p.retryAt > now
+        ? `Offer again in ${Math.ceil((p.retryAt - now) / 1000)} s`
+        : "";
+  return (
+    <section aria-label={who} className={box}>
+      <strong>{who}</strong>
+      <button
+        type="button"
+        disabled={pending || !!why}
+        onClick={() => conn.offerTruce(p.seat)}
+        className={cn(button, "border-edge bg-raised")}
+      >
+        Offer Truce
+      </button>
+      {/* Kept in place when empty, so the popover keeps its size. */}
+      <span className="text-ink-3 min-h-4 text-xs">{why}</span>
+    </section>
+  );
+}
+
+/** A player's offer of a Truce to you has one toast, closed when the offer is. */
+const offerToast = (from: number) => `truce-offer-${from}`;
+
+/** An offer of a Truce to you: a countdown, Accept and Decline. */
+function TruceOffer(props: {
+  conn: MatchConnection;
+  from: number;
+  name: string;
+}) {
+  const { conn, from } = props;
+  // 0 until the View catches up with the event, and once the offer closes.
+  const lapses = useStore(
+    conn.store,
+    (s) => s.view?.players[from]?.offerFrom ?? 0,
+  );
+  const pending = useStore(conn.local, (s) => isPending(s, "truce"));
+  const now = useMatchNow(conn.local);
+  const button = "min-h-8.5 flex-1 rounded-md px-3 text-sm disabled:opacity-50";
+  return (
+    <Note kind="truce">
+      <span className="flex flex-col gap-2">
+        <span className="flex items-center gap-2">
+          <strong className="flex-1">{props.name} offers a Truce</strong>
+          <span className="text-ink-2 min-w-9 text-right font-mono text-xs">
+            {lapses > now && clock(lapses - now)}
+          </span>
+        </span>
+        <span className="text-ink-2 text-xs">
+          Your Armies and theirs pass through each other's Planets with no
+          Battle. You stay enemies otherwise.
+        </span>
+        <span className="flex gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => conn.answerTruce(from, true)}
+            className={cn(button, "border-accent")}
+          >
+            Accept
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => conn.answerTruce(from, false)}
+            className={cn(button, "border-edge bg-raised")}
+          >
+            Decline
+          </button>
+        </span>
+      </span>
+    </Note>
   );
 }
 
@@ -1226,6 +1421,11 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
         if (!b.commanded || was.battles.get(b.id)?.commanded) continue;
         conn.local.setState({ watching: b.id });
         notify("battle", `You command the Battle at ${planet(b.planet)}`);
+      }
+      // An offer to you closed (answered, lapsed, or called off by a Battle): its toast goes.
+      for (const p of now.players) {
+        if (was.players[p.seat]?.offerFrom && !p.offerFrom)
+          toast.dismiss(offerToast(p.seat));
       }
     });
     /** A Battle you're a side of: it has a report, running or over. */
@@ -1307,6 +1507,36 @@ function usePlayNotes(conn: MatchConnection, content: ContentLookups) {
               }
             : show(id),
         );
+      },
+      truceChanged: (e) => {
+        const t = detail<TruceChange>(e);
+        const you = view()?.you;
+        if (t.from !== you && t.to !== you) return; // the two players' news
+        const other = who(t.from === you ? t.to : t.from);
+        if (t.kind === "offered") {
+          if (t.to === you)
+            toast(<TruceOffer conn={conn} from={t.from} name={other} />, {
+              toastId: offerToast(t.from),
+              autoClose: false,
+            });
+          return;
+        }
+        const text = {
+          made: `You and ${other} made a Truce`,
+          declined: t.from === you ? `${other} declined your Truce` : undefined,
+          lapsed:
+            t.from === you
+              ? `Your offer of a Truce to ${other} lapsed`
+              : undefined,
+          ended: t.attacked
+            ? t.from === you
+              ? `You attacked ${other}, ending your Truce`
+              : `${other} attacked you, ending your Truce`
+            : t.from === you
+              ? `You ended your Truce with ${other}`
+              : `${other} ended your Truce`,
+        }[t.kind];
+        if (text) notify("truce", text);
       },
       eliminated: (e) => {
         const { seat } = detail<{ seat: number }>(e);

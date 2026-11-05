@@ -7,7 +7,8 @@ export type NoteKind =
   | "captured"
   | "player"
   | "rejected"
-  | "research";
+  | "research"
+  | "truce";
 
 const KINDS: Record<NoteKind, { label: string; colour: string }> = {
   battle: { label: "Battle", colour: "text-accent" },
@@ -15,6 +16,7 @@ const KINDS: Record<NoteKind, { label: string; colour: string }> = {
   player: { label: "Player", colour: "text-danger" },
   rejected: { label: "Rejected", colour: "text-danger" },
   research: { label: "Research", colour: "text-res-research" },
+  truce: { label: "Truce", colour: "text-ok" },
 };
 
 export type NoteAction = { label: string; onClick: () => void };
