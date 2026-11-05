@@ -24,6 +24,10 @@ _Avoid_: Alliance, side (a side is a Battle's attacker or defender), faction
 Two players not on the same Team: the only players whose Planets you attack and whose Armies stop yours.
 _Avoid_: Enemy (fine in prose, but the rule is Hostile), opponent
 
+**Truce**:
+A deal between two Hostile players, offered by one and accepted by the other: each one's Armies pass through the other's Planets with no Battle. They stay Hostile otherwise. Either can end it at any time, and attacking the other's Planet ends it.
+_Avoid_: Alliance, ceasefire, peace, treaty
+
 **Host**:
 The Seat that controls a Match's lobby settings and starts it; the creator, passing to the longest-held Seat if they leave the lobby.
 _Avoid_: Owner, admin

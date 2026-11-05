@@ -316,7 +316,7 @@ A **Spectator** watches a Match without a Seat (#48).
 Players can play in **Teams** (#67), such as 2v2.
 
 - **In the lobby:** the Host turns Teams on in Match Settings. Each Seat then has a Team picker (Team 1–4). Players pick their own, and the Host picks Bots'. Turning Teams on splits everyone between Team 1 and Team 2 alternately. Changing Team clears your ready flag, as changing Faction does. Start needs at least 2 Teams with someone on them, and uneven Teams (2v1) are allowed.
-- **Hostile:** two players are **Hostile** unless they're on the same Team. Every rule that said "another player's" means a Hostile player's. With Teams off, every Seat is its own Team, so a free-for-all plays as before. Teams are fixed for the whole Match. Changing them mid-Match is diplomacy (#81).
+- **Hostile:** two players are **Hostile** unless they're on the same Team. Every rule that said "another player's" means a Hostile player's. With Teams off, every Seat is its own Team, so a free-for-all plays as before. Teams are fixed for the whole Match. Between Teams, see [Truces](#truces).
 - **Shared vision:** Teammates see everything each other sees: Planets, Armies (with their whole routes) and Battles. They don't share economy, research or queues: those stay each player's own, unseen by Teammates.
 - **Passage:** an Army moves through a Teammate's Planet as through its own, with no Battle. It can't end its move there or be put in its Stacks: Stacks stay one player's. Routes count Teammates' Planets as your own.
 - **Battles:** still one player against one. A Teammate never joins. An Army arriving at a Teammate's Locked Planet waits in orbit, as at any Locked Planet. A Teammate can open an ally's Battle and watch from the ally's side, giving no orders.
@@ -324,7 +324,31 @@ Players can play in **Teams** (#67), such as 2v2.
 - **Elimination:** as without Teams. The player's Planets turn neutral and their Armies are lost, with nothing passing to Teammates. They watch on as a Spectator.
 - **On screen:** 8 player colours, each player keeping their own. A Team label in the lobby, the player list and the Spectator header. A Teammate's Planet shows an "Ally" tag and no Threat badge. Dropping an Army on one shows that it can't go there. An ally's capture reads "Ally Chief took Reach".
 - **Starts:** Capitals are shuffled onto the map's starts as before, Teams or not.
-- **Later:** maps grouping their starts by Team; a map with 8 starts for 4v4; Teammates trading or giving each other Resources, and other diplomacy (#81).
+- **Later:** maps grouping their starts by Team; a map with 8 starts for 4v4; Teammates trading or giving each other Resources (#81).
+
+### Truces
+
+Two Hostile players can make a **Truce** (#81): each one's Armies pass through the other's Planets with no Battle. It's between those two players, not their Teams, and doesn't bind a Teammate.
+
+- **What it does:** Armies, Couriers and Rally Point routes pass through the other's Planets with no Battle, and routes count those Planets as they count neutral ones.
+- **What it doesn't do:** the two stay Hostile in every other way. They share no vision, Threat badges stay, and neither wins with the other, so one of them has to end it to win.
+- **Offering:** one player offers and the other accepts or declines. An offer lapses after `truceOfferSeconds` (Ruleset; first-pass, 60). A player has one open offer to another at a time, and can't offer that player again for `truceRetrySeconds` (Ruleset; first-pass, 60) after a decline or lapse. There's no cost and no limit on Truces held.
+- **Not during a Battle between them:** while a Battle has the two as attacker and defender, Raids included, neither can offer or accept, and a Battle starting cancels any open offer between them. A Battle with someone else doesn't matter.
+- **Ending it by choice:** either player, alone, at any time, at once and with no penalty. Armies and Couriers on their way then follow the normal rules: an Army attacks the next of their Planets it reaches, and a Courier is destroyed there.
+- **Ending it by attacking:** the Truce ends the moment one of them attacks the other: an Army ends its move on their Planet, a Raid reaches one, or troops land in a Battle against them, a Teammate's included. Giving the order doesn't end it, and passing through never does.
+- **Orders already given:** a new Truce doesn't cancel or re-route an Army heading to the other's Planet. Its arrival attacks and ends the Truce unless it's re-ordered. Both players are shown which of their Armies these are.
+- **Stopping:** an Army can't stop on the other's Planet without attacking. At one Locked by a Battle with someone else it waits in orbit, as at a Teammate's, and doesn't join in. If the Truce ends while it waits, it's at a Hostile Planet: it attacks when the Planet unlocks, and a Courier is destroyed.
+- **Rally Points:** if a Truce ends, units already on the way are Armies under the normal rules, and that Planet stops being a way through for new ones.
+- **Elimination and Forfeits:** a player's Truces and open offers end with them. A disconnected player keeps their Truces, as their Seat is held; an offer to them lapses as normal.
+- **Who sees it:** only the two players and Spectators.
+- **Bots** never offer a Truce and decline every offer, for now (see [Bots](bot-spec.md)).
+- **On screen:**
+  - Clicking a Hostile player in the player list opens a popover with Offer Truce or End Truce. Offer Truce stays in place, disabled, with a tooltip saying why, while a Battle or the wait blocks it. A player with a Truce shows a Truce tag.
+  - An offer arrives as a toast with a live countdown, Accept and Decline. The same two buttons wait in that player's popover until it lapses.
+  - Both players get a toast when a Truce is made, and when one ends, saying who ended it and whether by choice or by attacking. The one who offered is told of a decline or lapse. All of these go in the notification history as a Truce kind.
+  - Their Planets show a Truce tag in the Planet window and keep their Threat badge. Routes preview straight through. Dropping an Army on one warns that arriving ends the Truce, and still lets you.
+- **UI:** a small mockup of the popover, the offer toast and the Planet tag is agreed before it's built.
+- **Later:** trading Resources between players (#81); Bots that weigh up a Truce.
 
 ### Results
 

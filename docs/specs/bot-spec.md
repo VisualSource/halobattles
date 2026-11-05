@@ -18,6 +18,7 @@ Every number here is Ruleset or Mod data, and all of them are **first-pass value
 - A Match whose players have all left (a Forfeit, or a Grace Period run out) ends as abandoned, Bots still in or not: a Bot doesn't win a Match its players walked out of. A Bot that beats the last player wins as last standing; with more than one Bot left then, it's abandoned all the same, since Bots don't play on alone.
 - A connected Spectator keeps a Match with no player in it going: until a Bot wins, by the hold or as last standing, or the last Spectator leaves, when it's abandoned. That's how to watch Bots play each other (see the game-design spec's [Spectators](game-design-spec.md#spectators)).
 - With [Teams](game-design-spec.md#teams), the Host picks a Bot's Team. A Bot never targets a Teammate: only Hostile Planets are Expand or Attack goals, and only Hostile Armies are threats. Teammates' Planets and Armies count toward its safety, and it sees what they see. It plays to its Team's win: it counts its Team's Planets together, defends when its Team holds the share, and attacks the Team that does. Bots don't coordinate with Teammates yet (attacking together, defending each other).
+- A Bot never offers a [Truce](game-design-spec.md#truces) and declines every offer, for now.
 
 ## Running
 
