@@ -43,8 +43,8 @@ export function MoveTechWindow(props: {
   const from = army
     ? army.to
     : view &&
-      labs(content, view).find((l) => l.holds.includes(moving?.tech ?? ""))
-        ?.planet;
+    labs(content, view).find((l) => l.holds.includes(moving?.tech ?? ""))
+      ?.planet;
   // Landed, lost or gone: this picker's price would be out of date.
   const stale =
     !!moving && !!view && (!from || (moving.army !== undefined && !army));
@@ -101,7 +101,7 @@ export function MoveTechWindow(props: {
               >
                 <CostIcons content={content} cost={cost} />
               </span>
-              <span className="text-ink-3 ml-auto text-xs">Never refunded</span>
+              <span className="text-ink-3 ml-auto text-xs">No refunds</span>
             </>
           )}
         </div>
