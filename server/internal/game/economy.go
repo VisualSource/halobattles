@@ -22,6 +22,7 @@ func (s *State) Advance(c *cs.Content, now int64) Events {
 	if s.Result != nil {
 		return ev // the Match is over
 	}
+	s.lapseOffers(c)
 	s.moveArmies(c, now, &ev)
 	s.fightBattles(c, now, &ev)
 	s.sightPlanets(c, now)
@@ -32,6 +33,7 @@ func (s *State) Advance(c *cs.Content, now int64) Events {
 	}
 	s.build(c, now) // after Payday, so income that clears a debt resumes queues now
 	s.research(c, now)
+	ev.Truces, s.truceNews = s.truceNews, nil // the tick's, and any the players' commands made since the last
 	return ev
 }
 
@@ -47,6 +49,7 @@ type Events struct {
 	TurnedBack []RaidTurnedBack
 	// Eliminated are the Seats eliminated this tick.
 	Eliminated []int
+	Truces     []TruceEvent
 	MatchEnded *Result
 }
 

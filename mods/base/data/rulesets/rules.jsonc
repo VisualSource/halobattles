@@ -24,6 +24,10 @@
   "threatBands": [300, 1000, 2500],
   "gracePeriodSeconds": 180,
   "armyVisionSeconds": 15,
+  // An offer of a Truce stays open this long; after a decline or lapse, the
+  // offerer waits this long to offer that player again.
+  "truceOfferSeconds": 60,
+  "truceRetrySeconds": 60,
   "resultsSeconds": 60,
   // docs/specs/bot-spec.md#difficulties, in the order the lobby offers them.
   "botDifficulties": [

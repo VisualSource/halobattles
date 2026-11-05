@@ -65,6 +65,12 @@ func (s *State) reinforce(c *cs.Content, a *Army, p *Planet) {
 				break // nothing left to carry: the rest of the Dropships wait with the Army
 			}
 			b.Sim.Command(side, battle.Order{Kind: battle.Arrive, Building: sh.Unit, Cargo: cargo, Owner: a.Owner})
+			// Troops sent in against a Truce partner, in a Teammate's Battle too, end the Truce.
+			if side == battle.Attacker {
+				s.attacked(a.Owner, b.Defender)
+			} else {
+				s.attacked(a.Owner, b.Attacker)
+			}
 			a.Units = Stack(a.Units).take(sh.Unit, 1)
 			for _, sl := range cargo {
 				a.Units = Stack(a.Units).take(sl.Unit, sl.Count)

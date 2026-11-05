@@ -18,6 +18,10 @@ type PlayerViewT struct {
 	Bot         string        `json:"bot"`
 	Stats       *PlayerStatsT `json:"stats"`
 	Team        byte          `json:"team"`
+	Truces      []byte        `json:"truces"`
+	OfferFrom   int64         `json:"offer_from"`
+	OfferTo     int64         `json:"offer_to"`
+	RetryAt     int64         `json:"retry_at"`
 }
 
 func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -41,6 +45,10 @@ func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		botOffset = builder.CreateString(t.Bot)
 	}
 	statsOffset := t.Stats.Pack(builder)
+	trucesOffset := flatbuffers.UOffsetT(0)
+	if t.Truces != nil {
+		trucesOffset = builder.CreateByteString(t.Truces)
+	}
 	PlayerViewStart(builder)
 	PlayerViewAddSeat(builder, t.Seat)
 	PlayerViewAddUser(builder, userOffset)
@@ -53,6 +61,10 @@ func (t *PlayerViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	PlayerViewAddBot(builder, botOffset)
 	PlayerViewAddStats(builder, statsOffset)
 	PlayerViewAddTeam(builder, t.Team)
+	PlayerViewAddTruces(builder, trucesOffset)
+	PlayerViewAddOfferFrom(builder, t.OfferFrom)
+	PlayerViewAddOfferTo(builder, t.OfferTo)
+	PlayerViewAddRetryAt(builder, t.RetryAt)
 	return PlayerViewEnd(builder)
 }
 
@@ -68,6 +80,10 @@ func (rcv *PlayerView) UnPackTo(t *PlayerViewT) {
 	t.Bot = string(rcv.Bot())
 	t.Stats = rcv.Stats(nil).UnPack()
 	t.Team = rcv.Team()
+	t.Truces = rcv.TrucesBytes()
+	t.OfferFrom = rcv.OfferFrom()
+	t.OfferTo = rcv.OfferTo()
+	t.RetryAt = rcv.RetryAt()
 }
 
 func (rcv *PlayerView) UnPack() *PlayerViewT {
@@ -231,8 +247,78 @@ func (rcv *PlayerView) MutateTeam(n byte) bool {
 	return rcv._tab.MutateByteSlot(24, n)
 }
 
+func (rcv *PlayerView) Truces(j int) byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		a := rcv._tab.Vector(o)
+		return rcv._tab.GetByte(a + flatbuffers.UOffsetT(j*1))
+	}
+	return 0
+}
+
+func (rcv *PlayerView) TrucesLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
+func (rcv *PlayerView) TrucesBytes() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
+func (rcv *PlayerView) MutateTruces(j int, n byte) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		a := rcv._tab.Vector(o)
+		return rcv._tab.MutateByte(a+flatbuffers.UOffsetT(j*1), n)
+	}
+	return false
+}
+
+func (rcv *PlayerView) OfferFrom() int64 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	if o != 0 {
+		return rcv._tab.GetInt64(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *PlayerView) MutateOfferFrom(n int64) bool {
+	return rcv._tab.MutateInt64Slot(28, n)
+}
+
+func (rcv *PlayerView) OfferTo() int64 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
+	if o != 0 {
+		return rcv._tab.GetInt64(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *PlayerView) MutateOfferTo(n int64) bool {
+	return rcv._tab.MutateInt64Slot(30, n)
+}
+
+func (rcv *PlayerView) RetryAt() int64 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	if o != 0 {
+		return rcv._tab.GetInt64(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *PlayerView) MutateRetryAt(n int64) bool {
+	return rcv._tab.MutateInt64Slot(32, n)
+}
+
 func PlayerViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(11)
+	builder.StartObject(15)
 }
 func PlayerViewAddSeat(builder *flatbuffers.Builder, seat byte) {
 	builder.PrependByteSlot(0, seat, 0)
@@ -266,6 +352,21 @@ func PlayerViewAddStats(builder *flatbuffers.Builder, stats flatbuffers.UOffsetT
 }
 func PlayerViewAddTeam(builder *flatbuffers.Builder, team byte) {
 	builder.PrependByteSlot(10, team, 0)
+}
+func PlayerViewAddTruces(builder *flatbuffers.Builder, truces flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(11, flatbuffers.UOffsetT(truces), 0)
+}
+func PlayerViewStartTrucesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(1, numElems, 1)
+}
+func PlayerViewAddOfferFrom(builder *flatbuffers.Builder, offerFrom int64) {
+	builder.PrependInt64Slot(12, offerFrom, 0)
+}
+func PlayerViewAddOfferTo(builder *flatbuffers.Builder, offerTo int64) {
+	builder.PrependInt64Slot(13, offerTo, 0)
+}
+func PlayerViewAddRetryAt(builder *flatbuffers.Builder, retryAt int64) {
+	builder.PrependInt64Slot(14, retryAt, 0)
 }
 func PlayerViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

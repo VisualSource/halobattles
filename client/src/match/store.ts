@@ -232,6 +232,12 @@ export type PlayerView = {
   bot: string; // a Bot's difficulty id; "" for a player
   stats: PlayerStats | null; // only in a Spectator's View
   team: number; // with Teams on, Team 1 is 0; with them off, the Seat
+  truces: number[]; // the Seats this player has a Truce with that you may see (#81)
+  // Between this player and you, as Match Times (0 for none): their offer of
+  // a Truce to you, yours to them, and when you may offer them again.
+  offerFrom: number;
+  offerTo: number;
+  retryAt: number;
 };
 
 /** Whether two Seats are on one Team: you and your Teammates. Neutral is no one's ally. */

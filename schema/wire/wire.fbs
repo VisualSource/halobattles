@@ -43,6 +43,9 @@ enum Op : int {
   WatchBattle = 34,
   SendTech = 35,
   ReorderCourier = 36,
+  OfferTruce = 37,
+  AnswerTruce = 38,
+  EndTruce = 39,
 
   LobbyState = 100,
   CommandRejected = 101,
@@ -57,6 +60,7 @@ enum Op : int {
   MatchEnded = 110,
   RaidTurnedBack = 111,
   DefenceLayout = 112,
+  TruceChanged = 113,
 }
 
 enum Phase : byte { Lobby, Play, Results }
@@ -329,6 +333,26 @@ table ReorderCourier {
   to_slot: ubyte;          // the Lab's Building Slot
 }
 
+// Offers another player a Truce (#81): each one's Armies pass through the
+// other's Planets with no Battle. It lapses after the Ruleset's truceOfferSeconds.
+table OfferTruce {
+  seq: uint32;
+  to: ubyte;               // a Seat
+}
+
+// Accepts or declines an open offer of a Truce.
+table AnswerTruce {
+  seq: uint32;
+  from: ubyte;             // the Seat that offered
+  accept: bool;
+}
+
+// Ends a Truce, at once.
+table EndTruce {
+  seq: uint32;
+  with: ubyte;             // the other Seat
+}
+
 // Server messages.
 
 table Seat {
@@ -572,6 +596,12 @@ table PlayerView {
   bot: string;             // a Bot's difficulty id; "" for a player
   stats: PlayerStats;      // only in a Spectator's View
   team: ubyte;             // Team 1 is 0; with Teams off, the Seat index
+  truces: [ubyte];         // the Seats this player has a Truce with that you may see: yours, or all as a Spectator
+  // Between this player and you, as Match Times (0 for none): their offer of
+  // a Truce to you, yours to them, and when you may offer them again.
+  offer_from: long;
+  offer_to: long;
+  retry_at: long;
 }
 
 // What a Spectator sees of a player's economy.
@@ -671,6 +701,17 @@ table ViewDelta {
 table RaidTurnedBack {
   match_time: long;
   planet: string;
+}
+
+enum TruceKind : ubyte { Offered = 0, Made = 1, Declined = 2, Lapsed = 3, Ended = 4 }
+
+// A Truce or an offer of one changed: sent to the two players and Spectators.
+table TruceChanged {
+  match_time: long;
+  kind: TruceKind;
+  from: ubyte;             // the offerer; for Ended, who ended it
+  to: ubyte;               // the one offered; for Ended, the other
+  attacked: bool;          // Ended by attacking, not by choice
 }
 
 // Sent to everyone who can see the Planet, and its previous owner.

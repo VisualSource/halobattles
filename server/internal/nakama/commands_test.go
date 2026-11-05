@@ -696,3 +696,30 @@ func TestACourierGoesOutAndIsCalledBackOverTheWire(t *testing.T) {
 		t.Errorf("Courier %+v, want it called off", a)
 	}
 }
+
+func TestATruceOfferReachesTheOtherPlayer(t *testing.T) {
+	h := newLobbyHarness(t)
+	r := h.m.content.Doc.Rulesets["base:rules"]
+	r.TruceOfferSeconds = 60
+	h.m.content.Doc.Rulesets["base:rules"] = r
+	h.start()
+	h.loop(cmd(u1, wire.OpOfferTruce, &wire.OfferTruceT{Seq: 103, To: 1}))
+	h.loop()
+	if r := h.rejection(u1, 103); r != "" {
+		t.Fatalf("offer rejected: %s", r)
+	}
+	if !slices.Contains(h.d.ops[u2.session], wire.OpTruceChanged) || !slices.Contains(h.d.ops[u1.session], wire.OpTruceChanged) {
+		t.Errorf("u1 got %v, u2 got %v; want both told of the offer", h.d.ops[u1.session], h.d.ops[u2.session])
+	}
+	var offer int64
+	for _, d := range h.d.deltas[u2.session] {
+		for _, p := range d.Players {
+			if p.Seat == 0 {
+				offer = p.OfferFrom
+			}
+		}
+	}
+	if offer == 0 {
+		t.Error("u2's View doesn't show u1's offer")
+	}
+}

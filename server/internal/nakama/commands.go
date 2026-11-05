@@ -244,6 +244,21 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
 			return s.play.CancelProject(s.seat(user), string(c.Tech()))
 		}
+	case wire.OpOfferTruce:
+		c := wire.GetRootAsOfferTruce(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.OfferTruce(doc, s.seat(user), int(c.To()))
+		}
+	case wire.OpAnswerTruce:
+		c := wire.GetRootAsAnswerTruce(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.AnswerTruce(doc, s.seat(user), int(c.From()), c.Accept())
+		}
+	case wire.OpEndTruce:
+		c := wire.GetRootAsEndTruce(data, 0)
+		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {
+			return s.play.EndTruce(s.seat(user), int(c.With()))
+		}
 	case wire.OpSendTech:
 		c := wire.GetRootAsSendTech(data, 0)
 		seq, phase, apply = c.Seq(), wire.PhasePlay, func(*game.Lobby) error {

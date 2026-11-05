@@ -65,6 +65,13 @@ type PlayerView struct {
 	GraceEnds   int64  // Match Time; 0 while connected
 	Bot         string // a Bot's difficulty id; "" for a player
 	Stats       *Stats // only in a Spectator's View
+	// Truces (#81) this player holds that the viewer may see: their own, the
+	// viewer's with them, or, for a Spectator, every one; by the other Seat.
+	Truces []int
+	// Between this player and the viewer, as Match Times (0 for none): an
+	// offer from them, the viewer's offer to them, and when the viewer may
+	// offer them again after a decline or lapse.
+	OfferFrom, OfferTo, RetryAt int64
 }
 
 // Stats is what a Spectator sees of a player's economy.
@@ -205,10 +212,19 @@ func (s *State) view(c *cs.Content, seat int) View {
 	} else {
 		visible = s.visible(seat)
 	}
+	truces := sortedPairs(s.Truces)
 	for _, p := range s.Players {
 		pv := PlayerView{
 			Seat: p.Seat, User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, Team: p.Team, PlanetCount: counts[p.Seat],
 			Eliminated: p.Eliminated, Connected: !p.Disconnected, GraceEnds: p.GraceEnds, Bot: p.Bot,
+		}
+		for _, k := range truces {
+			if (k[0] == p.Seat || k[1] == p.Seat) && (all || k[0] == seat || k[1] == seat) {
+				pv.Truces = append(pv.Truces, k[0]+k[1]-p.Seat) // the other one
+			}
+		}
+		if !all {
+			pv.OfferFrom, pv.OfferTo, pv.RetryAt = s.TruceOffers[[2]int{p.Seat, seat}], s.TruceOffers[[2]int{seat, p.Seat}], s.TruceRetry[[2]int{seat, p.Seat}]
 		}
 		if all {
 			used, cp := s.commandPoints(c, p.Seat)

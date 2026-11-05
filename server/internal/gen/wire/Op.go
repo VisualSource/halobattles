@@ -44,6 +44,9 @@ const (
 	OpWatchBattle          Op = 34
 	OpSendTech             Op = 35
 	OpReorderCourier       Op = 36
+	OpOfferTruce           Op = 37
+	OpAnswerTruce          Op = 38
+	OpEndTruce             Op = 39
 	OpLobbyState           Op = 100
 	OpCommandRejected      Op = 101
 	OpViewFull             Op = 102
@@ -57,6 +60,7 @@ const (
 	OpMatchEnded           Op = 110
 	OpRaidTurnedBack       Op = 111
 	OpDefenceLayout        Op = 112
+	OpTruceChanged         Op = 113
 )
 
 var EnumNamesOp = map[Op]string{
@@ -97,6 +101,9 @@ var EnumNamesOp = map[Op]string{
 	OpWatchBattle:          "WatchBattle",
 	OpSendTech:             "SendTech",
 	OpReorderCourier:       "ReorderCourier",
+	OpOfferTruce:           "OfferTruce",
+	OpAnswerTruce:          "AnswerTruce",
+	OpEndTruce:             "EndTruce",
 	OpLobbyState:           "LobbyState",
 	OpCommandRejected:      "CommandRejected",
 	OpViewFull:             "ViewFull",
@@ -110,6 +117,7 @@ var EnumNamesOp = map[Op]string{
 	OpMatchEnded:           "MatchEnded",
 	OpRaidTurnedBack:       "RaidTurnedBack",
 	OpDefenceLayout:        "DefenceLayout",
+	OpTruceChanged:         "TruceChanged",
 }
 
 var EnumValuesOp = map[string]Op{
@@ -150,6 +158,9 @@ var EnumValuesOp = map[string]Op{
 	"WatchBattle":          OpWatchBattle,
 	"SendTech":             OpSendTech,
 	"ReorderCourier":       OpReorderCourier,
+	"OfferTruce":           OpOfferTruce,
+	"AnswerTruce":          OpAnswerTruce,
+	"EndTruce":             OpEndTruce,
 	"LobbyState":           OpLobbyState,
 	"CommandRejected":      OpCommandRejected,
 	"ViewFull":             OpViewFull,
@@ -163,6 +174,7 @@ var EnumValuesOp = map[string]Op{
 	"MatchEnded":           OpMatchEnded,
 	"RaidTurnedBack":       OpRaidTurnedBack,
 	"DefenceLayout":        OpDefenceLayout,
+	"TruceChanged":         OpTruceChanged,
 }
 
 func (v Op) String() string {

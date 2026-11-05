@@ -3,6 +3,7 @@ import { Builder, ByteBuffer } from "flatbuffers";
 import {
   AddBotT,
   AmountT,
+  AnswerTruceT,
   ArmyUnitsT,
   type ArmyViewT,
   BattleBuildTurretT,
@@ -24,12 +25,14 @@ import {
   type DefenceLayoutT,
   DropState,
   type EconomyT,
+  EndTruceT,
   ExchangeT,
   LayoutStartT,
   LobbyState,
   type LobbyStateT,
   MatchEnded,
   MoveUnitsT,
+  OfferTruceT,
   Op,
   OrderArmyT,
   PaydayPaid,
@@ -65,6 +68,7 @@ import {
   StartProjectT,
   SurrenderT,
   TakeSeatT,
+  TruceChanged,
   ViewDelta,
   type ViewDeltaT,
   ViewFull,
@@ -155,6 +159,15 @@ const toWinHold = (h: WinHoldT) => ({
 
 const STACKS_PER_PLANET = 3;
 
+/** A TruceChanged's kind, by the wire's TruceKind. */
+const TRUCE_KINDS = ["offered", "made", "declined", "lapsed", "ended"] as const;
+export type TruceChange = {
+  kind: (typeof TRUCE_KINDS)[number];
+  from: number; // the offerer; for "ended", who ended it
+  to: number; // the one offered; for "ended", the other
+  attacked: boolean; // "ended" by attacking, not by choice
+};
+
 const toPlayer = (p: PlayerViewT): PlayerView => ({
   seat: p.seat,
   user: str(p.user),
@@ -172,6 +185,10 @@ const toPlayer = (p: PlayerViewT): PlayerView => ({
     commandPointsCap: p.stats.commandPointsCap,
   },
   team: p.team,
+  truces: [...p.truces],
+  offerFrom: Number(p.offerFrom),
+  offerTo: Number(p.offerTo),
+  retryAt: Number(p.retryAt),
 });
 
 const toPlanet = (p: PlanetViewT): PlanetView => ({
@@ -633,6 +650,25 @@ export class MatchConnection {
     this.send(Op.WatchBattle, "watch", (seq) => new WatchBattleT(seq, planet));
   }
 
+  /** Offers another player a Truce (#81). */
+  offerTruce(seat: number) {
+    this.send(Op.OfferTruce, "truce", (seq) => new OfferTruceT(seq, seat));
+  }
+
+  /** Accepts or declines another player's open offer of a Truce. */
+  answerTruce(seat: number, accept: boolean) {
+    this.send(
+      Op.AnswerTruce,
+      "truce",
+      (seq) => new AnswerTruceT(seq, seat, accept),
+    );
+  }
+
+  /** Ends a Truce with another player, at once. */
+  endTruce(seat: number) {
+    this.send(Op.EndTruce, "truce", (seq) => new EndTruceT(seq, seat));
+  }
+
   /** Whether you command your side of the Battle on planet: only in its setup. */
   setBattleCommand(planet: string, command: boolean) {
     this.send(
@@ -902,6 +938,18 @@ export class MatchConnection {
             detail: { planet: str(t.planet) },
           }),
         );
+        return;
+      }
+      case Op.TruceChanged: {
+        const t = TruceChanged.getRootAsTruceChanged(bb).unpack();
+        this.debug("TruceChanged", t);
+        this.syncClock(Number(t.matchTime));
+        this.emit("truceChanged", {
+          kind: TRUCE_KINDS[t.kind] ?? "ended",
+          from: t.from,
+          to: t.to,
+          attacked: t.attacked,
+        });
         return;
       }
       case Op.DefenceLayout: {

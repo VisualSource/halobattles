@@ -19,6 +19,8 @@ const rules: Ruleset = {
   threatBands: [300, 1000, 2500] as [number, number, number],
   gracePeriodSeconds: 180,
   armyVisionSeconds: 15,
+  truceOfferSeconds: 60,
+  truceRetrySeconds: 60,
   resultsSeconds: 60,
   botDifficulties: [
     {

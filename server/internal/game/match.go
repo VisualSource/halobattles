@@ -99,6 +99,12 @@ type State struct {
 	Armies      map[uint32]*Army
 	Battles     map[uint32]*Battle
 	Fields      map[string]*battle.Field // each Planet's Battlefield, once it's had a Battle
+	// Truces (#81), by pair, lower Seat first; open offers and the waits
+	// after a decline or lapse, by {from, to}, as the Match Time they end.
+	Truces      map[[2]int]bool
+	TruceOffers map[[2]int]int64
+	TruceRetry  map[[2]int]int64
+	truceNews   []TruceEvent // Truce changes since the last tick, for its Events
 	// The win-hold: the Team holding more than the map's share of Planets
 	// (-1 for none) and when its hold runs out.
 	HoldTeam int

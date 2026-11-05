@@ -270,6 +270,11 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		s.sendTo(logger, dispatcher, wire.OpPlanetCaptured, finish(t), c.Viewers...)
 		s.sendToPresences(logger, dispatcher, wire.OpPlanetCaptured, finish(t), watchers)
 	}
+	for _, tr := range ev.Truces { // the two players' business, and Spectators'
+		t := &wire.TruceChangedT{MatchTime: s.play.Time, Kind: wire.TruceKind(tr.Kind), From: uint8(tr.From), To: uint8(tr.To), Attacked: tr.Attacked}
+		s.sendTo(logger, dispatcher, wire.OpTruceChanged, finish(t), tr.From, tr.To)
+		s.sendToPresences(logger, dispatcher, wire.OpTruceChanged, finish(t), watchers)
+	}
 	for _, r := range ev.TurnedBack { // a Raid is its owner's alone, and Spectators'
 		t := &wire.RaidTurnedBackT{MatchTime: s.play.Time, Planet: r.Planet}
 		s.sendTo(logger, dispatcher, wire.OpRaidTurnedBack, finish(t), r.Seat)
@@ -736,7 +741,7 @@ func players(ps []game.PlayerView) []*wire.PlayerViewT {
 		out = append(out, &wire.PlayerViewT{
 			Seat: uint8(p.Seat), User: p.User, DisplayName: p.DisplayName, Faction: p.Faction, PlanetCount: uint16(p.PlanetCount),
 			Eliminated: p.Eliminated, Connected: p.Connected, GraceEnds: p.GraceEnds, Bot: p.Bot, Stats: stats(p.Stats),
-			Team: uint8(p.Team),
+			Team: uint8(p.Team), Truces: seats(p.Truces), OfferFrom: p.OfferFrom, OfferTo: p.OfferTo, RetryAt: p.RetryAt,
 		})
 	}
 	return out
@@ -826,4 +831,13 @@ func displayNames(ctx context.Context, logger runtime.Logger, nk runtime.NakamaM
 		names[u.Id] = u.DisplayName
 	}
 	return names
+}
+
+// seats encodes Seats for the wire.
+func seats(ss []int) []byte {
+	out := make([]byte, len(ss))
+	for i, s := range ss {
+		out[i] = byte(s)
+	}
+	return out
 }

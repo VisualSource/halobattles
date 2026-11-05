@@ -277,6 +277,10 @@ describe("MatchConnection", () => {
           bot: "",
           stats: null,
           team: 0,
+          truces: [],
+          offerFrom: 0,
+          offerTo: 0,
+          retryAt: 0,
         },
         {
           seat: 1,
@@ -290,6 +294,10 @@ describe("MatchConnection", () => {
           bot: "",
           stats: null,
           team: 0,
+          truces: [],
+          offerFrom: 0,
+          offerTo: 0,
+          retryAt: 0,
         },
       ],
       planets: new Map([

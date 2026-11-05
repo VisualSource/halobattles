@@ -176,6 +176,14 @@ export interface Ruleset {
    */
   armyVisionSeconds: number;
   /**
+   * How long an offer of a Truce stays open before it lapses.
+   */
+  truceOfferSeconds: number;
+  /**
+   * How long after a declined or lapsed offer before the same player can offer the other a Truce again.
+   */
+  truceRetrySeconds: number;
+  /**
    * How long a Match stays in results.
    */
   resultsSeconds: number;

@@ -25,6 +25,8 @@ const baseRules = `{
 	"threatBands": [300, 1000, 2500],
 	"gracePeriodSeconds": 180,
 	"armyVisionSeconds": 15,
+	"truceOfferSeconds": 60,
+	"truceRetrySeconds": 60,
 	"resultsSeconds": 60,
 	"botDifficulties": [{"id": "easy", "name": "Easy", "thinkSeconds": 10, "noisePercent": 30, "attackMargin": 1, "planDepth": 3,
 		"reservePercent": 10, "retreatBelowPercent": 0, "unitChoice": "fixed", "research": "first"}],

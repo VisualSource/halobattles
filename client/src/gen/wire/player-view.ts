@@ -88,8 +88,38 @@ team():number {
   return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
 }
 
+truces(index: number):number|null {
+  const offset = this.bb!.__offset(this.bb_pos, 26);
+  return offset ? this.bb!.readUint8(this.bb!.__vector(this.bb_pos + offset) + index) : 0;
+}
+
+trucesLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 26);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
+trucesArray():Uint8Array|null {
+  const offset = this.bb!.__offset(this.bb_pos, 26);
+  return offset ? new Uint8Array(this.bb!.bytes().buffer, this.bb!.bytes().byteOffset + this.bb!.__vector(this.bb_pos + offset), this.bb!.__vector_len(this.bb_pos + offset)) : null;
+}
+
+offerFrom():bigint {
+  const offset = this.bb!.__offset(this.bb_pos, 28);
+  return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
+}
+
+offerTo():bigint {
+  const offset = this.bb!.__offset(this.bb_pos, 30);
+  return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
+}
+
+retryAt():bigint {
+  const offset = this.bb!.__offset(this.bb_pos, 32);
+  return offset ? this.bb!.readInt64(this.bb_pos + offset) : BigInt('0');
+}
+
 static startPlayerView(builder:flatbuffers.Builder) {
-  builder.startObject(11);
+  builder.startObject(15);
 }
 
 static addSeat(builder:flatbuffers.Builder, seat:number) {
@@ -136,6 +166,34 @@ static addTeam(builder:flatbuffers.Builder, team:number) {
   builder.addFieldInt8(10, team, 0);
 }
 
+static addTruces(builder:flatbuffers.Builder, trucesOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(11, trucesOffset, 0);
+}
+
+static createTrucesVector(builder:flatbuffers.Builder, data:number[]|Uint8Array):flatbuffers.Offset {
+  builder.startVector(1, data.length, 1);
+  for (let i = data.length - 1; i >= 0; i--) {
+    builder.addInt8(data[i]!);
+  }
+  return builder.endVector();
+}
+
+static startTrucesVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(1, numElems, 1);
+}
+
+static addOfferFrom(builder:flatbuffers.Builder, offerFrom:bigint) {
+  builder.addFieldInt64(12, offerFrom, BigInt('0'));
+}
+
+static addOfferTo(builder:flatbuffers.Builder, offerTo:bigint) {
+  builder.addFieldInt64(13, offerTo, BigInt('0'));
+}
+
+static addRetryAt(builder:flatbuffers.Builder, retryAt:bigint) {
+  builder.addFieldInt64(14, retryAt, BigInt('0'));
+}
+
 static endPlayerView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -154,7 +212,11 @@ unpack(): PlayerViewT {
     this.graceEnds(),
     this.bot(),
     (this.stats() !== null ? this.stats()!.unpack() : null),
-    this.team()
+    this.team(),
+    this.bb!.createScalarList<number>(this.truces.bind(this), this.trucesLength()),
+    this.offerFrom(),
+    this.offerTo(),
+    this.retryAt()
   );
 }
 
@@ -171,6 +233,10 @@ unpackTo(_o: PlayerViewT): void {
   _o.bot = this.bot();
   _o.stats = (this.stats() !== null ? this.stats()!.unpack() : null);
   _o.team = this.team();
+  _o.truces = this.bb!.createScalarList<number>(this.truces.bind(this), this.trucesLength());
+  _o.offerFrom = this.offerFrom();
+  _o.offerTo = this.offerTo();
+  _o.retryAt = this.retryAt();
 }
 }
 
@@ -186,7 +252,11 @@ constructor(
   public graceEnds: bigint = BigInt('0'),
   public bot: string|Uint8Array|null = null,
   public stats: PlayerStatsT|null = null,
-  public team: number = 0
+  public team: number = 0,
+  public truces: (number)[] = [],
+  public offerFrom: bigint = BigInt('0'),
+  public offerTo: bigint = BigInt('0'),
+  public retryAt: bigint = BigInt('0')
 ){}
 
 
@@ -196,6 +266,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const faction = (this.faction !== null ? builder.createString(this.faction!) : 0);
   const bot = (this.bot !== null ? builder.createString(this.bot!) : 0);
   const stats = (this.stats !== null ? this.stats!.pack(builder) : 0);
+  const truces = PlayerView.createTrucesVector(builder, this.truces);
 
   PlayerView.startPlayerView(builder);
   PlayerView.addSeat(builder, this.seat);
@@ -209,6 +280,10 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   PlayerView.addBot(builder, bot);
   PlayerView.addStats(builder, stats);
   PlayerView.addTeam(builder, this.team);
+  PlayerView.addTruces(builder, truces);
+  PlayerView.addOfferFrom(builder, this.offerFrom);
+  PlayerView.addOfferTo(builder, this.offerTo);
+  PlayerView.addRetryAt(builder, this.retryAt);
 
   return PlayerView.endPlayerView(builder);
 }

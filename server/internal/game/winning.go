@@ -100,6 +100,7 @@ func (s *State) eliminate(seat int, ev *Events) {
 		return
 	}
 	s.Players[seat].Eliminated = true
+	s.dropTruces(seat)
 	for _, p := range s.Planets {
 		if p.Owner == seat {
 			p.Owner, p.Queue, p.UnitQueues, p.Rally, p.RallyPoint, p.Techs = Neutral, nil, nil, 0, "", nil

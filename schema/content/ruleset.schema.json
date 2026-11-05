@@ -20,6 +20,8 @@
     "threatBands",
     "gracePeriodSeconds",
     "armyVisionSeconds",
+    "truceOfferSeconds",
+    "truceRetrySeconds",
     "resultsSeconds",
     "tech",
     "techTransferCost",
@@ -97,6 +99,8 @@
     },
     "gracePeriodSeconds": { "description": "How long a disconnected player keeps their Seat.", "type": "integer", "minimum": 0 },
     "armyVisionSeconds": { "description": "How long a player keeps seeing a Planet after their Army there leaves or is destroyed.", "type": "integer", "minimum": 0 },
+    "truceOfferSeconds": { "description": "How long an offer of a Truce stays open before it lapses.", "type": "integer", "minimum": 1 },
+    "truceRetrySeconds": { "description": "How long after a declined or lapsed offer before the same player can offer the other a Truce again.", "type": "integer", "minimum": 0 },
     "resultsSeconds": { "description": "How long a Match stays in results.", "type": "integer", "minimum": 0 },
     "botDifficulties": {
       "description": "The levels a Bot can play at, in the order the lobby offers them.",

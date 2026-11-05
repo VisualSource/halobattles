@@ -1101,6 +1101,13 @@ type Ruleset struct {
 	// An attack's d20 roll below this misses.
 	ToHit int `json:"toHit"`
 
+	// How long an offer of a Truce stays open before it lapses.
+	TruceOfferSeconds int `json:"truceOfferSeconds"`
+
+	// How long after a declined or lapsed offer before the same player can offer the
+	// other a Truce again.
+	TruceRetrySeconds int `json:"truceRetrySeconds"`
+
 	// UnitSlotsPerStack corresponds to the JSON schema field "unitSlotsPerStack".
 	UnitSlotsPerStack int `json:"unitSlotsPerStack"`
 }

@@ -43,8 +43,8 @@ export function MoveTechWindow(props: {
   const from = army
     ? army.to
     : view &&
-    labs(content, view).find((l) => l.holds.includes(moving?.tech ?? ""))
-      ?.planet;
+      labs(content, view).find((l) => l.holds.includes(moving?.tech ?? ""))
+        ?.planet;
   // Landed, lost or gone: this picker's price would be out of date.
   const stale =
     !!moving && !!view && (!from || (moving.army !== undefined && !army));

@@ -40,6 +40,9 @@ export enum Op {
   WatchBattle = 34,
   SendTech = 35,
   ReorderCourier = 36,
+  OfferTruce = 37,
+  AnswerTruce = 38,
+  EndTruce = 39,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,
@@ -52,5 +55,6 @@ export enum Op {
   PlayerEliminated = 109,
   MatchEnded = 110,
   RaidTurnedBack = 111,
-  DefenceLayout = 112
+  DefenceLayout = 112,
+  TruceChanged = 113
 }

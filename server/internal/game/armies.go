@@ -57,7 +57,8 @@ func (s *State) owns(seat int) func(string) bool {
 }
 
 // ownerFor is each Planet's owner as Route sees it for seat: a Teammate's
-// Planet counts as seat's own, since its Armies go straight through.
+// Planet counts as seat's own, since its Armies go straight through, and a
+// Truce partner's as neutral.
 func (s *State) ownerFor(seat int) func(string) int {
 	return func(id string) int {
 		p := s.Planets[id]
@@ -66,16 +67,18 @@ func (s *State) ownerFor(seat int) func(string) int {
 			return Neutral
 		case s.Allied(seat, p.Owner):
 			return seat
+		case s.truce(seat, p.Owner):
+			return Neutral
 		}
 		return p.Owner
 	}
 }
 
 // passable reports whether an Army of seat may go on through p rather than
-// end its move there: its own and its Teammates' Planets, and neutral ones.
-// A Locked one makes it wait in orbit first.
+// end its move there: its own and its Teammates' Planets, neutral ones, and
+// a Truce partner's. A Locked one makes it wait in orbit first.
 func (s *State) passable(seat int, p *Planet) bool {
-	return s.Allied(seat, p.Owner) || p.Owner == Neutral
+	return s.Allied(seat, p.Owner) || p.Owner == Neutral || s.truce(seat, p.Owner)
 }
 
 // errAllyPlanet: Stacks stay one player's, so no Army lands on a Teammate's Planet.
@@ -323,6 +326,9 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 				continue
 			}
 			a.Path = nil // taken by an enemy: the move ends here
+		}
+		if !s.Allied(a.Owner, p.Owner) {
+			s.attacked(a.Owner, p.Owner) // ending its move on a Truce partner's Planet ends the Truce
 		}
 		switch {
 		case a.Raid && !s.Allied(a.Owner, p.Owner) && !p.built():
