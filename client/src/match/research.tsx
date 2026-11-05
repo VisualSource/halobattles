@@ -10,6 +10,7 @@ import { type Project, projectDone, type View } from "./store";
 import {
   heldTechs,
   idleFields,
+  type Lab,
   labs,
   offered,
   pauseReason,
@@ -601,48 +602,71 @@ function LabPicker(props: {
           You have no Lab. Build one to research.
         </p>
       ) : (
-        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
-          {all.map((l) => {
-            const holds = [
-              ...l.holds.map(nameOf),
-              ...l.researching.map((t) => `${nameOf(t)} (researching)`),
-            ];
-            return (
-              <li key={`${l.planet}-${l.slot}`}>
-                <button
-                  type="button"
-                  disabled={l.free === 0 || props.pending}
-                  onClick={() => {
-                    props.conn.startProject(props.tech, l.planet, l.slot);
-                    props.onDone();
-                  }}
-                  className="border-edge bg-item flex w-full items-center gap-2.5 rounded-md border px-2.5 py-2 text-left disabled:opacity-50"
-                >
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="font-semibold">
-                      {props.planetName(l.planet)}{" "}
-                      <span className="text-ink-3 font-normal">
-                        · {l.name}, slot {l.slot + 1}
-                      </span>
-                    </span>
-                    <span className="text-ink-3 truncate text-xs">
-                      {holds.join(" · ") || "Empty"}
-                    </span>
-                  </span>
-                  <span
-                    className={`font-mono text-xs ${l.free ? "text-ok" : "text-ink-4"}`}
-                  >
-                    {l.free ? `${l.free} free` : "full"}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <LabRows
+          content={content}
+          labs={all}
+          blocked={() => props.pending}
+          planetName={props.planetName}
+          onPick={(l) => {
+            props.conn.startProject(props.tech, l.planet, l.slot);
+            props.onDone();
+          }}
+        />
       )}
       <p className="text-ink-3 px-3.5 pt-1 pb-3 text-xs">
         Losing a Lab loses every Tech it holds.
       </p>
     </>
+  );
+}
+
+/** Labs to pick from, scrolling in the space it's given; full ones stay, disabled. */
+export function LabRows(props: {
+  content: ContentLookups;
+  labs: Lab[];
+  blocked: (l: Lab) => boolean;
+  planetName: (id: string) => string;
+  time?: (l: Lab) => string;
+  onPick: (l: Lab) => void;
+}) {
+  const nameOf = (id: string) => props.content.techs.get(id)?.name ?? id;
+  return (
+    <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
+      {props.labs.map((l) => {
+        const holds = [
+          ...l.holds.map(nameOf),
+          ...l.researching.map((t) => `${nameOf(t)} (researching)`),
+          ...l.couriers.map((t) => `${nameOf(t)} (moving)`),
+        ];
+        return (
+          <li key={`${l.planet}-${l.slot}`}>
+            <button
+              type="button"
+              disabled={l.free === 0 || props.blocked(l)}
+              onClick={() => props.onPick(l)}
+              className="border-edge bg-item flex w-full items-center gap-2.5 rounded-md border px-2.5 py-2 text-left disabled:opacity-50"
+            >
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="font-semibold">
+                  {props.planetName(l.planet)}{" "}
+                  <span className="text-ink-3 font-normal">
+                    · {l.name}, slot {l.slot + 1}
+                  </span>
+                </span>
+                <span className="text-ink-3 truncate text-xs">
+                  {holds.join(" · ") || "Empty"}
+                </span>
+              </span>
+              <span className="flex flex-col items-end gap-0.5 font-mono text-xs whitespace-nowrap">
+                {props.time && <span>{props.time(l)}</span>}
+                <span className={l.free ? "text-ok" : "text-ink-4"}>
+                  {l.free ? `${l.free} free` : "full"}
+                </span>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

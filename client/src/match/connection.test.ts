@@ -359,6 +359,12 @@ describe("MatchConnection", () => {
             toStack: 2,
             path: ["reach"],
             raid: false,
+            tech: "",
+            homePlanet: "",
+            homeSlot: 0,
+            destPlanet: "",
+            destSlot: 0,
+            turned: false,
           },
         ],
       ]),
@@ -1069,6 +1075,51 @@ describe("MatchConnection", () => {
     send(Op.PlanetCaptured, pack(new PlanetCapturedT(30000n, "c", -1, 0)));
 
     expect(got).toEqual([{ planet: "c", from: null, to: 0 }]);
+  });
+
+  it("decodes a Courier and sends SendTech and ReorderCourier", async () => {
+    const { conn, send } = await playing();
+    send(
+      Op.ViewDelta,
+      pack(
+        new ViewDeltaT(0n, [], [], [], null, [
+          new ArmyViewT(
+            1,
+            0,
+            [],
+            "a",
+            "b",
+            0n,
+            30000n,
+            false,
+            "c",
+            0,
+            ["c"],
+            false,
+            "base:radar",
+            "a",
+            2,
+            "c",
+            1,
+          ),
+        ]),
+      ),
+    );
+    expect(conn.store.getState().view?.armies.get(1)).toMatchObject({
+      tech: "base:radar",
+      homePlanet: "a",
+      homeSlot: 2,
+      destPlanet: "c",
+      destSlot: 1,
+      turned: false,
+    });
+
+    conn.sendTech("base:radar", "c", 1);
+    conn.reorderCourier(1, "a", 2);
+    expect([...conn.local.getState().pending.values()].slice(-2)).toEqual([
+      "courier",
+      "courier",
+    ]);
   });
 
   it("sends OrderArmy with each Stack and unit", async () => {

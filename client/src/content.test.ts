@@ -48,6 +48,12 @@ const rules: Ruleset = {
       legendary: { from: 14, weight: 1 },
     },
   },
+  techTransferCost: {
+    common: { "base:credits": 100 },
+    uncommon: { "base:credits": 200 },
+    rare: { "base:credits": 400 },
+    legendary: { "base:credits": 800 },
+  },
   battlefield: {
     width: 64,
     height: 48,

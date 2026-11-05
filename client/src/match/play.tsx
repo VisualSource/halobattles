@@ -21,14 +21,15 @@ import type { MatchConnection } from "./connection";
 import { moneyOf, presets, quote } from "./exchange";
 import { LayoutWindow } from "./layout";
 import { isPending } from "./local";
+import { MoveTechWindow } from "./move-tech";
 import { inMatch } from "./phase";
 import { ResearchButton, ResearchPanel } from "./research";
 import { CommandIcon, ResourceIcon } from "./resources";
-import { laneTimes } from "./route";
+import { arrival, laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import { ConfirmDialog } from "./status";
 import { allied, teamName, type View, winnerName } from "./store";
-import { finishedProjects } from "./tech";
+import { finishedProjects, rarityColour } from "./tech";
 import { formatAge, useMatchNow, useWallNow } from "./time";
 import { notify } from "./toasts";
 import { canRaid } from "./units";
@@ -156,6 +157,7 @@ export function PlayScreen(props: {
           />
         )}
         <ArmyWindow conn={conn} content={content} />
+        <MoveTechWindow conn={conn} content={content} />
         <BattlePanel conn={conn} content={content} />
       </div>
     </div>
@@ -358,11 +360,9 @@ function ArmiesList(props: { conn: MatchConnection; content: ContentLookups }) {
     <ul className="min-h-0 flex-1 overflow-y-auto">
       {armies.length > 0 && <li className={group}>On the move</li>}
       {armies.map((a) => {
-        // When it reaches its destination: this hop, then the rest of its route.
-        let at = a.waiting ? now : a.arrives;
-        [a.to, ...a.path].forEach((p, i, route) => {
-          if (i > 0) at += lanes.get(route[i - 1] ?? "")?.get(p) ?? 0;
-        });
+        const at = arrival(lanes, a, now);
+        const courier = !!a.tech;
+        const carrying = content.techs.get(a.tech)?.name ?? a.tech;
         return (
           <li
             key={`army-${a.id}`}
@@ -380,17 +380,28 @@ function ArmiesList(props: { conn: MatchConnection; content: ContentLookups }) {
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate font-semibold">
                   {a.waiting
-                    ? `Orbiting ${name(a.to)}`
-                    : `To ${name(a.destination)}`}
+                    ? `${courier ? "Courier orbiting" : "Orbiting"} ${name(a.to)}`
+                    : `${courier ? "Courier to" : "To"} ${name(a.destination)}`}
                 </span>
-                <span className="text-ink-3 truncate text-xs">
+                <span
+                  className="text-ink-3 truncate text-xs"
+                  style={
+                    courier && !a.waiting
+                      ? { color: rarityColour(content, a.tech) }
+                      : undefined
+                  }
+                >
+                  {courier && carrying}
+                  {courier && a.waiting && " · "}
                   {a.waiting
                     ? `waiting to go on to ${name(a.destination)}`
-                    : `from ${name(a.from)}`}
+                    : !courier && `from ${name(a.from)}`}
                 </span>
               </span>
               <span className="flex flex-col items-end gap-0.5 font-mono text-xs">
-                <span className="text-ink-2">{count(a.units)} units</span>
+                <span className="text-ink-2">
+                  {courier ? "Tech" : `${count(a.units)} units`}
+                </span>
                 {!a.waiting && (
                   <span className="text-ink-3">
                     {Math.max(0, Math.ceil((at - now) / 1000))} s
@@ -398,7 +409,9 @@ function ArmiesList(props: { conn: MatchConnection; content: ContentLookups }) {
                 )}
               </span>
             </button>
-            <Strength content={content} units={a.units} colour={colour} />
+            {!courier && (
+              <Strength content={content} units={a.units} colour={colour} />
+            )}
           </li>
         );
       })}

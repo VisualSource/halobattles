@@ -38,6 +38,8 @@ export enum Op {
   RequestDefenceLayout = 32,
   SetDefenceLayout = 33,
   WatchBattle = 34,
+  SendTech = 35,
+  ReorderCourier = 36,
   LobbyState = 100,
   CommandRejected = 101,
   ViewFull = 102,

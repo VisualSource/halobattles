@@ -1,4 +1,5 @@
 import { createStore } from "zustand/vanilla";
+import type { LocalState } from "./local";
 
 // Plain Match state. Only MatchConnection writes it; nothing outside the
 // connection imports FlatBuffers types.
@@ -78,6 +79,12 @@ export type Army = {
   toStack: number; // own only
   path: string[]; // own only: the Planets after `to`, in order
   raid: boolean; // own only: nobody else sees a Raid at all
+  tech: string; // a Courier's, which has no units; "" for any other Army
+  homePlanet: string; // own only, a Courier's: the Lab it left, "" once that's lost
+  homeSlot: number;
+  destPlanet: string; // own only, a Courier's: the Lab it's going to
+  destSlot: number;
+  turned: boolean; // own only, a Courier's: `to` is the captured Planet it just leaves
 };
 
 export type Side = "attacker" | "defender";
@@ -234,6 +241,26 @@ export const allied = (view: View, a: number | null, b: number | null) =>
   a >= 0 &&
   b >= 0 &&
   (view.players[a]?.team ?? a) === (view.players[b]?.team ?? b);
+
+/** A Planet's owner as the player knows it: live, else as last seen, else neutral. */
+export function knownOwner(
+  view: View,
+  lastSeen: LocalState["lastSeen"],
+  id: string,
+) {
+  const live = view.planets.get(id);
+  return live ? live.owner : (lastSeen.get(id)?.planet.owner ?? null);
+}
+
+/** A Planet's owner as Route sees it: a Teammate's counts as your own, as on the server. */
+export function routeOwner(
+  view: View,
+  lastSeen: LocalState["lastSeen"],
+  id: string,
+) {
+  const owner = knownOwner(view, lastSeen, id);
+  return allied(view, owner, view.you) ? view.you : owner;
+}
 
 /** Whether a Planet in view is a Teammate's: passed through, never stopped at. */
 export const allyPlanet = (view: View | null, id: string) => {

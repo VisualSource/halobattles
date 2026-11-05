@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import type { ContentLookups } from "../content";
-import type { Building, Unit } from "../gen/content";
+import type { Building, GalaxyMap, Unit } from "../gen/content";
 import { progress, seatColour } from "../scene/galaxy";
 import { InfoButton, InfoPopover } from "../ui/popover";
 import { Select } from "../ui/select";
@@ -34,18 +34,32 @@ import { freeCell, moveSlot } from "./stacks";
 import { ConfirmDialog } from "./status";
 import {
   allied,
+  knownOwner,
   type PlanetView,
   type QueueItem,
   type UnitSlot,
   type View,
 } from "./store";
-import { heldTechs, listed, needsTech } from "./tech";
+import {
+  courierLanding,
+  heldTechs,
+  labFill,
+  listed,
+  needsTech,
+  otherLabs,
+  rarityColour,
+  techsLostWithLab,
+} from "./tech";
 import { THREAT_LEVELS, threat } from "./threat";
 import { formatAge, useMatchNow } from "./time";
 import { UnitInfo } from "./units";
 
 // The play screen's floating windows: the selected Planet, its Stacks, and
 // the selected Army. Each can be dragged by its title bar.
+
+/** A Planet's name on map, or its id if it isn't there. */
+export const planetNameOn = (map: GalaxyMap | undefined, id: string) =>
+  map?.planets.find((p) => p.id === id)?.name ?? id;
 
 export const label =
   "font-mono text-[11px] text-ink-3 uppercase tracking-[0.08em]";
@@ -766,7 +780,7 @@ function BuildingsTab(props: {
   // The Lab slot whose sale is being confirmed: it holds Techs.
   const [selling, setSelling] = useState<number | null>(null);
   const sellingTechs = (
-    selling === null ? [] : (planet.labs.get(selling) ?? [])
+    selling === null || !view ? [] : techsLostWithLab(view, planet, selling)
   ).map((t) => content.techs.get(t)?.name ?? t);
 
   const held = view ? heldTechs(view) : new Set<string>();
@@ -908,9 +922,9 @@ function BuildingsTab(props: {
         }}
         onCancel={() => setSelling(null)}
       >
-        Selling this Lab loses every Tech it holds. They come back as cards you
-        can research again for {content.rules.tech.recoveryPercent}% of their
-        cost.
+        Selling this Lab loses every Tech it holds or that has no other Lab to
+        go back to. They come back as cards you can research again for{" "}
+        {content.rules.tech.recoveryPercent}% of their cost.
       </ConfirmDialog>
       <span className={label}>Buildings</span>
       <div className="grid grid-cols-2 gap-2">
@@ -943,7 +957,7 @@ function BuildingsTab(props: {
                             type="button"
                             disabled={isPending(local, "sell")}
                             onClick={() =>
-                              planet.labs.get(i)?.length
+                              view && techsLostWithLab(view, planet, i).length
                                 ? setSelling(i)
                                 : conn.sellBuilding(planet.id, i)
                             }
@@ -958,18 +972,12 @@ function BuildingsTab(props: {
                   body={
                     b.techSlots ? (
                       <LabSlots
+                        conn={conn}
                         content={content}
-                        holds={planet.labs.get(i) ?? []}
-                        researching={
-                          planet.owner === view?.you
-                            ? (view?.research.projects ?? [])
-                                .filter(
-                                  (p) => p.planet === planet.id && p.slot === i,
-                                )
-                                .map((p) => p.tech)
-                            : []
-                        }
-                        slots={b.techSlots}
+                        planet={planet}
+                        slot={i}
+                        base={b.techSlots}
+                        now={now}
                       />
                     ) : undefined
                   }
@@ -1135,37 +1143,91 @@ function BuildingFace(props: {
 }
 
 /**
- * A Lab's Tech Slots: the Techs it holds, the Projects reserving one, then
- * the free ones. Other players see what it holds too.
+ * A Lab's Tech Slots: the Techs it holds, each of yours with a Move… action,
+ * the Projects and Couriers reserving one, then the free ones. Other players
+ * see what it holds too.
  */
 function LabSlots(props: {
+  conn: MatchConnection;
   content: ContentLookups;
-  holds: string[];
-  researching: string[];
-  slots: number;
+  planet: PlanetView;
+  slot: number;
+  base: number; // the building's Tech Slots, before effects
+  now: number;
 }) {
-  const name = (t: string) => props.content.techs.get(t)?.name ?? t;
-  const free = Math.max(
-    0,
-    props.slots - props.holds.length - props.researching.length,
+  const { conn, content, planet, slot } = props;
+  const view = useStore(conn.store, (s) => s.view);
+  const pending = useStore(conn.local, (s) => isPending(s, "courier"));
+  if (!view) return null;
+  const name = (t: string) => content.techs.get(t)?.name ?? t;
+  const map = content.maps.get(view.map);
+  const planetName = (id: string) => planetNameOn(map, id);
+  const mine =
+    !view.spectating && view.planets.get(planet.id)?.owner === view.you;
+  const { holds, researching, incoming, outgoing, free } = labFill(
+    content,
+    view,
+    planet,
+    slot,
+    props.base,
   );
+  const reserved =
+    "border-accent text-accent flex-none truncate rounded border px-2 py-0.5 text-xs";
   return (
     // Scrolls inside the card past what fits, rather than squashing each slot.
     <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-      {props.holds.map((t) => (
-        <li
-          key={t}
-          className="border-edge bg-tile flex-none truncate rounded border px-2 py-0.5 text-xs"
-        >
-          {name(t)}
+      {holds.map((t) => {
+        const why = planet.locked
+          ? "Can't move a Tech off a Locked Planet"
+          : otherLabs(content, view, t).length === 0
+            ? "You have no other Lab"
+            : undefined;
+        return (
+          <li
+            key={t}
+            className={cn(
+              "border-edge bg-tile flex flex-none items-center gap-1.5 rounded border py-0.5 pl-2 text-xs",
+              mine ? "pr-0.5" : "pr-2",
+            )}
+          >
+            <span className="min-w-0 flex-1 truncate">{name(t)}</span>
+            {mine && (
+              <button
+                type="button"
+                aria-label={`Move ${name(t)}`}
+                title={why}
+                disabled={!!why || pending}
+                onClick={() => conn.local.setState({ moving: { tech: t } })}
+                className="border-edge min-h-6 flex-none rounded bg-transparent px-2 text-xs disabled:cursor-default disabled:opacity-50"
+              >
+                Move…
+              </button>
+            )}
+          </li>
+        );
+      })}
+      {researching.map((t) => (
+        <li key={t} className={reserved}>
+          {name(t)} · researching
         </li>
       ))}
-      {props.researching.map((t) => (
+      {outgoing.map((a) => (
         <li
-          key={t}
-          className="border-accent text-accent flex-none truncate rounded border px-2 py-0.5 text-xs"
+          key={a.id}
+          className="border-edge text-accent flex-none truncate rounded border border-dashed px-2 py-0.5 text-xs"
         >
-          {name(t)} · researching
+          {name(a.tech)} · moving to {planetName(a.destPlanet)}
+        </li>
+      ))}
+      {incoming.map((a) => (
+        <li key={a.id} className={reserved}>
+          {name(a.tech)} ·{" "}
+          {courierLanding(
+            map ? laneTimes(map, content.rules) : new Map(),
+            a,
+            props.now,
+            planetName,
+          )}
         </li>
       ))}
       {Array.from({ length: free }, (_, n) => `free-${n}`).map((key) => (
@@ -1467,7 +1529,7 @@ function QueueRow(props: {
 const PLANET_WINDOW = "planet-window";
 
 /** Opens beside the Planet window, on whichever side has room. */
-const besidePlanet = (map: HTMLElement, self: HTMLElement): Point => {
+export const besidePlanet = (map: HTMLElement, self: HTMLElement): Point => {
   const planet = document.getElementById(PLANET_WINDOW);
   if (!planet) return { x: map.clientWidth - self.offsetWidth - 16, y: 16 };
   const right = planet.offsetLeft + planet.offsetWidth + 8;
@@ -1903,19 +1965,18 @@ export function ArmyWindow(props: {
   const id = useStore(conn.local, (s) => s.selectedArmy);
   const view = useStore(conn.store, (s) => s.view);
   const lastSeen = useStore(conn.local, (s) => s.lastSeen);
+  const pending = useStore(conn.local, (s) => isPending(s, "courier"));
   const now = useMatchNow(conn.local);
   const army = id === null ? undefined : view?.armies.get(id);
   const map = view && content.maps.get(view.map);
   if (!army || !view || !map) return null;
-  const planet = (p: string) =>
-    map.planets.find((mp) => mp.id === p)?.name ?? p;
-  // As the player knows it: live, else as last seen, else neutral.
-  const ownerOf = (p: string) => {
-    const live = view.planets.get(p);
-    return live ? live.owner : (lastSeen.get(p)?.planet.owner ?? null);
-  };
+  const planet = (p: string) => planetNameOn(map, p);
+  const ownerOf = (p: string) => knownOwner(view, lastSeen, p);
   const mine = army.owner === view.you;
+  const home = (p: string, slot: number) =>
+    p === army.homePlanet && slot === army.homeSlot;
   // A Dropship in it: the Army can land in a Battle already under way.
+  const courier = !!army.tech;
   const ship = army.units
     .map((u) => content.units.get(u.unit))
     .find((d) => d?.carry);
@@ -1927,24 +1988,28 @@ export function ArmyWindow(props: {
     if (i > 0) at += lanes.get(route[i - 1] ?? "")?.get(p) ?? 0;
     const owner = ownerOf(p);
     const last = i === route.length - 1;
-    const enemy = owner !== null && !allied(view, owner, army.owner);
+    const enemy =
+      owner !== null &&
+      !allied(view, owner, army.owner) &&
+      !(i === 0 && army.turned);
+    const fight = mine && (enemy || (!courier && last && owner !== army.owner));
     const does = !mine
       ? ""
-      : enemy
-        ? last
-          ? "attacks"
-          : "attacks · stops here"
+      : fight
+        ? courier
+          ? "enemy · lost here"
+          : last
+            ? "attacks"
+            : "attacks · stops here"
         : last
-          ? owner === army.owner
-            ? "lands"
-            : "attacks"
+          ? "lands"
           : "passes";
-    return { id: p, owner, at, does, fight: does.startsWith("attacks") };
+    return { id: p, owner, at, does, fight };
   });
 
   return (
     <Floating
-      label="Army"
+      label={courier ? "Courier" : "Army"}
       start={bottomLeft}
       remember="army"
       onClose={() => conn.local.setState({ selectedArmy: null })}
@@ -1957,19 +2022,33 @@ export function ArmyWindow(props: {
             style={{ background: seatColour(army.owner) }}
           />
           <h2 className={windowTitle}>
-            {mine ? "Your Army" : `${playerName(view, army.owner)}'s Army`}
+            {mine ? "Your" : `${playerName(view, army.owner)}'s`}{" "}
+            {courier ? "Courier" : "Army"}
           </h2>
         </>
       }
     >
       <div className="flex flex-col gap-2.5 p-3">
+        {courier && (
+          <div className="flex items-center justify-between gap-2">
+            <span className={label}>Carrying</span>
+            <span
+              className="truncate font-semibold"
+              style={{ color: rarityColour(content, army.tech) }}
+            >
+              {content.techs.get(army.tech)?.name ?? army.tech}
+            </span>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <span className={label}>{army.waiting ? "In orbit" : "Route"}</span>
-          <Strength
-            content={content}
-            units={army.units}
-            colour={mine ? seatColour(army.owner) : undefined}
-          />
+          {!courier && (
+            <Strength
+              content={content}
+              units={army.units}
+              colour={mine ? seatColour(army.owner) : undefined}
+            />
+          )}
         </div>
         {/* About five stops tall, scrolling past that: the window keeps its size. */}
         <ol className="flex max-h-40 flex-col overflow-y-auto">
@@ -1992,23 +2071,27 @@ export function ArmyWindow(props: {
               eta={
                 army.waiting && i === 0
                   ? "here"
-                  : `${Math.max(0, Math.ceil((st.at - now) / 1000))} s`
+                  : courier && army.waiting
+                    ? undefined // it goes when its Planet unlocks: no time to give
+                    : `${Math.max(0, Math.ceil((st.at - now) / 1000))} s`
               }
               last={i === stops.length - 1}
               next={i === 0}
             />
           ))}
         </ol>
-        <ul className="grid grid-cols-5 gap-1.25">
-          {army.units.map((u) => (
-            <li key={u.unit}>
-              <UnitSlotTile
-                slot={u}
-                name={content.units.get(u.unit)?.name ?? u.unit}
-              />
-            </li>
-          ))}
-        </ul>
+        {!courier && (
+          <ul className="grid grid-cols-5 gap-1.25">
+            {army.units.map((u) => (
+              <li key={u.unit}>
+                <UnitSlotTile
+                  slot={u}
+                  name={content.units.get(u.unit)?.name ?? u.unit}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
         {mine && ship && (
           <p className="text-ink-2 text-xs">
             Has a {ship.name}: it lands up to {ship.carry} Command Points in a
@@ -2016,11 +2099,45 @@ export function ArmyWindow(props: {
             waits in orbit.
           </p>
         )}
-        {mine && (
+        {mine && !courier && (
           <p className="text-ink-4 text-xs">
             Drag the Army onto a Planet to re-order it. It finishes this Lane
             first.
           </p>
+        )}
+        {mine && courier && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={
+                pending || otherLabs(content, view, army.tech).length === 0
+              }
+              onClick={() =>
+                conn.local.setState({
+                  moving: { tech: army.tech, army: army.id },
+                })
+              }
+              className={cn(smallButton, "flex-1 disabled:opacity-50")}
+            >
+              Change Lab…
+            </button>
+            {/* Stays in place when it can't go back: its Lab is lost, or it's on its way there. */}
+            <button
+              type="button"
+              disabled={
+                pending ||
+                !army.homePlanet ||
+                home(army.destPlanet, army.destSlot)
+              }
+              title={army.homePlanet ? undefined : "The Lab it left is lost"}
+              onClick={() =>
+                conn.reorderCourier(army.id, army.homePlanet, army.homeSlot)
+              }
+              className={cn(smallButton, "flex-1 disabled:opacity-50")}
+            >
+              {army.homePlanet ? `Back to ${planet(army.homePlanet)}` : "Back"}
+            </button>
+          </div>
         )}
       </div>
     </Floating>

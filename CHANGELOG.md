@@ -4,6 +4,10 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ## Unreleased
 
+### Added
+
+- Moving Techs: pay to move a held Tech to another of your Labs with Move… in the Planet window. It travels the Lanes as a Courier, a small hollow diamond you can re-route or call back from its window. It doesn't count while it's on the way, and it's lost if it reaches an enemy's Planet.
+
 ## 0.6.0 - 2026-11-04
 
 ### Added

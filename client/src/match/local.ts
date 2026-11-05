@@ -26,6 +26,7 @@ export type CommandKind =
   | "padTurret"
   | "exchange"
   | "research"
+  | "courier"
   | "battleControl"
   | "battleCommand"
   | "battleOrder"
@@ -36,6 +37,8 @@ export type LocalState = {
   pending: Map<number, CommandKind>;
   selected: string | null; // the selected Planet's id
   selectedArmy: number | null;
+  /** The Tech the Move… picker is open for; army when it's already a Courier. */
+  moving: { tech: string; army?: number } | null;
   hovered: string | null; // the Planet under the pointer
   watching: number | null; // the Battle open in the Battle panel
   /** The camera centres on this Planet; a new object each time, so asking again re-centres. */
@@ -54,6 +57,7 @@ export const createLocalStore = () =>
     pending: new Map(),
     selected: null,
     selectedArmy: null,
+    moving: null,
     hovered: null,
     watching: null,
     focus: null,

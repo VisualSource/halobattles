@@ -1089,6 +1089,10 @@ type Ruleset struct {
 	// Research and Labs; see docs/specs/tech-spec.md.
 	Tech TechRules `json:"tech"`
 
+	// Per Rarity: what moving a held Tech to another Lab costs, paid on sending and
+	// never refunded.
+	TechTransferCost map[string]map[string]int `json:"techTransferCost"`
+
 	// The defence scores where a Planet's threat becomes Medium, High and Very high,
 	// in increasing order. A unit or armed building scores (Shield + Armor + HP)
 	// times its Damage roll's average, times its count.

@@ -185,6 +185,12 @@ export interface Ruleset {
    * @minItems 1
    */
   botDifficulties: [BotDifficulty, ...BotDifficulty[]];
+  /**
+   * Per Rarity: what moving a held Tech to another Lab costs, paid on sending and never refunded.
+   */
+  techTransferCost: {
+    [k: string]: ResourceMap2;
+  };
   tech: TechRules;
   battlefield: BattlefieldRules;
   battle: BattleRules;
@@ -294,6 +300,12 @@ export interface BotGoalWeights {
    * Defaults to 1.
    */
   research?: number;
+}
+/**
+ * Amounts keyed by Resource id.
+ */
+export interface ResourceMap2 {
+  [k: string]: number;
 }
 /**
  * Research and Labs; see docs/specs/tech-spec.md.
@@ -408,7 +420,7 @@ export interface BattleRules {
    * Seconds a turret takes to build on a build pad.
    */
   padBuildSeconds: number;
-  neutralFunds: ResourceMap2;
+  neutralFunds: ResourceMap3;
   /**
    * Seconds of fighting, after startDelay, until the defender wins.
    */
@@ -459,9 +471,9 @@ export interface BattleRules {
   };
 }
 /**
- * What a neutral garrison has to spend on pad turrets in each Battle, having no economy.
+ * Amounts keyed by Resource id.
  */
-export interface ResourceMap2 {
+export interface ResourceMap3 {
   [k: string]: number;
 }
 /**
@@ -645,7 +657,7 @@ export interface Unit {
    * A sentence or two on what it's for, shown in its info popover.
    */
   description?: string;
-  cost: ResourceMap3;
+  cost: ResourceMap2;
   upkeep?: ResourceMap4;
   /**
    * Seconds to train one.
@@ -680,12 +692,6 @@ export interface Unit {
    * An asset in a Mod's assets/ folder, written `__mod__/path`.
    */
   icon?: string;
-}
-/**
- * Amounts keyed by Resource id.
- */
-export interface ResourceMap3 {
-  [k: string]: number;
 }
 /**
  * Amounts keyed by Resource id.
@@ -764,7 +770,7 @@ export interface Building {
    * A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.
    */
   faction: string;
-  cost: ResourceMap3;
+  cost: ResourceMap2;
   /**
    * Seconds to build.
    */
@@ -820,8 +826,8 @@ export interface ResourceMap7 {
  * Converts input into output at each Payday, after Upkeep. Short of input, it converts what there is at the same rate.
  */
 export interface Refining {
-  input: ResourceMap3;
-  output: ResourceMap3;
+  input: ResourceMap2;
+  output: ResourceMap2;
 }
 /**
  * Amounts keyed by Resource id.
@@ -1011,7 +1017,7 @@ export interface PlanetBattlefield {
  * Values that replace this Planet's Planet Type values.
  */
 export interface PlanetOverrides {
-  income?: ResourceMap3;
+  income?: ResourceMap2;
   richness?: Richness;
   buildingSlots?: number;
   commandPointBonus?: number;

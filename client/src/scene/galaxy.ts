@@ -12,6 +12,7 @@ import {
   allyPlanet,
   type createMatchStore,
   type PlanetView,
+  routeOwner,
 } from "../match/store";
 import { formatAge } from "../match/time";
 import { hash, PLANET_RADIUS, planetModel, UNSEEN } from "./planet-model";
@@ -445,12 +446,13 @@ export class GalaxyScene {
     for (const a of armies.values()) {
       let mesh = this.armies.get(a.id);
       if (!mesh) {
-        mesh = new THREE.Mesh(
-          fatArrow(),
-          new THREE.MeshStandardMaterial({ color: seatColour(a.owner) }),
-        );
+        const colour = { color: seatColour(a.owner) };
+        mesh = a.tech
+          ? courierMarker(a.id, colour)
+          : new THREE.Mesh(fatArrow(), new THREE.MeshStandardMaterial(colour));
         mesh.userData.army = a.id;
-        if (a.owner === you) mesh.add(...arrowGlow(mesh.geometry, a.id));
+        if (a.owner === you && !a.tech)
+          mesh.add(...arrowGlow(mesh.geometry, a.id));
         this.armies.set(a.id, mesh);
         this.scene.add(mesh);
       }
@@ -505,16 +507,7 @@ export class GalaxyScene {
       view && from && hovered
         ? route(
             this.orders.lanes,
-            // What the player knows: live, else as last seen, else neutral.
-            // A Teammate's Planet is passed as your own, as on the server.
-            (id) => {
-              const live = view.planets.get(id);
-              const owner = live
-                ? live.owner
-                : (this.stores.local.getState().lastSeen.get(id)?.planet
-                    .owner ?? null);
-              return allied(view, owner, view.you) ? view.you : owner;
-            },
+            (id) => routeOwner(view, this.stores.local.getState().lastSeen, id),
             view.you,
             from,
             hovered,
@@ -578,7 +571,8 @@ export class GalaxyScene {
       const view = this.stores.store.getState().view;
       const id = this.armyAt(e);
       const army = id === undefined ? undefined : view?.armies.get(id);
-      if (army && army.owner === view?.you) {
+      // A Courier goes to a Lab, not a Planet: the Army window re-orders it.
+      if (army && army.owner === view?.you && !army.tech) {
         this.startOrder({ from: army.to, army: army.id }, e);
         return;
       }
@@ -932,12 +926,12 @@ export class GalaxyScene {
       if (a.waiting || !from) {
         // In orbit, pointing at the Planet it waits at.
         mesh.position.copy(to).add(ORBIT);
-        pointAlong(mesh, mesh.position, to);
+        if (!a.tech) pointAlong(mesh, mesh.position, to);
         continue;
       }
       // Centred on its Lane, which is drawn at y 0, so the line runs through it.
       mesh.position.lerpVectors(from, to, progress(a, now)).setY(0);
-      pointAlong(mesh, from, to);
+      if (!a.tech) pointAlong(mesh, from, to);
     }
   }
 
@@ -1042,6 +1036,26 @@ function fatArrow() {
   geometry.rotateX(-Math.PI / 2);
   geometry.center();
   return geometry;
+}
+
+/**
+ * A Courier's marker: a small hollow diamond in its owner's colour, seen from
+ * above. The hole is filled with the map's dark, so all of it takes clicks.
+ */
+function courierMarker(army: number, colour: { color: string }) {
+  const diamond = (radius: number, height: number) =>
+    new THREE.CylinderGeometry(radius, radius, height, 4);
+  const mesh = new THREE.Mesh(
+    diamond(9, 2),
+    new THREE.MeshStandardMaterial(colour),
+  );
+  const hole = new THREE.Mesh(
+    diamond(6, 3),
+    new THREE.MeshBasicMaterial({ color: "#090d11" }),
+  );
+  hole.userData.army = army;
+  mesh.add(hole);
+  return mesh;
 }
 
 /**

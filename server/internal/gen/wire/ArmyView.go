@@ -19,6 +19,12 @@ type ArmyViewT struct {
 	ToStack     byte         `json:"to_stack"`
 	Path        []string     `json:"path"`
 	Raid        bool         `json:"raid"`
+	Tech        string       `json:"tech"`
+	HomePlanet  string       `json:"home_planet"`
+	HomeSlot    byte         `json:"home_slot"`
+	DestPlanet  string       `json:"dest_planet"`
+	DestSlot    byte         `json:"dest_slot"`
+	Turned      bool         `json:"turned"`
 }
 
 func (t *ArmyViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -63,6 +69,18 @@ func (t *ArmyViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		}
 		pathOffset = builder.EndVector(pathLength)
 	}
+	techOffset := flatbuffers.UOffsetT(0)
+	if t.Tech != "" {
+		techOffset = builder.CreateString(t.Tech)
+	}
+	homePlanetOffset := flatbuffers.UOffsetT(0)
+	if t.HomePlanet != "" {
+		homePlanetOffset = builder.CreateString(t.HomePlanet)
+	}
+	destPlanetOffset := flatbuffers.UOffsetT(0)
+	if t.DestPlanet != "" {
+		destPlanetOffset = builder.CreateString(t.DestPlanet)
+	}
 	ArmyViewStart(builder)
 	ArmyViewAddId(builder, t.Id)
 	ArmyViewAddOwner(builder, t.Owner)
@@ -76,6 +94,12 @@ func (t *ArmyViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	ArmyViewAddToStack(builder, t.ToStack)
 	ArmyViewAddPath(builder, pathOffset)
 	ArmyViewAddRaid(builder, t.Raid)
+	ArmyViewAddTech(builder, techOffset)
+	ArmyViewAddHomePlanet(builder, homePlanetOffset)
+	ArmyViewAddHomeSlot(builder, t.HomeSlot)
+	ArmyViewAddDestPlanet(builder, destPlanetOffset)
+	ArmyViewAddDestSlot(builder, t.DestSlot)
+	ArmyViewAddTurned(builder, t.Turned)
 	return ArmyViewEnd(builder)
 }
 
@@ -102,6 +126,12 @@ func (rcv *ArmyView) UnPackTo(t *ArmyViewT) {
 		t.Path[j] = string(rcv.Path(j))
 	}
 	t.Raid = rcv.Raid()
+	t.Tech = string(rcv.Tech())
+	t.HomePlanet = string(rcv.HomePlanet())
+	t.HomeSlot = rcv.HomeSlot()
+	t.DestPlanet = string(rcv.DestPlanet())
+	t.DestSlot = rcv.DestSlot()
+	t.Turned = rcv.Turned()
 }
 
 func (rcv *ArmyView) UnPack() *ArmyViewT {
@@ -330,8 +360,68 @@ func (rcv *ArmyView) MutateRaid(n bool) bool {
 	return rcv._tab.MutateBoolSlot(26, n)
 }
 
+func (rcv *ArmyView) Tech() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
+func (rcv *ArmyView) HomePlanet() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
+func (rcv *ArmyView) HomeSlot() byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	if o != 0 {
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *ArmyView) MutateHomeSlot(n byte) bool {
+	return rcv._tab.MutateByteSlot(32, n)
+}
+
+func (rcv *ArmyView) DestPlanet() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(34))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
+func (rcv *ArmyView) DestSlot() byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(36))
+	if o != 0 {
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *ArmyView) MutateDestSlot(n byte) bool {
+	return rcv._tab.MutateByteSlot(36, n)
+}
+
+func (rcv *ArmyView) Turned() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(38))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *ArmyView) MutateTurned(n bool) bool {
+	return rcv._tab.MutateBoolSlot(38, n)
+}
+
 func ArmyViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(12)
+	builder.StartObject(18)
 }
 func ArmyViewAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -374,6 +464,24 @@ func ArmyViewStartPathVector(builder *flatbuffers.Builder, numElems int) flatbuf
 }
 func ArmyViewAddRaid(builder *flatbuffers.Builder, raid bool) {
 	builder.PrependBoolSlot(11, raid, false)
+}
+func ArmyViewAddTech(builder *flatbuffers.Builder, tech flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(12, flatbuffers.UOffsetT(tech), 0)
+}
+func ArmyViewAddHomePlanet(builder *flatbuffers.Builder, homePlanet flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(13, flatbuffers.UOffsetT(homePlanet), 0)
+}
+func ArmyViewAddHomeSlot(builder *flatbuffers.Builder, homeSlot byte) {
+	builder.PrependByteSlot(14, homeSlot, 0)
+}
+func ArmyViewAddDestPlanet(builder *flatbuffers.Builder, destPlanet flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(15, flatbuffers.UOffsetT(destPlanet), 0)
+}
+func ArmyViewAddDestSlot(builder *flatbuffers.Builder, destSlot byte) {
+	builder.PrependByteSlot(16, destSlot, 0)
+}
+func ArmyViewAddTurned(builder *flatbuffers.Builder, turned bool) {
+	builder.PrependBoolSlot(17, turned, false)
 }
 func ArmyViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

@@ -30,6 +30,7 @@ const baseRules = `{
 		"reservePercent": 10, "retreatBelowPercent": 0, "unitChoice": "fixed", "research": "first"}],
 	"tech": {"fields": {"military": {"name": "Military", "colour": "#e0604f"}, "industry": {"name": "Industry", "colour": "#e8b34a"}}, "capitalResearch": 2, "costScalingPercent": 10, "recoveryPercent": 50, "labsPerPlanet": 3, "handSize": 3,
 		"rarities": {"common": {"from": 0, "weight": 10}, "uncommon": {"from": 4, "weight": 6}, "rare": {"from": 8, "weight": 3}, "legendary": {"from": 14, "weight": 1}}},
+	"techTransferCost": {"common": {"credits": 100}, "uncommon": {"credits": 200}, "rare": {"credits": 400}, "legendary": {"credits": 800}},
 	"battlefield": {"width": 32, "height": 24, "terrainPreset": "plain", "pathClass": "infantry",
 		"deployDepth": 3},
 	"battle": {"startDelay": 30, "timeCap": 180, "raidTime": 100, "raidCap": 10, "raidRoles": ["scout"], "landingDelay": 20, "padSight": 4, "padCooldown": 20, "startReach": 8, "padBuildSeconds": 10, "neutralFunds": {"credits": 400}, "captureRadius": 2, "captureSeconds": 5,
