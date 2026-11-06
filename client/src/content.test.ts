@@ -183,6 +183,22 @@ describe("loadContent", () => {
     expect(Object.keys(doc("x")).every((kind) => kind in content)).toBe(true);
   });
 
+  it("loads the document when the cache won't take it", async () => {
+    const caches = memoryCaches();
+    const cache = await caches.open("");
+    cache.put = async () => {
+      throw new DOMException("Entry already exists", "InvalidAccessError");
+    };
+
+    const content = await loadContent(
+      fakeServer("h1", doc("Credits")).client,
+      session,
+      caches,
+    );
+
+    expect(content.resources.get("base:credits")?.name).toBe("Credits");
+  });
+
   it("without the Cache API, fetches the document every time", async () => {
     const { client, sent } = fakeServer("h1", doc("Credits"));
 

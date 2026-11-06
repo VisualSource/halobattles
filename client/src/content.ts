@@ -37,8 +37,11 @@ export async function loadContent(
   let doc: Content;
   if (reply.content) {
     doc = reply.content;
-    await cache?.put(keyFor(reply.hash), Response.json(doc));
-    if (cachedKey) await cache?.delete(cachedKey);
+    // Only a speed-up: a browser whose storage is full or broken still plays.
+    await cache
+      ?.put(keyFor(reply.hash), Response.json(doc))
+      .then(() => cachedKey && cache.delete(cachedKey))
+      .catch(() => {});
   } else {
     const cached = cachedKey && (await cache?.match(cachedKey));
     if (!cached) throw new Error("content cache vanished mid-load");

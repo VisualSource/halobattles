@@ -557,6 +557,8 @@ export class BattlefieldScene {
 
   /** A tick's fire: a tracer from each shooter you can see to its target. */
   fire(volleys: Volley[]) {
+    // Effects are cleared by the frame loop, which a hidden tab pauses: they'd pile up unseen (#110).
+    if (document.hidden) return;
     const now = performance.now();
     for (const v of volleys) {
       const target = this.tokens.get(v.target);
