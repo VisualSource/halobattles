@@ -1,8 +1,10 @@
 // Writes the base Mod's low-poly unit models (mods/base/assets/models/*.glb),
 // each built from simple shapes: `node tools/models/gen.mjs` from the repo root.
-// A model faces +z with the ground at y 0, a cell 1 unit wide. Faction colours
-// are vertex colours; the parts in the side's colour are a second primitive
-// whose material is named trim. warthog.glb is made elsewhere and kept as is.
+// A model faces +z with the ground at y 0 (for aircraft, y 0 is the height they
+// fly at), a cell 1 unit wide. Faction colours are vertex colours; the parts in
+// the side's colour are a second primitive whose material is named trim.
+// warthog.glb, scorpion.glb, banshee.glb, ghost.glb and hornet.glb are made
+// elsewhere and kept as they are.
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import * as THREE from "../../client/node_modules/three/build/three.module.js";
@@ -12,7 +14,6 @@ const PAL = {
     base: "#6f7d4c",
     base2: "#83925a",
     dark: "#3a4130",
-    metal: "#8d949a",
     gun: "#2e3338",
     glass: "#d6a548",
   },
@@ -20,11 +21,9 @@ const PAL = {
     base: "#6e4d96",
     base2: "#8462ad",
     dark: "#3a2a56",
-    metal: "#a49bb6",
     gun: "#4b3d63",
     glass: "#7fd8ff",
     skin: "#8a7c6c",
-    glow: "#a8ecff",
   },
 };
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -51,38 +50,6 @@ export const MODELS = {
       P(box(0.025, 0.032, 0.17), "gun", [0.045, 0.19, 0.085]),
     ],
   },
-  scorpion: {
-    pal: "unsc",
-    parts: () => [
-      ...[
-        [-1, 1],
-        [1, 1],
-        [-1, -1],
-        [1, -1],
-      ].flatMap(([x, z]) => [
-        P(box(0.09, 0.08, 0.17), "dark", [x * 0.15, 0.05, z * 0.14]),
-        P(box(0.095, 0.012, 0.15), "trim", [x * 0.15, 0.096, z * 0.14]),
-      ]),
-      P(box(0.24, 0.09, 0.44), "base", [0, 0.1, 0]),
-      P(box(0.24, 0.05, 0.08), "base2", [0, 0.125, 0.205], [0.5, 0, 0]),
-      P(box(0.185, 0.015, 0.185), "trim", [0, 0.152, -0.03]),
-      P(box(0.18, 0.07, 0.18), "base", [0, 0.192, -0.03]),
-      P(box(0.12, 0.03, 0.08), "base2", [0, 0.235, -0.05]),
-      P(
-        cyl(0.016, 0.016, 0.24, 6),
-        "metal",
-        [0, 0.195, 0.18],
-        [Math.PI / 2, 0, 0],
-      ),
-      P(
-        cyl(0.024, 0.024, 0.04, 6),
-        "gun",
-        [0, 0.195, 0.3],
-        [Math.PI / 2, 0, 0],
-      ),
-      P(box(0.03, 0.03, 0.07), "gun", [0.06, 0.26, -0.03]),
-    ],
-  },
   grunt: {
     pal: "cov",
     parts: () => [
@@ -98,23 +65,6 @@ export const MODELS = {
       P(box(0.035, 0.07, 0.04), "skin", [-0.1, 0.1, 0.03]),
       P(box(0.035, 0.07, 0.04), "skin", [0.1, 0.1, 0.03]),
       P(box(0.04, 0.03, 0.065), "gun", [0.1, 0.075, 0.08]),
-    ],
-  },
-  // Aircraft: y 0 is the height they fly at.
-  banshee: {
-    pal: "cov",
-    parts: () => [
-      P(box(0.09, 0.07, 0.24), "base", [0, 0, -0.01]),
-      P(cyl(0, 0.05, 0.1, 6), "base2", [0, 0, 0.16], [Math.PI / 2, 0, 0]),
-      P(box(0.05, 0.03, 0.08), "glass", [0, 0.045, 0.04]),
-      P(box(0.13, 0.02, 0.05), "dark", [-0.095, 0, -0.03]),
-      P(box(0.13, 0.02, 0.05), "dark", [0.095, 0, -0.03]),
-      ...[-1, 1].flatMap((x) => [
-        P(box(0.05, 0.05, 0.22), "base", [x * 0.165, 0, 0]),
-        P(box(0.052, 0.052, 0.05), "trim", [x * 0.165, 0, 0.12]),
-        P(box(0.03, 0.03, 0.01), "glow", [x * 0.165, 0, -0.112]),
-      ]),
-      P(box(0.012, 0.05, 0.07), "dark", [0, 0.045, -0.1]),
     ],
   },
 };

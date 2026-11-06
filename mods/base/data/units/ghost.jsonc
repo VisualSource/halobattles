@@ -3,6 +3,8 @@
   "id": "ghost",
   "name": "Ghost",
   "faction": "covenant",
+  "icon": "__base__/units/ghost.webp",
+  "model": "__base__/models/ghost.glb",
   "description": "A fast hover bike that scouts and harries infantry, but folds against vehicles.",
   "cost": { "credits": 150, "materials": 50, "alloys": 15 },
   "upkeep": { "credits": 15, "alloys": 1 },

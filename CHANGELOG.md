@@ -12,7 +12,11 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 ### Changed
 
 - A new Warthog model in the 3D Battle view, with its fenders in your colour. Every Warthog variant uses it.
-- Units now show their picture on build cards, in the queue, in Stacks and Armies, and in the Battle lists. So far that's the Warthog; other units keep their letters.
+- A new Banshee model in the 3D Battle view, with its wings in your colour.
+- A new Scorpion model in the 3D Battle view, with the top plates over its treads in your colour.
+- The Ghost now has a model in the 3D Battle view, with its wing tips in your colour.
+- The Hornet now has a model in the 3D Battle view, with a ring around each engine in your colour.
+- Units now show their picture on build cards, in the queue, in Stacks and Armies, and in the Battle lists. So far that's the Warthog, Scorpion, Banshee, Ghost and Hornet; other units keep their letters.
 
 ## 0.6.0 - 2026-11-04
 
