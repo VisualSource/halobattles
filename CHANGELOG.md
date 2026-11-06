@@ -1,8 +1,9 @@
 # Changelog
 
 Player-facing changes to Halo Battles. Each release is its own section, newest first; `Unreleased` collects changes until the next one. Versions follow [SemVer](https://semver.org): 0.x while in development, the middle number for new features, the last for fixes only.
-
 ## Unreleased
+
+## 0.7.0 - 2026-11-05
 
 ### Added
 
