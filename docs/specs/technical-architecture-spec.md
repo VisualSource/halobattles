@@ -33,14 +33,18 @@ Nakama 3.41.0 (Go plugin .so)  ──  Postgres 16 (accounts only; no Match stat
 - **Panics crash the whole server**, because Nakama doesn't `recover()`. The adapter wraps every handler call in `recover()` (see [Repo layout](#repo-layout)).
 - **Per-player sends:** `BroadcastMessage` with a list of presences sends one filtered payload to one player.
 - **Lobby listing:** a JSON match label (max 2 KB, batched about every 1 s, searchable) plus `MatchList`. `MatchJoinAttempt` sees join metadata and can reject.
-- **Match logs** (#77), for reviewing a Match after it ends. With `HALO_MATCH_LOG` set to a folder, each Match writes `<folder>/<match id>.jsonl`, one JSON object a line, each with its `kind` and Match `time`:
-  - `match`: the content hash, map, seed, Seats and starting resources.
+- **Match logs** (#77, #108), for reviewing a Match after it ends. With `HALO_MATCH_LOG` set to a folder, each Match writes `<folder>/<match id>.jsonl`, one JSON object a line, each with its `kind` and Match `time`:
+  - `match`: the log's `version` (1), the content hash, map, seed, Seats and starting resources.
+  - `command`: each player's command as the server took it: the Seat, the command's name and its fields, and `rejected` with the reason if it was refused. A Bot's are in its `think` lines instead.
+  - `event`: each thing the galaxy's tick worked out: a capture, a Battle starting, a Raid turning back, an elimination, a Truce change. (A Courier's landing or loss has no event yet; its order is in `command`.)
+  - `stats`: at each Payday, per player: stockpile, income, Planets, Command Points used and cap, and units on Planets and on the move.
   - `think`: each Bot think, with its goals and scores, the step each got, the commands it sent and for which goal, its refusals and its failed attacks.
-  - `battle`: each Battle as it ended, with everything it was made from (Forces, seeds, AI weights, funds, setup) and the players' orders, enough to replay it exactly.
-  - `battleAI`: each change in what a Battle AI has a squad do, only with `HALO_MATCH_LOG_BATTLE_AI=1`, since there are many.
+  - `battle`: each Battle as it ended, with everything it was made from (Forces, seeds, AI weights, funds, setup) and the players' orders, enough to replay it exactly; and its `result`: why it ended (a side wiped out, a Retreat, a Raid), and per side the units in and left by type and the damage dealt. A Battle's tick-by-tick detail isn't logged: replay it in the Lab.
+  - `battleAI`: each change in what a Battle AI has a squad do (its goal, role or goal's target), and each time a squad turns its fire on a new squad (`shooting`; the sim picks a target every volley), only with `HALO_MATCH_LOG_BATTLE_AI=1`, since there are many.
   - `end`: the Result.
 
-  Unset, nothing is written. In the Pterodactyl image only `/home/container` is writable, so the folder goes under it.
+  Unset, nothing is written. In the Pterodactyl image only `/home/container` is writable, so the folder goes under it. Playtest servers set both variables (locally, `deploy/runtime.local.env` does).
+  `halo-mod log <file>` summarises a log: each Battle (who, what each side brought, the result, how long), each player's `stats` over the Match, and refused commands grouped by reason. Client-side numbers (memory, frame rate) and replaying a whole Match from its commands are out of scope.
   A Battle Lab replay (below) is built from a `battle` line plus the `match` line's map, with the same content: a log from before a content change (a Unit Class's `squadSize`, say) may replay differently.
 - **The Battle Lab** (#97), a dev tool: with `HALO_DEV=1` the server also registers a `battle_lab` match type and a `lab_create` RPC; without it, neither exists. A Lab match runs one Battle for one page, `/lab` in a dev build of the client, and talks JSON on its own opcodes (see `server/internal/nakama/lab.go`), not FlatBuffers. Never set `HALO_DEV` on a public server: the Lab has no limits on who creates one.
 - **Later, not MVP:**

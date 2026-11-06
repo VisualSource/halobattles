@@ -82,6 +82,12 @@ type Stats struct {
 	CommandPointsCap  int
 }
 
+// StatsOf is a player's economy now, as Spectators and the Match log see it.
+func (s *State) StatsOf(c *cs.Content, seat int) *Stats {
+	used, cp := s.commandPoints(c, seat)
+	return &Stats{Resources: maps.Clone(s.Players[seat].Resources), Income: s.paydayNet(c, seat), CommandPointsUsed: used, CommandPointsCap: cp}
+}
+
 // Spectating is the You of a Spectator's View: no Seat, so nothing in the
 // Match is its own.
 const Spectating = -2
@@ -227,8 +233,7 @@ func (s *State) view(c *cs.Content, seat int) View {
 			pv.OfferFrom, pv.OfferTo, pv.RetryAt = s.TruceOffers[[2]int{p.Seat, seat}], s.TruceOffers[[2]int{seat, p.Seat}], s.TruceRetry[[2]int{seat, p.Seat}]
 		}
 		if all {
-			used, cp := s.commandPoints(c, p.Seat)
-			pv.Stats = &Stats{Resources: maps.Clone(p.Resources), Income: s.paydayNet(c, p.Seat), CommandPointsUsed: used, CommandPointsCap: cp}
+			pv.Stats = s.StatsOf(c, p.Seat)
 		}
 		v.Players = append(v.Players, pv)
 	}

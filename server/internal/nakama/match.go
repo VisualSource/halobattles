@@ -54,6 +54,7 @@ type matchState struct {
 	reply     []byte                   // a DefenceLayout for the command being handled's sender
 	watching  map[string]string        // the Planet whose Battle each user has open
 	reports   map[uint32]*battleReport // each running Battle's, for its summaries
+	shooting  map[uint32]map[int]int   // per running Battle, each squad's last fire target, for the log
 }
 
 // lobbyFactions are the Factions players and Bots can pick: every one not hidden.
@@ -103,6 +104,7 @@ func (m *match) MatchInit(ctx context.Context, logger runtime.Logger, db *sql.DB
 		lastSeq:   map[string]uint32{},
 		watching:  map[string]string{},
 		reports:   map[uint32]*battleReport{},
+		shooting:  map[uint32]map[int]int{},
 		sent:      map[string]game.View{},
 	}
 	return s, tickRate, s.label()
@@ -260,6 +262,7 @@ func (s *matchState) sendTo(logger runtime.Logger, dispatcher runtime.MatchDispa
 
 func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDispatcher, tick int64) {
 	ev := s.play.Advance(&s.content.Doc, s.play.Time)
+	s.logEvents(ev)
 	for _, seat := range ev.Eliminated {
 		t := &wire.PlayerEliminatedT{MatchTime: s.play.Time, Seat: uint8(seat)}
 		s.broadcast(logger, dispatcher, wire.OpPlayerEliminated, finish(t))
@@ -296,6 +299,7 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		b := bt.Battle
 		rep := s.report(b.ID)
 		rep.fire(2, b, bt.Volleys)
+		s.logFire(b, bt.Volleys)
 		// Fire goes only to those with the Battle open; the rest get its damage in their summary.
 		if to := s.watchingIn(watchers, b.Planet); len(to) > 0 { // a Spectator sees both sides' fire
 			t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Tick: uint32(b.Sim.Tick), Volleys: volleys(bt.Volleys)}
@@ -315,11 +319,12 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		}
 	}
 	for _, e := range ev.Ended {
-		delete(s.reports, e.Battle)
 		if b := s.battles[e.Battle]; b != nil {
-			s.log.write("battle", s.play.Time, replay(b, e.Winner))
+			s.log.write("battle", s.play.Time, replay(b, e.Winner, s.report(e.Battle).damage[2])) // all fire, both sides'
 			delete(s.battles, e.Battle)
 		}
+		delete(s.reports, e.Battle)
+		delete(s.shooting, e.Battle)
 		t := &wire.BattleEndedT{MatchTime: s.play.Time, Battle: e.Battle, Planet: e.Planet, Winner: int8(e.Winner)}
 		s.sendTo(logger, dispatcher, wire.OpBattleEnded, finish(t), e.Viewers...)
 		s.sendToPresences(logger, dispatcher, wire.OpBattleEnded, finish(t), watchers)
@@ -377,7 +382,7 @@ func (s *matchState) start(tick int64) error {
 	}
 	s.play, s.phase, s.startTick = g, wire.PhasePlay, tick
 	s.log = openMatchLog(s.logger, s.logName())
-	s.log.write("match", 0, matchStart{Content: s.content.Hash, Map: s.lobby.Map, Seed: s.seed, Seats: seats, Start: s.lobby.StartingResources})
+	s.log.write("match", 0, matchStart{Version: logVersion, Content: s.content.Hash, Map: s.lobby.Map, Seed: s.seed, Seats: seats, Start: s.lobby.StartingResources})
 	s.startBots()
 	return nil
 }

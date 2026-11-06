@@ -1,6 +1,8 @@
-// Command halo-mod validates Mods with the same loader the server uses.
+// Command halo-mod validates Mods with the same loader the server uses, and
+// summarises Match logs.
 //
 //	halo-mod check <mod dir>...
+//	halo-mod log <match log>
 //
 // Every Mod a checked Mod depends on must be listed too, base included.
 package main
@@ -17,8 +19,20 @@ import (
 )
 
 func main() {
+	if len(os.Args) == 3 && os.Args[1] == "log" {
+		f, err := os.Open(os.Args[2])
+		if err == nil {
+			err = summarize(f, os.Stdout)
+			f.Close()
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) < 3 || os.Args[1] != "check" {
-		fmt.Fprintln(os.Stderr, "usage: halo-mod check <mod dir>...")
+		fmt.Fprintln(os.Stderr, "usage: halo-mod check <mod dir>...\n       halo-mod log <match log>")
 		os.Exit(2)
 	}
 	c, err := content.Load(os.Args[2:])

@@ -42,6 +42,7 @@ func (s *matchState) handleCommands(logger runtime.Logger, dispatcher runtime.Ma
 			continue
 		}
 		seq, err := s.handle(user, msg.GetOpCode(), msg.GetData(), tick, perUser[user])
+		s.logCommand(user, msg.GetOpCode(), msg.GetData(), err)
 		perUser[user]++
 		s.lastSeq[user] = max(s.lastSeq[user], seq) // a malformed command has no seq
 		if err != nil {
