@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { useStore } from "zustand";
+import { assetUrl } from "../assets";
 import type { ContentLookups } from "../content";
 import type { Building, GalaxyMap, Unit } from "../gen/content";
 import { progress, seatColour } from "../scene/galaxy";
@@ -1271,7 +1272,7 @@ export function UnitCard(props: {
         onClick={(e) => props.onTrain?.(e.shiftKey ? 5 : 1)}
         className="bg-item flex h-24 w-full items-center gap-2.5 rounded-md p-2 pr-8 text-left disabled:opacity-50"
       >
-        <Tile name={u.name} size="size-12" />
+        <Tile name={u.name} icon={u.icon} size="size-12" />
         {/* Four lines on every card, so they match: a locked unit's Needs takes its class line. */}
         <span className="flex min-w-0 flex-col gap-0.5 [&>span]:truncate">
           <span className="font-semibold">{u.name}</span>
@@ -1498,7 +1499,7 @@ function QueueRow(props: {
     <li
       className={`border-line flex items-center gap-2 rounded-md border p-1.5 ${q.endsAt || q.paused ? "bg-item" : "text-ink-3"}`}
     >
-      <Tile name={name} size="size-9" />
+      <Tile name={name} icon={def?.icon} size="size-9" />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex gap-2 text-sm">
           <span className="flex-1 truncate">{name}</span>
@@ -1712,6 +1713,7 @@ export function StacksWindow(props: {
                               stack={i}
                               slot={u}
                               name={unitName(u.unit)}
+                              icon={iconOf(content, u.unit)}
                               disabled={!editable || isPending(local, "move")}
                               onMenu={(x, y) =>
                                 setMenu({ stack: i, slot: u, x, y })
@@ -1784,6 +1786,7 @@ function DraggableSlot(props: {
   stack: number;
   slot: UnitSlot;
   name: string;
+  icon?: string;
   disabled: boolean;
   onMenu: (x: number, y: number) => void;
 }) {
@@ -1797,6 +1800,7 @@ function DraggableSlot(props: {
       ref={ref}
       slot={props.slot}
       name={props.name}
+      icon={props.icon}
       draggable={!props.disabled}
       dragging={isDragging}
       onContextMenu={(e) => {
@@ -1888,7 +1892,11 @@ function SlotMenu(props: {
   );
 }
 
-/** A full Unit Slot: the unit and its count. */
+/** A unit's or building's icon, if it has one. */
+export const iconOf = (content: ContentLookups, id: string) =>
+  content.units.get(id)?.icon ?? content.buildings.get(id)?.icon;
+
+/** A full Unit Slot: the unit, by its icon if it has one, and its count. */
 function UnitSlotTile({
   ref,
   ...props
@@ -1896,11 +1904,13 @@ function UnitSlotTile({
   ref?: (el: Element | null) => void;
   slot: UnitSlot;
   name: string;
+  icon?: string;
   draggable?: boolean;
   dragging?: boolean;
   onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }) {
   const { slot } = props;
+  const url = assetUrl(props.icon);
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: @dnd-kit makes a draggable slot a focusable button, so Shift+F10 opens its menu
     <div
@@ -1908,15 +1918,32 @@ function UnitSlotTile({
       title={`${props.name} × ${slot.count}`}
       onContextMenu={props.onContextMenu}
       className={cn(
-        "border-edge bg-tile flex h-12 flex-col justify-between rounded border px-1.5 py-1 leading-tight",
+        "border-edge bg-tile relative flex h-12 flex-col justify-between overflow-hidden rounded border px-1.5 py-1 leading-tight",
         props.draggable && "cursor-grab",
         props.dragging && "ring-accent opacity-60 ring-2",
       )}
     >
-      <span className="text-ink-3 font-mono text-[11px]">
-        {abbr(props.name)}
+      {url ? (
+        <img
+          src={url}
+          alt=""
+          draggable={false}
+          className="absolute inset-0 size-full object-contain"
+        />
+      ) : (
+        <span className="text-ink-3 font-mono text-[11px]">
+          {abbr(props.name)}
+        </span>
+      )}
+      {/* On a dark badge, to read over the art. */}
+      <span
+        className={cn(
+          "relative mt-auto self-end font-mono text-[13px]",
+          url && "bg-void/80 -mr-1 -mb-0.5 rounded px-1",
+        )}
+      >
+        ×{slot.count}
       </span>
-      <span className="self-end font-mono text-[13px]">×{slot.count}</span>
     </div>
   );
 }
@@ -2090,6 +2117,7 @@ export function ArmyWindow(props: {
                 <UnitSlotTile
                   slot={u}
                   name={content.units.get(u.unit)?.name ?? u.unit}
+                  icon={iconOf(content, u.unit)}
                 />
               </li>
             ))}
@@ -2216,17 +2244,28 @@ function RouteStop(props: {
   );
 }
 
-export function Tile(props: { name: string; size: string; dashed?: boolean }) {
+/** A unit's or building's tile: its icon, or letters without one. */
+export function Tile(props: {
+  name: string;
+  icon?: string;
+  size: string;
+  dashed?: boolean;
+}) {
+  const url = assetUrl(props.icon);
   return (
     <span
       aria-hidden="true"
       className={cn(
-        "text-ink-3 flex flex-none items-center justify-center rounded border font-mono text-[11px]",
+        "text-ink-3 flex flex-none items-center justify-center overflow-hidden rounded border font-mono text-[11px]",
         props.size,
         props.dashed ? "border-edge border-dashed" : "border-edge bg-tile",
       )}
     >
-      {abbr(props.name)}
+      {url ? (
+        <img src={url} alt="" className="size-full object-contain" />
+      ) : (
+        abbr(props.name)
+      )}
     </span>
   );
 }

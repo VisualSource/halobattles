@@ -149,7 +149,7 @@ The win conditions (Control Points, elimination, the time cap and Retreat) are i
 
 ## The MVP roster
 
-The base Mod ships **no icons or sprites**; the client draws placeholders.
+A unit or building shows its `icon` where it has one. The base Mod has few so far; the rest show placeholder letters.
 
 ### Combat tables
 

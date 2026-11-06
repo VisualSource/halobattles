@@ -9,6 +9,11 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 - Moving Techs: pay to move a held Tech to another of your Labs with Move… in the Planet window. It travels the Lanes as a Courier, a small hollow diamond you can re-route or call back from its window. It doesn't count while it's on the way, and it's lost if it reaches an enemy's Planet.
 - Truces: click another player in the Players list to offer them a Truce, or to answer or end one. While it holds, your Armies and theirs pass through each other's Planets with no Battle. An offer lapses after a minute, and arriving at one of their Planets ends the Truce.
 
+### Changed
+
+- A new Warthog model in the 3D Battle view, with its fenders in your colour. Every Warthog variant uses it.
+- Units now show their picture on build cards, in the queue, in Stacks and Armies, and in the Battle lists. So far that's the Warthog; other units keep their letters.
+
 ## 0.6.0 - 2026-11-04
 
 ### Added

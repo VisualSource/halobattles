@@ -38,7 +38,15 @@ import {
   type Volley,
 } from "./store";
 import { formatAge, useMatchNow } from "./time";
-import { Floating, label, Tag, Tile, useDismiss, windowTitle } from "./windows";
+import {
+  Floating,
+  iconOf,
+  label,
+  Tag,
+  Tile,
+  useDismiss,
+  windowTitle,
+} from "./windows";
 
 type TickEvent = { battle: number; tick: number; volleys: Volley[] };
 
@@ -375,6 +383,7 @@ export function BattlePanel(props: {
             <UnitGrid
               squads={battle.squads.filter((q) => q.side === side)}
               name={name}
+              icon={(unit) => iconOf(content, unit)}
               fresh={fresh}
               actor={last?.actor}
               target={last?.target}
@@ -1130,6 +1139,7 @@ function Report(props: {
                   >
                     <Tile
                       name={name(unit)}
+                      icon={iconOf(content, unit)}
                       size="size-11"
                       dashed={seat === null}
                     />
@@ -1203,6 +1213,7 @@ function damage(v: Volley) {
 function UnitGrid(props: {
   squads: Squad[];
   name: (unit: string) => string;
+  icon: (unit: string) => string | undefined;
   /** A fresh member's Shield, Armor and HP together. */
   fresh: (unit: string) => number;
   actor?: number;
@@ -1246,7 +1257,11 @@ function UnitGrid(props: {
             key={unit}
             className={`grid grid-cols-[44px_minmax(0,1fr)_120px] items-center gap-3 rounded-md border p-2.5 ${hit ? "border-danger bg-danger-wash" : acting ? "border-[#5fb4f0] bg-[#12212e]" : "border-line bg-item"}`}
           >
-            <Tile name={props.name(unit)} size="size-11" />
+            <Tile
+              name={props.name(unit)}
+              icon={props.icon(unit)}
+              size="size-11"
+            />
             <div className="min-w-0">
               <div className="truncate">
                 {props.name(unit)}{" "}
