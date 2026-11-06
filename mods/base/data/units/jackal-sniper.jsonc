@@ -3,6 +3,7 @@
   "id": "jackal-sniper",
   "name": "Jackal Sniper",
   "faction": "covenant",
+  "tactics": "A long-range skirmisher that picks off infantry and can Raid. Keep it away from vehicles and aircraft.",
   "cost": {},
   "buildTime": 30,
   "commandPoints": 1,

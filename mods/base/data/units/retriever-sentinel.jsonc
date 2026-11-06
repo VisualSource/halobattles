@@ -25,6 +25,7 @@
     }
   },
   "description": "The Retriever Sentinel, is a variant of Strato-Sentinel drones employed by the Forerunners. Considered to be one of the more powerful variants of the Sentinel, Retrievers are massive, ship-sized drones that were utilized to construct installations of the Halo Array from Installation 00, as well as to provide maintenance to the Ark itself.",
+  "tactics": "A huge Sentinel that wrecks infantry, vehicles and buildings alike. Only a large army with anti-air brings it down.",
   "maxCount": 2,
   "slotLimit": 2
 }

@@ -2,6 +2,7 @@ import { cn } from "cn";
 import type { ReactNode } from "react";
 import type { ContentLookups } from "../content";
 import type { Building } from "../gen/content";
+import { Fights } from "./units";
 
 // How buildings explain themselves: a role, the lines saying what one does
 // on a Planet, and the info popover. All of it comes from content.
@@ -167,15 +168,12 @@ export function factsOf(
         .join(", +")}`,
     });
   if (b.combat) {
-    const strong = Object.entries(b.combat.tiers ?? {})
-      .filter(([, t]) => t === "advantage")
-      .map(([c]) => content.unitClasses.get(c)?.name ?? c);
+    // What it's strong and weak against is in its Fights block (#112).
     const c = b.combat;
     facts.push({
       line: "Fights in Battles here",
       sub: [
         `${content.weaponTypes.get(c.weaponType)?.name ?? c.weaponType} ${c.damage}`,
-        strong.length > 0 && `strong vs ${strong.join(", ")}`,
         [
           c.shield && `Shield ${c.shield}`,
           c.armor && `Armor ${c.armor}`,
@@ -233,6 +231,7 @@ export function BuildingInfo(props: {
       {b.description && (
         <p className="text-ink-2 m-0 text-[12.5px]">{b.description}</p>
       )}
+      {b.combat && <Fights content={content} combat={b.combat} />}
       <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
         {factsOf(content, b, props.richness).map((f, i) => (
           <div key={f.line} className={row}>

@@ -1409,6 +1409,10 @@ type Unit struct {
 	// limit.
 	SlotLimit *int `json:"slotLimit,omitempty,omitzero"`
 
+	// A sentence or two on how to use it, shown in its info popover under the
+	// description.
+	Tactics *string `json:"tactics,omitempty,omitzero"`
+
 	// False keeps it off every building's trains, and its variants with it: a
 	// garrison or Starting Kit unit. Defaults to true.
 	Trainable *bool `json:"trainable,omitempty,omitzero"`

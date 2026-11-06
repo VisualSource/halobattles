@@ -4,6 +4,7 @@
   "name": "M9 Wolverine",
   "faction": "unsc",
   "description": "The UNSC's anti-air vehicle: twin missile pods on a tracked hull. Strong against aircraft, weak against everything else, and it can shoot down Dropships.",
+  "tactics": "Anti-air: keep one with every army to down aircraft and Dropships before they land. It's weak against everything on the ground, so keep it behind the front.",
   "cost": { "credits": 200, "materials": 80, "alloys": 25 },
   "upkeep": { "credits": 20, "alloys": 2 },
   "buildTime": 40,

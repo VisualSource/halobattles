@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ContentLookups } from "../content";
 import type { Unit } from "../gen/content";
-import { canRaid, matchups, moves } from "./units";
+import { canRaid, matchups, moves, roleTags, weaponWords } from "./units";
 
 const content = {
   unitClasses: new Map([
@@ -46,10 +46,38 @@ describe("Units", () => {
   });
 
   it("gives each class its tier, counting one left out as normal", () => {
-    expect(matchups(content, tank)).toEqual([
+    expect(matchups(content, tank.combat)).toEqual([
       { name: "Infantry", tier: "normal" },
       { name: "Vehicle", tier: "advantage" },
       { name: "Aircraft", tier: "none" },
+    ]);
+  });
+
+  it("says a weapon is strong above ×1 and weak below", () => {
+    const c = {
+      weaponTypes: new Map([
+        ["plasma", { name: "Plasma", shield: 1.5, armor: 0.75, hp: 1 }],
+      ]),
+    } as unknown as ContentLookups;
+    expect(weaponWords(c, "plasma")).toEqual({
+      name: "Plasma",
+      strong: ["shields"],
+      weak: ["armour"],
+    });
+  });
+
+  it("tags what a unit can do from its roles and carry", () => {
+    const c = {
+      rules: { battle: { raidRoles: ["infiltration"] } },
+    } as unknown as ContentLookups;
+    const odst = { roles: ["scout", "infiltration", "aa"] } as unknown as Unit;
+    expect(roleTags(c, odst)).toEqual([
+      "Scout",
+      "Can Raid",
+      "Anti-air: fires on Dropships",
+    ]);
+    expect(roleTags(c, { carry: 6 } as unknown as Unit)).toEqual([
+      "Dropship: carries 6 Command Points",
     ]);
   });
 

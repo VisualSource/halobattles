@@ -3,6 +3,7 @@
   "id": "goblin",
   "name": "Goblin",
   "faction": "covenant",
+  "tactics": "A light walker that fights infantry, with little to protect it.",
   "cost": {},
   "buildTime": 30,
   "commandPoints": 1,

@@ -6,6 +6,7 @@
   "icon": "__base__/units/hornet.webp",
   "model": "__base__/models/hornet.glb",
   "description": "A fast attack aircraft that hunts vehicles and other aircraft, and goes where ground units can't.",
+  "tactics": "Fast air support against vehicles and other aircraft. Keep it clear of anti-air.",
   "cost": { "credits": 300, "materials": 150, "alloys": 40 },
   "upkeep": { "credits": 30, "alloys": 2 },
   "buildTime": 50,

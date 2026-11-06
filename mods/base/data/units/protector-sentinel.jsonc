@@ -25,6 +25,7 @@
     }
   },
   "description": "The Protector is one of the oldest classes of Sentinel built by the Forerunners, originally used by the Forerunner fleet in vast fleets as escorts for fighter-bomber squadrons. Over time, their role evolved to suit localised defence, leading to their deployment on a range of installations including Installation 00.",
+  "tactics": "A Sentinel aircraft that hunts vehicles. Bring anti-air.",
   "upkeep": {
     "credits": 5
   }

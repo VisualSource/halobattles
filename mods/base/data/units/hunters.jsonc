@@ -3,6 +3,7 @@
   "id": "hunters",
   "name": "Hunters",
   "faction": "covenant",
+  "tactics": "A heavy pair that wrecks vehicles. Keep aircraft off them, their one weakness.",
   "cost": {},
   "buildTime": 30,
   "commandPoints": 1,

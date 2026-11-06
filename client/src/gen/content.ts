@@ -669,6 +669,10 @@ export interface Unit {
    * A sentence or two on what it's for, shown in its info popover.
    */
   description?: string;
+  /**
+   * A sentence or two on how to use it, shown in its info popover under the description.
+   */
+  tactics?: string;
   cost: ResourceMap2;
   upkeep?: ResourceMap4;
   /**

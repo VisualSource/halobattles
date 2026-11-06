@@ -4,6 +4,7 @@
   "name": "M121 Jackrabbit",
   "faction": "unsc",
   "description": "A one-seat light scout vehicle, faster and lighter than the Warthog, with a rear-mounted grenade launcher for reconnaissance and hit-and-run raids.",
+  "tactics": "A fast scout: find the enemy and pick off infantry. It can't hit aircraft and loses to armour, so don't let it get caught.",
   "cost": { "credits": 100, "materials": 30, "alloys": 10 },
   "upkeep": { "credits": 10, "alloys": 1 },
   "buildTime": 20,

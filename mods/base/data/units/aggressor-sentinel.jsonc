@@ -4,6 +4,7 @@
   "name": "Aggressor Sentinel",
   "faction": "forerunner",
   "description": "The Aggressor is the most common form of Sentinel, designed for the protection of Forerunner constructs and the small-scale suppression of Flood forms.",
+  "tactics": "The common Sentinel, strong against infantry. Clear its garrisons with vehicles or aircraft.",
   "buildTime": 25,
   "commandPoints": 1,
   "cost": {},

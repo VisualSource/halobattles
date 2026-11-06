@@ -3,6 +3,7 @@
   "id": "locust",
   "name": "Locust",
   "faction": "covenant",
+  "tactics": "A walker that tears down buildings and turrets. Keep it clear of vehicles and aircraft.",
   "cost": {},
   "buildTime": 30,
   "commandPoints": 1,

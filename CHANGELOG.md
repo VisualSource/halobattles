@@ -5,6 +5,7 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ### Changed
 
+- Unit info says how to use each unit, and what it's strong against, weak against and can't hit, in words rather than coloured chips. It also says what its weapon is good against (shields, armour or HP), and whether it scouts, can Raid, is anti-air or is a Dropship. Turrets show the same. Hover over a unit in the Stacks or Army window to see its info.
 - Armies travel faster: every Lane takes 40% less time, and a hop between two of your (or your Teammates') Planets takes half that again. Routes prefer your own territory when it's faster, and arrival times show it.
 
 ### Fixed

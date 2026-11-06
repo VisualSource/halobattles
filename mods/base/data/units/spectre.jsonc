@@ -3,6 +3,7 @@
   "id": "spectre",
   "name": "Spectre",
   "faction": "covenant",
+  "tactics": "A shock vehicle that cuts through infantry and can Raid. Keep it away from aircraft.",
   "cost": {},
   "buildTime": 30,
   "commandPoints": 1,

@@ -3,6 +3,7 @@
   "id": "promethean-watcher",
   "name": "Promethean Watcher",
   "faction": "forerunner",
+  "tactics": "A Promethean scout that's weak against everything. Kill it before it spots your forces.",
   "cost": {},
   "buildTime": 30,
   "commandPoints": 1,

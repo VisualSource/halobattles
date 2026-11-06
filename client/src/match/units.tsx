@@ -8,13 +8,10 @@ import { average } from "./threat";
 // comes from content.
 
 const TIERS = {
-  advantage: { label: "Strong vs", chip: "border-ok-edge bg-ok-wash text-ok" },
-  normal: { label: "Normal vs", chip: "border-edge text-ink-2" },
-  disadvantage: {
-    label: "Weak vs",
-    chip: "border-danger/40 bg-danger-wash text-danger",
-  },
-  none: { label: "Can't hit", chip: "border-edge text-ink-4 line-through" },
+  advantage: { label: "Strong vs", text: "text-ok" },
+  normal: { label: "Normal vs", text: "text-ink-2" },
+  disadvantage: { label: "Weak vs", text: "text-danger" },
+  none: { label: "Can't hit", text: "text-ink-4" },
 } as const;
 
 /** Whether units can Raid: every one with one of the Ruleset's raidRoles, within its raidCap. */
@@ -34,12 +31,77 @@ export function canRaid(
 
 /** How a unit fares against each Unit Class, in content's order; a class
  * its tiers leave out is normal. */
-export function matchups(content: ContentLookups, u: Unit) {
-  const tiers = u.combat.tiers ?? {};
+export function matchups(content: ContentLookups, combat: Unit["combat"]) {
+  const tiers = combat.tiers ?? {};
   return [...content.unitClasses].map(([id, c]) => ({
     name: c.name,
     tier: (tiers[id] ?? "normal") as keyof typeof TIERS,
   }));
+}
+
+/** What a unit can do beyond fighting, from its roles and carry. */
+export function roleTags(content: ContentLookups, u: Unit) {
+  const roles: string[] = u.roles ?? [];
+  const raiders: string[] = content.rules.battle.raidRoles;
+  return [
+    roles.includes("scout") && "Scout",
+    roles.some((r) => raiders.includes(r)) && "Can Raid",
+    roles.includes("aa") && "Anti-air: fires on Dropships",
+    u.carry && `Dropship: carries ${u.carry} Command Points`,
+  ].filter((t): t is string => !!t);
+}
+
+/** A weapon type's multipliers in words: above ×1 is strong against that layer, below is weak. */
+export function weaponWords(content: ContentLookups, weaponType: string) {
+  const w = content.weaponTypes.get(weaponType);
+  const layers = [
+    ["shields", w?.shield ?? 1],
+    ["armour", w?.armor ?? 1],
+    ["HP", w?.hp ?? 1],
+  ] as const;
+  const of = (keep: (m: number) => boolean) =>
+    layers.filter(([, m]) => keep(m)).map(([name]) => name);
+  return {
+    name: w?.name ?? weaponType,
+    strong: of((m) => m > 1),
+    weak: of((m) => m < 1),
+  };
+}
+
+/** Matchups and weapon in words: what a fighter is strong and weak against. */
+export function Fights(props: {
+  content: ContentLookups;
+  combat: Unit["combat"];
+}) {
+  const { content, combat } = props;
+  const byTier = (tier: keyof typeof TIERS) =>
+    matchups(content, combat)
+      .filter((x) => x.tier === tier)
+      .map((x) => x.name);
+  const w = weaponWords(content, combat.weaponType);
+  const weapon = [
+    w.strong.length > 0 && `strong vs ${w.strong.join(", ")}`,
+    w.weak.length > 0 && `weak vs ${w.weak.join(", ")}`,
+  ].filter(Boolean);
+  return (
+    <div className="flex flex-col gap-0.5 text-xs">
+      {(["advantage", "disadvantage", "none"] as const).map(
+        (tier) =>
+          byTier(tier).length > 0 && (
+            <span key={tier}>
+              <span className={TIERS[tier].text}>{TIERS[tier].label}</span>{" "}
+              {byTier(tier).join(", ")}
+            </span>
+          ),
+      )}
+      <span className="text-ink-3">
+        {w.name}
+        {weapon.length > 0
+          ? `: ${weapon.join(", ")}`
+          : ": even against every layer"}
+      </span>
+    </div>
+  );
 }
 
 /** A unit's range, speed, Sight and fire interval: its own, else its Unit
@@ -130,6 +192,19 @@ export function UnitInfo(props: {
       {u.description && (
         <p className="text-ink-2 m-0 text-[12.5px]">{u.description}</p>
       )}
+      {u.tactics && <p className="text-ink m-0 text-[12.5px]">{u.tactics}</p>}
+      {roleTags(content, u).length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {roleTags(content, u).map((t) => (
+            <span
+              key={t}
+              className="border-edge text-ink-2 rounded-full border px-1.75 py-px text-[11.5px]"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
       {/* Bars are scaled to the most any unit in content has. */}
       <div className="flex flex-col gap-1">
         <div className="flex justify-between">
@@ -189,17 +264,7 @@ export function UnitInfo(props: {
           {name("weaponTypes", c.weaponType)}, a volley every {m.fireInterval} s
         </span>
       </div>
-      <div className="flex flex-wrap gap-1">
-        {matchups(content, u).map((x) => (
-          <span
-            key={x.name}
-            title={`${TIERS[x.tier].label} ${x.name}`}
-            className={`rounded-full border px-1.75 py-px text-[11.5px] ${TIERS[x.tier].chip}`}
-          >
-            {x.name}
-          </span>
-        ))}
-      </div>
+      <Fights content={content} combat={c} />
       <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
         <div className={row}>
           <dt>Cost</dt>

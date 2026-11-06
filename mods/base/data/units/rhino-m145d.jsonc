@@ -3,6 +3,7 @@
   "id": "rhino-m145d",
   "name": "Rhino (M145D)",
   "faction": "unsc",
+  "tactics": "Siege artillery: shell turrets and buildings from behind your lines. It can't hit aircraft and won't survive vehicles reaching it.",
   "cost": {},
   "buildTime": 30,
   "commandPoints": 1,

@@ -18,5 +18,6 @@
     }
   },
   "description": "The M12R Light Anti-Aircraft Vehicle, abbreviated as M12R LAAV and commonly referred to as the Missile Warthog, Rocket Warthog, or Rockethog, is a UNSC ground vehicle",
+  "tactics": "Anti-air on wheels: keep it under your army to shoot down aircraft. Keep infantry off it.",
   "roles": null
 }

@@ -52,6 +52,16 @@
         }
       ]
     },
+    "tactics": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/tactics"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "cost": {
       "anyOf": [
         {

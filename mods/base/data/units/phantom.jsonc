@@ -4,6 +4,7 @@
   "name": "Type-52 Phantom",
   "faction": "covenant",
   "description": "The Covenant's dropship. It flies troops into a Battle already under way, at a Landing Zone your side holds, then flies out again. It doesn't fight.",
+  "tactics": "A Dropship: it can't fight, but lands up to 12 Command Points of units into a Battle already under way. Keep it away from anti-air.",
   "cost": { "credits": 400, "materials": 150, "alloys": 60 },
   "upkeep": { "credits": 30, "alloys": 2 },
   "buildTime": 60,

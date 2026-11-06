@@ -345,6 +345,19 @@ export function UnitsPage(props: {
                   }
                 />
               </Field>
+              <Field {...inh("Tactics", ["tactics"])}>
+                <textarea
+                  className={`${input} min-h-14`}
+                  value={u.tactics ?? ""}
+                  placeholder="How to use it: what it's for and what to keep it away from"
+                  onChange={(e) =>
+                    set((x) => ({
+                      ...x,
+                      tactics: e.target.value || undefined,
+                    }))
+                  }
+                />
+              </Field>
             </Section>
             <Section title="Training">
               <div className="flex flex-wrap gap-8">

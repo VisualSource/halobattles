@@ -3,6 +3,7 @@
   "id": "revenant",
   "name": "Revenant",
   "faction": "covenant",
+  "tactics": "A fast scout that cuts down infantry. It can't hit aircraft, so keep it moving.",
   "cost": { "credits": 200, "materials": 75, "alloys": 20 },
   "upkeep": { "credits": 20, "alloys": 1 },
   "buildTime": 35,

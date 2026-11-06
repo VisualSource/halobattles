@@ -19,5 +19,6 @@
     "fireInterval": 4
   },
   "description": "The M12G1 Light Anti-Armor Vehicle (M12G1 LAAV), commonly known as the Gauss Warthog, is a United Nations Space Command ground vehicle.",
+  "tactics": "The anti-vehicle Warthog: hunt light armour with it, and keep it out of reach of infantry squads.",
   "roles": null
 }

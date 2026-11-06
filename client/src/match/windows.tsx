@@ -1714,6 +1714,7 @@ export function StacksWindow(props: {
                           {u && (
                             <DraggableSlot
                               key={u.unit}
+                              content={content}
                               stack={i}
                               slot={u}
                               name={unitName(u.unit)}
@@ -1787,6 +1788,7 @@ function GridCell(props: {
 
 /** A full Unit Slot you can drag, and right-click (or Shift+F10) for its menu. */
 function DraggableSlot(props: {
+  content: ContentLookups;
   stack: number;
   slot: UnitSlot;
   name: string;
@@ -1802,6 +1804,7 @@ function DraggableSlot(props: {
   return (
     <UnitSlotTile
       ref={ref}
+      content={props.content}
       slot={props.slot}
       name={props.name}
       icon={props.icon}
@@ -1900,12 +1903,23 @@ function SlotMenu(props: {
 export const iconOf = (content: ContentLookups, id: string) =>
   content.units.get(id)?.icon ?? content.buildings.get(id)?.icon;
 
-/** A full Unit Slot: the unit, by its icon if it has one, and its count. */
+/**
+ * A full Unit Slot: the unit, by its icon if it has one, and its count.
+ * Hovering it shows the unit's info (#112).
+ */
 function UnitSlotTile({
   ref,
-  ...props
+  content,
+  slot,
+  name,
+  icon,
+  draggable,
+  dragging,
+  onContextMenu,
+  ...trigger // the Tooltip's, on hover
 }: {
   ref?: (el: Element | null) => void;
+  content: ContentLookups;
   slot: UnitSlot;
   name: string;
   icon?: string;
@@ -1913,18 +1927,18 @@ function UnitSlotTile({
   dragging?: boolean;
   onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void;
 }) {
-  const { slot } = props;
-  const url = assetUrl(props.icon);
-  return (
+  const url = assetUrl(icon);
+  const unit = content.units.get(slot.unit);
+  const tile = (
     // biome-ignore lint/a11y/noStaticElementInteractions: @dnd-kit makes a draggable slot a focusable button, so Shift+F10 opens its menu
     <div
+      {...trigger}
       ref={ref}
-      title={`${props.name} × ${slot.count}`}
-      onContextMenu={props.onContextMenu}
+      onContextMenu={onContextMenu}
       className={cn(
         "border-edge bg-tile relative flex h-12 flex-col justify-between overflow-hidden rounded border px-1.5 py-1 leading-tight",
-        props.draggable && "cursor-grab",
-        props.dragging && "ring-accent opacity-60 ring-2",
+        draggable && "cursor-grab",
+        dragging && "ring-accent opacity-60 ring-2",
       )}
     >
       {url ? (
@@ -1935,10 +1949,9 @@ function UnitSlotTile({
           className="absolute inset-0 size-full object-contain"
         />
       ) : (
-        <span className="text-ink-3 font-mono text-[11px]">
-          {abbr(props.name)}
-        </span>
+        <span className="text-ink-3 font-mono text-[11px]">{abbr(name)}</span>
       )}
+      <span className="sr-only">{name}</span>
       {/* On a dark badge, to read over the art. */}
       <span
         className={cn(
@@ -1949,6 +1962,18 @@ function UnitSlotTile({
         ×{slot.count}
       </span>
     </div>
+  );
+  return unit ? (
+    <Tooltip
+      side="right"
+      content={
+        <UnitInfo content={content} unit={unit} cost={unit.cost} needs={[]} />
+      }
+    >
+      {tile}
+    </Tooltip>
+  ) : (
+    tile
   );
 }
 
@@ -2128,6 +2153,7 @@ export function ArmyWindow(props: {
             {army.units.map((u) => (
               <li key={u.unit}>
                 <UnitSlotTile
+                  content={content}
                   slot={u}
                   name={content.units.get(u.unit)?.name ?? u.unit}
                   icon={iconOf(content, u.unit)}

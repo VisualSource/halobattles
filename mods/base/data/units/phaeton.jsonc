@@ -3,6 +3,7 @@
   "id": "phaeton",
   "name": "Phaeton",
   "faction": "forerunner",
+  "tactics": "A Forerunner gunship that shreds infantry. Answer it with anti-air.",
   "cost": {},
   "buildTime": 50,
   "commandPoints": 5,

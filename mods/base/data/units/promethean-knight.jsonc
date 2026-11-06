@@ -3,6 +3,7 @@
   "id": "promethean-knight",
   "name": "Promethean Knight",
   "faction": "forerunner",
+  "tactics": "A tough Promethean that beats infantry and buildings. Hit it from the air.",
   "cost": {},
   "buildTime": 30,
   "commandPoints": 3,

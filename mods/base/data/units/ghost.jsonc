@@ -6,6 +6,7 @@
   "icon": "__base__/units/ghost.webp",
   "model": "__base__/models/ghost.glb",
   "description": "A fast hover bike that scouts and harries infantry, but folds against vehicles.",
+  "tactics": "A fast hunter of infantry: harass squads in the open, and break off when tanks arrive.",
   "cost": { "credits": 150, "materials": 50, "alloys": 15 },
   "upkeep": { "credits": 15, "alloys": 1 },
   "buildTime": 30,
