@@ -3,6 +3,10 @@
 Player-facing changes to Halo Battles. Each release is its own section, newest first; `Unreleased` collects changes until the next one. Versions follow [SemVer](https://semver.org): 0.x while in development, the middle number for new features, the last for fixes only.
 ## Unreleased
 
+### Changed
+
+- Armies travel faster: every Lane takes 40% less time, and a hop between two of your (or your Teammates') Planets takes half that again. Routes prefer your own territory when it's faster, and arrival times show it.
+
 ### Fixed
 
 - Leaving a Battle window open while the game's tab was in the background no longer builds up memory: its fire effects aren't drawn while you can't see them.
