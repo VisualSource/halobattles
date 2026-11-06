@@ -262,7 +262,7 @@ func (b *Bot) clear(v game.View, from, to string) bool {
 		}
 		return s.planet.Owner
 	}
-	path, _, ok := game.Route(b.lanes, owner, v.You, from, to)
+	path, _, ok := game.Route(b.lanes, 1, owner, v.You, from, to)
 	return ok && !slices.ContainsFunc(path[1:len(path)-1], func(id string) bool {
 		return hostile(v, owner(id))
 	})

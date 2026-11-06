@@ -1,7 +1,7 @@
 import type { ContentLookups } from "../content";
 import type { Effect, Tech } from "../gen/content";
 import { fieldsOf } from "./fields";
-import { arrival, type Lanes } from "./route";
+import { arrival, type Lanes, type Owner } from "./route";
 import type { Army, PlanetView, Project, View } from "./store";
 
 // Techs as the client shows them; docs/specs/tech-spec.md. The server
@@ -196,9 +196,11 @@ export function courierLanding(
   a: Army,
   now: number,
   planetName: (id: string) => string,
+  own?: number,
+  owner?: Owner,
 ) {
   if (a.waiting) return `waiting in orbit at ${planetName(a.to)}`;
-  return `arrives in ${Math.max(0, Math.ceil((arrival(lanes, a, now) - now) / 1000))} s`;
+  return `arrives in ${Math.max(0, Math.ceil((arrival(lanes, a, now, own, owner) - now) / 1000))} s`;
 }
 
 /** The colour of a Tech's Rarity. */

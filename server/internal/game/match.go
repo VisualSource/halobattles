@@ -93,6 +93,7 @@ type State struct {
 	Players     []Player // indexed by Seat
 	Planets     map[string]*Planet
 	Lanes       map[string]map[string]int64 // static: from, to, travel ms; both ways
+	OwnLaneTime float64                     // the Ruleset's: a hop within the owner's Team's territory takes this of its time
 	PaydayEvery int64                       // ms
 	NextPayday  int64                       // Match Time
 	LastID      uint32                      // Match entity ids come from this one counter
@@ -152,7 +153,7 @@ func StartMatch(c *cs.Content, mapID string, seats []SeatSetup, startingResource
 
 	payday := int64(c.Rulesets[RulesetID].PaydaySeconds) * 1000
 	s := &State{
-		Seed: seed, Map: mapID, Planets: map[string]*Planet{}, Lanes: map[string]map[string]int64{},
+		Seed: seed, Map: mapID, Planets: map[string]*Planet{}, Lanes: map[string]map[string]int64{}, OwnLaneTime: c.Rulesets[RulesetID].OwnLaneTime,
 		PaydayEvery: payday, NextPayday: payday, HoldTeam: Neutral,
 	}
 	for _, mp := range m.Planets {

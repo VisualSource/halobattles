@@ -1063,6 +1063,10 @@ type Ruleset struct {
 	// Name corresponds to the JSON schema field "name".
 	Name Name `json:"name"`
 
+	// Travel-time multiplier for a hop between two Planets both held by the Army's
+	// owner or a Teammate, judged as it sets off.
+	OwnLaneTime float64 `json:"ownLaneTime"`
+
 	// Time between Paydays.
 	PaydaySeconds int `json:"paydaySeconds"`
 

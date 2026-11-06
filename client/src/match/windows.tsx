@@ -30,12 +30,13 @@ import {
 import type { MatchConnection } from "./connection";
 import { isPending } from "./local";
 import { CommandPoints, CostIcons } from "./resources";
-import { laneTimes } from "./route";
+import { hopMs, laneTimes } from "./route";
 import { freeCell, moveSlot } from "./stacks";
 import { ConfirmDialog } from "./status";
 import {
   allied,
   knownOwner,
+  ownerAs,
   type PlanetView,
   type QueueItem,
   truce,
@@ -1162,6 +1163,7 @@ function LabSlots(props: {
   const { conn, content, planet, slot } = props;
   const view = useStore(conn.store, (s) => s.view);
   const pending = useStore(conn.local, (s) => isPending(s, "courier"));
+  const lastSeen = useStore(conn.local, (s) => s.lastSeen);
   if (!view) return null;
   const name = (t: string) => content.techs.get(t)?.name ?? t;
   const map = content.maps.get(view.map);
@@ -1231,6 +1233,8 @@ function LabSlots(props: {
             a,
             props.now,
             planetName,
+            content.rules.ownLaneTime,
+            ownerAs(view, lastSeen, a.owner),
           )}
         </li>
       ))}
@@ -2011,11 +2015,20 @@ export function ArmyWindow(props: {
     .map((u) => content.units.get(u.unit))
     .find((d) => d?.carry);
   const lanes = laneTimes(map, content.rules);
+  const hopOwner = ownerAs(view, lastSeen, army.owner);
   // A Spectator sees where every Army is going.
   const route = mine || view.spectating ? [army.to, ...army.path] : [army.to];
   let at = army.waiting ? now : army.arrives;
   const stops = route.map((p, i) => {
-    if (i > 0) at += lanes.get(route[i - 1] ?? "")?.get(p) ?? 0;
+    if (i > 0)
+      at += hopMs(
+        lanes,
+        content.rules.ownLaneTime,
+        hopOwner,
+        army.owner,
+        route[i - 1] ?? "",
+        p,
+      );
     const owner = ownerOf(p);
     const last = i === route.length - 1;
     const enemy =

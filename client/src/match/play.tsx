@@ -29,7 +29,14 @@ import { CommandIcon, ResourceIcon } from "./resources";
 import { arrival, laneTimes } from "./route";
 import { useMatchContext } from "./screen";
 import { ConfirmDialog } from "./status";
-import { allied, teamName, truce, type View, winnerName } from "./store";
+import {
+  allied,
+  ownerAs,
+  teamName,
+  truce,
+  type View,
+  winnerName,
+} from "./store";
 import { finishedProjects, rarityColour } from "./tech";
 import { formatAge, useMatchNow, useWallNow } from "./time";
 import { Note, notify } from "./toasts";
@@ -90,6 +97,7 @@ export function PlayScreen(props: {
       { store: conn.store, local: conn.local },
       {
         lanes: laneTimes(map, content.rules),
+        ownLaneTime: content.rules.ownLaneTime,
         sendStack: (from, stack, to, toStack, raid) =>
           sendStack(conn, from, stack, to, toStack, raid),
         moveArmy: (army, to, toStack, raid) =>
@@ -332,6 +340,7 @@ function ArmiesList(props: { conn: MatchConnection; content: ContentLookups }) {
   const { conn, content } = props;
   const view = useStore(conn.store, (s) => s.view);
   const selectedArmy = useStore(conn.local, (s) => s.selectedArmy);
+  const lastSeen = useStore(conn.local, (s) => s.lastSeen);
   const now = useMatchNow(conn.local);
   const map = view ? content.maps.get(view.map) : undefined;
   if (!view || !map) return null;
@@ -362,7 +371,13 @@ function ArmiesList(props: { conn: MatchConnection; content: ContentLookups }) {
     <ul className="min-h-0 flex-1 overflow-y-auto">
       {armies.length > 0 && <li className={group}>On the move</li>}
       {armies.map((a) => {
-        const at = arrival(lanes, a, now);
+        const at = arrival(
+          lanes,
+          a,
+          now,
+          content.rules.ownLaneTime,
+          ownerAs(view, lastSeen, a.owner),
+        );
         const courier = !!a.tech;
         const carrying = content.techs.get(a.tech)?.name ?? a.tech;
         return (

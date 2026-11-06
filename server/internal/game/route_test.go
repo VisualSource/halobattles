@@ -58,7 +58,7 @@ func TestRoutingFixtures(t *testing.T) {
 				return Neutral // no owner listed
 			}
 
-			path, ms, ok := Route(lanes, owner, tc.Player, tc.From, tc.To)
+			path, ms, ok := Route(lanes, 1, owner, tc.Player, tc.From, tc.To)
 
 			switch {
 			case tc.Unreachable && ok:

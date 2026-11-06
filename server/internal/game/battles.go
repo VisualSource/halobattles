@@ -341,7 +341,7 @@ func (s *State) retreat(a *Army, at int64) bool {
 		return false
 	}
 	a.Path, a.Raid = path[1:], false // seen on the way home, whatever it was
-	a.hop(s.Lanes, at)
+	s.hop(a, at)
 	return true
 }
 

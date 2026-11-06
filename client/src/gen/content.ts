@@ -148,6 +148,10 @@ export interface Ruleset {
    */
   toHit: number;
   /**
+   * Travel-time multiplier for a hop between two Planets both held by the Army's owner or a Teammate, judged as it sets off.
+   */
+  ownLaneTime: number;
+  /**
    * Travel-time multiplier per Lane type.
    */
   laneTypes: {

@@ -270,6 +270,14 @@ export function routeOwner(
   return truce(view, owner) ? null : owner; // passed through like a neutral one, as on the server
 }
 
+/** Each Planet's owner as seat's Armies see it for hop times: a Teammate's is seat's. */
+export const ownerAs =
+  (view: View, lastSeen: LocalState["lastSeen"], seat: number) =>
+  (id: string) => {
+    const owner = knownOwner(view, lastSeen, id);
+    return allied(view, owner, seat) ? seat : owner;
+  };
+
 /** Whether you have a Truce with a Seat. */
 export const truce = (view: View | null, seat: number | null) =>
   seat !== null && !!view?.players[view.you]?.truces.includes(seat);

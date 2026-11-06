@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { GalaxyMap, Ruleset } from "../gen/content";
-import { type Lanes, laneTimes, route } from "./route";
+import { arrival, type Lanes, laneTimes, route } from "./route";
+import type { Army } from "./store";
 
 type RoutingCase = {
   description: string;
@@ -72,5 +73,31 @@ describe("laneTimes", () => {
     expect(lanes.get("b")?.get("a")).toBe(10_000);
     expect(lanes.get("c")?.get("b")).toBe(30_000);
     expect(lanes.get("a")?.get("c")).toBe(12_500);
+  });
+
+  it("halves a hop within your own territory, as the server does", () => {
+    const lanes: Lanes = new Map([
+      ["a", new Map([["b", 30_000]])],
+      [
+        "b",
+        new Map([
+          ["a", 30_000],
+          ["c", 30_000],
+        ]),
+      ],
+      ["c", new Map([["b", 30_000]])],
+    ]);
+    const owners: Record<string, number | null> = { a: 0, b: 0, c: 1 };
+    const owner = (p: string) => owners[p] ?? null;
+
+    expect(route(lanes, owner, 0, "a", "c", 0.5)?.ms).toBe(45_000); // 15 s own, 30 s into c
+    const army = {
+      owner: 0,
+      to: "a",
+      path: ["b", "c"],
+      arrives: 1_000,
+      waiting: false,
+    } as unknown as Army;
+    expect(arrival(lanes, army, 0, 0.5, owner)).toBe(1_000 + 15_000 + 30_000);
   });
 });

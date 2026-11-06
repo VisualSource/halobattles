@@ -71,6 +71,24 @@ func TestAnArmyHopsOnThroughItsOwnersPlanets(t *testing.T) {
 	}
 }
 
+func TestAHopWithinItsOwnersTerritoryIsFaster(t *testing.T) {
+	s, c := fixedMatch(t), truceContent()
+	s.OwnLaneTime = 0.5
+	s.Planets["b"].Owner = 0
+	s.Planets["c"].Owner = 1
+	truced(t, s, c) // a Truce partner's Planet is passed, not owned: full time
+	if err := s.OrderArmy(0, "a", marines(1), "d", 0); err != nil {
+		t.Fatal(err)
+	}
+	if a := onlyArmy(t, s); a.To != "b" || a.Arrives-a.Departed != 15_000 {
+		t.Errorf("Army = %+v, want a to b, its own, in 15 s", a)
+	}
+	s.Advance(c, 15_200)
+	if a := onlyArmy(t, s); a.From != "b" || a.To != "c" || a.Arrives-a.Departed != 30_000 {
+		t.Errorf("Army = %+v, want b to c, a Truce partner's, in the full 30 s", a)
+	}
+}
+
 func TestOrderArmyRejections(t *testing.T) {
 	cases := []struct {
 		name    string

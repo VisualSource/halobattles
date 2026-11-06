@@ -10,7 +10,8 @@
   "unitSlotsPerStack": 15,
   // An attack hits on a d20 roll of this or more: 90%.
   "toHit": 3,
-  "laneTypes": { "fast": 0.6, "slow": 2.0 },
+  "laneTypes": { "fast": 0.36, "slow": 1.2 },
+  "ownLaneTime": 0.5, // a hop within your Team's territory
   "startingResources": { "credits": 1000, "materials": 300, "alloys": 50 },
   // docs/specs/economy-spec.md#stockpile-caps: anything over is lost at Payday.
   "stockpileCaps": { "credits": 3000, "materials": 1500, "alloys": 500 },

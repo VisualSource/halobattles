@@ -117,7 +117,7 @@ func (s *State) SendTech(c *cs.Content, seat int, tech, toPlanet string, toSlot 
 	a := &Army{ID: s.LastID, Owner: seat, From: home.Planet, To: home.Planet, Departed: s.Time, Arrives: s.Time,
 		Courier: &Courier{Tech: tech, Home: home, Dest: dest}}
 	if a.Path = route[1:]; len(a.Path) > 0 {
-		a.hop(s.Lanes, s.Time)
+		s.hop(a, s.Time)
 	}
 	if s.Armies == nil {
 		s.Armies = map[uint32]*Army{}
@@ -130,7 +130,7 @@ func (s *State) SendTech(c *cs.Content, seat int, tech, toPlanet string, toSlot 
 // enter an enemy's Planet. from itself isn't entered: a turned-back Courier
 // can be leaving one.
 func (s *State) courierRoute(seat int, from, to string) ([]string, error) {
-	route, _, ok := Route(s.Lanes, s.ownerFor(seat), seat, from, to)
+	route, _, ok := Route(s.Lanes, s.OwnLaneTime, s.ownerFor(seat), seat, from, to)
 	if !ok || slices.ContainsFunc(route[1:], func(id string) bool { return !s.passable(seat, s.Planets[id]) }) {
 		return nil, fmt.Errorf("no safe route from %s to %s", from, to)
 	}
@@ -158,7 +158,7 @@ func (s *State) ReorderCourier(c *cs.Content, seat int, id uint32, toPlanet stri
 		return err
 	}
 	a.Courier.Dest = to
-	a.redirect(route, s.Lanes, s.Time)
+	s.redirect(a, route, s.Time)
 	return nil
 }
 
@@ -203,7 +203,7 @@ func (s *State) moveCourier(c *cs.Content, a *Army, now int64) {
 		co.Turned = "" // left it
 	}
 	if dest := co.Dest.Planet; dest != a.destination() {
-		route, _, ok := Route(s.Lanes, s.ownerFor(a.Owner), a.Owner, a.To, dest)
+		route, _, ok := Route(s.Lanes, s.OwnLaneTime, s.ownerFor(a.Owner), a.Owner, a.To, dest)
 		if !ok {
 			s.loseCourier(a)
 			return
@@ -223,7 +223,7 @@ func (s *State) moveCourier(c *cs.Content, a *Army, now int64) {
 			s.loseCourier(a)
 			return
 		case len(a.Path) > 0 && !stuck(p):
-			a.hop(s.Lanes, a.Arrives)
+			s.hop(a, a.Arrives)
 		default:
 			a.Waiting = true
 		}
@@ -235,7 +235,7 @@ func (s *State) moveCourier(c *cs.Content, a *Army, now int64) {
 	case stuck(s.Planets[a.To]):
 	case len(a.Path) > 0:
 		a.Waiting = false
-		a.hop(s.Lanes, now)
+		s.hop(a, now)
 	default:
 		s.Planets[co.Dest.Planet].hold(co.Dest.Slot, co.Tech)
 		delete(s.Armies, a.ID)

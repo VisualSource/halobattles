@@ -94,7 +94,7 @@ func (s *State) OrderArmy(seat int, from string, units []ArmyUnits, to string, t
 	if err := s.checkTarget(seat, to, toStack); err != nil {
 		return err
 	}
-	route, _, ok := Route(s.Lanes, s.ownerFor(seat), seat, from, to)
+	route, _, ok := Route(s.Lanes, s.OwnLaneTime, s.ownerFor(seat), seat, from, to)
 	if !ok || len(route) < 2 {
 		return fmt.Errorf("no route from %s to %s", from, to)
 	}
@@ -134,7 +134,7 @@ func (s *State) OrderArmy(seat int, from string, units []ArmyUnits, to string, t
 	p.Stacks = stacks
 	s.LastID++
 	a := &Army{ID: s.LastID, Owner: seat, Units: army, To: from, Path: route[1:], ToStack: toStack}
-	a.hop(s.Lanes, s.Time)
+	s.hop(a, s.Time)
 	if s.Armies == nil {
 		s.Armies = map[uint32]*Army{}
 	}
@@ -153,13 +153,13 @@ func (s *State) ReorderArmy(seat int, id uint32, to string, toStack int) error {
 	if err := s.checkTarget(seat, to, toStack); err != nil {
 		return err
 	}
-	route, _, ok := Route(s.Lanes, s.ownerFor(seat), seat, a.To, to)
+	route, _, ok := Route(s.Lanes, s.OwnLaneTime, s.ownerFor(seat), seat, a.To, to)
 	// Mid-Lane into an enemy Planet, the Army must stop there.
 	if !ok || !a.Waiting && len(route) > 1 && !s.passable(seat, s.Planets[a.To]) {
 		return fmt.Errorf("no route to %s", to)
 	}
 	a.ToStack, a.Raid = toStack, false // re-ordered as an Attack; ReorderRaid makes it a Raid again
-	a.redirect(route, s.Lanes, s.Time)
+	s.redirect(a, route, s.Time)
 	return nil
 }
 
@@ -178,11 +178,11 @@ func (s *State) reorderable(seat int, id uint32) (*Army, error) {
 }
 
 // redirect gives the Army a new route from To; one waiting in orbit leaves at at.
-func (a *Army) redirect(route []string, lanes map[string]map[string]int64, at int64) {
+func (s *State) redirect(a *Army, route []string, at int64) {
 	a.Path = route[1:]
 	if a.Waiting && len(a.Path) > 0 {
 		a.Waiting = false
-		a.hop(lanes, at)
+		s.hop(a, at)
 	}
 }
 
@@ -263,10 +263,12 @@ func (a *Army) destination() string {
 	return a.To
 }
 
-// hop starts the Lane hop to the next Planet on the Army's path.
-func (a *Army) hop(lanes map[string]map[string]int64, at int64) {
+// hop starts the Lane hop to the next Planet on the Army's path, its time
+// set by who holds both ends now.
+func (s *State) hop(a *Army, at int64) {
+	owner := s.ownerFor(a.Owner)
 	a.From, a.To, a.Path = a.To, a.Path[0], a.Path[1:]
-	a.Departed, a.Arrives = at, at+lanes[a.From][a.To]
+	a.Departed, a.Arrives = at, at+hopTime(s.Lanes, s.OwnLaneTime, owner, a.Owner, a.From, a.To)
 }
 
 // moveArmies moves every Army along its path and resolves arrivals. Armies
@@ -298,7 +300,7 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 			// even one that changed hands on the way. A Retreat passes through
 			// anything.
 			case len(a.Path) > 0 && (a.Retreating || s.passable(a.Owner, s.Planets[a.To]) && !s.Planets[a.To].Locked):
-				a.hop(s.Lanes, a.Arrives)
+				s.hop(a, a.Arrives)
 			case len(a.Path) > 0 && s.passable(a.Owner, s.Planets[a.To]):
 				a.Waiting = true // Locked on the way: wait out the Battle, keeping the route
 			default:
@@ -322,7 +324,7 @@ func (s *State) moveArmies(c *cs.Content, now int64, ev *Events) {
 			// It waited out a Battle on the way: go on if it still may.
 			if s.passable(a.Owner, p) {
 				a.Waiting = false
-				a.hop(s.Lanes, now)
+				s.hop(a, now)
 				continue
 			}
 			a.Path = nil // taken by an enemy: the move ends here

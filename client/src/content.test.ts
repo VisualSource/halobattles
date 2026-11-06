@@ -12,6 +12,7 @@ const rules: Ruleset = {
   unitSlotsPerStack: 10,
   toHit: 3,
   laneTypes: { fast: 1 },
+  ownLaneTime: 0.5,
   startingResources: { "base:credits": 1000 },
   stockpileCaps: { "base:credits": 3000 },
   sprawl: { freePlanets: 4, percent: 5 },

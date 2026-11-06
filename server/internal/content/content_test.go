@@ -18,6 +18,7 @@ const baseRules = `{
 	"unitSlotsPerStack": 10,
 	"toHit": 3,
 	"laneTypes": {"fast": 1, "slow": 2},
+	"ownLaneTime": 0.5,
 	"startingResources": {"credits": 1000},
 	"stockpileCaps": {"credits": 3000},
 	"sprawl": {"freePlanets": 4, "percent": 5},

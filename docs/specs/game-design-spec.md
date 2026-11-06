@@ -58,7 +58,8 @@ The full rules and numbers are in the [economy spec](economy-spec.md) (Economy v
 
 ## Travel
 
-- A Lane's travel time is its length × its Lane-type multiplier: `fast` 0.6, `slow` 2.0. One length unit is 1 s. Map data may set an explicit `time` on a Lane, which overrides that.
+- A Lane's travel time is its length × its Lane-type multiplier: `fast` 0.36, `slow` 1.2. One length unit is 1 s. Map data may set an explicit `time` on a Lane, which overrides that.
+- **Own territory** (#111): a hop between two Planets that are both the Army owner's or a Teammate's takes the Ruleset's `ownLaneTime` (0.5) of that time. A Truce partner's Planets don't count. It's judged when the Army sets off on the hop, so a capture mid-hop doesn't change its arrival; the next hop goes by the new owners. Routing counts these faster times too, and so do the client's route preview and arrival times. It applies to every Army: Couriers, Rally Point moves and Bots' too.
 - An Army can be ordered to any Planet. Its route is found automatically with Dijkstra and goes **straight through the player's own Planets and neutral ones**, with no Battle and no capture. Entering an **enemy** Planet ends the move there with a Battle; if the Army wins, it stays on the Planet it took.
 - The route enters as few enemy Planets as it can, whatever the time; then it's the fastest; then, on equal times, it passes the fewest neutral Planets. Remaining ties go to the lowest Planet-id sequence.
 - A route is fixed once ordered. Each Planet on it is judged as the Army reaches it: one that has turned enemy ends the move there with a Battle, and a **Locked** one makes the Army wait in orbit until its Battle ends, then go on or, if the Planet is now an enemy's, fight there.
@@ -372,7 +373,8 @@ The single `base:rules` definition.
 | Sell refund | 50% |
 | Unit Slots per Stack | 15 |
 | `toHit` | 3 (a d20 roll of 1–2 misses: 90% of attacks hit before Advantage or Disadvantage) |
-| Lane types | `fast` 0.6, `slow` 2.0 |
+| Lane types | `fast` 0.36, `slow` 1.2 |
+| `ownLaneTime` | 0.5 (a hop within your Team's territory) |
 | Tactical Battle fields | see [Ruleset additions](tactical-battle-spec.md#ruleset-additions) |
 | `startingResources` | 1000 Credits, 300 Materials, 50 Alloys |
 | `stockpileCaps` | 3000 Credits, 1500 Materials, 500 Alloys |

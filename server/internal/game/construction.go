@@ -195,7 +195,7 @@ func (s *State) rallyOut(p *Planet, unit string) {
 	if p.RallyPoint == "" {
 		return
 	}
-	route, _, ok := Route(s.Lanes, s.ownerFor(p.Owner), p.Owner, p.ID, p.RallyPoint)
+	route, _, ok := Route(s.Lanes, s.OwnLaneTime, s.ownerFor(p.Owner), p.Owner, p.ID, p.RallyPoint)
 	for _, id := range route {
 		if !s.passable(p.Owner, s.Planets[id]) {
 			return

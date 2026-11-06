@@ -24,7 +24,8 @@ func lineContent() *cs.Content {
 	return withBattles(&cs.Content{
 		Rulesets: map[string]cs.Ruleset{RulesetID: {
 			PaydaySeconds: 90, CancelRefundPercent: 50, SellRefundPercent: 50, UnitSlotsPerStack: 10,
-			ToHit: 3, Sprawl: cs.Sprawl{FreePlanets: 4, Percent: 5},
+			ToHit: 3, Sprawl: cs.Sprawl{FreePlanets: 4, Percent: 5}, OwnLaneTime: 1, // hops keep their 30 s; own-territory tests set it
+
 			Tech: cs.TechRules{Fields: map[string]cs.ResearchField{"base:military": {Name: "Military"}, "base:industry": {Name: "Industry"}},
 				LabsPerPlanet: 3, HandSize: 3, CapitalResearch: 2, CostScalingPercent: 10,
 				Rarities: map[string]cs.RarityRule{"common": {From: 0, Weight: 10}, "uncommon": {From: 4, Weight: 6},

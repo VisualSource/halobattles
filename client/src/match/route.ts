@@ -32,11 +32,40 @@ export function laneTimes(map: GalaxyMap, rules: Ruleset): Lanes {
   return lanes;
 }
 
-/** The Match Time an Army reaches its destination: this hop, then the rest of its route. */
-export function arrival(lanes: Lanes, a: Army, now: number) {
+/** A Planet's owner as routing sees it: a Teammate's as yours, null for none. */
+export type Owner = (planet: string) => number | null;
+
+/**
+ * A hop's time for an Army of seat, as the server's hopTime: own times its
+ * Lane's time between two of seat's Planets (#111).
+ */
+export function hopMs(
+  lanes: Lanes,
+  own: number,
+  owner: Owner,
+  seat: number,
+  from: string,
+  to: string,
+) {
+  const t = lanes.get(from)?.get(to) ?? 0;
+  return owner(from) === seat && owner(to) === seat ? Math.round(t * own) : t;
+}
+
+/**
+ * The Match Time an Army reaches its destination: this hop, then the rest of
+ * its route, each hop timed by its owners now (the server judges each as it
+ * sets off).
+ */
+export function arrival(
+  lanes: Lanes,
+  a: Army,
+  now: number,
+  own = 1,
+  owner: Owner = () => null,
+) {
   let at = a.waiting ? now : a.arrives;
   [a.to, ...a.path].forEach((p, i, stops) => {
-    if (i > 0) at += lanes.get(stops[i - 1] ?? "")?.get(p) ?? 0;
+    if (i > 0) at += hopMs(lanes, own, owner, a.owner, stops[i - 1] ?? "", p);
   });
   return at;
 }
@@ -66,15 +95,17 @@ const better = (a: Label, b: Label) =>
  * knows it, null for neutral. The route goes straight through the player's
  * own Planets and neutral ones, and entering an enemy Planet ends the move
  * there, so it enters as few as it can, whatever the time; then it's the
- * fastest; then, on equal times, it passes the fewest neutrals. Both pass
+ * fastest; then, on equal times, it passes the fewest neutrals. A hop
+ * between two of your Planets takes own times its Lane's time. Both pass
  * testdata/routing.
  */
 export function route(
   lanes: Lanes,
-  owner: (planet: string) => number | null,
+  owner: Owner,
   you: number,
   from: string,
   to: string,
+  own = 1,
 ): { ms: number; path: string[] } | null {
   if (from === to) return { ms: 0, path: [from] };
   const best = new Map<string, Label>([
@@ -91,12 +122,12 @@ export function route(
     const here = best.get(cur) as Label;
     if (cur === to) return { ms: here.ms, path: here.path };
     done.add(cur);
-    for (const [next, ms] of lanes.get(cur) ?? []) {
+    for (const next of lanes.get(cur)?.keys() ?? []) {
       const o = owner(next);
       const l = {
         enemies: here.enemies + (o !== null && o !== you ? 1 : 0),
         neutrals: here.neutrals + (o === null ? 1 : 0),
-        ms: here.ms + ms,
+        ms: here.ms + hopMs(lanes, own, owner, you, cur, next),
         path: [...here.path, next],
       };
       const old = best.get(next);

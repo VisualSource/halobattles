@@ -70,7 +70,14 @@ export function MoveTechWindow(props: {
   // The server refuses a route into a Planet you know is an enemy's.
   const enemy = (id: string) => ![null, view.you].includes(owner(id));
   const trip = (to: string) => {
-    const t = route(lanes, owner, view.you, from, to);
+    const t = route(
+      lanes,
+      owner,
+      view.you,
+      from,
+      to,
+      content.rules.ownLaneTime,
+    );
     return t && !t.path.slice(1).some(enemy) ? t : null;
   };
   // A Courier finishes its Lane hop first.

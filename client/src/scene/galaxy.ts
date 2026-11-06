@@ -82,6 +82,7 @@ type Stores = {
 
 type Orders = {
   lanes: Lanes;
+  ownLaneTime: number; // the Ruleset's: a hop within your territory's share of its time
   /** A Stack dropped on another Planet: send it all there as an Army. */
   sendStack: (
     from: string,
@@ -529,6 +530,7 @@ export class GalaxyScene {
             view.you,
             from,
             hovered,
+            this.orders.ownLaneTime,
           )?.path
         : undefined;
     // With nothing dragged, show the route your selected Army is taking.
