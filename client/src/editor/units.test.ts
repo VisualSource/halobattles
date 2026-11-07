@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { rosterMax } from "../match/units";
 import type { Content } from "./content";
-import { unitWrites } from "./units";
+import { lookups, unitWrites } from "./units";
 
 const marine = { id: "marine", name: "Marine", faction: "unsc" };
 const data = {
@@ -38,5 +39,28 @@ describe("Saving a unit", () => {
         value: { id: "hev", name: "HEV", variantOf: "marine" },
       },
     ]);
+  });
+});
+
+describe("The unit card's content", () => {
+  it("gives a variant with no combat of its own its parent's", () => {
+    const combat = { unitClass: "vehicle", shield: 1, armor: 2, hp: 3 };
+    const wraith = { id: "wraith", combat, damage: "1d4" };
+    const muz = { id: "muz", variantOf: "wraith" };
+    const content = lookups(
+      {
+        units: [
+          { file: "wraith", value: wraith },
+          { file: "muz", value: muz },
+        ],
+        unitClasses: [],
+        weaponTypes: [],
+        resources: [],
+        rulesets: [],
+      } as unknown as Content,
+      wraith as never,
+    );
+    expect(content.units.get("muz")?.combat).toEqual(combat);
+    expect(() => rosterMax(content)).not.toThrow();
   });
 });

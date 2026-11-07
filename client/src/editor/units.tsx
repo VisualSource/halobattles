@@ -68,18 +68,25 @@ const byId = (items: { value: Raw }[]) =>
  * The bits of ContentLookups the game's unit card and panel read, from the
  * raw files: Resources get their Mod's prefix, as the game's icons expect.
  */
-function lookups(data: Content, draft: Unit): ContentLookups {
-  const units = byId(data.units);
-  units.set(draft.id, draft as unknown as Raw);
+export function lookups(data: Content, draft: Unit): ContentLookups {
+  const raw = byId(data.units);
+  raw.set(draft.id, draft as unknown as Raw);
+  // The card reads the whole roster, and a variant's file holds only what it changes.
+  const units = new Map([...raw.keys()].map((id) => [id, resolved(raw, id)]));
   const rules = (data.rulesets[0]?.value ?? {}) as {
-    battle?: { classDefaults?: object };
+    battle?: { classDefaults?: object; raidRoles?: string[] };
   };
   return {
     units,
     unitClasses: byId(data.unitClasses),
     weaponTypes: byId(data.weaponTypes),
     resources: new Map(data.resources.map((r) => [`base:${r.id}`, r])),
-    rules: { battle: { classDefaults: rules.battle?.classDefaults ?? {} } },
+    rules: {
+      battle: {
+        classDefaults: rules.battle?.classDefaults ?? {},
+        raidRoles: rules.battle?.raidRoles ?? [],
+      },
+    },
   } as unknown as ContentLookups;
 }
 const prefixed = (m: Record<string, number> = {}) =>
