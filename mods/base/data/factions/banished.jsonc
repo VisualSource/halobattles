@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../schema/content/faction.schema.json",
+  "id": "banished",
+  "name": "Banished",
+  "startingKit": {
+    "buildings": [],
+    "stacks": []
+  }
+}
