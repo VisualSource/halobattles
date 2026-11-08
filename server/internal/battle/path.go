@@ -20,8 +20,12 @@ func (s *Sim) costsFor(class string) costs {
 		return c
 	}
 	byTerrain := make([]float64, len(s.Field.Terrains))
+	air := s.content.UnitClasses[class].Air
 	for i, id := range s.Field.Terrains {
 		byTerrain[i] = s.content.Terrains[id].Movement[class]
+		if air != nil && *air {
+			byTerrain[i] = 1 // aircraft fly over everything
+		}
 	}
 	c := make(costs, len(s.Field.Terrain))
 	for i, t := range s.Field.Terrain {

@@ -244,6 +244,7 @@ type Sim struct {
 	ground, air []int     // the squad id in each cell, or 0
 	visible     [2][]bool // by squad id: what each side can see this tick
 	costCache   map[string]costs
+	obscure     []float64         // each cell's Terrain's obscures, for lines of sight
 	main        []bool            // cells joined to the Control Points on foot
 	reach       map[string][]bool // per Unit Class: cells it can walk to a Control Point from
 }
@@ -825,13 +826,65 @@ func (s *Sim) swaps(sq, other *Squad, cost float64) bool {
 	return true
 }
 
-// sightOf is how far a squad sees: its Sight, plus more per height level on
-// the ground.
-func (s *Sim) sightOf(sq *Squad) float64 {
-	if sq.air {
-		return sq.sight
+// heightBonus is the extra range and Sight a ground squad at a has against a
+// ground target at b: heightReach per level it stands above it, up to
+// heightLevels.
+func (s *Sim) heightBonus(a, b Cell) float64 {
+	return s.rules.HeightReach * float64(min(max(s.height(a)-s.height(b), 0), s.rules.HeightLevels))
+}
+
+// clearLine is whether the line of sight between ground cells a and b is
+// open: no cell between them is higher than both ends, and their Terrain
+// obscures no more than sightObscured in all (more than 2 forest cells, or a
+// peak, blocks it).
+func (s *Sim) clearLine(a, b Cell) bool {
+	f := s.Field
+	if s.obscure == nil {
+		s.obscure = make([]float64, len(f.Terrain))
+		for i, t := range f.Terrain {
+			if o := s.content.Terrains[f.Terrains[t]].Obscures; o != nil {
+				s.obscure[i] = *o
+			}
+		}
 	}
-	return sq.sight + s.rules.HeightSight*float64(s.height(sq.Cell))
+	if f.index(b) < f.index(a) {
+		a, b = b, a // the same cells whichever end looks: sight works both ways
+	}
+	top := max(s.height(a), s.height(b))
+	seen := 0.0
+	// Bresenham's line, ends left out.
+	dx, dy := abs(b.X-a.X), -abs(b.Y-a.Y)
+	sx, sy := cmp.Compare(b.X, a.X), cmp.Compare(b.Y, a.Y)
+	e, c := dx+dy, a
+	for {
+		if e2 := 2 * e; e2 >= dy {
+			e += dy
+			c.X += sx
+		} else {
+			e += dx
+			c.Y += sy
+		}
+		if c == b {
+			return true
+		}
+		if s.height(c) > top {
+			return false
+		}
+		if seen += s.obscure[f.index(c)]; seen > s.rules.SightObscured {
+			return false
+		}
+	}
+}
+
+// sees is whether o sees a target at c, which flies if air: within its Sight
+// (with heightBonus on the ground) along a clear line. A line to or from an
+// aircraft is always clear.
+func (s *Sim) sees(o *Squad, c Cell, air bool) bool {
+	r := o.sight
+	if !o.air && !air {
+		r += s.heightBonus(o.Cell, c)
+	}
+	return float64(dist2(o.Cell, c)) <= r*r && (o.air || air || s.clearLine(o.Cell, c))
 }
 
 // see works out which squads each side can see: its own, and enemies within
@@ -852,11 +905,9 @@ func (s *Sim) see() {
 				continue
 			}
 			for _, o := range s.Squads {
-				if o.Side == Side(side) && o.alive() {
-					if r := s.sightOf(o); float64(dist2(o.Cell, e.Cell)) <= r*r {
-						vis[e.ID] = true
-						break
-					}
+				if o.Side == Side(side) && o.alive() && s.sees(o, e.Cell, e.air) {
+					vis[e.ID] = true
+					break
 				}
 			}
 			// A pad the side holds sees round itself.
@@ -869,8 +920,7 @@ func (s *Sim) see() {
 		// it loses one, if not what's built on it after.
 		for i, p := range s.Pads {
 			if p.Owner == Side(side) || s.padSeen[side][i].Owner == Side(side) || slices.ContainsFunc(s.Squads, func(o *Squad) bool {
-				r := s.sightOf(o)
-				return o.Side == Side(side) && o.alive() && float64(dist2(o.Cell, p.Cell)) <= r*r
+				return o.Side == Side(side) && o.alive() && s.sees(o, p.Cell, false)
 			}) {
 				s.padSeen[side][i] = p
 			}
@@ -893,8 +943,12 @@ func (s *Sim) canHit(actor, target *Squad) bool {
 	if !target.alive() || target.Dropship && !s.antiAir(actor) || target.Side == actor.Side || !s.visible[actor.Side][target.ID] || s.tier(actor, target) == None {
 		return false
 	}
-	d := dist(actor.Cell, target.Cell)
-	return d <= actor.reach && d >= actor.minRange
+	d, reach := dist(actor.Cell, target.Cell), actor.reach
+	ground := !actor.air && !target.air
+	if ground {
+		reach += s.heightBonus(actor.Cell, target.Cell)
+	}
+	return d <= reach && d >= actor.minRange && (!ground || s.clearLine(actor.Cell, target.Cell))
 }
 
 // targetOf is the ordered target if it can be hit, or else the one it locked

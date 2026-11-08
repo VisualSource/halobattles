@@ -90,7 +90,7 @@ func TestAPadOutOfSightShowsAsLastSeen(t *testing.T) {
 	s := setupSim(t, true)
 	pad := &s.Pads[0]
 	for _, sq := range s.Squads {
-		if sq.Side == Attacker && dist2(sq.Cell, pad.Cell) <= int(s.sightOf(sq)*s.sightOf(sq)) {
+		if sq.Side == Attacker && dist2(sq.Cell, pad.Cell) <= int(sq.sight*sq.sight) {
 			t.Skip("the attacker starts in sight of this pad")
 		}
 	}
@@ -107,7 +107,7 @@ func TestAPadOutOfSightShowsAsLastSeen(t *testing.T) {
 		if sq.Side != Defender {
 			continue
 		}
-		far := s.sightOf(sq) + 2 // buildings too: the test only needs no defender eyes on it
+		far := sq.sight + 2 // buildings too: the test only needs no defender eyes on it
 		for i := range s.ground {
 			if c := s.Field.cell(i); s.ground[i] == 0 && (sq.Building || s.standable(sq, c)) && dist(c, pad.Cell) > far {
 				s.relocate(sq, c)
@@ -116,7 +116,7 @@ func TestAPadOutOfSightShowsAsLastSeen(t *testing.T) {
 		}
 	}
 	for _, sq := range s.Squads {
-		if sq.Side == Defender && dist(sq.Cell, pad.Cell) <= s.sightOf(sq) {
+		if sq.Side == Defender && dist(sq.Cell, pad.Cell) <= sq.sight {
 			t.Fatalf("defender %d still has the pad in sight", sq.ID)
 		}
 	}

@@ -87,8 +87,12 @@ type BattleRules struct {
 	// the Battle for the attacker. It never fires.
 	CommandPost CommandPost `json:"commandPost"`
 
-	// Extra Sight, in cells, per height level a ground unit stands on.
-	HeightSight float64 `json:"heightSight"`
+	// The most height levels that count for heightReach.
+	HeightLevels int `json:"heightLevels"`
+
+	// Extra range and Sight, in cells, per height level a ground unit stands above a
+	// ground target.
+	HeightReach float64 `json:"heightReach"`
 
 	// Added to the To-hit roll of a ground attack from a higher height level.
 	HighGroundToHit int `json:"highGroundToHit"`
@@ -123,6 +127,11 @@ type BattleRules struct {
 	// Seconds from ordering a Retreat until the side turns and heads off the field;
 	// it fights on meanwhile, and can call it off.
 	RetreatCountdown float64 `json:"retreatCountdown"`
+
+	// A line of sight between two ground cells is blocked when the Terrain on the
+	// cells between them obscures more than this in all (see Terrain obscures), or
+	// one of them is higher than both ends.
+	SightObscured float64 `json:"sightObscured"`
 
 	// Seconds from an Army's arrival to the first sim tick: both sides are deployed
 	// and the Planet Locked, so players can open the Battle.
@@ -1296,11 +1305,16 @@ type Terrain struct {
 	ID ID `json:"id"`
 
 	// Per Unit Class id, the cost of entering a cell of this Terrain. A Unit Class
-	// missing here can't enter it.
+	// missing here can't enter it. An air Unit Class ignores this: every cell costs
+	// it 1.
 	Movement map[string]float64 `json:"movement"`
 
 	// Name corresponds to the JSON schema field "name".
 	Name Name `json:"name"`
+
+	// How much a cell of it obscures a line of sight across it, against the Ruleset's
+	// sightObscured. Defaults to 0.
+	Obscures *float64 `json:"obscures,omitempty,omitzero"`
 
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`

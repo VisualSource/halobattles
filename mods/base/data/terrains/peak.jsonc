@@ -4,5 +4,6 @@
   "name": "Peak",
   "colour": "#8d8d8d",
   "cover": 0,
+  "obscures": 3, // blocks a line of sight on its own
   "movement": { "aircraft": 1 }
 }

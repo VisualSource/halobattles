@@ -68,7 +68,8 @@ Base-Mod Terrains:
 
 - A cell's **height level** comes from its elevation band: in the base presets, `water` and `lowland` are 0, `highland` 1 and `peak` 2. Water and peak cells hold no ground units.
 - **High ground:** a ground attacker on a higher level than its ground target gets **+2** on the To-hit roll.
-- **Sight:** a ground unit gets **+1 Sight per height level** it stands on.
+- **Range and Sight:** a ground unit gets **+1 cell of range and Sight per height level above its ground target**, at most +2 (`heightReach`, `heightLevels`).
+- **Line of sight:** a line between two ground cells is blocked by a cell on it higher than both ends, or by Terrain that obscures more than `sightObscured` (2) in all: a forest cell obscures 1, a peak 3, so more than 2 forest cells or one peak block it. A side can't see or fire past it; the test runs only for pairs already within Sight or range. A line to or from an aircraft is never blocked. A pad's own sight round itself ignores it.
 
 ## Squads
 
@@ -419,7 +420,9 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battle.captureSeconds` | 5 |
 | `battle.commandPost` | Structure class, 0 Shield, 60 Armor, 150 HP |
 | `battle.highGroundToHit` | +2 |
-| `battle.heightSight` | +1 per level |
+| `battle.heightReach` | +1 cell of range and Sight per level above the target |
+| `battle.heightLevels` | 2 |
+| `battle.sightObscured` | 2 |
 | `battle.structure` | Unit Class Structure, 0/20/30 |
 | `battle.classDefaults` | see [Stats](#stats) |
 | `battle.retreatCountdown` | 10 s |
@@ -685,7 +688,7 @@ Built (#118).
 
 ### 3D rules (step 4)
 
-Rules the 3D view now shows the player, in this order:
+Built (#119): height and line of sight are now in [Height](#height), and aircraft already moved over everything at cost 1 in their own layer (now held in code, whatever the Terrain table says). Rules the 3D view now shows the player, in this order:
 
 1. **Air layer:** Aircraft path with every cell costing 1, over water and cliffs, and stand in their own layer: an aircraft can be above a ground squad, and neither blocks the other. Aircraft still don't share a cell with another aircraft.
 2. **Height:** +1 cell of `range` and `sight` for each height level above the target, at most +2. This joins the +2 To-hit for high ground.
@@ -758,7 +761,7 @@ Built on [Command](#command). **Mockup first**, agreed before any of it is built
 1. ~~Sim rate: 10 Hz, a goroutine per Battle~~ (#116): now in [Time and movement](#time-and-movement).
 2. ~~Fire: staggered members, target lock~~ (#117): now in [Firing](#firing).
 3. Counters: the `counter` tier, the triangle, dropping Artillery, the roster retune, the duel matrix (#118).
-4. 3D rules: the air layer, height, then line of sight (#119).
+4. ~~3D rules: the air layer, height, then line of sight~~ (#119): now in [Height](#height).
 5. The Hard AI: 5a unit behaviours (#120), 5b Commander tactics (#121), 5c the Normal and Easy limits (#122).
 6. RTS controls, mockup first, alongside any step (#123).
 

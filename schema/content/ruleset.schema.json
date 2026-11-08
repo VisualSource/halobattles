@@ -165,7 +165,7 @@
       "description": "How a Battle runs on its Battlefield.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["ticksPerSecond", "startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "landingDelay", "padSight", "padCooldown", "startReach", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "highGroundToHit", "heightSight", "retreatCountdown", "structure", "commandPost", "classDefaults"],
+      "required": ["ticksPerSecond", "startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "landingDelay", "padSight", "padCooldown", "startReach", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "highGroundToHit", "heightReach", "heightLevels", "sightObscured", "retreatCountdown", "structure", "commandPost", "classDefaults"],
       "properties": {
         "ticksPerSecond": { "description": "Sim steps a second. The Match ticks 5 times a second, so it runs this many steps per Match tick, rounded down: use a multiple of 5.", "type": "integer", "minimum": 5, "multipleOf": 5 },
         "startDelay": { "description": "Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.", "type": "integer", "minimum": 0 },
@@ -183,7 +183,9 @@
         "captureSeconds": { "description": "How long one side alone must be in range to take a Landing Zone.", "type": "number", "minimum": 0 },
         "highGroundToHit": { "description": "Added to the To-hit roll of a ground attack from a higher height level.", "type": "integer" },
         "retreatCountdown": { "description": "Seconds from ordering a Retreat until the side turns and heads off the field; it fights on meanwhile, and can call it off.", "type": "number", "minimum": 0 },
-        "heightSight": { "description": "Extra Sight, in cells, per height level a ground unit stands on.", "type": "number", "minimum": 0 },
+        "heightReach": { "description": "Extra range and Sight, in cells, per height level a ground unit stands above a ground target.", "type": "number", "minimum": 0 },
+        "heightLevels": { "description": "The most height levels that count for heightReach.", "type": "integer", "minimum": 0 },
+        "sightObscured": { "description": "A line of sight between two ground cells is blocked when the Terrain on the cells between them obscures more than this in all (see Terrain obscures), or one of them is higher than both ends.", "type": "number", "minimum": 0 },
         "structure": {
           "title": "Structure",
           "description": "What a building without a combat block is in a Battle: a target that never fires.",

@@ -15,6 +15,7 @@ import {
   type BattlefieldDrawing,
   type BattlefieldLook,
   BattlefieldScene,
+  type LineOfSight,
   POINT_NAMES,
 } from "../scene/battlefield";
 import {
@@ -591,6 +592,14 @@ export function BattlePanel(props: {
   );
 }
 
+/** The Ruleset's height and line-of-sight rules, for drawing the fog. */
+export const lineOfSight = (content: ContentLookups): LineOfSight => ({
+  heightReach: content.rules.battle.heightReach,
+  heightLevels: content.rules.battle.heightLevels,
+  sightObscured: content.rules.battle.sightObscured,
+  obscures: (t) => content.terrains.get(t)?.obscures ?? 0,
+});
+
 /** A unit's or building's combat stats. */
 export const statsOf = (content: ContentLookups, unit: string) =>
   content.units.get(unit)?.combat ?? content.buildings.get(unit)?.combat;
@@ -677,10 +686,11 @@ function BattlefieldView(props: {
         defender: colourOf(battle.defender),
       },
       you: sideOf(view, battle),
-      sight: (sq, height) =>
-        (statsOf(content, sq.unit)?.sight ??
-          rules.classDefaults[classOf(content, sq.unit)]?.sight ??
-          0) + (flies(sq) ? 0 : rules.heightSight * height),
+      sight: (sq) =>
+        statsOf(content, sq.unit)?.sight ??
+        rules.classDefaults[classOf(content, sq.unit)]?.sight ??
+        0,
+      lineOfSight: lineOfSight(content),
       flies,
       padSight: rules.padSight,
       captureRadius: rules.captureRadius,

@@ -12,8 +12,9 @@
     "name": { "$ref": "defs.schema.json#/definitions/name" },
     "colour": { "description": "Placeholder colour the client draws it in.", "type": "string", "pattern": "^#[0-9a-f]{6}$" },
     "cover": { "description": "Added to the To-hit roll of attacks against a ground unit standing here; negative is cover.", "type": "integer" },
+    "obscures": { "description": "How much a cell of it obscures a line of sight across it, against the Ruleset's sightObscured. Defaults to 0.", "type": "number", "minimum": 0 },
     "movement": {
-      "description": "Per Unit Class id, the cost of entering a cell of this Terrain. A Unit Class missing here can't enter it.",
+      "description": "Per Unit Class id, the cost of entering a cell of this Terrain. A Unit Class missing here can't enter it. An air Unit Class ignores this: every cell costs it 1.",
       "type": "object",
       "propertyNames": { "$ref": "defs.schema.json#/definitions/id" },
       "additionalProperties": { "type": "number", "exclusiveMinimum": 0 }

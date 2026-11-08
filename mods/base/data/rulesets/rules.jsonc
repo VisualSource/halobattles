@@ -99,7 +99,11 @@
     "captureRadius": 2,
     "captureSeconds": 5,
     "highGroundToHit": 2,
-    "heightSight": 1,
+    // Each height level above a ground target adds a cell of range and Sight, up to 2.
+    "heightReach": 1,
+    "heightLevels": 2,
+    // A line of sight is blocked by more than 2 forest cells, or a peak.
+    "sightObscured": 2,
     "retreatCountdown": 10,
     // Buildings without a combat block: targets that never fire.
     "structure": { "unitClass": "structure", "shield": 0, "armor": 20, "hp": 30 },

@@ -9,6 +9,7 @@ import {
   classOf,
   commandPostHealth,
   DROP_DRAG,
+  lineOfSight,
   look3D,
   PadMenu,
   Reinforcements,
@@ -840,10 +841,11 @@ function Field(props: {
         content.terrains.get(t)?.colour ?? "#555555",
       sideColour: { attacker: seatColour(0), defender: seatColour(1) },
       you: null,
-      sight: (sq, height) =>
-        (statsOf(content, sq.unit)?.sight ??
-          rules.classDefaults[classOf(content, sq.unit)]?.sight ??
-          0) + (flies(sq) ? 0 : rules.heightSight * height),
+      sight: (sq) =>
+        statsOf(content, sq.unit)?.sight ??
+        rules.classDefaults[classOf(content, sq.unit)]?.sight ??
+        0,
+      lineOfSight: lineOfSight(content),
       flies,
       padSight: rules.padSight,
       captureRadius: rules.captureRadius,

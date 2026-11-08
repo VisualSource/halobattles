@@ -26,8 +26,10 @@ export type BattlefieldLook = {
   sideColour: Record<Side, string>;
   /** Your side: its squads' Sight clears the fog. null, a Spectator: both sides' does. */
   you: Side | null;
-  /** How far a squad sees, in cells, standing at its height level. */
-  sight: (sq: Squad, height: number) => number;
+  /** How far a squad sees, in cells, on the level. */
+  sight: (sq: Squad) => number;
+  /** The Ruleset's height and line-of-sight rules, for the fog. */
+  lineOfSight: LineOfSight;
   /** Whether a squad flies: drawn as a triangle. */
   flies: (sq: Squad) => boolean;
   /** How far a build pad sees for the side holding it, in cells. */
@@ -78,6 +80,63 @@ export type OverlayLine = {
   dashed?: boolean;
 };
 
+/** The Ruleset's height and line-of-sight rules, and each Terrain id's obscures. */
+export type LineOfSight = {
+  heightReach: number;
+  heightLevels: number;
+  sightObscured: number;
+  obscures: (terrain: string) => number;
+};
+
+/**
+ * Whether a ground eye at (ax, ay) with Sight r sees ground cell (bx, by),
+ * as the server's Sim.sees: heightReach more per level above it, up to
+ * heightLevels, along a line no cell higher than both ends crosses and
+ * whose Terrain obscures no more than sightObscured.
+ */
+export function groundSees(
+  field: Battlefield,
+  los: LineOfSight,
+  ax: number,
+  ay: number,
+  r: number,
+  bx: number,
+  by: number,
+) {
+  const w = field.width;
+  const hAt = (x: number, y: number) => field.heights[y * w + x] ?? 0;
+  const ha = hAt(ax, ay);
+  const hb = hAt(bx, by);
+  const reach =
+    r + los.heightReach * Math.min(Math.max(ha - hb, 0), los.heightLevels);
+  if ((bx - ax) ** 2 + (by - ay) ** 2 > reach * reach) return false;
+  // The same cells whichever end looks, as on the server.
+  if (by * w + bx < ay * w + ax) [ax, ay, bx, by] = [bx, by, ax, ay];
+  const top = Math.max(ha, hb);
+  let seen = 0;
+  // Bresenham's line, ends left out, stepping as the server does.
+  const dx = Math.abs(bx - ax);
+  const dy = -Math.abs(by - ay);
+  const sx = Math.sign(bx - ax);
+  const sy = Math.sign(by - ay);
+  let e = dx + dy;
+  let x = ax;
+  let y = ay;
+  for (;;) {
+    if (2 * e >= dy) {
+      e += dy;
+      x += sx;
+    } else {
+      e += dx;
+      y += sy;
+    }
+    if (x === bx && y === by) return true;
+    if (hAt(x, y) > top) return false;
+    seen += los.obscures(field.terrains[field.terrain[y * w + x] ?? 0] ?? "");
+    if (seen > los.sightObscured) return false;
+  }
+}
+
 type Effect = { obj: THREE.Line | THREE.Mesh; t0: number; ms: number };
 
 /**
@@ -87,27 +146,33 @@ type Effect = { obj: THREE.Line | THREE.Mesh; t0: number; ms: number };
  */
 export function fogOver(
   field: Battlefield,
-  look: Pick<BattlefieldLook, "sight" | "padSight">,
+  look: Pick<BattlefieldLook, "sight" | "padSight" | "lineOfSight" | "flies">,
   squads: Squad[],
   pads: BuildPad[],
   of: Side | null | false,
 ) {
-  const { width: w, height: h, heights } = field;
+  const { width: w, height: h } = field;
+  const los = look.lineOfSight;
   const alpha = new Float32Array(w * h).fill(of === false ? 0 : FOG);
   const eyes = [
     ...squads.map((sq) => ({
       x: sq.x,
       y: sq.y,
       side: sq.side,
-      r: look.sight(sq, heights[sq.y * w + sq.x] ?? 0),
+      r: look.sight(sq),
+      ground: !look.flies(sq),
     })),
+    // A pad sees round itself, line or not, as on the server.
     ...pads.flatMap((p) =>
-      p.owner ? [{ x: p.x, y: p.y, side: p.owner, r: look.padSight }] : [],
+      p.owner
+        ? [{ x: p.x, y: p.y, side: p.owner, r: look.padSight, ground: false }]
+        : [],
     ),
   ];
   for (const e of eyes) {
     if (of && e.side !== of) continue;
-    const r = e.r;
+    // The furthest it could see: down off high ground.
+    const r = e.ground ? e.r + los.heightReach * los.heightLevels : e.r;
     for (
       let y = Math.max(0, Math.floor(e.y - r));
       y <= Math.min(h - 1, e.y + r);
@@ -118,7 +183,13 @@ export function fogOver(
         x <= Math.min(w - 1, e.x + r);
         x++
       ) {
-        if ((x - e.x) ** 2 + (y - e.y) ** 2 <= r * r) alpha[y * w + x] = 0;
+        if (
+          alpha[y * w + x] !== 0 &&
+          (e.ground
+            ? groundSees(field, los, e.x, e.y, e.r, x, y)
+            : (x - e.x) ** 2 + (y - e.y) ** 2 <= r * r)
+        )
+          alpha[y * w + x] = 0;
       }
     }
   }

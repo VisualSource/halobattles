@@ -474,9 +474,17 @@ export interface BattleRules {
    */
   retreatCountdown: number;
   /**
-   * Extra Sight, in cells, per height level a ground unit stands on.
+   * Extra range and Sight, in cells, per height level a ground unit stands above a ground target.
    */
-  heightSight: number;
+  heightReach: number;
+  /**
+   * The most height levels that count for heightReach.
+   */
+  heightLevels: number;
+  /**
+   * A line of sight between two ground cells is blocked when the Terrain on the cells between them obscures more than this in all (see Terrain obscures), or one of them is higher than both ends.
+   */
+  sightObscured: number;
   structure: Structure;
   commandPost: CommandPost;
   /**
@@ -1121,7 +1129,11 @@ export interface Terrain {
    */
   cover: number;
   /**
-   * Per Unit Class id, the cost of entering a cell of this Terrain. A Unit Class missing here can't enter it.
+   * How much a cell of it obscures a line of sight across it, against the Ruleset's sightObscured. Defaults to 0.
+   */
+  obscures?: number;
+  /**
+   * Per Unit Class id, the cost of entering a cell of this Terrain. A Unit Class missing here can't enter it. An air Unit Class ignores this: every cell costs it 1.
    */
   movement: {
     [k: string]: number;

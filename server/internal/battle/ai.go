@@ -356,10 +356,7 @@ func (ai *AI) remember(v View, own, enemies []*Squad) {
 		}
 	}
 	inSight := func(at Cell) bool {
-		return slices.ContainsFunc(own, func(o *Squad) bool {
-			r := v.sim.sightOf(o)
-			return float64(dist2(o.Cell, at)) <= r*r
-		})
+		return slices.ContainsFunc(own, func(o *Squad) bool { return v.sim.sees(o, at, false) })
 	}
 	for _, id := range slices.Sorted(maps.Keys(ai.sighted)) {
 		// Forgotten after a while, or once the spot is in Sight and it's gone.
@@ -370,10 +367,7 @@ func (ai *AI) remember(v View, own, enemies []*Squad) {
 	for _, id := range slices.Sorted(maps.Keys(ai.seen)) {
 		if t := v.sim.squad(id); t == nil || !t.alive() {
 			at := ai.seen[id]
-			if slices.ContainsFunc(own, func(o *Squad) bool {
-				r := v.sim.sightOf(o)
-				return float64(dist2(o.Cell, at)) <= r*r
-			}) {
+			if inSight(at) {
 				delete(ai.seen, id)
 			}
 		}
@@ -912,7 +906,7 @@ func (ai *AI) look(v View, own []*Squad) {
 	for b := range ai.looked {
 		mid := Cell{min(b%bw*block+block/2, f.W-1), min(b/bw*block+block/2, f.H-1)}
 		for _, o := range own {
-			if r := v.sim.sightOf(o); float64(dist2(o.Cell, mid)) <= r*r {
+			if v.sim.sees(o, mid, false) {
 				ai.looked[b] = v.Tick()
 				break
 			}
@@ -1114,7 +1108,7 @@ func (ai *AI) stops(v View) []Cell {
 // badly; the best matchup first, then the nearest.
 func (ai *AI) prey(v View, sq *Squad, enemies []*Squad) *Squad {
 	s := v.sim
-	r := s.sightOf(sq)
+	r := sq.sight
 	var best *Squad
 	for _, e := range enemies {
 		t := s.tier(sq, e)
@@ -1154,7 +1148,7 @@ func (ai *AI) safety(v View, sq *Squad) Cell {
 // inContact is whether an enemy the side has seen lately is in or near the
 // squad's Sight.
 func (ai *AI) inContact(v View, sq *Squad) bool {
-	r := v.sim.sightOf(sq) + 2
+	r := sq.sight + 2
 	for _, sg := range ai.sighted {
 		if float64(dist2(sq.Cell, sg.cell)) <= r*r {
 			return true
@@ -1413,7 +1407,7 @@ func (s *Sim) coverNear(sq *Squad, around Cell, radius float64) (Cell, bool) {
 	return best, found
 }
 
-// firingPosition is a cell in range of target that the squad can stand on,
+// firingPosition is a cell in range of target, with a clear line to it, that the squad can stand on,
 // trading the walk there against high ground and cover by the cover weight.
 // With a standoff, a cell further than that from the target comes first, if
 // there is one: room to back off from one it kites.
@@ -1429,7 +1423,9 @@ func (s *Sim) firingPosition(sq *Squad, target Cell, cover, standoff float64) (C
 		for x := target.X - r; x <= target.X+r; x++ {
 			c := Cell{x, y}
 			d := dist(c, target)
-			if d > sq.reach || d < sq.minRange || !s.standable(sq, c) {
+			// shortcut: a ground shooter wants a clear line even to an aircraft,
+			// which needs none; fine while a firing position is mostly for ground targets.
+			if d > sq.reach || d < sq.minRange || !s.standable(sq, c) || !sq.air && !s.clearLine(c, target) {
 				continue
 			}
 			score := dist(sq.Cell, c)

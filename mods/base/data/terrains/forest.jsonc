@@ -4,6 +4,7 @@
   "name": "Forest",
   "colour": "#3f6b35",
   "cover": -2,
+  "obscures": 1, // more than 2 in a row block a line of sight
   "movement": {
     "infantry": 1.5,
     "aircraft": 1

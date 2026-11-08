@@ -168,7 +168,7 @@ func TestAShooterIsSeenByTheSideItFiresOnUntilItsFlashFades(t *testing.T) {
 		s.Step()
 	}
 	if s.visible[Attacker][tur.ID] {
-		t.Errorf("the turret is still seen after its flash faded: tick %d, flash %d, marine at %v sight %v, turret %v", s.Tick, tur.flashUntil, a.Cell, s.sightOf(a), tur.Cell)
+		t.Errorf("the turret is still seen after its flash faded: tick %d, flash %d, marine at %v sight %v, turret %v", s.Tick, tur.flashUntil, a.Cell, a.sight, tur.Cell)
 	}
 }
 
@@ -220,7 +220,7 @@ func TestAHeldPadSeesRoundItself(t *testing.T) {
 	s, pad := padSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
 	m, g := s.Squads[0], s.Squads[1]
 	freeAt(t, s, g, pad.Cell, 1)
-	freeAt(t, s, m, pad.Cell, int(s.sightOf(m))+int(s.rules.PadSight)+4) // the Marines can't see it
+	freeAt(t, s, m, pad.Cell, int(m.sight)+int(s.rules.PadSight)+4) // the Marines can't see it
 	s.see()
 	if s.visible[Attacker][g.ID] {
 		t.Fatal("the attacker sees the Grunts with nothing near: the test proves nothing")
