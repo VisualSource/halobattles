@@ -702,3 +702,23 @@ func TestTheAITracesItsDecisions(t *testing.T) {
 		t.Errorf("%d decisions in %d s: more than a change a squad a second", len(got), s.Tick/TicksPerSecond)
 	}
 }
+
+// #109: a crowd round a pad stops a move within closeEnough, 3 cells, but
+// the pad is taken only within the capture radius, 2: the squad goes on.
+func TestASquadStoppedShortOfAPadGoesOnToTakeIt(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
+	s.Setup, s.Builders[Defender] = 1000, true
+	s.Pads = s.Pads[:1]
+	pad := s.Pads[0].Cell
+	g := s.Squads[1]
+	s.relocate(g, pad.add(Cell{3, 0}))
+	ai := NewAI(WeightsOf(nil))
+	ai.plans[g.ID] = &plan{goal: goal{kind: takePad, cell: pad}, steps: []action{goTo}, sent: true, moveTo: pad}
+	s.Controllers = [2]Controller{nil, ai}
+	for range 60 {
+		s.Step()
+	}
+	if s.Pads[0].Owner != Defender {
+		t.Errorf("pad %+v, Grunts at %v; want it taken", s.Pads[0], g.Cell)
+	}
+}

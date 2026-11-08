@@ -1189,14 +1189,19 @@ func (ai *AI) waypoint(v View, sq *Squad, taken map[Cell]bool) (Cell, bool) {
 }
 
 // state reads a squad's facts now.
+// arrival is how near its cell a squad must be to have reached g: a point
+// or pad is reached only within the capture radius, where it counts.
+func (s *Sim) arrival(g goal) float64 {
+	if g.kind == scout || g.kind == patrol || g.kind == fallback || g.target != 0 {
+		return closeEnough
+	}
+	return s.rules.CaptureRadius
+}
+
 func (ai *AI) state(v View, sq *Squad, g goal) facts {
 	s := v.sim
 	var f facts
-	radius := s.rules.CaptureRadius
-	if g.kind == scout || g.kind == patrol || g.kind == fallback || g.target != 0 {
-		radius = closeEnough
-	}
-	if dist(sq.Cell, g.cell) <= radius {
+	if dist(sq.Cell, g.cell) <= s.arrival(g) {
 		f |= atGoal
 	}
 	if t := s.squad(g.target); t != nil && s.canHit(sq, t) {
@@ -1334,7 +1339,10 @@ func (ai *AI) execute(v View, sq *Squad, p *plan) []Order {
 		return nil
 	}
 	to, ok := ai.cellFor(v, sq, p)
-	if !ok || (p.sent && dist(p.moveTo, to) <= 2 && (len(sq.path) > 0 || dist(sq.Cell, to) <= closeEnough)) {
+	// Stopped short (a crowd round the cell halts a move within closeEnough):
+	// sent again unless that's near enough for the goal.
+	near := min(closeEnough, v.sim.arrival(p.goal))
+	if !ok || (p.sent && dist(p.moveTo, to) <= 2 && (len(sq.path) > 0 || dist(sq.Cell, to) <= near)) {
 		return nil
 	}
 	p.moveTo, p.sent = to, true

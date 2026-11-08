@@ -10,6 +10,7 @@ Player-facing changes to Halo Battles. Each release is its own section, newest f
 
 ### Fixed
 
+- In AI-run Battles, squads no longer stop just short of a build pad or Landing Zone and wait there for the rest of the Battle.
 - Leaving a Battle window open while the game's tab was in the background no longer builds up memory: its fire effects aren't drawn while you can't see them.
 - The game no longer fails to start with "Something went wrong" when the browser won't store its content; it loads it each time instead.
 
