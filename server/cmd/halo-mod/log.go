@@ -8,8 +8,6 @@ import (
 	"maps"
 	"slices"
 	"strings"
-
-	"github.com/VisualSource/halobattles/server/internal/battle"
 )
 
 // logLine is one line of a Match log (see the architecture spec's Match logs).
@@ -62,7 +60,7 @@ func summarize(r io.Reader, w io.Writer) error {
 				Planet             string
 				Attacker, Defender int
 				Winner             int
-				Ticks              int
+				Ticks, Rate        int
 				Result             struct {
 					Reason      string
 					Start, Left [2]map[string]int
@@ -76,7 +74,7 @@ func summarize(r io.Reader, w io.Writer) error {
 			if b.Winner != b.Attacker {
 				won = "defender"
 			}
-			line := fmt.Sprintf("  #%d %s %s: %s -> %s, %s won in %ds", b.Battle, at, b.Planet, names[b.Attacker], names[b.Defender], won, b.Ticks/battle.TicksPerSecond)
+			line := fmt.Sprintf("  #%d %s %s: %s -> %s, %s won in %ds", b.Battle, at, b.Planet, names[b.Attacker], names[b.Defender], won, b.Ticks/max(b.Rate, 5))
 			if b.Result.Reason != "" { // logs before version 1 have no result
 				line += fmt.Sprintf(" (%s)\n    attacker %s, dealt %.0f\n    defender %s, dealt %.0f", b.Result.Reason,
 					forces(b.Result.Start[0], b.Result.Left[0]), b.Result.Damage[0], forces(b.Result.Start[1], b.Result.Left[1]), b.Result.Damage[1])

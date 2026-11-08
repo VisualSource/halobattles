@@ -67,8 +67,8 @@ func withRuleset(c *cs.Content, f func(*cs.Ruleset)) cs.Ruleset {
 func fight(t *testing.T, s *State, c *cs.Content) Events {
 	t.Helper()
 	b := onlyBattle(t, s)
-	for range (c.Rulesets[RulesetID].Battle.StartDelay+c.Rulesets[RulesetID].Battle.TimeCap)*5 + 5 {
-		if ev := s.Advance(c, s.Time+tickMs); len(ev.Ended) > 0 {
+	for range (c.Rulesets[RulesetID].Battle.StartDelay+c.Rulesets[RulesetID].Battle.TimeCap)*5 + 5 { // Match ticks, 200 ms each
+		if ev := s.Advance(c, s.Time+200); len(ev.Ended) > 0 {
 			return ev
 		}
 	}

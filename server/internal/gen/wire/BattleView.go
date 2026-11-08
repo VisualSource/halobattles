@@ -29,6 +29,7 @@ type BattleViewT struct {
 	Summary            bool             `json:"summary"`
 	AttackerDamage     float32          `json:"attacker_damage"`
 	DefenderDamage     float32          `json:"defender_damage"`
+	TickRate           byte             `json:"tick_rate"`
 }
 
 func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -115,6 +116,7 @@ func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleViewAddSummary(builder, t.Summary)
 	BattleViewAddAttackerDamage(builder, t.AttackerDamage)
 	BattleViewAddDefenderDamage(builder, t.DefenderDamage)
+	BattleViewAddTickRate(builder, t.TickRate)
 	return BattleViewEnd(builder)
 }
 
@@ -165,6 +167,7 @@ func (rcv *BattleView) UnPackTo(t *BattleViewT) {
 	t.Summary = rcv.Summary()
 	t.AttackerDamage = rcv.AttackerDamage()
 	t.DefenderDamage = rcv.DefenderDamage()
+	t.TickRate = rcv.TickRate()
 }
 
 func (rcv *BattleView) UnPack() *BattleViewT {
@@ -550,8 +553,20 @@ func (rcv *BattleView) MutateDefenderDamage(n float32) bool {
 	return rcv._tab.MutateFloat32Slot(50, n)
 }
 
+func (rcv *BattleView) TickRate() byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(52))
+	if o != 0 {
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleView) MutateTickRate(n byte) bool {
+	return rcv._tab.MutateByteSlot(52, n)
+}
+
 func BattleViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(24)
+	builder.StartObject(25)
 }
 func BattleViewAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -630,6 +645,9 @@ func BattleViewAddAttackerDamage(builder *flatbuffers.Builder, attackerDamage fl
 }
 func BattleViewAddDefenderDamage(builder *flatbuffers.Builder, defenderDamage float32) {
 	builder.PrependFloat32Slot(23, defenderDamage, 0.0)
+}
+func BattleViewAddTickRate(builder *flatbuffers.Builder, tickRate byte) {
+	builder.PrependByteSlot(24, tickRate, 0)
 }
 func BattleViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

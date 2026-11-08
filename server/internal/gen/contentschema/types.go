@@ -136,6 +136,10 @@ type BattleRules struct {
 	// fires.
 	Structure Structure `json:"structure"`
 
+	// Sim steps a second. The Match ticks 5 times a second, so it runs this many
+	// steps per Match tick, rounded down: use a multiple of 5.
+	TicksPerSecond int `json:"ticksPerSecond"`
+
 	// Seconds of fighting, after startDelay, until the defender wins.
 	TimeCap int `json:"timeCap"`
 }

@@ -116,6 +116,7 @@ type battleReplay struct {
 	Setup     int               `json:"setup"`
 	Builders  [2]bool           `json:"builders"`
 	Ticks     int               `json:"ticks"`
+	Rate      int               `json:"rate,omitempty"`   // sim ticks a second; logs before v4 have none, and ran at 5
 	Orders    []battle.Logged   `json:"orders,omitempty"` // the players'
 	// Commanded: a player, not the AI, ran the side from the start; Switches
 	// are the sides changing hands since, each at its tick.
@@ -143,7 +144,7 @@ func replay(b *game.Battle, winner int, damage [2]float64) battleReplay {
 	return battleReplay{
 		Battle: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender, Winner: winner,
 		Seed: b.Seed, FieldSeed: b.FieldSeed, Faction: b.FieldFaction, Raid: b.Sim.Raid, Attack: b.Attack, Defend: b.Defend, Weights: b.Weights, Funds: b.Funds,
-		Setup: b.Sim.Setup, Builders: b.Sim.Builders, Ticks: b.Sim.Tick, Orders: b.Sim.Log,
+		Setup: b.Sim.Setup, Builders: b.Sim.Builders, Ticks: b.Sim.Tick, Rate: b.Sim.TPS(), Orders: b.Sim.Log,
 		Commanded: b.Commanded, Switches: b.Switches, Result: r,
 	}
 }

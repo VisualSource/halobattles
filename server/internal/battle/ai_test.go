@@ -185,7 +185,7 @@ func TestAGuardTakesTheBestGroundOnItsPoint(t *testing.T) {
 		t.Skip("point 0's ground is all alike")
 	}
 	s.relocate(d, worst)
-	s.Tick = TicksPerSecond - d.ID%TicksPerSecond // its slot
+	s.Tick = s.TPS() - d.ID%s.TPS() // its slot
 	if o, ok := ai.takePost(View{s, Defender}, d, pl); !ok || o.Cell != post {
 		t.Errorf("order %+v, %v; want a move to the post %v", o, ok, post)
 	}
@@ -319,7 +319,7 @@ func TestFireGoesForTheTargetAFriendIsAlreadyHitting(t *testing.T) {
 	if got := s.targetOf(marines); got != far {
 		t.Errorf("the Marines fire at squad %d; want %d, which a friend is already hitting, over the nearer %d", got.ID, far.ID, near.ID)
 	}
-	s.Tick += 2 * underFire // long ago now
+	s.Tick += 2 * underFireSeconds * s.TPS() // long ago now
 	if got := s.targetOf(marines); got != near {
 		t.Errorf("the Marines fire at squad %d; want the nearer %d once the friend's fire is old", got.ID, near.ID)
 	}
@@ -398,7 +398,7 @@ func TestTheDefenderSendsItsFastestSquadToScout(t *testing.T) {
 	first := p.goal.cell
 	ghost.Cell = first
 	ai.look(v, v.Own())
-	v.sim.Tick += 5 * TicksPerSecond
+	v.sim.Tick += 5 * s.TPS()
 	ai.command(v, v.Own(), nil)
 	if next := ai.plans[ghost.ID].goal; next.kind != scout || next.cell == first {
 		t.Errorf("after reaching %v the scout's goal is %+v; want a new waypoint", first, next)
@@ -617,7 +617,7 @@ func TestATwoSquadGarrisonScoutsOnce(t *testing.T) {
 	// It met the enemy, fell back, and rested long since.
 	delete(ai.roles, wraith.ID)
 	ai.rested[wraith.ID] = s.Tick
-	s.Tick += 2 * restTicks
+	s.Tick += 2 * restSeconds * s.TPS()
 	ai.assignRoles(v, v.Own(), nil)
 	for id, r := range ai.roles {
 		if r == scouting {
@@ -635,7 +635,7 @@ func TestAnIdleGuardWalksABeatUntilTheEnemyShows(t *testing.T) {
 	p := &plan{goal: goal{kind: defend, cell: point}, steps: []action{}}
 	ai.plans[d.ID] = p
 	v := View{s, Defender}
-	s.Tick = beatEvery*TicksPerSecond - d.ID%TicksPerSecond + TicksPerSecond // past the wait, on its slot
+	s.Tick = beatEvery*s.TPS() - d.ID%s.TPS() + s.TPS() // past the wait, on its slot
 
 	o, ok := ai.walkBeat(v, d, p)
 	if !ok || o.Kind != Move || dist(o.Cell, point) > beatReach {
@@ -645,7 +645,7 @@ func TestAnIdleGuardWalksABeatUntilTheEnemyShows(t *testing.T) {
 		t.Error("set out again straight away")
 	}
 
-	p.beatAt = -beatEvery * TicksPerSecond
+	p.beatAt = -beatEvery * s.TPS()
 	ai.sighted[marines.ID] = sighting{marines.Cell, 5, s.Tick}
 	if _, ok := ai.walkBeat(v, d, p); ok {
 		t.Error("walked its beat with the enemy seen")
@@ -698,8 +698,8 @@ func TestTheAITracesItsDecisions(t *testing.T) {
 		}
 		last[d.Squad] = d
 	}
-	if len(got) > 20*s.Tick/TicksPerSecond {
-		t.Errorf("%d decisions in %d s: more than a change a squad a second", len(got), s.Tick/TicksPerSecond)
+	if len(got) > 20*s.Tick/s.TPS() {
+		t.Errorf("%d decisions in %d s: more than a change a squad a second", len(got), s.Tick/s.TPS())
 	}
 }
 

@@ -413,6 +413,10 @@ export interface BattlefieldRules {
  */
 export interface BattleRules {
   /**
+   * Sim steps a second. The Match ticks 5 times a second, so it runs this many steps per Match tick, rounded down: use a multiple of 5.
+   */
+  ticksPerSecond: number;
+  /**
    * Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.
    */
   startDelay: number;

@@ -547,7 +547,7 @@ table BattleView {
   attacker: byte;
   defender: byte = -1;     // -1 is neutral
   started: long;           // Match Time of tick 0
-  tick: uint32;            // sim ticks run, 5 a second
+  tick: uint32;            // sim ticks run, tick_rate a second
   edge: ubyte;             // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
   field: Battlefield;      // in ViewFull only; deltas leave it out
   squads: [BattleSquad];
@@ -568,6 +568,7 @@ table BattleView {
   summary: bool;
   attacker_damage: float;  // dealt by each side, in the fire your side could see
   defender_damage: float;
+  tick_rate: ubyte;        // sim ticks a second
 }
 
 // One squad's fire in one sim tick: every living member's shot at one

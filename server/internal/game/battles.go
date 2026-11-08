@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"maps"
 	"slices"
+	"sync"
 
 	"github.com/VisualSource/halobattles/server/internal/battle"
 
@@ -38,9 +39,6 @@ type Battle struct {
 	Weights         [2]battle.Weights
 	Funds           [2]map[string]int // each side's at the start; the Sim spends its own
 }
-
-// tickMs is one sim tick in Match Time.
-const tickMs = 1000 / battle.TicksPerSecond
 
 // BattleTick is one sim tick's volleys in a Battle.
 type BattleTick struct {
@@ -126,7 +124,7 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 			b.Sim.Controllers[side] = battle.NewAI(b.Weights[side])
 		}
 	}
-	b.Sim.Setup = int(delay / tickMs) // the start delay is the defender's setup phase
+	b.Sim.Setup = int(delay) * b.Sim.TPS() / 1000 // the start delay is the defender's setup phase
 	b.Sim.Builders = [2]bool{s.canBuildTurrets(c, b.Attacker), s.canBuildTurrets(c, b.Defender)}
 	if b.Defender == Neutral { // no economy: a budget for pad turrets instead
 		b.Funds[battle.Defender] = c.Rulesets[RulesetID].Battle.NeutralFunds
@@ -163,18 +161,28 @@ func (s *State) aiWeights(c *cs.Content, seat int) battle.Weights {
 	return battle.WeightsOf(c.Factions[s.Players[seat].Faction].Ai)
 }
 
-// fightBattles steps each Battle's sim once per tick that's due, and ends
-// each Battle once its sim is over.
+// fightBattles steps each Battle's sim once per sim tick that's due, each
+// Battle in its own goroutine, since Battles share no state, and ends each
+// Battle once its sim is over.
 func (s *State) fightBattles(c *cs.Content, now int64, ev *Events) {
-	for _, id := range slices.Sorted(maps.Keys(s.Battles)) {
+	ids := slices.Sorted(maps.Keys(s.Battles))
+	ticks := make([][]BattleTick, len(ids))
+	var wg sync.WaitGroup
+	for i, id := range ids {
 		b := s.Battles[id]
-		// Setup ticks run before Started, the first fighting tick.
-		for !b.Sim.Over && b.Started+int64(b.Sim.Tick+1-b.Sim.Setup)*tickMs <= now {
-			if vs := b.Sim.Step(); len(vs) > 0 {
-				ev.Ticks = append(ev.Ticks, BattleTick{Battle: b, Volleys: vs})
+		wg.Go(func() {
+			// Setup ticks run before Started, the first fighting tick.
+			for !b.Sim.Over && b.Started+int64(b.Sim.Tick+1-b.Sim.Setup)*1000/int64(b.Sim.TPS()) <= now {
+				if vs := b.Sim.Step(); len(vs) > 0 {
+					ticks[i] = append(ticks[i], BattleTick{Battle: b, Volleys: vs})
+				}
 			}
-		}
-		if b.Sim.Over {
+		})
+	}
+	wg.Wait()
+	for i, id := range ids { // in id order, as before, so a replay matches
+		ev.Ticks = append(ev.Ticks, ticks[i]...)
+		if b := s.Battles[id]; b.Sim.Over {
 			s.endBattle(c, b, ev)
 		}
 	}

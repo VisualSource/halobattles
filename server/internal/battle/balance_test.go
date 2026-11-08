@@ -69,7 +69,7 @@ func TestStartingKitsArePacedAndBalanced(t *testing.T) {
 					attack, defend = three(attack), three(defend)
 				}
 				s := New(c, r, Generate(c, r.Battlefield, nil, seed), attack, defend, seed)
-				s.Setup = r.Battle.StartDelay * TicksPerSecond // as the game runs it
+				s.Setup = r.Battle.StartDelay * s.TPS() // as the game runs it
 				s.Controllers = [2]Controller{
 					NewAI(WeightsOf(c.Factions[tc.attack].Ai)), NewAI(WeightsOf(c.Factions[tc.defend].Ai)),
 				}
@@ -82,7 +82,7 @@ func TestStartingKitsArePacedAndBalanced(t *testing.T) {
 					wins++
 				}
 			}
-			mean := float64(ticks) / seeds / TicksPerSecond
+			mean := float64(ticks) / seeds / float64(r.Battle.TicksPerSecond)
 			rate := float64(wins) / seeds
 			t.Logf("%.0f s on average; the attacker wins %.0f%%; endings %v", mean, rate*100, reasons)
 			if mean < 60 || mean > 180 {

@@ -74,14 +74,14 @@ func TestATurretKeepsItsPadUntilItsDestroyed(t *testing.T) {
 			sq.Members = nil // no grunts to contest it: only the turret stands in the way
 		}
 	}
-	for range 3 * ticks(s.rules.CaptureSeconds) {
+	for range 3 * s.ticks(s.rules.CaptureSeconds) {
 		s.capture()
 	}
 	if pad.Owner != Defender {
 		t.Fatal("the pad changed hands with its turret standing")
 	}
 	s.squad(pad.Turret).Members = nil
-	for range ticks(s.rules.CaptureSeconds) + 1 {
+	for range s.ticks(s.rules.CaptureSeconds) + 1 {
 		s.capture()
 	}
 	if pad.Owner != Attacker || pad.Turret != 0 {
@@ -94,7 +94,7 @@ func TestTakingAPadLosesTheBuildOnIt(t *testing.T) {
 	s.Command(Defender, Order{Kind: Build, Target: 0, Building: "base:plasma-turret"})
 	freeAt(t, s, s.Squads[0], pad.Cell, 1)
 	s.Squads[1].Members = nil
-	for range ticks(s.rules.CaptureSeconds) {
+	for range s.ticks(s.rules.CaptureSeconds) {
 		s.capture()
 	}
 	if pad.Owner != Attacker || pad.Building != "" {
@@ -151,7 +151,7 @@ func TestAShooterIsSeenByTheSideItFiresOnUntilItsFlashFades(t *testing.T) {
 		t.Fatal("the Marines see the turret before it fires")
 	}
 	var shot []Volley
-	for range 3 * TicksPerSecond {
+	for range 3 * s.TPS() {
 		if vs := s.VolleysFor(Attacker, s.Step()); len(vs) > 0 {
 			shot = vs
 			break
@@ -164,7 +164,7 @@ func TestAShooterIsSeenByTheSideItFiresOnUntilItsFlashFades(t *testing.T) {
 		t.Errorf("visible %v, hit by %d; want the turret seen and known as the shooter", s.visible[Attacker][tur.ID], a.hitBy)
 	}
 	tur.cooldown = 1 << 30 // it stops firing
-	for range ticks(flashSeconds) + 1 {
+	for range s.ticks(flashSeconds) + 1 {
 		s.Step()
 	}
 	if s.visible[Attacker][tur.ID] {
@@ -183,7 +183,7 @@ func TestASquadShotByATurretItCantSeeGoesAfterIt(t *testing.T) {
 	freeAt(t, s, a, tur.Cell, 7) // in the turret's range, out of its own
 	a.sight = 2
 	s.Controllers[Attacker] = NewAI(WeightsOf(nil))
-	for range 20 * TicksPerSecond {
+	for range 20 * s.TPS() {
 		for _, v := range s.Step() {
 			if v.Actor == a.ID && v.Target == tur.ID {
 				return // it fired back
@@ -207,7 +207,7 @@ func TestASquadShotByATurretItCantHurtGetsOutOfRange(t *testing.T) {
 	freeAt(t, s, a, tur.Cell, 7)
 	a.tiers = map[string]string{tur.class: None} // it can't hurt a structure
 	s.Controllers[Attacker] = NewAI(WeightsOf(nil))
-	for range 10 * TicksPerSecond {
+	for range 10 * s.TPS() {
 		s.Step()
 		if a.hitBy == tur.ID && a.alive() && dist(a.Cell, tur.Cell) > tur.reach {
 			return // fired on, and it got clear

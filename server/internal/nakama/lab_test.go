@@ -171,20 +171,40 @@ func TestTheLabTakesOrdersOnlyForASideYouCommand(t *testing.T) {
 	}
 }
 
-// A Battle from a match log replays as it was: the same ending, the same tick.
+// A Battle from a match log replays as it was: the same ending, the same
+// tick. One from a log before the rate was logged ran, and replays, at 5.
 func TestTheLabReplaysABattleFromAMatchLog(t *testing.T) {
+	for _, old := range []bool{false, true} {
+		t.Run(map[bool]string{false: "logged rate", true: "before the rate was logged"}[old], func(t *testing.T) {
+			testReplay(t, old)
+		})
+	}
+}
+
+func testReplay(t *testing.T, old bool) {
 	h := newLab(t)
 	setup := kitSetup(11)
 	c := h.m.content
+	rules := c.Doc.Rulesets[game.RulesetID]
+	if old {
+		slow := rules
+		slow.Battle.TicksPerSecond = 5
+		c.Doc.Rulesets[game.RulesetID] = slow
+	}
 	sim, err := h.state.(*labState).fromSetup(&c.Doc, setup)
 	if err != nil {
 		t.Fatal(err)
 	}
+	c.Doc.Rulesets[game.RulesetID] = rules // the replay must take the rate from the log
 	for !sim.Over {
 		sim.Step()
 	}
+	rate := sim.TPS()
+	if old {
+		rate = 0
+	}
 	r := battleReplay{
-		Seed: setup.Seed, FieldSeed: setup.Seed, Faction: setup.Defend.Faction, Planet: "nowhere", Setup: sim.Setup, Builders: sim.Builders,
+		Seed: setup.Seed, FieldSeed: setup.Seed, Faction: setup.Defend.Faction, Planet: "nowhere", Setup: sim.Setup, Builders: sim.Builders, Rate: rate,
 		Attack: battle.Force{Formations: setup.Attack.Formations},
 		Defend: battle.Force{Formations: setup.Defend.Formations, Buildings: setup.Defend.Buildings},
 		Weights: [2]battle.Weights{
@@ -235,7 +255,7 @@ func TestTheLabReplaysABattleTheAITookOver(t *testing.T) {
 		sim.Step()
 	}
 	r := battleReplay{
-		Seed: setup.Seed, FieldSeed: setup.Seed, Faction: setup.Defend.Faction, Planet: "nowhere", Setup: sim.Setup, Builders: sim.Builders,
+		Seed: setup.Seed, FieldSeed: setup.Seed, Faction: setup.Defend.Faction, Planet: "nowhere", Setup: sim.Setup, Builders: sim.Builders, Rate: sim.TPS(),
 		Attack:    battle.Force{Formations: setup.Attack.Formations},
 		Defend:    battle.Force{Formations: setup.Defend.Formations, Buildings: setup.Defend.Buildings},
 		Weights:   weights,

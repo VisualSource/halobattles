@@ -87,6 +87,7 @@ export type LabState = {
   battle: Battle | null;
   tick: number;
   setupTicks: number;
+  rate: number; // sim ticks a second
   over: boolean;
   winner: Side | null;
   reason: string;
@@ -129,6 +130,7 @@ type GoSquad = {
 type GoFrame = {
   tick: number;
   setup: number;
+  rate: number;
   raid?: boolean;
   over: boolean;
   winner: number;
@@ -220,6 +222,7 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     defender: 1,
     started: 0,
     tick: f.tick,
+    tickRate: f.rate,
     edge: s.Edge,
     field,
     squads,
@@ -261,6 +264,7 @@ export class LabConnection {
     battle: null,
     tick: 0,
     setupTicks: 0,
+    rate: 10,
     over: false,
     winner: null,
     reason: "",
@@ -469,6 +473,7 @@ export class LabConnection {
           battle: toBattle(f, field),
           tick: f.tick,
           setupTicks: f.setup,
+          rate: f.rate,
           over: f.over,
           winner: f.over ? sideOf(f.winner) : null,
           reason: f.reason ?? "",

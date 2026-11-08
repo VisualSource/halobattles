@@ -27,7 +27,6 @@ import { type Commander, SelectionStrip, useCommandKeys } from "./command";
 import type { MatchConnection } from "./connection";
 import {
   allied,
-  BATTLE_TICKS,
   type Battle,
   type BattleReport,
   type BuildPad,
@@ -52,10 +51,10 @@ type TickEvent = { battle: number; tick: number; volleys: Volley[] };
 
 const NEUTRAL = "#9ca3af";
 
-/** Ticks of fighting by tick: the first ones are the defender's setup, in
- * the start delay. */
-const fighting = (content: ContentLookups, tick: number) =>
-  Math.max(0, tick - content.rules.battle.startDelay * BATTLE_TICKS);
+/** Seconds of fighting: the first ticks are the defender's setup, in the
+ * start delay. */
+const fighting = (content: ContentLookups, battle: Battle) =>
+  Math.max(0, battle.tick / battle.tickRate - content.rules.battle.startDelay);
 const SIDES: Side[] = ["attacker", "defender"];
 
 const sideName = (view: View | null, seat: number | null) =>
@@ -233,7 +232,7 @@ export function BattlePanel(props: {
 
   const rules = content.rules.battle;
   const limit = battle.raid ? rules.raidTime : rules.timeCap; // a Raid has its own, shorter
-  const seconds = fighting(content, battle.tick) / BATTLE_TICKS;
+  const seconds = fighting(content, battle);
   const unitOf = new Map(
     [...(report?.squads.values() ?? []), ...battle.squads].map((q) => [
       q.id,
@@ -340,6 +339,7 @@ export function BattlePanel(props: {
       at={padMenu}
       pad={battle.pads[padMenu.pad]}
       tick={battle.tick}
+      tickRate={battle.tickRate}
       yours={!watching && battle.pads[padMenu.pad]?.owner === mySide}
       turrets={turrets}
       afford={(cost) =>
@@ -425,7 +425,7 @@ export function BattlePanel(props: {
   const counting = battle.retreatAt > 0 && !running;
   const countdown = Math.max(
     1,
-    Math.ceil((battle.retreatAt - battle.tick) / BATTLE_TICKS),
+    Math.ceil((battle.retreatAt - battle.tick) / battle.tickRate),
   );
   const raided = battle.raid && mySide === "defender"; // nothing to save by leaving
   const nowhere =
@@ -684,7 +684,7 @@ function BattlefieldView(props: {
       flies,
       padSight: rules.padSight,
       captureRadius: rules.captureRadius,
-      captureTicks: rules.captureSeconds * BATTLE_TICKS,
+      captureTicks: rules.captureSeconds * battle.tickRate,
     };
     const scene: BattlefieldDrawing = USE_3D
       ? new Battlefield3DScene(ref.current, battle.field, {
@@ -796,6 +796,7 @@ export function PadMenu(props: {
   at: { x: number; y: number };
   pad: BuildPad | undefined;
   tick: number; // the Battle's, for a cooldown's time left
+  tickRate: number;
   yours: boolean;
   turrets: [string, Building][];
   afford: (cost: Record<string, number>) => boolean;
@@ -815,7 +816,7 @@ export function PadMenu(props: {
         : p.building
           ? "Already building"
           : props.tick < p.coolsAt
-            ? `Cooling down · ${Math.ceil((p.coolsAt - props.tick) / BATTLE_TICKS)} s`
+            ? `Cooling down · ${Math.ceil((p.coolsAt - props.tick) / props.tickRate)} s`
             : props.turrets.length === 0
               ? "Your Faction has no pad turret"
               : "";
@@ -896,7 +897,7 @@ export function Reinforcements(props: {
                 ? `landing at ${at}`
                 : !held
                   ? "waits for a Landing Zone you hold"
-                  : `AI sends in ${clock(Math.max(0, (d.aiAt - battle.tick) / BATTLE_TICKS))}`;
+                  : `AI sends in ${clock(Math.max(0, (d.aiAt - battle.tick) / battle.tickRate))}`;
           return (
             <li
               key={i}
@@ -959,7 +960,7 @@ function Points(props: {
           <span className="font-mono">LZ {POINT_NAMES[i]}</span>
           <span className="text-ink-3 w-8 font-mono text-xs">
             {p.progress > 0
-              ? `${Math.round((p.progress / BATTLE_TICKS / Math.max(props.captureSeconds, 0.2)) * 100)}%`
+              ? `${Math.round((p.progress / battle.tickRate / Math.max(props.captureSeconds, 0.2)) * 100)}%`
               : ""}
           </span>
         </span>

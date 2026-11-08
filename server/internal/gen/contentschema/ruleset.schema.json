@@ -165,8 +165,9 @@
       "description": "How a Battle runs on its Battlefield.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "landingDelay", "padSight", "padCooldown", "startReach", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "highGroundToHit", "heightSight", "retreatCountdown", "structure", "commandPost", "classDefaults"],
+      "required": ["ticksPerSecond", "startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "landingDelay", "padSight", "padCooldown", "startReach", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "highGroundToHit", "heightSight", "retreatCountdown", "structure", "commandPost", "classDefaults"],
       "properties": {
+        "ticksPerSecond": { "description": "Sim steps a second. The Match ticks 5 times a second, so it runs this many steps per Match tick, rounded down: use a multiple of 5.", "type": "integer", "minimum": 5, "multipleOf": 5 },
         "startDelay": { "description": "Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.", "type": "integer", "minimum": 0 },
         "padSight": { "description": "How far, in cells, a build pad sees for the side holding it.", "type": "number", "minimum": 0 },
         "padCooldown": { "description": "Seconds after a pad turret is destroyed before its pad can be built on again.", "type": "number", "minimum": 0 },

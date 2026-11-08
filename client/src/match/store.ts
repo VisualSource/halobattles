@@ -187,9 +187,6 @@ export type Volley = {
   hpDmg: number;
 };
 
-/** Sim ticks per second. */
-export const BATTLE_TICKS = 5;
-
 /** A Battle you're a side of, as your side sees it. */
 export type Battle = {
   id: number;
@@ -198,6 +195,7 @@ export type Battle = {
   defender: number | null; // null is neutral
   started: number; // Match Time of the first fighting tick
   tick: number; // 0 in a summary
+  tickRate: number; // sim ticks a second
   edge: number; // the attacker's edge: 0 top, 1 right, 2 bottom, 3 left
   field: Battlefield | null; // null until it arrives
   squads: Squad[]; // your own, and enemies in Sight

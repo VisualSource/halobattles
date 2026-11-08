@@ -36,7 +36,7 @@ const (
 	labStateOp = 101 // labFrame, after each run of steps
 	labErrorOp = 102 // {"error": "..."}
 
-	labMaxSteps = 40 // per match tick: 8× at most, with room for a manual step
+	labMaxSteps = 80 // per match tick: 8× at 10 sim ticks a second, with room for a manual step
 )
 
 // devMode is whether the server runs with HALO_DEV=1: only then is the Battle
@@ -69,7 +69,7 @@ type labSetup struct {
 
 type labControl struct {
 	Paused  *bool    `json:"paused,omitempty"`
-	Speed   *float64 `json:"speed,omitempty"`   // sim ticks per match tick: 0.5 to 8
+	Speed   *float64 `json:"speed,omitempty"`   // times real time: 0.5 to 8
 	Step    int      `json:"step,omitempty"`    // run this many ticks now
 	Restart bool     `json:"restart,omitempty"` // build the last Battle again
 }
@@ -94,6 +94,7 @@ type labOrder struct {
 type labFrame struct {
 	Tick      int                 `json:"tick"`
 	Setup     int                 `json:"setup"` // the setup ticks
+	Rate      int                 `json:"rate"`  // sim ticks a second
 	Raid      bool                `json:"raid,omitempty"`
 	Over      bool                `json:"over"`
 	Winner    battle.Side         `json:"winner"`
@@ -173,7 +174,7 @@ func (m *labMatch) MatchLoop(_ context.Context, _ runtime.Logger, _ *sql.DB, _ r
 		}
 	}
 	if s.sim != nil && !s.paused && !s.sim.Over {
-		s.acc += s.speed
+		s.acc += s.speed * float64(s.sim.TPS()) / tickRate
 		n := min(int(s.acc), labMaxSteps)
 		s.acc -= float64(n)
 		s.step(n)
@@ -338,7 +339,7 @@ func (s *labState) fromSetup(c *cs.Content, in labSetup) (*battle.Sim, error) {
 	}
 	f := battle.GenerateLayout(c, rules.Battlefield, override, in.Seed, base, in.Layout)
 	sim := battle.New(c, rules, f, forces[0], forces[1], in.Seed)
-	sim.Setup = rules.Battle.StartDelay * battle.TicksPerSecond
+	sim.Setup = rules.Battle.StartDelay * sim.TPS()
 	sim.Raid = in.Raid
 	for i, sd := range sides {
 		sim.Funds[i] = maps.Clone(sd.Funds)
@@ -371,6 +372,7 @@ func (s *labState) fromReplay(c *cs.Content, in labReplay) (*battle.Sim, error) 
 			override = mp.Battlefield
 		}
 	}
+	rules.Battle.TicksPerSecond = max(r.Rate, 5) // at the rate it ran at: 5 before the rate was logged
 	sim := battle.New(c, rules, battle.GenerateLayout(c, rules.Battlefield, override, r.FieldSeed, r.Faction, ""), r.Attack, r.Defend, r.Seed)
 	s.defend, s.reach = r.Defend, rules.Battle.StartReach
 	sim.Setup, sim.Builders, sim.Raid = r.Setup, r.Builders, r.Raid
@@ -444,7 +446,7 @@ func (s *labState) sendFrame(dispatcher runtime.MatchDispatcher) {
 	sim := s.sim
 	fr := labFrame{Paused: s.paused, Speed: s.speed, Volleys: s.volleys, Decisions: s.decisions}
 	if sim != nil {
-		fr.Tick, fr.Setup, fr.Raid, fr.Over, fr.Winner, fr.Reason = sim.Tick, sim.Setup, sim.Raid, sim.Over, sim.Winner, sim.Reason
+		fr.Tick, fr.Setup, fr.Rate, fr.Raid, fr.Over, fr.Winner, fr.Reason = sim.Tick, sim.Setup, sim.TPS(), sim.Raid, sim.Over, sim.Winner, sim.Reason
 		fr.Snapshot = sim.SnapshotAll()
 		fr.Thinking = s.think
 		for i, ctl := range sim.Controllers {

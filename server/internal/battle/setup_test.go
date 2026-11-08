@@ -11,7 +11,7 @@ func setupSim(t *testing.T, builds bool) *Sim {
 	c := baseContent(t)
 	unsc, cov := kits()
 	s := newSim(c, unsc, cov, 3)
-	s.Setup = 15 * TicksPerSecond
+	s.Setup = 15 * s.TPS()
 	s.Builders[Defender] = builds
 	return s
 }
@@ -74,12 +74,12 @@ func TestADefenderThatCanBuildTakesAPadInSetup(t *testing.T) {
 func TestTheTimeCapAndARetreatInSetupCountFromTheFighting(t *testing.T) {
 	s := setupSim(t, false)
 	s.Command(Attacker, Order{Kind: Retreat})
-	if want := s.Setup + ticks(s.rules.RetreatCountdown); s.RetreatAt[Attacker] != want {
+	if want := s.Setup + s.ticks(s.rules.RetreatCountdown); s.RetreatAt[Attacker] != want {
 		t.Errorf("Retreat ordered in setup ends at tick %d; want %d, its countdown from the first fighting tick", s.RetreatAt[Attacker], want)
 	}
 	s.Command(Attacker, Order{Kind: CancelRetreat})
 	s.Controllers = [2]Controller{} // nobody moves: it can only end on time
-	s.Tick = s.rules.TimeCap * TicksPerSecond
+	s.Tick = s.rules.TimeCap * s.TPS()
 	s.end()
 	if s.Over {
 		t.Errorf("over by %s at %d ticks with %d of them setup; want the cap on fighting time only", s.Reason, s.Tick, s.Setup)
@@ -158,10 +158,10 @@ func TestASquadPartwayThroughAPadKeepsTakingIt(t *testing.T) {
 	for _, c := range home(v) {
 		back = min(back, dist(pad.Cell, c))
 	}
-	need := ticks(s.rules.CaptureSeconds)
-	pad.Taker, pad.Progress = Defender, need-ticks(1) // 1 s to go
+	need := s.ticks(s.rules.CaptureSeconds)
+	pad.Taker, pad.Progress = Defender, need-s.ticks(1) // 1 s to go
 	// Time to walk back and take the last second, but not to start afresh.
-	s.Tick = s.Setup - int(math.Ceil((back/sq.speed+1.5)*TicksPerSecond))
+	s.Tick = s.Setup - int(math.Ceil((back/sq.speed+1.5)*float64(s.TPS())))
 	if !ai.backInTime(v, sq, pad.Cell) {
 		t.Errorf("a squad in range with 1 s of the pad to go gave up on it")
 	}

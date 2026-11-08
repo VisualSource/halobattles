@@ -315,6 +315,7 @@ const toBattle = (
     readyAt: p.readyAt,
     coolsAt: p.coolsAt,
   })),
+  tickRate: b.tickRate,
   retreatAt: b.retreatAt,
   retreating: {
     attacker: b.attackerRetreating,

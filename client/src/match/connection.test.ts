@@ -777,6 +777,7 @@ describe("MatchConnection", () => {
       defender: null,
       started: 3000,
       tick: 10,
+      tickRate: 0, // not set in this view
       summary: false,
       damage: { attacker: 0, defender: 0 },
       edge: 2,

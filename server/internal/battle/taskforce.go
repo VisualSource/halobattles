@@ -42,8 +42,8 @@ const (
 	// contactReach is how far past its range, in cells, a member can be
 	// from an enemy for its Task Force to pick that enemy as a target.
 	contactReach = 2
-	// gatherTicks is the longest a Task Force waits to gather or fill up.
-	gatherTicks = 20 * TicksPerSecond
+	// gatherSeconds is the longest a Task Force waits to gather or fill up.
+	gatherSeconds = 20
 	// flankAngle is the turn, in radians, between Task Forces' bearings on
 	// one goal.
 	flankAngle = math.Pi / 3.5
@@ -130,7 +130,7 @@ func (ai *AI) form(v View, goals []goal, on [][]*Squad) {
 				ready = ready && (f.going || f.gathered())
 			}
 		}
-		if ready || v.Tick()-tf.formedAt >= gatherTicks {
+		if ready || v.Tick()-tf.formedAt >= gatherSeconds*v.sim.TPS() {
 			goIn = append(goIn, tf)
 		}
 	}
@@ -331,15 +331,15 @@ func (ai *AI) aim(v View, sq *Squad, tf *taskForce) []Order {
 // follower keeps on the way in.
 const followDist = 3
 
-// stallTicks is how long a Task Force's leaders can get no nearer the goal
+// stallSeconds is how long a Task Force's leaders can get no nearer the goal
 // before its followers stop waiting for them.
-const stallTicks = 2 * TicksPerSecond
+const stallSeconds = 2
 
 // follow keeps a follower behind its Task Force's leaders (vehicles, in the
 // base Mod) while they're getting nearer the goal: it waits while it's less
 // than followDist further from the goal than the nearest leader, and moves
 // on once it's a cell more than that behind. Once the leaders have got no
-// nearer for stallTicks, to fight, at the goal or stuck, it comes on.
+// nearer for stallSeconds, to fight, at the goal or stuck, it comes on.
 func (ai *AI) follow(v View, sq *Squad, p *plan, tf *taskForce) ([]Order, bool) {
 	if sq.tfRole != cs.UnitClassTaskForceRoleFollow || sq.air {
 		return nil, false
@@ -353,7 +353,7 @@ func (ai *AI) follow(v View, sq *Squad, p *plan, tf *taskForce) ([]Order, bool) 
 	if lead < tf.leadBest-0.5 { // nearer: they're on the move
 		tf.leadBest, tf.leadAt = lead, v.Tick()
 	}
-	if math.IsInf(lead, 1) || lead <= v.sim.rules.CaptureRadius || v.Tick()-tf.leadAt > stallTicks {
+	if math.IsInf(lead, 1) || lead <= v.sim.rules.CaptureRadius || v.Tick()-tf.leadAt > stallSeconds*v.sim.TPS() {
 		p.waiting = false
 		return nil, false // no leader, or they're there or stopped: on in
 	}
@@ -376,5 +376,5 @@ func (ai *AI) follow(v View, sq *Squad, p *plan, tf *taskForce) ([]Order, bool) 
 
 // shotBy is whether e fired on one of the Task Force's members lately.
 func (tf *taskForce) shotBy(v View, e *Squad) bool {
-	return slices.ContainsFunc(tf.members, func(sq *Squad) bool { return sq.hitBy == e.ID && v.Tick()-sq.hitAt <= underFire })
+	return slices.ContainsFunc(tf.members, func(sq *Squad) bool { return sq.hitBy == e.ID && v.Tick()-sq.hitAt <= underFireSeconds*v.sim.TPS() })
 }

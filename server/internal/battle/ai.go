@@ -188,10 +188,10 @@ type sighting struct {
 func (ai *AI) weightsOf(*Squad) Weights { return ai.weights }
 
 const (
-	// recallTicks is how long the AI keeps counting an enemy it can no longer
+	// recallSeconds is how long the AI keeps counting an enemy it can no longer
 	// see. Without it, a squad that sights an enemy, turns away from the
 	// threat, and loses sight of it would turn straight back, over and over.
-	recallTicks = 10 * TicksPerSecond
+	recallSeconds = 10
 	// stickiness is how much better another goal must score before a squad
 	// drops the one it has.
 	stickiness = 1.25
@@ -227,9 +227,9 @@ const (
 	// and 1 skirmisher.
 	skirmishShare  = 0.1
 	maxSkirmishers = 5
-	// restTicks is how long a squad that fell back is left to the usual
+	// restSeconds is how long a squad that fell back is left to the usual
 	// goals before it can take a role again.
-	restTicks = 20 * TicksPerSecond
+	restSeconds = 20
 	// outnumbered is how many times its own members an enemy needs before a
 	// skirmisher falls back rather than fights.
 	outnumbered = 1.5
@@ -246,9 +246,9 @@ const (
 	// leash is how far from its point, in cells, a guarding squad chases an
 	// enemy, times its aggression weight.
 	leash = 6
-	// underFire is how long after an enemy fires on a squad that the squad
+	// underFireSeconds is how long after an enemy fires on a squad that the squad
 	// still answers it: going after it, or getting clear of it.
-	underFire = 3 * TicksPerSecond
+	underFireSeconds = 3
 	// buildingThreat is what an armed building adds to the threat near a
 	// goal, counted like an enemy squad's members.
 	buildingThreat = 5
@@ -273,7 +273,7 @@ func (ai *AI) Orders(v View) []Order {
 		ai.owners = append(ai.owners, p.Owner)
 	}
 	var out []Order
-	if flipped || v.Tick()%TicksPerSecond == 0 {
+	if flipped || v.Tick()%v.sim.TPS() == 0 {
 		ai.look(v, own)
 		ai.command(v, own, enemies)
 		if ai.Trace != nil {
@@ -332,7 +332,7 @@ func (ai *AI) Orders(v View) []Order {
 				continue
 			}
 		}
-		if p.steps == nil || flipped || len(sq.Members) < p.members || (v.Tick()+sq.ID)%TicksPerSecond == 0 {
+		if p.steps == nil || flipped || len(sq.Members) < p.members || (v.Tick()+sq.ID)%v.sim.TPS() == 0 {
 			ai.replan(v, sq, p)
 		}
 		for _, o := range ai.execute(v, sq, p) {
@@ -363,7 +363,7 @@ func (ai *AI) remember(v View, own, enemies []*Squad) {
 	}
 	for _, id := range slices.Sorted(maps.Keys(ai.sighted)) {
 		// Forgotten after a while, or once the spot is in Sight and it's gone.
-		if sg := ai.sighted[id]; v.Tick()-sg.tick > recallTicks || sg.tick != v.Tick() && inSight(sg.cell) {
+		if sg := ai.sighted[id]; v.Tick()-sg.tick > recallSeconds*v.sim.TPS() || sg.tick != v.Tick() && inSight(sg.cell) {
 			delete(ai.sighted, id)
 		}
 	}
@@ -519,7 +519,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	// it holds.
 	caution := w.Caution
 	if v.Side == Attacker {
-		limit := float64(s.rules.TimeCap * TicksPerSecond)
+		limit := float64(s.rules.TimeCap * s.TPS())
 		caution *= max(0, 1-float64(s.Tick-s.Setup)/limit)
 	}
 	chose := map[int]Choice{}
@@ -611,11 +611,11 @@ func (ai *AI) backInTime(v View, sq *Squad, pad Cell) bool {
 	take := s.rules.CaptureSeconds
 	for _, p := range s.Pads {
 		if p.Cell == pad && p.Taker == v.Side {
-			take -= float64(p.Progress) / TicksPerSecond
+			take -= float64(p.Progress) / float64(s.TPS())
 		}
 	}
 	walk := (max(0, dist(sq.Cell, pad)-s.rules.CaptureRadius) + back) / max(sq.speed, 0.1)
-	return walk+take <= float64(s.Setup-s.Tick)/TicksPerSecond
+	return walk+take <= float64(s.Setup-s.Tick)/float64(s.TPS())
 }
 
 // walkBeat sends an idle guard to the next stop on its beat round its point,
@@ -626,7 +626,7 @@ func (ai *AI) backInTime(v View, sq *Squad, pad Cell) bool {
 func (ai *AI) walkBeat(v View, sq *Squad, p *plan) (Order, bool) {
 	s := v.sim
 	if len(p.steps) > 0 || len(sq.path) > 0 || dist(sq.Cell, p.goal.cell) > s.rules.CaptureRadius ||
-		v.Tick()-max(p.beatAt, s.Setup) < beatEvery*TicksPerSecond || (v.Tick()+sq.ID)%TicksPerSecond != 0 { // the first one 8 s into the fighting
+		v.Tick()-max(p.beatAt, s.Setup) < beatEvery*v.sim.TPS() || (v.Tick()+sq.ID)%v.sim.TPS() != 0 { // the first one 8 s into the fighting
 		return Order{}, false
 	}
 	if len(ai.sighted) > 0 {
@@ -659,7 +659,7 @@ func (ai *AI) walkBeat(v View, sq *Squad, p *plan) (Order, bool) {
 	to := stops[p.beat%len(stops)]
 	p.beat++
 	p.beatAt = v.Tick()
-	p.beatUntil = v.Tick() + int(dist(sq.Cell, to)/max(sq.speed, 0.1)*TicksPerSecond) + beatPause*TicksPerSecond
+	p.beatUntil = v.Tick() + int(dist(sq.Cell, to)/max(sq.speed, 0.1)*float64(v.sim.TPS())) + beatPause*v.sim.TPS()
 	p.steps, p.sent = nil, false // back to the point afterwards
 	return Order{Kind: Move, Squad: sq.ID, Cell: to}, true
 }
@@ -669,7 +669,7 @@ func (ai *AI) walkBeat(v View, sq *Squad, p *plan) (Order, bool) {
 func (ai *AI) takePost(v View, sq *Squad, p *plan) (Order, bool) {
 	s := v.sim
 	if len(p.steps) > 0 || len(sq.path) > 0 || dist(sq.Cell, p.goal.cell) > s.rules.CaptureRadius ||
-		(v.Tick()+sq.ID)%TicksPerSecond != 0 {
+		(v.Tick()+sq.ID)%v.sim.TPS() != 0 {
 		return Order{}, false
 	}
 	w := ai.weightsOf(sq).Cover
@@ -719,7 +719,7 @@ func (s *Sim) postScore(sq *Squad, point, c Cell, cover float64) float64 {
 // shooter is the enemy that fired on sq lately, if the side can see it:
 // its muzzle flash shows it for a while.
 func (ai *AI) shooter(v View, sq *Squad) *Squad {
-	if sq.hitBy == 0 || v.Tick()-sq.hitAt > underFire {
+	if sq.hitBy == 0 || v.Tick()-sq.hitAt > underFireSeconds*v.sim.TPS() {
 		return nil
 	}
 	if e := v.sim.squad(sq.hitBy); e != nil && e.alive() && v.sim.visible[v.Side][e.ID] {
@@ -825,7 +825,7 @@ func (ai *AI) engage(v View, sq *Squad, p *plan, e *Squad) []Order {
 		}
 		return nil
 	}
-	if !fresh && len(sq.path) > 0 && (v.Tick()+sq.ID)%TicksPerSecond != 0 {
+	if !fresh && len(sq.path) > 0 && (v.Tick()+sq.ID)%v.sim.TPS() != 0 {
 		return nil
 	}
 	to, ok := s.firingPosition(sq, e.Cell, ai.weightsOf(sq).Cover, standoff)
@@ -906,7 +906,7 @@ func (ai *AI) look(v View, own []*Squad) {
 	if ai.looked == nil {
 		ai.looked = make([]int, bw*bh)
 		for b := range ai.looked {
-			ai.looked[b] = -staleCap * TicksPerSecond // not seen yet: as stale as it gets
+			ai.looked[b] = -staleCap * v.sim.TPS() // not seen yet: as stale as it gets
 		}
 	}
 	for b := range ai.looked {
@@ -987,7 +987,7 @@ func (ai *AI) assignRoles(v View, own, enemies []*Squad) map[int]bool {
 		var out []*Squad
 		for _, sq := range mobile {
 			back, rested := ai.rested[sq.ID]
-			if ai.roles[sq.ID] == noRole && (!rested || v.Tick()-back >= restTicks) && !ai.inContact(v, sq) {
+			if ai.roles[sq.ID] == noRole && (!rested || v.Tick()-back >= restSeconds*v.sim.TPS()) && !ai.inContact(v, sq) {
 				out = append(out, sq)
 			}
 		}
@@ -1178,7 +1178,7 @@ func (ai *AI) waypoint(v View, sq *Squad, taken map[Cell]bool) (Cell, bool) {
 			slices.ContainsFunc(s.Points, func(p Point) bool { return dist(p.Cell, mid) < block }) {
 			continue
 		}
-		stale := min(float64(v.Tick()-at)/TicksPerSecond, staleCap)
+		stale := min(float64(v.Tick()-at)/float64(v.sim.TPS()), staleCap)
 		toward := float64(max(f.W, f.H)-s.depth(s.Edge, mid)) / float64(max(f.W, f.H)) // 1 at the attacker's edge
 		score := stale + 20*toward - dist(sq.Cell, mid)/max(sq.speed, 0.1)/2
 		if score > bestScore { // ties keep the lower block
@@ -1335,7 +1335,7 @@ func (ai *AI) execute(v View, sq *Squad, p *plan) []Order {
 	}
 	// On its way: look again only on its slot each second, as each new
 	// destination costs a path.
-	if p.sent && len(sq.path) > 0 && (v.Tick()+sq.ID)%TicksPerSecond != 0 {
+	if p.sent && len(sq.path) > 0 && (v.Tick()+sq.ID)%v.sim.TPS() != 0 {
 		return nil
 	}
 	to, ok := ai.cellFor(v, sq, p)

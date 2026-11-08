@@ -47,7 +47,7 @@ func (d Drop) TroopCount() int {
 
 // SendsAt is the tick the sim sends a Drop still in orbit, if nobody has.
 func (s *Sim) SendsAt(d Drop) int {
-	return d.At + ticks(s.rules.LandingDelay)
+	return d.At + s.ticks(s.rules.LandingDelay)
 }
 
 // arrive puts a Dropship in orbit: an Arrive order, logged, so replays land

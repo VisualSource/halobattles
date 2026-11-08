@@ -65,6 +65,7 @@ const rules: Ruleset = {
     deployDepth: 4,
   },
   battle: {
+    ticksPerSecond: 10,
     startDelay: 30,
     timeCap: 180,
     raidTime: 100,

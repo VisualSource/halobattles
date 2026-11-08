@@ -106,10 +106,10 @@ func TestStartingKitsFightToAnEnd(t *testing.T) {
 		if volleys == 0 {
 			t.Errorf("seed %d: no one fired", seed)
 		}
-		if s.Tick > ruleset(c).Battle.TimeCap*TicksPerSecond {
+		if s.Tick > ruleset(c).Battle.TimeCap*s.TPS() {
 			t.Errorf("seed %d: ran past the time cap", seed)
 		}
-		t.Logf("seed %d: %v wins by %s after %.1f s", seed, s.Winner, s.Reason, float64(s.Tick)/TicksPerSecond)
+		t.Logf("seed %d: %v wins by %s after %.1f s", seed, s.Winner, s.Reason, float64(s.Tick)/float64(s.TPS()))
 	}
 }
 
@@ -146,7 +146,7 @@ func TestPointChangesHandsAfterCaptureSeconds(t *testing.T) {
 	s := newSim(c, unsc, cov, 3)
 	a := s.Squads[0]
 	stage(s, a)
-	need := ticks(s.rules.CaptureSeconds)
+	need := s.ticks(s.rules.CaptureSeconds)
 	for range need - 1 {
 		s.capture()
 	}
@@ -172,7 +172,7 @@ func TestContestedPointDoesNotChangeHands(t *testing.T) {
 			break
 		}
 	}
-	for range 3 * ticks(s.rules.CaptureSeconds) {
+	for range 3 * s.ticks(s.rules.CaptureSeconds) {
 		s.capture()
 	}
 	if s.Points[0].Owner != Defender || s.Points[0].Progress != 0 {
@@ -229,7 +229,7 @@ func TestTimeCapGoesToTheDefender(t *testing.T) {
 	unsc, cov := kits()
 	s := newSim(c, unsc, cov, 3)
 	s.Controllers = [2]Controller{} // nobody moves
-	s.Tick = s.rules.TimeCap*TicksPerSecond - 1
+	s.Tick = s.rules.TimeCap*s.TPS() - 1
 	s.end()
 	if s.Over {
 		t.Fatal("over before the cap")
@@ -419,7 +419,7 @@ func TestRetreatWaitsOutItsCountdownAndCanBeCalledOff(t *testing.T) {
 	c := baseContent(t)
 	unsc, cov := kits()
 	s := newSim(c, unsc, cov, 3)
-	countdown := ticks(s.rules.RetreatCountdown)
+	countdown := s.ticks(s.rules.RetreatCountdown)
 
 	s.Command(Attacker, Order{Kind: Retreat})
 	if s.RetreatAt[Attacker] != countdown || len(s.Log) != 1 {

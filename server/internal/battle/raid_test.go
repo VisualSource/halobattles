@@ -36,7 +36,7 @@ func TestARaidRunsOutAtItsOwnTime(t *testing.T) {
 	unsc, _ := kits()
 	s := raidSim(t, unsc, 1)
 	s.Controllers = [2]Controller{}
-	s.Tick = s.Setup + s.rules.RaidTime*TicksPerSecond
+	s.Tick = s.Setup + s.rules.RaidTime*s.TPS()
 	if s.end(); !s.Over || s.Winner != Defender || s.Reason != TimeUp {
 		t.Errorf("over %v, winner %v by %q at raidTime; want the defender's, on time", s.Over, s.Winner, s.Reason)
 	}

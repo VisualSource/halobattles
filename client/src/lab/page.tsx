@@ -352,7 +352,7 @@ function Header(props: {
     battles: { label: string; data: unknown }[];
   } | null>(null);
   const [pick, setPick] = useState(0);
-  const fighting = (st.tick - st.setupTicks) / 5;
+  const fighting = (st.tick - st.setupTicks) / st.rate;
   const name = (f: string) => content.factions.get(f)?.name ?? f;
 
   async function loadLog(file: File) {
@@ -434,7 +434,7 @@ function Header(props: {
       <div className="flex flex-col items-end font-mono leading-tight">
         <span>
           {st.tick < st.setupTicks
-            ? `setup ${clock((st.setupTicks - st.tick) / 5)}`
+            ? `setup ${clock((st.setupTicks - st.tick) / st.rate)}`
             : clock(fighting)}
           <span className="text-ink-4">
             {" "}
@@ -935,6 +935,7 @@ function Field(props: {
           at={padMenu}
           pad={battle.pads[padMenu.pad]}
           tick={battle.tick}
+          tickRate={battle.tickRate}
           yours={battle.pads[padMenu.pad]?.owner === commandSide}
           turrets={[...content.buildings.entries()].filter(
             ([, b]) =>

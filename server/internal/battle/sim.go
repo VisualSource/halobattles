@@ -10,9 +10,6 @@ import (
 	cs "github.com/VisualSource/halobattles/server/internal/gen/contentschema"
 )
 
-// TicksPerSecond is the sim's step rate: one step per match tick.
-const TicksPerSecond = 5
-
 // Side is one of a Battle's two sides.
 type Side int
 
@@ -257,11 +254,14 @@ var (
 	along  = [4]Cell{{1, 0}, {0, 1}, {1, 0}, {0, 1}}
 )
 
-func (a Cell) add(b Cell) Cell   { return Cell{a.X + b.X, a.Y + b.Y} }
-func (a Cell) scale(k int) Cell  { return Cell{a.X * k, a.Y * k} }
-func dist(a, b Cell) float64     { return math.Sqrt(float64(dist2(a, b))) }
-func ticks(seconds float64) int  { return int(math.Round(seconds * TicksPerSecond)) }
-func (s *Sim) height(c Cell) int { return int(s.Field.Height[s.Field.index(c)]) }
+func (a Cell) add(b Cell) Cell  { return Cell{a.X + b.X, a.Y + b.Y} }
+func (a Cell) scale(k int) Cell { return Cell{a.X * k, a.Y * k} }
+func dist(a, b Cell) float64    { return math.Sqrt(float64(dist2(a, b))) }
+
+// TPS is the sim's steps a second, the Ruleset's.
+func (s *Sim) TPS() int                  { return s.rules.TicksPerSecond }
+func (s *Sim) ticks(seconds float64) int { return int(math.Round(seconds * float64(s.TPS()))) }
+func (s *Sim) height(c Cell) int         { return int(s.Field.Height[s.Field.index(c)]) }
 func (s *Sim) layer(sq *Squad) []int {
 	if sq.air {
 		return s.air
@@ -455,7 +455,7 @@ func (s *Sim) stats(sq *Squad, cb *cs.Combat) {
 	sq.reach = or(cb.Range, def.Range)
 	sq.minRange = or(cb.MinRange, 0)
 	sq.sight = or(cb.Sight, def.Sight)
-	sq.fireTicks = max(1, ticks(or(cb.FireInterval, def.FireInterval)))
+	sq.fireTicks = max(1, s.ticks(or(cb.FireInterval, def.FireInterval)))
 }
 
 // place puts a squad in the free cell it can stand on nearest want, searching
@@ -606,12 +606,12 @@ func (s *Sim) apply(side Side, o Order) {
 			}
 		}
 		p := &s.Pads[o.Target]
-		p.Building, p.ReadyAt = o.Building, s.Tick+max(1, ticks(s.rules.PadBuildSeconds))
+		p.Building, p.ReadyAt = o.Building, s.Tick+max(1, s.ticks(s.rules.PadBuildSeconds))
 		s.padSeen[side][o.Target] = *p // its own build shows at once
 		return
 	case Retreat:
 		if s.RetreatAt[side] == 0 && !(s.Raid && side == Defender) { // a raided defender has nothing to save by leaving
-			s.RetreatAt[side] = max(s.Tick, s.Setup) + max(1, ticks(s.rules.RetreatCountdown)) // ordered in setup: from the first fighting tick
+			s.RetreatAt[side] = max(s.Tick, s.Setup) + max(1, s.ticks(s.rules.RetreatCountdown)) // ordered in setup: from the first fighting tick
 		}
 		return
 	case CancelRetreat:
@@ -700,7 +700,7 @@ func (s *Sim) move() {
 		if sq.pace > 0 && !sq.retreating {
 			speed = min(speed, sq.pace)
 		}
-		sq.bank += speed / TicksPerSecond
+		sq.bank += speed / float64(s.TPS())
 		for len(sq.path) > 0 {
 			next := sq.path[0]
 			cost := s.Field.stepCost(c, sq.Cell, next)
@@ -717,7 +717,7 @@ func (s *Sim) move() {
 					break
 				}
 				sq.bank = min(sq.bank, cost)
-				if sq.blocked++; sq.blocked >= TicksPerSecond {
+				if sq.blocked++; sq.blocked >= s.TPS() {
 					sq.blocked = 0
 					sq.path = s.Field.path(c, sq.Cell, sq.goal, s.crowding(sq.Side, layer))
 				}
@@ -753,7 +753,7 @@ func (s *Sim) retreat() {
 		}
 	}
 	for _, sq := range s.Squads {
-		if sq.retreating && sq.alive() && len(sq.path) == 0 && (s.Tick+sq.ID)%TicksPerSecond == 0 {
+		if sq.retreating && sq.alive() && len(sq.path) == 0 && (s.Tick+sq.ID)%s.TPS() == 0 {
 			s.headOut(sq)
 		}
 	}
@@ -910,7 +910,7 @@ func (s *Sim) targetOf(sq *Squad) *Squad {
 	}
 	// Only the other side fires on t, so any recent hit is a friend's.
 	notHit := func(t *Squad) int {
-		if t.hitBy != 0 && s.Tick-t.hitAt <= underFire {
+		if t.hitBy != 0 && s.Tick-t.hitAt <= underFireSeconds*s.TPS() {
 			return 0
 		}
 		return 1
@@ -981,7 +981,7 @@ func (s *Sim) fire() []Volley {
 		}
 		tier, mod := s.tier(sq, t), s.toHitMod(sq, t)
 		v := Volley{Actor: sq.ID, Target: t.ID}
-		sq.flashUntil = s.Tick + ticks(flashSeconds)
+		sq.flashUntil = s.Tick + s.ticks(flashSeconds)
 		s.visible[t.Side][sq.ID] = true // seen from this volley on, so it's no unknown shooter
 		t.hitBy, t.hitAt = sq.ID, s.Tick
 		for range sq.Members {
@@ -1018,7 +1018,7 @@ func (s *Sim) fire() []Volley {
 // captureSeconds; a contested or empty one resets its progress, and so does
 // a pad with a turret on it.
 func (s *Sim) capture() {
-	need := ticks(s.rules.CaptureSeconds)
+	need := s.ticks(s.rules.CaptureSeconds)
 	for i := range s.Points {
 		p := &s.Points[i]
 		present := s.presence(p.Cell)
@@ -1046,7 +1046,7 @@ func (s *Sim) capture() {
 		p := &s.Pads[i]
 		if t := s.squad(p.Turret); t != nil && !t.alive() {
 			p.Turret = 0 // destroyed: the pad can be taken, and built on after the cooldown
-			p.CoolsAt = s.Tick + ticks(s.rules.PadCooldown)
+			p.CoolsAt = s.Tick + s.ticks(s.rules.PadCooldown)
 		}
 		present := s.presence(p.Cell)
 		switch {
@@ -1155,7 +1155,7 @@ func (s *Sim) end() {
 	case s.Raid && !slices.ContainsFunc(s.Squads, func(sq *Squad) bool { return sq.planetBuilding() && sq.alive() }):
 		s.Over, s.Winner, s.Reason = true, Attacker, Raided
 	case s.Raid:
-		if s.Tick-s.Setup >= s.rules.RaidTime*TicksPerSecond {
+		if s.Tick-s.Setup >= s.rules.RaidTime*s.TPS() {
 			s.Over, s.Winner, s.Reason = true, Defender, TimeUp
 		}
 	// A defender that Retreats abandons the Battle: its Command Post blows.
@@ -1168,7 +1168,7 @@ func (s *Sim) end() {
 	// defence wiped out leaves it standing to be destroyed.
 	case cp != nil && !cp.alive():
 		s.Over, s.Winner, s.Reason = true, Attacker, Destroyed
-	case s.Tick-s.Setup >= s.rules.TimeCap*TicksPerSecond: // fighting time only
+	case s.Tick-s.Setup >= s.rules.TimeCap*s.TPS(): // fighting time only
 		s.Over, s.Winner, s.Reason = true, Defender, TimeUp
 	}
 }

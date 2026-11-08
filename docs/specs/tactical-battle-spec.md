@@ -87,14 +87,16 @@ Base-Mod Terrains:
 ## Time and movement
 
 - **Start delay:** when an Army arrives, the Planet Locks and both sides deploy at once, but the fighting waits `battle.startDelay` (15 s). That gives players time to open the Battle and see the layout. The window counts down meanwhile. A Battle decided on arrival (one side has nothing that can fight) ends at once.
-- **Setup phase** (#68): the sim runs through the start delay, at the usual 5 ticks a second, as a setup phase for the defender. Its first ticks (`Setup`, the delay's worth) are setup; the fighting starts after them.
+- **Setup phase** (#68): the sim runs through the start delay, at its usual rate, as a setup phase for the defender. Its first ticks (`Setup`, the delay's worth) are setup; the fighting starts after them.
   - Only the defender moves, and only if its side can build a pad turret at all: a neutral garrison always can; a player once they hold a Tech that unlocks one of their Faction's. It's there to take pads: its AI sends a squad only to a pad it can walk to, take, and walk back from to a held point before the fighting starts, valuing a pad at 5 against 2 for holding a point. Roles and sentry beats wait for the fighting. A defender that can't build waits on its points, as before the setup phase existed.
   - The attacker only watches. A Retreat ordered in setup counts its countdown from the first fighting tick.
   - Nothing fires; points can't change hands; no side wins or loses.
   - Captures and turret builds take their usual times (`captureSeconds`, `padBuildSeconds`), so a turret started in setup finishes early in the fight.
   - The 3-minute time cap counts fighting time only. On the wire, `tick` counts from the start of setup; the client takes `startDelay`'s worth off for the Battle clock.
   - Measured: letting every defender move in setup cost it 6–10 points of Starting Kit Battles even with no turret to buy, as its squads were caught off their points and its scout's one run was spent before the attacker moved. Limited to defenders that can build, setup leaves those Battles where they were.
-- The sim **steps once per match tick (5 Hz, 200 ms)**. Every duration in seconds is converted to whole ticks, rounded to the nearest one.
+- The sim **steps at 10 Hz** (100 ms), the Ruleset's `battle.ticksPerSecond` (#116). Every duration in seconds is converted to whole ticks, rounded to the nearest one.
+- **Lockstep:** each 5 Hz match tick runs the sim steps that are due (2 at 10 Hz) for every Battle, each Battle in its own goroutine, all joined before the tick returns, then handles the results in Battle id order. That's safe because Battles share no state and make no Nakama calls. It needs no clocks, so pause and the Lab's speed (a multiple of real time) work unchanged. Views still go out once per match tick; if they look rough in 3D, raising the match tick rate is a separate change.
+- **The rate travels with the Battle:** match logs record it (`rate`), and a log from before has none and replays at 5. Each `BattleView` carries it (`tick_rate`), and the client works out the Battle clock from it.
 - Within a tick, the order is fixed:
   1. apply orders;
   2. move;
@@ -367,8 +369,7 @@ On top of the usual goals, the Commander gives some squads a job:
   - a squad's next destination is re-sent only when its plan's next step changes, or once a second while chasing a moving target;
   - GOAP replans only on events or the staggered fallback.
 - **Work done every tick** (cheap at this size, the first to revisit): Sight (`see()` checks every pair of squads), target picking (each firing squad scans every squad), and Control Point presence (every point against every squad).
-- **Measured:** about 0.5–0.6 ms a step and about 11 KB allocated, for 45 squads a side plus 12 buildings. A* uses a typed binary heap and pooled working memory, so a path call allocates only its result.
-- **Planned upgrade:** v1 steps Battles one after another inside `MatchLoop`. If the benchmark or a real Match shows the tick running long, Battles will step in **parallel goroutines** joined before the tick returns. That's safe because Battles share no state and make no Nakama API calls.
+- **Measured:** about 0.16 ms a step and about 8 KB allocated, for 45 squads a side plus 12 buildings (at 10 Hz, #116). A* uses a typed binary heap and pooled working memory, so a path call allocates only its result.
 
 ### Performance ideas, not needed yet
 
@@ -378,7 +379,6 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
   - **A spatial grid for squads** (buckets of, say, 8 × 8 cells), so Sight, target picking and point presence look only at nearby squads instead of all of them. Worth it once Battles grow well past 45 squads a side.
   - **Sight only on change:** recompute a side's visibility only when one of its squads or an enemy changes cell. Most ticks most squads don't move.
   - **Flow fields** for the shared destinations (each Control Point and each exit edge, per Unit Class): one Dijkstra pass per Battle, after which any squad heading there follows it with no A*. Chasing a moving target still uses A*.
-  - **Parallel stepping** of Battles (above).
   - **Fewer allocations in the AI planner:** reuse its open list and best-cost table between squads, as A* does.
   - **Native pathfinding** (Rust or C), last: see [Later](#later).
 - **Wire:**
@@ -648,15 +648,6 @@ The playtest complaints become tests:
 
 The balance test stays skipped while v4 is built (`HALO_BALANCE=1` measures it), as it was for v3; balance is tuned once, after the last step.
 
-### Sim rate (step 1)
-
-- The sim steps at **10 Hz**, set by the Ruleset's `battle.ticksPerSecond` (10). Every duration is still given in seconds and converted to whole ticks, so timers round to 100 ms instead of 200 ms.
-- **Lockstep:** each 5 Hz match tick runs as many sim steps as fit (2 at 10 Hz) for every Battle, each Battle in **its own goroutine**, all joined before the tick returns. That's safe because Battles share no state and make no Nakama calls. It stays deterministic and needs no clocks, and pause and the Lab's speed work as before. Views still go out once per match tick.
-- **Logs and wire:** match logs record the rate, so logs made at 5 Hz replay at 5 Hz. Each `BattleView` carries the rate, and the client works out the Battle clock from it rather than from a fixed 5.
-- The spec's tick counts (`Setup`, a blocked squad's 1 s wait, and the like) are restated in seconds.
-- The 2 ms step budget still applies per step; the benchmark runs at the new rate.
-- If 5 Hz views still look rough in 3D, raising the match tick rate is a separate change.
-
 ### Fire (step 2)
 
 - **Staggered members:** each member of a squad fires on its own `fireInterval` timer, offset from the others by an even share of the interval, so a squad's fire reads as a steady stream rather than one volley. A shot is followed by the pause, as in Halo Wars 2; there's no burst mechanic. Damage per second is unchanged.
@@ -766,7 +757,7 @@ Built on [Command](#command). **Mockup first**, agreed before any of it is built
 
 ### Order of work
 
-1. Sim rate: 10 Hz, a goroutine per Battle (#116).
+1. ~~Sim rate: 10 Hz, a goroutine per Battle~~ (#116): now in [Time and movement](#time-and-movement).
 2. Fire: staggered members, target lock (#117).
 3. Counters: the `counter` tier, the triangle, dropping Artillery, the roster retune, the duel matrix (#118).
 4. 3D rules: the air layer, height, then line of sight (#119).
@@ -789,6 +780,5 @@ Not in v1, but kept in mind:
 - A **hex grid**, and hex styling of the square grid in the meantime.
 - **Replay UI**, built on the input log.
 - **Halo-style Shield regeneration** during Battles.
-- **Parallel Battle stepping** (see [Performance](#performance)).
 - **Choke points** for the defender: plot the attacker's likely approaches to each point with A*, find the narrowest stretch some 6–12 cells out, and have skirmishers or a reserve hold its far side on the best ground there, delaying the attacker where it bunches up. Held back because every way tried so far of pulling squads off the points cost the defender; revisit if big Battles look one-sided in play.
 - **Native pathfinding** (Rust or C): only if profiling, after flow fields and parallel stepping, still shows pathing as the cost. Until then the gains come from doing less work, not faster work, and cgo in the Nakama plugin build adds a toolchain to every build.

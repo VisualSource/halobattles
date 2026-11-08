@@ -135,6 +135,7 @@ type BattleView struct {
 	Attacker  int
 	Defender  int
 	Started   int64
+	TickRate  int // sim ticks a second
 	Raid      bool
 	Commanded bool          // the viewer's side is theirs to command: no AI runs it
 	Field     *battle.Field // the same for the whole Battle
@@ -300,7 +301,7 @@ func (s *State) view(c *cs.Content, seat int) View {
 
 // view is the Battle as side sees it; NoSide is a Spectator's, both sides.
 func (b *Battle) view(side battle.Side) BattleView {
-	bv := BattleView{ID: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender, Started: b.Started, Field: b.Sim.Field, Raid: b.Sim.Raid}
+	bv := BattleView{ID: b.ID, Planet: b.Planet, Attacker: b.Attacker, Defender: b.Defender, Started: b.Started, TickRate: b.Sim.TPS(), Field: b.Sim.Field, Raid: b.Sim.Raid}
 	if side == battle.NoSide {
 		bv.Snapshot = b.Sim.SnapshotAll()
 	} else {

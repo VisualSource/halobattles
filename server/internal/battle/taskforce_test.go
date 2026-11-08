@@ -42,7 +42,7 @@ func TestATaskForceGathersThenGoesInBehindItsVehiclesAtTheSlowestPace(t *testing
 
 	s.relocate(marines, tf.stage)
 	freeAt(t, s, warthog, tf.stage, 1)
-	s.Tick = TicksPerSecond // the Commander's next pass
+	s.Tick = s.TPS() // the Commander's next pass
 	sent = moves(ai.Orders(v))
 	if !tf.going {
 		t.Fatal("gathered, yet it didn't go in")
@@ -71,7 +71,7 @@ func TestAPacedMoveGoesNoFasterThanItsPace(t *testing.T) {
 		w := s.Squads[0]
 		from := w.Cell
 		s.apply(Attacker, Order{Kind: Move, Squad: w.ID, Cell: s.Points[0].Cell, Pace: pace})
-		for range 3 * TicksPerSecond {
+		for range 3 * s.TPS() {
 			s.move()
 		}
 		return dist(from, w.Cell)
@@ -345,7 +345,7 @@ func TestFollowersComeOnOnceTheirLeadersStall(t *testing.T) {
 	if _, waits := ai.follow(v, marines, p, tf); !waits {
 		t.Fatal("the Warthog just set off: want the Marines waiting behind it")
 	}
-	s.Tick += stallTicks + 1 // the Warthog gets no nearer: stuck, or fighting
+	s.Tick += stallSeconds*s.TPS() + 1 // the Warthog gets no nearer: stuck, or fighting
 	if _, waits := ai.follow(v, marines, p, tf); waits {
 		t.Error("the Warthog has stalled: want the Marines coming on")
 	}

@@ -75,6 +75,8 @@
     "pointArea": 3
   },
   "battle": {
+    // Sim steps a second: 2 per Match tick.
+    "ticksPerSecond": 10,
     // Seconds to open the Battle before the fighting starts.
     "startDelay": 15,
     "timeCap": 180,

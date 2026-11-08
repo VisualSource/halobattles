@@ -48,7 +48,7 @@ func TestTheSimSendsADropshipAfterTheLandingDelay(t *testing.T) {
 	if !ship.Dropship || !s.visible[Defender][ship.ID] || slices.Contains(View{s, Attacker}.Own(), ship) {
 		t.Error("a Dropship in flight should be seen by both sides and flown by nobody")
 	}
-	stepUntil(s, 60*TicksPerSecond, func() bool { return d.State == Done })
+	stepUntil(s, 60*s.TPS(), func() bool { return d.State == Done })
 	if d.State != Done || !ship.Escaped {
 		t.Fatalf("drop %+v, ship escaped %v; want it to land and fly back out", d, ship.Escaped)
 	}
@@ -74,7 +74,7 @@ func TestTroopsLandedDuringARetreatRetreatToo(t *testing.T) {
 	s.Controllers = [2]Controller{}
 	s.Command(Attacker, Order{Kind: Land, Target: 0, Point: held})
 	s.Command(Attacker, Order{Kind: Retreat})
-	stepUntil(s, 120*TicksPerSecond, func() bool { return false })
+	stepUntil(s, 120*s.TPS(), func() bool { return false })
 	if !s.Drops[0].Landed {
 		t.Fatal("the Pelican never landed")
 	}
