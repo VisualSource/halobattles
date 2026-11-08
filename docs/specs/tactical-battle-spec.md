@@ -766,12 +766,12 @@ Built on [Command](#command). **Mockup first**, agreed before any of it is built
 
 ### Order of work
 
-1. Sim rate: 10 Hz, a goroutine per Battle.
-2. Fire: staggered members, target lock.
-3. Counters: the `counter` tier, the triangle, dropping Artillery, the roster retune, the duel matrix.
-4. 3D rules: the air layer, height, then line of sight.
-5. The Hard AI: 5a unit behaviours, 5b Commander tactics, 5c the Normal and Easy limits.
-6. RTS controls, mockup first, alongside any step.
+1. Sim rate: 10 Hz, a goroutine per Battle (#116).
+2. Fire: staggered members, target lock (#117).
+3. Counters: the `counter` tier, the triangle, dropping Artillery, the roster retune, the duel matrix (#118).
+4. 3D rules: the air layer, height, then line of sight (#119).
+5. The Hard AI: 5a unit behaviours (#120), 5b Commander tactics (#121), 5c the Normal and Easy limits (#122).
+6. RTS controls, mockup first, alongside any step (#123).
 
 Then balance against [Done when](#done-when).
 

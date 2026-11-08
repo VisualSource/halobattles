@@ -47,4 +47,4 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 
 ## Specs
 
-Long-lived specs live in `docs/specs/`. Link to them from issue bodies with full GitHub URLs (`https://github.com/VisualSource/halobattles/blob/master/docs/specs/...`), since relative links don't resolve in issues. `.scratch/` is gitignored and holds only the archived local-markdown wayfinding history.
+Long-lived specs live in `docs/specs/`. Link to them from issue bodies with full GitHub URLs (`https://github.com/VisualSource/halobattles/blob/v2/docs/specs/...`), since relative links don't resolve in issues. `.scratch/` is gitignored and holds only the archived local-markdown wayfinding history.
