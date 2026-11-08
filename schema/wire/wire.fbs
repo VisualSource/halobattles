@@ -740,7 +740,7 @@ table BattleTick {
   match_time: long;
   battle: uint32;
   planet: string;
-  tick: uint32;
+  tick: uint32;            // BattleView.tick as of the step that fired them
   volleys: [Volley];
 }
 

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -470,5 +471,43 @@ func TestSplitSquadsGoBackToTheirSlotTogether(t *testing.T) {
 	}
 	if st := s.Planets["b"].Stacks[0]; s.Planets["b"].Owner != Neutral || len(st) != 1 || st[0].Unit != "base:grunt" || st[0].Count < 1 {
 		t.Errorf("b's Stack %+v; want the surviving Grunts back in one slot", st)
+	}
+}
+
+// Two Battles at once step side by side, each in its own goroutine, and the
+// Match plays out the same every time. Run with -race (mise run test does).
+func TestTwoBattlesAtOnceStepInParallelTheSameEachRun(t *testing.T) {
+	run := func() string {
+		s, c := fixedMatch(t), lineContent()
+		d := s.Planets["d"] // a garrison on Seat 1's side too, for a second Battle
+		d.Stacks[0] = d.Stacks[0].add("base:grunt", 6, 0)
+		_ = s.OrderArmy(0, "a", marines(10), "b", 1)
+		_ = s.OrderArmy(1, "e", marines(10), "d", 1)
+		s.Advance(c, 30_000) // both arrive
+		if len(s.Battles) != 2 {
+			t.Fatalf("%d Battles, want 2", len(s.Battles))
+		}
+		var out strings.Builder
+		for at := int64(30_200); at <= 65_000; at += 200 { // the 30 s start delay, then 5 s of fighting
+			for _, bt := range s.Advance(c, at).Ticks {
+				fmt.Fprintf(&out, "%d@%d:%d ", bt.Battle.ID, bt.Tick, len(bt.Volleys))
+			}
+		}
+		if len(s.Battles) != 2 {
+			t.Fatalf("%d Battles still on after 5 s of fighting, want both", len(s.Battles))
+		}
+		for _, id := range slices.Sorted(maps.Keys(s.Battles)) {
+			b := s.Battles[id]
+			if b.Sim.Tick <= b.Sim.Setup {
+				t.Errorf("Battle %d at tick %d: never got past its setup of %d", id, b.Sim.Tick, b.Sim.Setup)
+			}
+			for _, sq := range b.Sim.Squads {
+				fmt.Fprintf(&out, "|%d:%d:%d", id, sq.ID, len(sq.Members))
+			}
+		}
+		return out.String()
+	}
+	if a, b := run(), run(); a != b {
+		t.Errorf("two runs of the same Match differ:\n%s\n%s", a, b)
 	}
 }

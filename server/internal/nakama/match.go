@@ -299,10 +299,10 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 		b := bt.Battle
 		rep := s.report(b.ID)
 		rep.fire(2, b, bt.Volleys)
-		s.logFire(b, bt.Volleys)
+		s.logFire(b, bt.Tick, bt.Volleys)
 		// Fire goes only to those with the Battle open; the rest get its damage in their summary.
 		if to := s.watchingIn(watchers, b.Planet); len(to) > 0 { // a Spectator sees both sides' fire
-			t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Tick: uint32(b.Sim.Tick), Volleys: volleys(bt.Volleys)}
+			t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Tick: uint32(bt.Tick), Volleys: volleys(bt.Volleys)}
 			s.sendToPresences(logger, dispatcher, wire.OpBattleTick, finish(t), to)
 		}
 		for side, seat := range map[battle.Side]int{battle.Attacker: b.Attacker, battle.Defender: b.Defender} {
@@ -313,7 +313,7 @@ func (s *matchState) advance(logger runtime.Logger, dispatcher runtime.MatchDisp
 			rep.fire(int(side), b, vs)
 			// The side's Teammates watch it as that side does.
 			if to := s.watchingIn(s.presencesOf(s.team(seat)), b.Planet); len(to) > 0 {
-				t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Tick: uint32(b.Sim.Tick), Volleys: volleys(vs)}
+				t := &wire.BattleTickT{MatchTime: s.play.Time, Battle: b.ID, Planet: b.Planet, Tick: uint32(bt.Tick), Volleys: volleys(vs)}
 				s.sendToPresences(logger, dispatcher, wire.OpBattleTick, finish(t), to)
 			}
 		}

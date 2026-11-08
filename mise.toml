@@ -113,7 +113,7 @@ run = "pnpm -C client preview"
 [tasks.test]
 description = "Go and client tests"
 depends = ["gen"]                                           # gen rewrites the embedded schemas, so it can't run alongside
-run = ["cd server && go test ./...", "pnpm -C client test"]
+run = ["cd server && go test ./...", "cd server && go test -race -run TestTwoBattlesAtOnce ./internal/game", "pnpm -C client test"]
 
 [tasks."mods:check"]
 description = "Validate the base Mod with halo-mod"

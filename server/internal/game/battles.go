@@ -43,6 +43,7 @@ type Battle struct {
 // BattleTick is one sim tick's volleys in a Battle.
 type BattleTick struct {
 	Battle  *Battle
+	Tick    int // the Sim's Tick just after the step that fired them, as a view counts it
 	Volleys []battle.Volley
 }
 
@@ -174,7 +175,7 @@ func (s *State) fightBattles(c *cs.Content, now int64, ev *Events) {
 			// Setup ticks run before Started, the first fighting tick.
 			for !b.Sim.Over && b.Started+int64(b.Sim.Tick+1-b.Sim.Setup)*1000/int64(b.Sim.TPS()) <= now {
 				if vs := b.Sim.Step(); len(vs) > 0 {
-					ticks[i] = append(ticks[i], BattleTick{Battle: b, Volleys: vs})
+					ticks[i] = append(ticks[i], BattleTick{Battle: b, Tick: b.Sim.Tick, Volleys: vs})
 				}
 			}
 		})

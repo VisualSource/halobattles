@@ -286,7 +286,7 @@ func (s *matchState) logEvents(ev game.Events) {
 
 // logFire logs, with the Battle AI trace on, each squad's change of fire
 // target: the sim picks one each volley, so a squad that keeps switching shows.
-func (s *matchState) logFire(b *game.Battle, vs []battle.Volley) {
+func (s *matchState) logFire(b *game.Battle, tick int, vs []battle.Volley) {
 	if s.log == nil || !s.log.battleAI {
 		return
 	}
@@ -300,7 +300,7 @@ func (s *matchState) logFire(b *game.Battle, vs []battle.Volley) {
 		}
 		last[v.Actor] = v.Target
 		sq := b.Sim.Squads[v.Actor-1]
-		s.log.write("battleAI", s.play.Time, battleFire{b.ID, [...]string{"attacker", "defender"}[sq.Side], b.Sim.Tick, v.Actor, sq.Unit, v.Target})
+		s.log.write("battleAI", s.play.Time, battleFire{b.ID, [...]string{"attacker", "defender"}[sq.Side], tick, v.Actor, sq.Unit, v.Target})
 	}
 }
 
