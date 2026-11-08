@@ -163,7 +163,7 @@ func TestAShooterIsSeenByTheSideItFiresOnUntilItsFlashFades(t *testing.T) {
 	if !s.visible[Attacker][tur.ID] || a.hitBy != tur.ID {
 		t.Errorf("visible %v, hit by %d; want the turret seen and known as the shooter", s.visible[Attacker][tur.ID], a.hitBy)
 	}
-	tur.cooldown = 1 << 30 // it stops firing
+	tur.Armed = false // it stops firing
 	for range s.ticks(flashSeconds) + 1 {
 		s.Step()
 	}

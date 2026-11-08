@@ -320,8 +320,51 @@ func TestFireGoesForTheTargetAFriendIsAlreadyHitting(t *testing.T) {
 		t.Errorf("the Marines fire at squad %d; want %d, which a friend is already hitting, over the nearer %d", got.ID, far.ID, near.ID)
 	}
 	s.Tick += 2 * underFireSeconds * s.TPS() // long ago now
+	marines.locked = 0                       // a fresh pick, not the lock
 	if got := s.targetOf(marines); got != near {
 		t.Errorf("the Marines fire at squad %d; want the nearer %d once the friend's fire is old", got.ID, near.ID)
+	}
+}
+
+// Target lock: a squad keeps the target it picked while it can hit it, even
+// when a better pick comes along. The lock ends once the target is out of
+// reach, an order changes it, or it dies.
+func TestASquadKeepsTheTargetItLockedOnTo(t *testing.T) {
+	s, marines, near, far := focusSim(t)
+	if got := s.targetOf(marines); got != near {
+		t.Fatalf("first pick %d, want the nearer %d", got.ID, near.ID)
+	}
+	far.Members = far.Members[:1] // now the better pick: fewest left
+	if got := s.targetOf(marines); got != near {
+		t.Errorf("switched to %d; want it to keep %d, its lock", got.ID, near.ID)
+	}
+
+	nearAt, farAt := near.Cell, far.Cell
+	freeAt(t, s, near, marines.Cell, 30) // both out of range
+	freeAt(t, s, far, marines.Cell, 30)
+	s.see()
+	if got := s.targetOf(marines); got != nil {
+		t.Fatalf("fires at %d with nothing in range", got.ID)
+	}
+	s.relocate(near, nearAt) // both back
+	s.relocate(far, farAt)
+	s.see()
+	if got := s.targetOf(marines); got != far {
+		t.Errorf("fires at %d; want the lock on %d gone once it left range, and the better pick %d", got.ID, near.ID, far.ID)
+	}
+
+	near.Members = near.Members[:1] // as good a pick as far now, and nearer
+	if got := s.targetOf(marines); got != far {
+		t.Fatalf("switched to %d; want it to keep its lock on %d", got.ID, far.ID)
+	}
+	s.apply(Attacker, Order{Kind: Hold, Squad: marines.ID})
+	if got := s.targetOf(marines); got != near {
+		t.Errorf("after a Hold order it fires at %d; want a fresh pick, %d", got.ID, near.ID)
+	}
+
+	near.Members = nil // its lock dies: on to the next
+	if got := s.targetOf(marines); got != far {
+		t.Errorf("after its target died it fires at %d; want %d", got.ID, far.ID)
 	}
 }
 

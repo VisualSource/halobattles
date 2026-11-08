@@ -130,12 +130,12 @@ type Squad struct {
 	speed, reach, minRange float64
 	sight                  float64
 	fireTicks              int
-	cooldown               int
 	bank                   float64 // movement saved up toward the next cell
 	pace                   float64 // the most it moves a second on its current order, or 0 for its speed
 	path                   []Cell
 	goal                   Cell
 	target                 int // an ordered target's id, or 0
+	locked                 int // the target it picked itself, kept while it can hit it, or 0
 	blocked                int // ticks spent waiting for a cell
 	retreating             bool
 	attackMove             bool     // on an Attack-move: it stops while it has something to hit
@@ -643,13 +643,14 @@ func (s *Sim) apply(side Side, o Order) {
 		sq.goal, sq.blocked, sq.pace, sq.attackMove = o.Cell, 0, o.Pace, o.Kind == AttackMove
 		sq.path = s.Field.path(s.costsFor(sq.class), sq.Cell, o.Cell, nil)
 	case Attack:
+		sq.locked = 0
 		if o.Target == 0 {
 			sq.target = 0 // back to the sim's own pick
 		} else if t := s.squad(o.Target); t != nil && t.Side != side {
 			sq.target = t.ID
 		}
 	case Hold:
-		sq.path, sq.target, sq.attackMove = nil, 0, false
+		sq.path, sq.target, sq.locked, sq.attackMove = nil, 0, 0, false
 	}
 }
 
@@ -896,10 +897,11 @@ func (s *Sim) canHit(actor, target *Squad) bool {
 	return d <= actor.reach && d >= actor.minRange
 }
 
-// targetOf is the ordered target if it can be hit, or else the visible enemy
-// in range that fires back (an armed one) before one that doesn't, then with
-// the best tier, then one its side has hit lately (focus fire), then the
-// fewest members left, then the nearest, then the lowest id. A Dropship in
+// targetOf is the ordered target if it can be hit, or else the one it locked
+// on to if it still can, or else the visible enemy in range that fires back
+// (an armed one) before one that doesn't, then with the best tier, then one
+// its side has hit lately (focus fire), then the fewest members left, then
+// the nearest, then the lowest id, which it then locks on to. A Dropship in
 // reach of anti-air comes before all of that.
 func (s *Sim) targetOf(sq *Squad) *Squad {
 	if t := s.dropshipFor(sq); t != nil {
@@ -908,6 +910,10 @@ func (s *Sim) targetOf(sq *Squad) *Squad {
 	if t := s.squad(sq.target); t != nil && s.canHit(sq, t) {
 		return t
 	}
+	if t := s.squad(sq.locked); t != nil && s.canHit(sq, t) {
+		return t // target lock: it doesn't switch to a better pick mid-fight
+	}
+	sq.locked = 0 // gone or out of reach: the lock ends, even with nothing else to pick
 	// Only the other side fires on t, so any recent hit is a friend's.
 	notHit := func(t *Squad) int {
 		if t.hitBy != 0 && s.Tick-t.hitAt <= underFireSeconds*s.TPS() {
@@ -936,7 +942,24 @@ func (s *Sim) targetOf(sq *Squad) *Squad {
 			best = t // squads are in id order, so a tie keeps the lower id
 		}
 	}
+	if best != nil {
+		sq.locked = best.ID
+	}
 	return best
+}
+
+// due is how many of sq's members fire this tick. Each fires once a fire
+// interval, at its own point in it, spread evenly by its place in the
+// squad's line-up (the dead go from the front), with squads offset by id:
+// fire comes as a stream, not a whole squad at once.
+func (s *Sim) due(sq *Squad) int {
+	n, lost := 0, max(0, sq.Start-len(sq.Members))
+	for j := range sq.Members {
+		if (s.Tick+sq.ID+(lost+j)*sq.fireTicks/max(sq.Start, 1))%sq.fireTicks == 0 {
+			n++
+		}
+	}
+	return n
 }
 
 // toHitMod is the To-hit modifier from terrain: the target's cover and the
@@ -960,7 +983,7 @@ type Volley struct {
 	ShieldDmg, ArmorDmg, HPDmg float64
 }
 
-// fire lets every armed squad whose fire interval is up shoot. A squad
+// fire lets every armed squad's members whose time it is shoot. A squad
 // killed earlier in the tick doesn't fire.
 func (s *Sim) fire() []Volley {
 	if s.setup() {
@@ -971,8 +994,8 @@ func (s *Sim) fire() []Volley {
 		if !sq.alive() || !sq.Armed || sq.retreating {
 			continue
 		}
-		if sq.cooldown > 0 {
-			sq.cooldown--
+		shots := s.due(sq)
+		if shots == 0 {
 			continue
 		}
 		t := s.targetOf(sq)
@@ -984,7 +1007,7 @@ func (s *Sim) fire() []Volley {
 		sq.flashUntil = s.Tick + s.ticks(flashSeconds)
 		s.visible[t.Side][sq.ID] = true // seen from this volley on, so it's no unknown shooter
 		t.hitBy, t.hitAt = sq.ID, s.Tick
-		for range sq.Members {
+		for range shots {
 			if !t.alive() {
 				break
 			}
@@ -1002,7 +1025,6 @@ func (s *Sim) fire() []Volley {
 				v.Kills++
 			}
 		}
-		sq.cooldown = sq.fireTicks - 1
 		out = append(out, v)
 	}
 	for _, sq := range s.Squads {

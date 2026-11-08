@@ -271,7 +271,9 @@ func TestCoverAndHighGroundChangeTheToHitRoll(t *testing.T) {
 	}
 }
 
-func TestEveryMemberShoots(t *testing.T) {
+// Every member shoots once a fire interval, spread over it rather than all
+// at once.
+func TestEveryMemberShootsOnceAnIntervalInTurn(t *testing.T) {
 	c := baseContent(t)
 	unsc, cov := kits()
 	s := newSim(c, unsc, cov, 3)
@@ -287,10 +289,52 @@ func TestEveryMemberShoots(t *testing.T) {
 		return to.X >= 0 && to.Y >= 0 && to.X < s.Field.W && to.Y < s.Field.H && s.costsFor(d.class)[s.Field.index(to)] > 0
 	})
 	s.relocate(d, a.Cell.add(steps[near]))
+	for _, sq := range []*Squad{a, d} {
+		for i := range sq.Members {
+			sq.Members[i].HP = 1e9 // nobody dies: every Marine keeps shooting
+		}
+	}
 	s.see()
-	vs := s.fire()
-	if len(vs) == 0 || vs[0].Actor != a.ID || vs[0].Shots != 10 {
-		t.Errorf("volleys %+v, want the Marines' first with 10 shots", vs)
+	ft := a.fireTicks
+	interval := func(die int) []int { // shots at each tick of one interval; die: the tick the front Marine dies, or -1
+		shots := make([]int, ft)
+		for k := range ft {
+			if k == die {
+				a.Members = a.Members[1:] // hits land on the front member
+			}
+			for _, v := range s.fire() {
+				if v.Actor == a.ID {
+					shots[k] += v.Shots
+				}
+			}
+			s.Tick++
+		}
+		return shots
+	}
+	sum := func(xs []int) (n int) {
+		for _, x := range xs {
+			n += x
+		}
+		return
+	}
+	full := interval(-1)
+	if sum(full) != 10 || slices.Max(full) > 2 {
+		t.Errorf("the 10 Marines fired %v over one interval; want 10 shots, spread out", full)
+	}
+	// One dies: the survivors keep their turns. Only the front Marine's turn
+	// (the squad's first, a.ID ticks before an interval starts) goes quiet.
+	interval(ft / 2)
+	front := (ft - (s.Tick+a.ID)%ft) % ft
+	after := interval(-1)
+	for k := range ft {
+		want := full[k]
+		if k == front {
+			want--
+		}
+		if after[k] != want {
+			t.Errorf("after the front Marine died: shots by tick %v, want %v less one at tick %d", after, full, front)
+			break
+		}
 	}
 }
 

@@ -135,9 +135,10 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 ### Firing
 
-- A Squad fires when its `fireInterval` has run down, it has a target, and that target is visible to its side and in range.
-- **Target:** the Controller's `attack` target if it has one. Otherwise the Squad picks a visible enemy in range that it can target (tier not `none`): the best tier first, then one its side has fired on in the last 3 s (**focus fire**, so squads finish targets together), then the fewest members left, then the nearest, then the lowest id. This applies to every side, players included. In the Starting Kit balance test it moved attacker wins from 49% / 50% to 43% / 46%. In the big three-Stack case (#40) it moved them from 64% / 54% to 59% / 50%.
-- **A volley:** every living member makes its own attack against the target Squad. Each attack is the usual To-hit roll and, on a hit, the Damage roll, with Advantage or Disadvantage from the tier.
+- **Each member fires on its own turn** (#117): once every `fireInterval`, at its own point in it, spread evenly by its place in the squad's line-up (the dead go from the front), and squads are offset by id. So a squad's fire comes as a steady stream, not all at once; damage per second is as it was. A member fires when its turn comes, its squad has a target, and that target is visible to its side and in range; a turn with no target is lost, not saved.
+- **Target lock:** a squad keeps the target it picked (below) while it can hit it: until it dies or leaves range or Sight. An Attack or Hold order clears the lock; a Move doesn't, so a squad keeps firing at its target on the move. An ordered target (a player's Attack, a Task Force's one target) comes before the lock.
+- **Target:** the Controller's `attack` target if it has one, then its locked target. Otherwise the Squad picks a visible enemy in range that it can target (tier not `none`): the best tier first, then one its side has fired on in the last 3 s (**focus fire**, so squads finish targets together), then the fewest members left, then the nearest, then the lowest id. This applies to every side, players included. In the Starting Kit balance test it moved attacker wins from 49% / 50% to 43% / 46%. In the big three-Stack case (#40) it moved them from 64% / 54% to 59% / 50%.
+- **A volley** is the members of one squad firing in one tick, each making its own attack against the target Squad; the client draws it as a tracer. Each attack is the usual To-hit roll and, on a hit, the Damage roll, with Advantage or Disadvantage from the tier.
 - **To-hit modifiers**, added to each d20 roll (after Advantage or Disadvantage picks it) and then compared with `toHit`:
   - +2 for high ground ([Height](#height));
   - the target cell's Terrain `cover`.
@@ -648,12 +649,6 @@ The playtest complaints become tests:
 
 The balance test stays skipped while v4 is built (`HALO_BALANCE=1` measures it), as it was for v3; balance is tuned once, after the last step.
 
-### Fire (step 2)
-
-- **Staggered members:** each member of a squad fires on its own `fireInterval` timer, offset from the others by an even share of the interval, so a squad's fire reads as a steady stream rather than one volley. A shot is followed by the pause, as in Halo Wars 2; there's no burst mechanic. Damage per second is unchanged.
-- **Target lock:** a squad keeps its target until the target dies, leaves its range or Sight, or an order changes it. Automatic target picking ([Firing](#firing)) chooses only when there's no locked target. A Task Force's one target and an `attack` order both set the lock.
-- The client draws a tracer per member's shot.
-
 ### Counters (step 3)
 
 - **A fifth tier, `counter`:** Advantage on the To-hit roll, and the Damage roll's dice rolled twice and added (a Marine's 1d4 becomes 2d4), like a D&D critical. It reads plainly in a log ("rolled 2d4 = 6") and keeps [ADR 0003](../adr/0003-dice-damage.md)'s rule against multipliers. `advantage`, `normal`, `disadvantage` and `none` are unchanged.
@@ -700,7 +695,7 @@ Facing and turn time for vehicles are left out: more micro, not more fun.
 The Battle AI is rebuilt as one **Hard** AI. Normal and Easy are the same AI with limits ([step 5c](#difficulty-step-5c)), the way Halo Wars 2 scales its tables down from Legendary; none has a stat bonus. Hard fixes:
 
 - **Masses before going in:** the attacker commits together instead of sending 2 squads to the Command Post and the rest touring pads, then arriving a squad at a time (#109).
-- **Target lock** ([step 2](#fire-step-2)).
+- **Target lock** (built, see [Firing](#firing)).
 - **No relentless chase:** it stops pursuing a target that's been out of its range for 6 s.
 - **No flip-flopping:** a squad or force that fell back won't go in again for 5 s.
 - **Matchups count:** with real counters, the Commander's matchup scaling rises from ×1.15 / ×0.9 to about ×1.5 / ×0.6, measured against the balance band.
@@ -758,7 +753,7 @@ Built on [Command](#command). **Mockup first**, agreed before any of it is built
 ### Order of work
 
 1. ~~Sim rate: 10 Hz, a goroutine per Battle~~ (#116): now in [Time and movement](#time-and-movement).
-2. Fire: staggered members, target lock (#117).
+2. ~~Fire: staggered members, target lock~~ (#117): now in [Firing](#firing).
 3. Counters: the `counter` tier, the triangle, dropping Artillery, the roster retune, the duel matrix (#118).
 4. 3D rules: the air layer, height, then line of sight (#119).
 5. The Hard AI: 5a unit behaviours (#120), 5b Commander tactics (#121), 5c the Normal and Easy limits (#122).
