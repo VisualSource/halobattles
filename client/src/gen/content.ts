@@ -674,6 +674,10 @@ export interface Unit {
    */
   description?: string;
   /**
+   * A Battle balance tag: units of one peer group (e.g. basic infantry: the Marine, Grunt, Promethean Soldier and Aggressor Sentinel) are each other's equals across Factions, and should fight each other to about even. The duel matrix checks only units with one.
+   */
+  peerGroup?: string;
+  /**
    * A sentence or two on how to use it, shown in its info popover under the description.
    */
   tactics?: string;
@@ -751,7 +755,7 @@ export interface Combat {
    */
   range?: number;
   /**
-   * Closest it fires, in cells (artillery). Defaults to 0.
+   * Closest it fires, in cells (artillery: a long range and a minRange). Defaults to 0.
    */
   minRange?: number;
   /**
@@ -763,10 +767,13 @@ export interface Combat {
    */
   sight?: number;
   /**
-   * Per Unit Class id, how this attacker rolls against it: advantage rolls the to-hit and damage twice and keeps the higher, disadvantage keeps the lower, none can't target it.
+   * Per Unit Class id, how this attacker rolls against it (see tier). A class left out takes this attacker's Unit Class default (its tiers), else normal.
    */
   tiers?: {
-    [k: string]: "advantage" | "normal" | "disadvantage" | "none";
+    /**
+     * How an attacker rolls against a Unit Class: counter rolls the to-hit with advantage and the damage dice twice, added; advantage rolls the to-hit and damage twice and keeps the higher, disadvantage keeps the lower, none can't target it.
+     */
+    [k: string]: "counter" | "advantage" | "normal" | "disadvantage" | "none";
   };
 }
 /**
@@ -890,6 +897,15 @@ export interface UnitClass {
    * The most members one squad of this class has in a Battle: a Unit Slot with more fights as several squads. Defaults to no limit, one squad per Unit Slot.
    */
   squadSize?: number;
+  /**
+   * Default tiers for attackers of this class, per Unit Class id: an attacker's own tiers override them (see combat.tiers).
+   */
+  tiers?: {
+    /**
+     * How an attacker rolls against a Unit Class: counter rolls the to-hit with advantage and the damage dice twice, added; advantage rolls the to-hit and damage twice and keeps the higher, disadvantage keeps the lower, none can't target it.
+     */
+    [k: string]: "counter" | "advantage" | "normal" | "disadvantage" | "none";
+  };
   /**
    * Its part in a Battle AI Task Force: lead (goes in first, ahead of the rest), follow (keeps behind the leaders) or hunt (goes for enemies it fights at a better tier than the rest of the force). Defaults to follow.
    */

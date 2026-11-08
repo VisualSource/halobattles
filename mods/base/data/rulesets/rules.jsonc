@@ -114,12 +114,6 @@
         "range": 8,
         "fireInterval": 2,
         "sight": 10
-      },
-      "artillery": {
-        "speed": 1.5,
-        "range": 5,
-        "fireInterval": 6,
-        "sight": 15
       }
     }
   }

@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "elite",
   "name": "Elite",
+  "peerGroup": "elite-infantry",
   "faction": "covenant",
   "description": "Shielded Covenant warriors whose explosive weapons break vehicles and buildings. Against infantry they fare worse.",
   "tactics": "Elite infantry that breaks vehicles and buildings, and can Raid. Pair them with Grunts, since other infantry is their weakness.",
@@ -15,8 +16,12 @@
     "weaponType": "explosive",
     "shield": 10,
     "armor": 0,
-    "hp": 10,
+    "hp": 14,
     "damage": "2d6",
-    "tiers": { "infantry": "disadvantage", "vehicle": "advantage", "aircraft": "normal", "structure": "advantage" }
+    "tiers": {
+      "vehicle": "counter",
+      "infantry": "disadvantage",
+      "structure": "advantage"
+    }
   }
 }

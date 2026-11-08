@@ -15,9 +15,7 @@
     "hp": 10,
     "damage": "1d4",
     "tiers": {
-      "aircraft": "disadvantage",
-      "artillery": "normal",
-      "structure": "advantage",
+      "structure": "counter",
       "vehicle": "disadvantage"
     }
   }

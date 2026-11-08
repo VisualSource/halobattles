@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "protector-sentinel",
   "name": "Protector Sentinel",
+  "peerGroup": "gunship",
   "faction": "forerunner",
   "cost": {
     "materials": 200,
@@ -9,20 +10,14 @@
     "credits": 50
   },
   "buildTime": 50,
-  "commandPoints": 3,
+  "commandPoints": 4,
   "combat": {
     "unitClass": "aircraft",
     "weaponType": "laser",
-    "shield": 12,
-    "armor": 0,
-    "hp": 16,
-    "damage": "1d6",
-    "tiers": {
-      "infantry": "normal",
-      "vehicle": "advantage",
-      "aircraft": "normal",
-      "structure": "normal"
-    }
+    "shield": 13,
+    "armor": 5,
+    "hp": 20,
+    "damage": "2d6"
   },
   "description": "The Protector is one of the oldest classes of Sentinel built by the Forerunners, originally used by the Forerunner fleet in vast fleets as escorts for fighter-bomber squadrons. Over time, their role evolved to suit localised defence, leading to their deployment on a range of installations including Installation 00.",
   "tactics": "A Sentinel aircraft that hunts vehicles. Bring anti-air.",

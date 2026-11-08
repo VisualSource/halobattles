@@ -89,6 +89,7 @@ func Load(dirs []string) (*Content, error) {
 	}
 	doc, sources := l.merge(mods)
 	l.resolveVariants(doc["units"])
+	classTiers(doc)
 
 	// A definition that fails its schema is dropped, and references to it
 	// aren't reported again as unknown.

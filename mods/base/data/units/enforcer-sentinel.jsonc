@@ -2,9 +2,10 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "enforcer-sentinel",
   "name": "Enforcer Sentinel",
+  "peerGroup": "heavy-vehicle",
   "faction": "forerunner",
   "description": "Enforcer Sentinels are variant of large combat Sentinel designed by the Forerunners. They are primarily tasked with key defensive missions and may coordinate local Sentinel activity around security breaches and within Flood containment areas, isolating, containing, or otherwise eliminating any hostile presence.",
-  "tactics": "A heavy Sentinel that crushes vehicles. Clear it with infantry.",
+  "tactics": "A heavy Sentinel that crushes vehicles. It can't hit aircraft: clear it from the air, or with infantry.",
   "buildTime": 25,
   "commandPoints": 3,
   "cost": {},
@@ -12,14 +13,13 @@
     "unitClass": "vehicle",
     "weaponType": "explosive",
     "shield": 15,
-    "armor": 0,
-    "hp": 25,
-    "damage": "2d4",
+    "armor": 22,
+    "hp": 34,
+    "damage": "4d6",
     "tiers": {
+      "vehicle": "counter",
       "infantry": "disadvantage",
-      "vehicle": "advantage",
-      "aircraft": "normal",
-      "structure": "normal"
+      "aircraft": "none"
     }
   }
 }

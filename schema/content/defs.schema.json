@@ -2,6 +2,10 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Shared definitions",
   "definitions": {
+    "tier": {
+      "description": "How an attacker rolls against a Unit Class: counter rolls the to-hit with advantage and the damage dice twice, added; advantage rolls the to-hit and damage twice and keeps the higher, disadvantage keeps the lower, none can't target it.",
+      "enum": ["counter", "advantage", "normal", "disadvantage", "none"]
+    },
     "id": {
       "description": "A content id, `mod:id`. Without a prefix it resolves to the Mod that writes it. ASCII only, so Go and JS sort ids the same way.",
       "type": "string",
@@ -176,14 +180,14 @@
         },
         "speed": { "description": "Cells per second; defaults from the Ruleset's battle.classDefaults.", "type": "number", "minimum": 0 },
         "range": { "description": "Farthest it fires, in cells; defaults from battle.classDefaults.", "type": "number", "exclusiveMinimum": 0 },
-        "minRange": { "description": "Closest it fires, in cells (artillery). Defaults to 0.", "type": "number", "minimum": 0 },
+        "minRange": { "description": "Closest it fires, in cells (artillery: a long range and a minRange). Defaults to 0.", "type": "number", "minimum": 0 },
         "fireInterval": { "description": "Seconds between volleys; defaults from battle.classDefaults.", "type": "number", "exclusiveMinimum": 0 },
         "sight": { "description": "Sight radius in cells; defaults from battle.classDefaults.", "type": "number", "exclusiveMinimum": 0 },
         "tiers": {
-          "description": "Per Unit Class id, how this attacker rolls against it: advantage rolls the to-hit and damage twice and keeps the higher, disadvantage keeps the lower, none can't target it.",
+          "description": "Per Unit Class id, how this attacker rolls against it (see tier). A class left out takes this attacker's Unit Class default (its tiers), else normal.",
           "type": "object",
           "propertyNames": { "$ref": "#/definitions/id" },
-          "additionalProperties": { "enum": ["advantage", "normal", "disadvantage", "none"] }
+          "additionalProperties": { "$ref": "#/definitions/tier" }
         }
       }
     }

@@ -16,9 +16,8 @@
     "damage": "1d4",
     "tiers": {
       "aircraft": "none",
-      "structure": "disadvantage",
-      "vehicle": "disadvantage",
-      "infantry": "disadvantage"
+      "infantry": "disadvantage",
+      "structure": "disadvantage"
     }
   },
   "roles": ["scout"],

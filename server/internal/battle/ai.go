@@ -60,7 +60,7 @@ const (
 // matchup scales a kill or raid goal by the squad's tier against the
 // target, so squads go after what they're good against. Kept mild: at 1.5 and
 // 0.6 the attacker, free to pick its fights, won 75% of Starting Kit Battles.
-var matchup = map[string]float64{Advantage: 1.15, Normal: 1, Disadvantage: 0.9}
+var matchup = map[string]float64{Counter: 1.15, Advantage: 1.15, Normal: 1, Disadvantage: 0.9} // step 5 of v4 (#120) tunes these
 
 // goal is what the Commander gives a squad: a place, and for kill and raid
 // the target's id.

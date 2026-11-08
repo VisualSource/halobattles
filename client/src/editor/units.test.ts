@@ -63,4 +63,35 @@ describe("The unit card's content", () => {
     expect(content.units.get("muz")?.combat).toEqual(combat);
     expect(() => rosterMax(content)).not.toThrow();
   });
+
+  it("lays a unit's own tiers over its Unit Class's, as the loader does", () => {
+    const combat = {
+      unitClass: "infantry",
+      tiers: { structure: "disadvantage", vehicle: "counter" },
+    };
+    const odst = { id: "odst", combat, damage: "2d6" };
+    const content = lookups(
+      {
+        units: [{ file: "odst", value: odst }],
+        unitClasses: [
+          {
+            file: "infantry",
+            value: {
+              id: "infantry",
+              tiers: { aircraft: "advantage", vehicle: "disadvantage" },
+            },
+          },
+        ],
+        weaponTypes: [],
+        resources: [],
+        rulesets: [],
+      } as unknown as Content,
+      odst as never,
+    );
+    expect(content.units.get("odst")?.combat?.tiers).toEqual({
+      aircraft: "advantage",
+      vehicle: "counter",
+      structure: "disadvantage",
+    });
+  });
 });

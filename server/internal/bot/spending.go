@@ -331,7 +331,7 @@ func (b *Bot) buildLab(t *turn, _ goal) *Command     { return b.queue(t, b.labTo
 
 // tierWorth is what an Advantage tier makes a unit worth against a Unit
 // Class; one missing from tiers is normal.
-var tierWorth = map[cs.CombatTiersValue]float64{"": 1, "normal": 1, "advantage": 1.5, "disadvantage": 0.6, "none": 0}
+var tierWorth = map[cs.Tier]float64{"": 1, "normal": 1, "counter": 2, "advantage": 1.5, "disadvantage": 0.6, "none": 0}
 
 // matchup is what a combatant's tiers make it worth against these
 // numbers of each Unit Class: 1 against none.

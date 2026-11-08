@@ -2,24 +2,19 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "promethean-soldier",
   "name": "Promethean Soldier",
+  "peerGroup": "basic-infantry",
   "faction": "forerunner",
   "description": "Soldiers are the baseline classification of armiger developed by the Forerunners for use in war.",
-  "tactics": "Basic Promethean infantry: vehicles and aircraft beat it.",
+  "tactics": "Basic Promethean infantry: vehicles beat it, and it holds its own against aircraft.",
   "buildTime": 25,
   "commandPoints": 1,
   "cost": {},
   "combat": {
     "unitClass": "infantry",
     "weaponType": "hard-light",
-    "shield": 6,
-    "armor": 0,
-    "hp": 10,
-    "damage": "1d6",
-    "tiers": {
-      "infantry": "normal",
-      "vehicle": "disadvantage",
-      "aircraft": "disadvantage",
-      "structure": "normal"
-    }
+    "shield": 3,
+    "armor": 1,
+    "hp": 8,
+    "damage": "1d6"
   }
 }

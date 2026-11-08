@@ -1,12 +1,6 @@
 import type { Session } from "@heroiclabs/nakama-js";
 import { cn } from "cn";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { useHideHeader } from "../backdrop";
 import type { ContentLookups } from "../content";
@@ -39,6 +33,8 @@ import {
   type LabSide,
   type Thinking,
 } from "./connection";
+import { DuelsTab } from "./duels";
+import { Segmented } from "./segmented";
 
 // The Battle Lab (docs/specs/tactical-battle-spec.md#the-battle-lab): a dev
 // page for setting up a Battle, running and stepping it, and seeing what each
@@ -97,6 +93,7 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [editLayout, setEditLayout] = useState(false);
   const [view, setView] = useState<"2d" | "3d">("2d");
+  const [tab, setTab] = useState<"battle" | "duels">("battle");
   // A new layout rebuilds the Battle on it, paused at the start.
   const relayout = (layout: LabSetup["layout"]) => {
     const next = { ...setup, layout };
@@ -111,8 +108,24 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
   }
   return (
     <div className="bg-ground text-ink flex h-screen flex-col text-sm">
-      <Header conn={conn} content={content} setup={setup} />
-      <div className="flex min-h-0 flex-1">
+      <Header
+        conn={conn}
+        content={content}
+        setup={setup}
+        tab={tab}
+        onTab={setTab}
+      />
+      {tab === "duels" && (
+        <DuelsTab
+          conn={conn}
+          content={content}
+          onPlay={(a, b) => {
+            conn.duel(a, b, 0);
+            setTab("battle");
+          }}
+        />
+      )}
+      <div className={cn("flex min-h-0 flex-1", tab === "duels" && "hidden")}>
         <SetupPanel
           content={content}
           setup={setup}
@@ -311,31 +324,6 @@ const nameOf = (content: ContentLookups, id: string) =>
   content.buildings.get(id)?.name ??
   id;
 
-function Segmented<T extends string | number>(props: {
-  value: T;
-  options: [T, ReactNode][];
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="border-edge flex overflow-hidden rounded-md border">
-      {props.options.map(([v, label]) => (
-        <button
-          key={String(v)}
-          type="button"
-          aria-pressed={props.value === v}
-          onClick={() => props.onChange(v)}
-          className={cn(
-            "min-h-8 rounded-none border-0 px-2.5",
-            props.value === v ? "bg-accent-wash text-accent" : "bg-transparent",
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /** "1:05" */
 const clock = (s: number) =>
   `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
@@ -344,6 +332,8 @@ function Header(props: {
   conn: LabConnection;
   content: ContentLookups;
   setup: LabSetup;
+  tab: "battle" | "duels";
+  onTab: (tab: "battle" | "duels") => void;
 }) {
   const { conn, content, setup } = props;
   const st = useStore(conn.store);
@@ -389,6 +379,14 @@ function Header(props: {
           DEV
         </span>
       </div>
+      <Segmented
+        value={props.tab}
+        options={[
+          ["battle", "Battle"],
+          ["duels", "Duels"],
+        ]}
+        onChange={props.onTab}
+      />
       <span aria-hidden="true" className="bg-line h-6 w-px" />
       <span className="text-ink-3">
         {name(setup.sides[0].faction)} attacks {name(setup.sides[1].faction)} ·
@@ -443,7 +441,10 @@ function Header(props: {
         </span>
         <span className="text-ink-3 text-[11px]">
           tick {st.tick}
-          {st.over && ` · over: ${st.winner} wins (${st.reason})`}
+          {st.over &&
+            (st.reason === "draw"
+              ? " · over: a draw"
+              : ` · over: ${st.winner} wins (${st.reason})`)}
         </span>
       </div>
       <label className={cn(button, "flex cursor-pointer items-center")}>

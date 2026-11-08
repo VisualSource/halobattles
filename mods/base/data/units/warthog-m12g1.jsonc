@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit-variant.schema.json",
   "id": "warthog-m12g1",
   "name": "M12G1 Gauss Warthog",
+  "peerGroup": null, // a placeholder: out of the duel matrix till it's statted
   "variantOf": "warthog",
   // Placeholder stats: kept off the Vehicle Depot until they are balanced.
   "trainable": false,

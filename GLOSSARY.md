@@ -212,6 +212,10 @@ _Avoid_: Weak, penalty
 An attacker's hard edge against a Unit Class, stronger than Advantage: it rolls the To-hit roll with Advantage and the Damage roll's dice twice, added together.
 _Avoid_: Hard counter, strong
 
+**Peer group**:
+The units that are each other's equals across Factions (e.g. basic infantry: the Marine, Grunt, Promethean Soldier and Aggressor Sentinel), which should fight each other to about even.
+_Avoid_: Tier (that's how an attacker rolls against a Unit Class), level, rank
+
 **Behaviour**:
 A unit's way of fighting in a Battle, set in its content and followed by its Squad's planner (e.g. `hangBack` for artillery, `escort` for anti-air).
 _Avoid_: Role (a role is a job the Commander gives a Squad, e.g. scout), stance, AI weight

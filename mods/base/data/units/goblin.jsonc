@@ -13,10 +13,7 @@
     "shield": 0,
     "armor": 0,
     "hp": 10,
-    "damage": "1d4",
-    "tiers": {
-      "infantry": "advantage"
-    }
+    "damage": "1d4"
   },
   "description": "he Pnap-pattern Battlesuit, commonly known to humanity as the Goblin is a battlesuit built for Unggoy, by Unggoy, on their homeworld of Balaho. The Goblin's designers agreed that it was the perfect embodiment of agility, lethality, and ruggedness, three pillars that the Unggoy universally agree their species is known for."
 }

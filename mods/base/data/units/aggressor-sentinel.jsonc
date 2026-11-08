@@ -2,23 +2,22 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "aggressor-sentinel",
   "name": "Aggressor Sentinel",
+  "peerGroup": "basic-infantry",
   "faction": "forerunner",
   "description": "The Aggressor is the most common form of Sentinel, designed for the protection of Forerunner constructs and the small-scale suppression of Flood forms.",
-  "tactics": "The common Sentinel, strong against infantry. Clear its garrisons with vehicles or aircraft.",
+  "tactics": "The common Sentinel, strong against infantry. Clear its garrisons with vehicles.",
   "buildTime": 25,
   "commandPoints": 1,
   "cost": {},
   "combat": {
     "unitClass": "infantry",
     "weaponType": "laser",
-    "shield": 5,
+    "shield": 4,
     "armor": 0,
     "hp": 8,
-    "damage": "1d6",
+    "damage": "1d4",
     "tiers": {
       "infantry": "advantage",
-      "vehicle": "disadvantage",
-      "aircraft": "disadvantage",
       "structure": "disadvantage"
     }
   }

@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "retriever-sentinel",
   "name": "Retriever Sentinel",
+  "peerGroup": "heavy-aircraft",
   "faction": "forerunner",
   "cost": {
     "credits": 2000,
@@ -16,11 +17,10 @@
     "shield": 40,
     "armor": 20,
     "hp": 60,
-    "damage": "2d8",
+    "damage": "4d8",
     "tiers": {
-      "infantry": "advantage",
-      "vehicle": "advantage",
-      "aircraft": "normal",
+      "vehicle": "counter",
+      "infantry": "normal",
       "structure": "advantage"
     }
   },

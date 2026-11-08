@@ -144,7 +144,7 @@ func TestTwoTargetsDontPullEachOthersStagedUnits(t *testing.T) {
 func TestTheAttackCountsAdvantageTiers(t *testing.T) {
 	c := lineContent()
 	c.Units["base:flamer"] = cs.Unit{Combat: cs.Combat{Hp: 10, Damage: "1d4", UnitClass: "base:infantry",
-		Tiers: map[string]cs.CombatTiersValue{"base:infantry": "advantage"}}}
+		Tiers: map[string]cs.Tier{"base:infantry": "advantage"}}}
 	b := New(c, 0, "base:unsc", "hard", 1, 0)
 	g := goal{kind: expand, target: "c"} // 10 Marines
 	v := both(view(nil, 0))

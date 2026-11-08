@@ -17,8 +17,15 @@ import type {
 // shortcut: its messages are JSON (see server/internal/nakama/lab.go), not
 // FlatBuffers; move them to the wire schema if the Lab ever ships.
 
-const OP = { setup: 1, control: 2, replay: 3, order: 4 } as const;
-const IN = { field: 100, frame: 101, error: 102 } as const;
+const OP = {
+  setup: 1,
+  control: 2,
+  replay: 3,
+  order: 4,
+  duels: 5,
+  duel: 6,
+} as const;
+const IN = { field: 100, frame: 101, error: 102, matrix: 103 } as const;
 
 type GoCell = { X: number; Y: number };
 
@@ -77,6 +84,26 @@ export type LabDecision = {
   role?: string;
 };
 
+/** One pair of the duel matrix: how often a beats b (battle.DuelCell). */
+export type DuelCell = {
+  a: string;
+  b: string;
+  na: number;
+  nb: number;
+  rate: number;
+  want?: "win" | "even";
+};
+
+/** The duel matrix as it fills, by "a|b". */
+export type DuelMatrix = {
+  units: string[];
+  seeds: number;
+  total: number;
+  cells: Map<string, DuelCell>;
+  done: boolean;
+  seconds: number;
+};
+
 export type LabState = {
   field: Battlefield | null;
   archetype: string; // the Battlefield's, as generated
@@ -96,6 +123,7 @@ export type LabState = {
   thinking: [Thinking | null, Thinking | null];
   commanded: [boolean, boolean]; // no AI runs the side: yours to order
   log: LabDecision[]; // newest first, the last LOG_MAX
+  matrix: DuelMatrix | null;
   error: string | null;
 };
 
@@ -273,6 +301,7 @@ export class LabConnection {
     thinking: [null, null],
     commanded: [false, false],
     log: [],
+    matrix: null,
     error: null,
   }));
   /** Each tick's volleys, for tracers. */
@@ -385,6 +414,16 @@ export class LabConnection {
     this.send(OP.replay, { map, replay });
   }
 
+  /** Fights the duel matrix over seeds; its cells arrive as they finish. */
+  duels(seeds: number) {
+    this.send(OP.duels, { seeds });
+  }
+
+  /** Builds one duel of the matrix, a attacking b, paused at the start. */
+  duel(a: string, b: string, seed: number) {
+    this.send(OP.duel, { a, b, seed });
+  }
+
   private send(op: number, v: unknown) {
     this.store.setState({ error: null });
     this.socket
@@ -487,6 +526,27 @@ export class LabConnection {
           this.events.dispatchEvent(
             new CustomEvent("volleys", { detail: volleys }),
           );
+        return;
+      }
+      case IN.matrix: {
+        const m = v as Omit<DuelMatrix, "cells" | "units"> & {
+          units?: string[];
+          cells: DuelCell[];
+        };
+        const old = this.store.getState().matrix;
+        // The first message of a run names the units and clears the last run.
+        const cells = new Map(m.units ? [] : old?.cells);
+        for (const c of m.cells) cells.set(`${c.a}|${c.b}`, c);
+        this.store.setState({
+          matrix: {
+            units: m.units ?? old?.units ?? [],
+            seeds: m.seeds,
+            total: m.total,
+            cells,
+            done: m.done,
+            seconds: m.seconds,
+          },
+        });
         return;
       }
       case IN.error:

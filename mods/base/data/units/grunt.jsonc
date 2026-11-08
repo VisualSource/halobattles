@@ -2,10 +2,11 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "grunt",
   "name": "Grunt",
+  "peerGroup": "basic-infantry",
   "faction": "covenant",
   "model": "__base__/models/grunt.glb",
   "description": "The Covenant's cheap, numerous infantry. Weak alone, but good against other infantry in numbers.",
-  "tactics": "Cheap and numerous: swarm Control Points and soak fire for your Elites. Useless against armour and aircraft.",
+  "tactics": "Cheap and numerous: swarm Control Points, soak fire for your Elites and chase off aircraft. Keep them away from vehicles.",
   "cost": { "credits": 50 },
   "upkeep": { "credits": 5 },
   "buildTime": 15,
@@ -17,6 +18,8 @@
     "armor": 0,
     "hp": 10,
     "damage": "1d4",
-    "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "disadvantage", "structure": "disadvantage" }
+    "tiers": {
+      "structure": "disadvantage"
+    }
   }
 }

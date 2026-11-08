@@ -1,6 +1,7 @@
 package content
 
 import (
+	"maps"
 	"slices"
 	"testing"
 
@@ -101,4 +102,23 @@ func TestAVariantNeedsAParentAndNoCycle(t *testing.T) {
 	}), "base"),
 		"units base:ghost: variantOf base:nope, which doesn't exist",
 		"units base:a: variantOf makes a cycle")
+}
+
+// A unit takes its Unit Class's default tiers, under its own; a variant
+// that drops one of its parent's (null) falls back to the class's.
+func TestAUnitTakesItsClassDefaultTiersUnderItsOwn(t *testing.T) {
+	dirs := writeMods(t, variantFiles(map[string]string{
+		"base/data/unitClasses/infantry.jsonc": `{"id": "infantry", "name": "Infantry", "tiers": {"infantry": "disadvantage"}}`,
+		"base/data/units/rocket.jsonc":         `{"id": "rocket", "name": "Rocket Warthog", "variantOf": "warthog", "combat": {"tiers": {"infantry": null}}}`,
+	}), "base")
+	c := mustLoad(t, dirs).Doc
+	for unit, want := range map[string]map[string]cs.Tier{
+		"base:marine":  {"base:infantry": "disadvantage"}, // the class's
+		"base:warthog": {"base:infantry": "advantage"},    // its own over it
+		"base:rocket":  {"base:infantry": "disadvantage"}, // its parent's dropped: the class's again
+	} {
+		if got := c.Units[unit].Combat.Tiers; !maps.Equal(got, want) {
+			t.Errorf("%s tiers %v, want %v", unit, got, want)
+		}
+	}
 }

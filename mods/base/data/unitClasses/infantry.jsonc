@@ -2,5 +2,7 @@
   "$schema": "../../../../schema/content/unit-class.schema.json",
   "id": "infantry",
   "name": "Infantry",
-  "squadSize": 4
+  "squadSize": 4,
+  // The triangle (Halo Wars 2): infantry beats aircraft, aircraft beats vehicles, vehicles beat infantry.
+  "tiers": { "aircraft": "advantage", "vehicle": "disadvantage" }
 }

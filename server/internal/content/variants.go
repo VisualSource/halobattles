@@ -84,3 +84,23 @@ func (l *loader) trainVariants(doc map[string]map[string]map[string]any) {
 		b["trains"] = out
 	}
 }
+
+// classTiers lays each unit's and building's own tiers over its Unit Class's
+// default ones, so a unit lists only the tiers where it differs from its
+// class, and everything after the loader sees them merged.
+func classTiers(doc map[string]map[string]map[string]any) {
+	for _, kind := range []string{"units", "buildings"} {
+		for _, def := range doc[kind] {
+			cb, _ := def["combat"].(map[string]any)
+			class, _ := cb["unitClass"].(string)
+			base, _ := doc["unitClasses"][class]["tiers"].(map[string]any)
+			if base == nil {
+				continue
+			}
+			own, _ := cb["tiers"].(map[string]any)
+			tiers := maps.Clone(base)
+			maps.Copy(tiers, own)
+			cb["tiers"] = tiers
+		}
+	}
+}

@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "revenant",
   "name": "Revenant",
+  "peerGroup": "light-vehicle",
   "faction": "covenant",
   "tactics": "A fast scout that cuts down infantry. It can't hit aircraft, so keep it moving.",
   "cost": { "credits": 200, "materials": 75, "alloys": 20 },
@@ -12,11 +13,14 @@
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "plasma",
-    "shield": 15,
-    "armor": 10,
-    "hp": 22,
-    "damage": "3d4",
-    "tiers": { "infantry": "advantage", "vehicle": "normal", "aircraft": "none", "structure": "normal" }
+    "shield": 8,
+    "armor": 8,
+    "hp": 26,
+    "damage": "2d4",
+    "tiers": {
+      "vehicle": "normal",
+      "aircraft": "none"
+    }
   },
   "description": "The Rizvum-pattern Swift Tank (UNSC Type classification: Type-48 Light Assault Gun Carriage, T-48 LAGC) is a fast Covenant fire-support vehicle whose medium plasma mortar fires quicker but lighter than the Wraith's. Its exposed crew of two rely on speed to strike and withdraw."
 }

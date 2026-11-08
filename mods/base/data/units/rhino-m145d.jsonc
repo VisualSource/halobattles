@@ -2,22 +2,30 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "rhino-m145d",
   "name": "Rhino (M145D)",
+  "peerGroup": "artillery",
   "faction": "unsc",
   "tactics": "Siege artillery: shell turrets and buildings from behind your lines. It can't hit aircraft and won't survive vehicles reaching it.",
-  "cost": {},
+  "cost": { "credits": 250, "materials": 100, "alloys": 30 },
   "buildTime": 30,
-  "commandPoints": 1,
+  "commandPoints": 4,
   "combat": {
-    "unitClass": "artillery",
+    "unitClass": "vehicle",
     "weaponType": "plasma",
     "shield": 0,
-    "armor": 0,
-    "hp": 10,
-    "damage": "1d4",
+    "armor": 8,
+    "hp": 22,
+    "damage": "3d8",
+    // Artillery: shells from far behind the line, but can't fire up close.
+    "range": 12,
+    "minRange": 4,
+    "fireInterval": 4,
+    "speed": 1.5,
+    "sight": 9,
     "tiers": {
-      "aircraft": "none",
-      "vehicle": "disadvantage",
-      "structure": "advantage"
+      "structure": "counter",
+      "infantry": "normal",
+      "vehicle": "normal",
+      "aircraft": "none"
     }
   },
   "description": "he M145D Mobile Artillery Assault Platform (MAAP), commonly known as the Rhino, is an artillery tank used by the United Nations Space Command. It is unique among UNSC vehicles in its armament, a plasma cannon that was reverse-engineered from Covenant technology."

@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "warthog",
   "name": "M12 Warthog",
+  "peerGroup": "light-vehicle",
   "faction": "unsc",
   "icon": "__base__/units/warthog-m12.webp",
   "model": "__base__/models/warthog.glb",
@@ -26,9 +27,6 @@
     "hp": 25,
     "damage": "2d4",
     "tiers": {
-      "infantry": "advantage",
-      "vehicle": "disadvantage",
-      "aircraft": "normal",
       "structure": "disadvantage"
     }
   }

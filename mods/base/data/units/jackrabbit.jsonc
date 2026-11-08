@@ -2,21 +2,26 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "jackrabbit",
   "name": "M121 Jackrabbit",
+  "peerGroup": "scout-vehicle",
   "faction": "unsc",
   "description": "A one-seat light scout vehicle, faster and lighter than the Warthog, with a rear-mounted grenade launcher for reconnaissance and hit-and-run raids.",
   "tactics": "A fast scout: find the enemy and pick off infantry. It can't hit aircraft and loses to armour, so don't let it get caught.",
-  "cost": { "credits": 100, "materials": 30, "alloys": 10 },
-  "upkeep": { "credits": 10, "alloys": 1 },
-  "buildTime": 20,
-  "commandPoints": 2,
+  "cost": { "credits": 150, "materials": 50, "alloys": 15 },
+  "upkeep": { "credits": 15, "alloys": 1 },
+  "buildTime": 30,
+  "commandPoints": 3,
   "roles": ["scout"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "explosive",
     "shield": 0,
-    "armor": 6,
-    "hp": 16,
-    "damage": "1d6+1",
-    "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "none", "structure": "normal" }
+    "armor": 14,
+    "hp": 20,
+    "damage": "2d4+1",
+    "tiers": {
+      "infantry": "counter",
+      "vehicle": "disadvantage",
+      "aircraft": "none"
+    }
   }
 }

@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "scorpion",
   "name": "Scorpion (M808C)",
+  "peerGroup": "heavy-vehicle",
   "faction": "unsc",
   "icon": "__base__/units/scorpion.webp",
   "model": "__base__/models/scorpion.glb",
@@ -18,6 +19,11 @@
     "armor": 38,
     "hp": 38,
     "damage": "4d6+1",
-    "tiers": { "infantry": "normal", "vehicle": "advantage", "aircraft": "none", "structure": "advantage" }
+    "tiers": {
+      "vehicle": "counter",
+      "infantry": "normal",
+      "aircraft": "none",
+      "structure": "advantage"
+    }
   }
 }

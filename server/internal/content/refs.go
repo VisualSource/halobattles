@@ -49,6 +49,8 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 			qualifyList(kit, "buildings", ns)
 			qualifyStacks(kit["stacks"], ns)
 		}
+	case "unitClasses":
+		qualifyKeys(obj, "tiers", ns)
 	case "units", "buildings":
 		qualifyField(obj, "faction", ns)
 		qualifyField(obj, "variantOf", ns)
@@ -202,6 +204,11 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		c.fail("there must be exactly one Ruleset, base:rules; found %v", slices.Sorted(maps.Keys(doc.Rulesets)))
 	}
 
+	for _, id := range slices.Sorted(maps.Keys(doc.UnitClasses)) {
+		for _, class := range slices.Sorted(maps.Keys(doc.UnitClasses[id].Tiers)) {
+			c.ref("unitClasses "+id+": tiers", "unitClasses", class)
+		}
+	}
 	for _, id := range slices.Sorted(maps.Keys(doc.Rulesets)) {
 		r := doc.Rulesets[id]
 		where := "rulesets " + id

@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "ghost",
   "name": "Ghost",
+  "peerGroup": "scout-vehicle",
   "faction": "covenant",
   "icon": "__base__/units/ghost.webp",
   "model": "__base__/models/ghost.glb",
@@ -18,6 +19,9 @@
     "armor": 5,
     "hp": 18,
     "damage": "2d4",
-    "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "normal", "structure": "disadvantage" }
+    "tiers": {
+      "vehicle": "disadvantage",
+      "structure": "disadvantage"
+    }
   }
 }

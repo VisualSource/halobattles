@@ -28,6 +28,11 @@ type Raw = Record<string, unknown>;
 /** A unit as the form edits it: with the buildings ticked in Trained at, by file, once changed. */
 type Draft = Unit & { _trainedAt?: string[] };
 const TIERS = [
+  {
+    id: "counter",
+    name: "Counter",
+    className: "bg-ok-wash text-ok font-semibold",
+  },
   { id: "advantage", name: "Strong", className: "bg-ok-wash text-ok" },
   { id: "normal", name: "Normal" },
   { id: "disadvantage", name: "Weak", className: "bg-danger-wash text-danger" },
@@ -71,8 +76,17 @@ const byId = (items: { value: Raw }[]) =>
 export function lookups(data: Content, draft: Unit): ContentLookups {
   const raw = byId(data.units);
   raw.set(draft.id, draft as unknown as Raw);
-  // The card reads the whole roster, and a variant's file holds only what it changes.
-  const units = new Map([...raw.keys()].map((id) => [id, resolved(raw, id)]));
+  // The card reads the whole roster, and a variant's file holds only what it
+  // changes; the loader lays each unit's tiers over its Unit Class's.
+  const units = new Map(
+    [...raw.keys()].map((id) => {
+      const u = resolved(raw, id) as unknown as Unit;
+      const base = u.combat && classTiers(data, u.combat.unitClass);
+      if (!base || !Object.keys(base).length) return [id, u];
+      const tiers = { ...base, ...u.combat.tiers };
+      return [id, { ...u, combat: { ...u.combat, tiers } }];
+    }),
+  );
   const rules = (data.rulesets[0]?.value ?? {}) as {
     battle?: { classDefaults?: object; raidRoles?: string[] };
   };
@@ -89,6 +103,10 @@ export function lookups(data: Content, draft: Unit): ContentLookups {
     },
   } as unknown as ContentLookups;
 }
+/** A Unit Class's default tiers, which a unit's own lay over. */
+const classTiers = (data: Content, unitClass: string) =>
+  (data.unitClasses.find((k) => String(k.value.id) === unitClass)?.value
+    .tiers ?? {}) as NonNullable<Unit["combat"]["tiers"]>;
 const prefixed = (m: Record<string, number> = {}) =>
   Object.fromEntries(Object.entries(m).map(([k, n]) => [`base:${k}`, n]));
 
@@ -133,6 +151,7 @@ function isBelow(units: Map<string, Raw>, id: string, root: string) {
 const Row = (props: {
   name: string;
   reset?: () => void;
+  hint?: string;
   children: ReactNode;
 }) => (
   <>
@@ -140,7 +159,14 @@ const Row = (props: {
       {props.name}
       {props.reset && <Reset onClick={props.reset} />}
     </span>
-    {props.children}
+    {props.hint ? (
+      <span className="flex items-center gap-2">
+        {props.children}
+        <span className="text-ink-4 text-xs">{props.hint}</span>
+      </span>
+    ) : (
+      props.children
+    )}
   </>
 );
 
@@ -574,10 +600,19 @@ export function UnitsPage(props: {
                       <Row
                         key={id}
                         {...inh(String(k.value.name), ["combat", "tiers", id])}
+                        hint={
+                          c.tiers?.[id] == null ? "class default" : undefined
+                        }
                       >
                         <Choice
                           label={`Against ${String(k.value.name)}`}
-                          value={c.tiers?.[id] ?? "normal"}
+                          value={
+                            c.tiers?.[id] ??
+                            (classTiers(data, c.unitClass)[
+                              id
+                            ] as (typeof TIERS)[number]["id"]) ??
+                            "normal"
+                          }
                           options={[...TIERS]}
                           onChange={(t) =>
                             setC((x) => {

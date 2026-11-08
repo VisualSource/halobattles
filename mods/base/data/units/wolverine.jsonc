@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "wolverine",
   "name": "M9 Wolverine",
+  "peerGroup": "anti-air-vehicle",
   "faction": "unsc",
   "description": "The UNSC's anti-air vehicle: twin missile pods on a tracked hull. Strong against aircraft, weak against everything else, and it can shoot down Dropships.",
   "tactics": "Anti-air: keep one with every army to down aircraft and Dropships before they land. It's weak against everything on the ground, so keep it behind the front.",
@@ -18,6 +19,11 @@
     "hp": 30,
     "damage": "3d6",
     "range": 9,
-    "tiers": { "infantry": "disadvantage", "vehicle": "disadvantage", "aircraft": "advantage", "structure": "disadvantage" }
+    "tiers": {
+      "aircraft": "counter",
+      "infantry": "disadvantage",
+      "vehicle": "disadvantage",
+      "structure": "disadvantage"
+    }
   }
 }

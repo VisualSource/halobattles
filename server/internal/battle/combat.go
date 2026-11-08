@@ -8,6 +8,7 @@ import (
 
 // Tiers: how an attacker rolls against a Unit Class.
 const (
+	Counter      = "counter"      // roll to hit with advantage, and the damage dice twice, added
 	Advantage    = "advantage"    // roll to hit and damage twice, keep the higher
 	Normal       = "normal"       // roll once; a Unit Class missing from tiers is this
 	Disadvantage = "disadvantage" // roll twice, keep the lower
@@ -15,19 +16,29 @@ const (
 )
 
 // tierRank orders tiers for picking a target, best first.
-var tierRank = map[string]int{Advantage: 0, Normal: 1, Disadvantage: 2}
+var tierRank = map[string]int{Counter: -1, Advantage: 0, Normal: 1, Disadvantage: 2}
 
 // rollWith makes a roll, twice with advantage (keeping the higher) or
-// disadvantage (keeping the lower).
+// disadvantage (keeping the lower). A counter rolls the To-hit roll with
+// advantage; its Damage roll is damageWith's.
 func rollWith(tier string, roll func() int) int {
 	x := roll()
 	switch tier {
-	case Advantage:
+	case Advantage, Counter:
 		return max(x, roll())
 	case Disadvantage:
 		return min(x, roll())
 	}
 	return x
+}
+
+// damageWith makes a Damage roll: a counter rolls the dice twice and adds
+// them, as a D&D critical does (2d4 for a 1d4); the rest as rollWith.
+func damageWith(tier string, d Dice, rng *rand.Rand) int {
+	if tier == Counter {
+		return d.roll(rng) + d.roll(rng) - d.K // the dice twice, the +K once
+	}
+	return rollWith(tier, func() int { return d.roll(rng) })
 }
 
 // Dice is a damage roll, NdM+K.

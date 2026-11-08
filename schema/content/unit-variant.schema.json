@@ -52,6 +52,16 @@
         }
       ]
     },
+    "peerGroup": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/peerGroup"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "tactics": {
       "anyOf": [
         {
@@ -267,7 +277,7 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "$ref": "defs.schema.json#/definitions/combat/properties/tiers/additionalProperties"
+                    "$ref": "defs.schema.json#/definitions/tier"
                   },
                   {
                     "type": "null"

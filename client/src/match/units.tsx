@@ -8,6 +8,7 @@ import { average } from "./threat";
 // comes from content.
 
 const TIERS = {
+  counter: { label: "Counters", text: "text-ok font-semibold" },
   advantage: { label: "Strong vs", text: "text-ok" },
   normal: { label: "Normal vs", text: "text-ink-2" },
   disadvantage: { label: "Weak vs", text: "text-danger" },
@@ -85,7 +86,7 @@ export function Fights(props: {
   ].filter(Boolean);
   return (
     <div className="flex flex-col gap-0.5 text-xs">
-      {(["advantage", "disadvantage", "none"] as const).map(
+      {(["counter", "advantage", "disadvantage", "none"] as const).map(
         (tier) =>
           byTier(tier).length > 0 && (
             <span key={tier}>

@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit-variant.schema.json",
   "id": "warthog-m12-rocket",
   "name": "M12R Rocket Warthog",
+  "peerGroup": null, // a placeholder: out of the duel matrix till it's statted
   "variantOf": "warthog",
   // Placeholder stats: kept off the Vehicle Depot until they are balanced.
   "trainable": false,
@@ -11,10 +12,10 @@
     "hp": 10,
     "damage": "1d4",
     "tiers": {
-      "aircraft": "advantage",
+      "aircraft": "counter",
       "infantry": "disadvantage",
-      "structure": "normal",
-      "vehicle": "normal"
+      "vehicle": "normal",
+      "structure": "normal"
     }
   },
   "description": "The M12R Light Anti-Aircraft Vehicle, abbreviated as M12R LAAV and commonly referred to as the Missile Warthog, Rocket Warthog, or Rockethog, is a UNSC ground vehicle",

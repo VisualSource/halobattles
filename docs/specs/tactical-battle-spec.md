@@ -643,16 +643,18 @@ Why: after the 2026-11-05 playtest (#107) the Battle AI still feels poor, frustr
 The playtest complaints become tests:
 
 - **Size counts:** a force twice the size, of the same mix, wins at least 90% of Battles.
-- **Counters work:** each triangle counter wins its one-on-one duel at equal cost at least 80% of the time.
-- **Hard counters hold:** every `counter` entry in the [duel matrix](#the-duel-matrix) wins as the table says.
+- **Counters work:** in the [duel matrix](#the-duel-matrix), every `counter`, and every triangle Advantage against Disadvantage, wins at least 80% at equal Command Points (built, #118).
+- **Peers are even:** units of one peer group fight each other to 40–60% (built, #118).
 - **Balance:** the Starting Kits stay at 40–55% attacker wins (see [Pacing](#pacing)).
 
 The balance test stays skipped while v4 is built (`HALO_BALANCE=1` measures it), as it was for v3; balance is tuned once, after the last step.
 
 ### Counters (step 3)
 
+Built (#118).
+
 - **A fifth tier, `counter`:** Advantage on the To-hit roll, and the Damage roll's dice rolled twice and added (a Marine's 1d4 becomes 2d4), like a D&D critical. It reads plainly in a log ("rolled 2d4 = 6") and keeps [ADR 0003](../adr/0003-dice-damage.md)'s rule against multipliers. `advantage`, `normal`, `disadvantage` and `none` are unchanged.
-- **The triangle:** each Unit Class sets its units' default tiers, and a unit lists only the tiers where it differs:
+- **The triangle:** each Unit Class sets its units' default tiers (`tiers` on the class), and a unit lists only the tiers where it differs. The loader lays a unit's own tiers over its class's, so everything after it (the sim, the Bot, unit info) sees them merged; a Unit Variant that sets one of its parent's to `null` falls back to the class's.
 
   | Unit Class | Advantage vs | Disadvantage vs |
   |---|---|---|
@@ -668,17 +670,18 @@ The balance test stays skipped while v4 is built (`HALO_BALANCE=1` measures it),
   |---|---|---|---|
   | Vehicle | ODST, Scorpion | Elite, Hunters, Wraith | Enforcer, Retriever |
   | Aircraft | Wolverine, Warthog M12 Rocket | Wraith AA | — |
-  | Infantry | — | Jackal Sniper | Promethean Knight |
+  | Infantry | Jackrabbit | Jackal Sniper | Promethean Knight |
   | Structure | Rhino | Locust | — |
 
-  The Pelican and Phantom stay unarmed; the Warthog M12A and M12G1 keep Advantage against vehicles. Forerunners, a neutral garrison, have no anti-air counter.
-- **The Rhino** becomes artillery: a Vehicle, range 12, `minRange` 4, `fireInterval` 4 s, heavy dice, `counter` against Structure, normal against infantry and vehicles, none against aircraft, and `hangBack`. Splash damage waits for [Later](#later).
-- **The roster is retuned** to the table, numbers first-pass, with the duel matrix as the check.
+  The Pelican and Phantom stay unarmed; the Warthog M12A and M12G1 keep Advantage against vehicles. Forerunners, a neutral garrison, have no anti-air counter. The Enforcer, like the Scorpion and Wraith, can't hit aircraft: as the only heavy vehicle that could, it beat every gunship.
+- **The Rhino** becomes artillery: a Vehicle, range 12, `minRange` 4, `fireInterval` 4 s, 3d8, 4 CP, `counter` against Structure, normal against infantry and vehicles, none against aircraft; `hangBack` comes with step 5a. Splash damage waits for [Later](#later).
+- **The roster is retuned** to the table with the duel matrix as the check, numbers first-pass: the Forerunner basics brought down to the Marine's level, the light vehicles and gunships evened out against each other's Weapon Types, gunships to 4 CP and 2d6, the Enforcer up to the Scorpion's, the Spectre given stats (the Covenant's chaingun Warthog), the Jackrabbit made the Ghost's peer (a scout at the Ghost's cost, its grenade launcher explosive and a counter to infantry). The rest of the placeholders (Hunters, Jackal Sniper, Locust, Goblin, the Warthog variants) wait for their own design, out of the matrix.
 
 ### The duel matrix
 
-- A Go test fights every armed unit against every other one-on-one, at equal cost, over 100 seeds on open ground, and checks each pair against the intended outcome: the counter table above and the triangle. The intended outcome is content, so a Mod states its own.
-- **In the Lab:** a Duels table, units down and across, each cell the attacker's win rate, coloured by whether it matches the intended outcome. Clicking a cell plays that duel.
+- **Peer groups:** a unit's `peerGroup` names the units it's the equal of across Factions (basic infantry: the Marine, Grunt, Promethean Soldier and Aggressor Sentinel). Only units with one are in the matrix, so a placeholder stays out until it's statted.
+- **A Go test** fights every such unit against every other on open ground, 100 seeds, each duel fought once on each side (the attacker's squads move and fire first) and averaged. Each squad attack-moves on the nearest enemy; there's no AI. Peers fight in equal numbers and, where their tiers against each other match, should win 40–60%. The rest fight at 12 Command Points a side, and a `counter`, or a triangle Advantage against Disadvantage or worse, should win at least 80%. All of it comes from content, so a Mod states its own. `HALO_DUELS=1` prints every pair.
+- **In the Lab** (built to its agreed mockup): a Duels tab beside Battle runs the matrix on the server, every pair, over 40, 100 or 200 seeds, a pair to a CPU, filling the table as pairs finish. Units go down and across, grouped by Unit Class; each cell is the row's win rate, coloured by whether it meets its target (a counter holding, peers even, a miss, or no target), and the table filters to checked pairs, misses or one Faction's rows. Picking a cell shows both sides, their tiers and the reverse matchup; Play opens that duel in the Battle tab at seed 0, paused, to step through.
 
 ### 3D rules (step 4)
 

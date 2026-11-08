@@ -1,6 +1,9 @@
 package battle
 
-import "testing"
+import (
+	"math/rand/v2"
+	"testing"
+)
 
 var (
 	kinetic    = Multipliers{Shield: 0.75, Armor: 1, HP: 1.25}
@@ -27,6 +30,26 @@ func TestAdvantageKeepsTheHigherRollAndDisadvantageTheLower(t *testing.T) {
 	}
 	if got := rollWith(Normal, seq(3)); got != 3 { // only one roll: a second would run out
 		t.Errorf("normal = %d", got)
+	}
+}
+
+// A counter rolls the To-hit roll with advantage, and its damage dice twice,
+// added, the +K once: 1d4+1 is 2d4+1, 3 to 9.
+func TestACounterRollsToHitWithAdvantageAndItsDamageDiceTwice(t *testing.T) {
+	seq := func(rolls ...int) func() int {
+		return func() int { x := rolls[0]; rolls = rolls[1:]; return x }
+	}
+	if got := rollWith(Counter, seq(3, 17)); got != 17 {
+		t.Errorf("counter to-hit of 3 then 17: %d, want 17", got)
+	}
+	rng, d := rand.New(rand.NewPCG(1, 2)), Dice{N: 1, M: 4, K: 1}
+	lo, hi, sum := 99, 0, 0
+	for range 10000 {
+		x := damageWith(Counter, d, rng)
+		lo, hi, sum = min(lo, x), max(hi, x), sum+x
+	}
+	if lo != 3 || hi != 9 || sum < 59000 || sum > 61000 {
+		t.Errorf("counter 1d4+1 rolls %d to %d, mean %.2f; want 3 to 9, mean 6", lo, hi, float64(sum)/10000)
 	}
 }
 

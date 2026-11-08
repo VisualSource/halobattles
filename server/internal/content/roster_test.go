@@ -223,7 +223,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 
 	counts := map[string][2]int{
 		"factions": {len(d.Factions), 3}, "units": {len(d.Units), 33}, "buildings": {len(d.Buildings), 28}, "techs": {len(d.Techs), 27},
-		"unitClasses": {len(d.UnitClasses), 5}, "weaponTypes": {len(d.WeaponTypes), 5},
+		"unitClasses": {len(d.UnitClasses), 4}, "weaponTypes": {len(d.WeaponTypes), 5},
 		"planetTypes": {len(d.PlanetTypes), 4}, "maps": {len(d.Maps), 3}, "resources": {len(d.Resources), 3},
 		"terrains": {len(d.Terrains), 8}, "terrainPresets": {len(d.TerrainPresets), 3},
 	}
@@ -243,7 +243,7 @@ func TestBaseModMatchesTheSpec(t *testing.T) {
 		s.Combat.Tiers["base:aircraft"] != "none" || s.Cost["base:materials"] != 100 || s.CommandPoints != 4 {
 		t.Errorf("scorpion = %+v", s)
 	}
-	if b := d.Units["base:banshee"]; b.Combat.Shield != 13 || b.Combat.Hp != 20 || b.BuildTime != 50 {
+	if b := d.Units["base:banshee"]; b.Combat.Shield != 13 || b.Combat.Hp != 23 || b.BuildTime != 50 {
 		t.Errorf("banshee = %+v", b)
 	}
 	if g := d.Units["base:ghost"]; g.Cost["base:alloys"] != 15 || g.Upkeep["base:credits"] != 15 || g.Upkeep["base:alloys"] != 1 {

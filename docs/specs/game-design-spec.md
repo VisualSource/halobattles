@@ -171,22 +171,22 @@ The rosters mirror each other's roles and costs. Covenant units put part of thei
 
 A [Unit Variant](../../GLOSSARY.md) (the M12A Rocket Warthog from the M12 Warthog, say) is trained where its parent is and locked while its parent is; it stays out of the build picker until the player can train it ([content](technical-architecture-spec.md#unit-variants), [locking](tech-spec.md#locked-content)).
 
-Tiers below are written A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`). The numbers were balanced so the two Starting Kits are roughly even (either one attacking wins about 40–55% of the time) and fight for 1–3 minutes; a Go test keeps both (see [Pacing](tactical-battle-spec.md#pacing)).
+Tiers below are written C (`counter`), A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`), as they come out after a unit's own tiers are laid over its Unit Class's (the triangle: infantry beats aircraft, aircraft beats vehicles, vehicles beat infantry; see [Counters](tactical-battle-spec.md#counters-step-3)). The duel matrix keeps peers (Marine and Grunt, Warthog and Ghost...) even and the counters winning; the Starting Kit balance is retuned at the end of Tactical Battles v4 (see [Pacing](tactical-battle-spec.md#pacing)).
 
 | Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Tiers Inf/Veh/Air/Str | Cost | Upkeep | Time | CP | Trained at |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Marine | UNSC | Inf | Kinetic | 0/0/12 | 1d4 | A/D/D/D | 50C | 5C | 15s | 1 | Barracks |
-| ODST | UNSC | Inf | Explosive | 0/2/19 | 2d6 | D/A/N/A | 100C 25M | 10C | 25s | 2 | Barracks |
-| Warthog | UNSC | Veh | Kinetic | 0/12/25 | 2d4 | A/D/N/D | 150C 50M 15A | 15C 1A | 30s | 3 | Vehicle Depot |
-| Scorpion | UNSC | Veh | Explosive | 0/38/38 | 4d6+1 | N/A/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Vehicle Depot |
-| M9 Wolverine | UNSC | Veh | Explosive | 0/25/30 | 3d6 | D/D/A/D | 200C 80M 25A | 20C 2A | 40s | 3 | Vehicle Depot |
-| Hornet | UNSC | Air | Kinetic | 0/12/25 | 1d12 | N/A/A/N | 300C 150M 40A | 30C 2A | 50s | 5 | Air Pad |
-| Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | A/D/D/D | 50C | 5C | 15s | 1 | Hall |
-| Elite | Covenant | Inf | Explosive | 10/0/10 | 2d6 | D/A/N/A | 100C 25M | 10C | 25s | 2 | Hall |
-| Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | A/D/N/D | 150C 50M 15A | 15C 1A | 30s | 3 | Summoning Foundry |
-| Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | N/A/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Summoning Foundry |
-| AA Wraith | Covenant | Veh | Plasma | 12/12/24 | 3d6 | D/D/A/D | 200C 80M 25A | 20C 2A | 40s | 3 | Summoning Foundry |
-| Banshee | Covenant | Air | Plasma | 13/5/20 | 1d12 | N/A/A/N | 300C 150M 40A | 30C 2A | 50s | 5 | Summit |
+| Marine | UNSC | Inf | Kinetic | 0/0/12 | 1d4 | N/D/A/D | 50C | 5C | 15s | 1 | Barracks |
+| ODST | UNSC | Inf | Explosive | 0/2/23 | 2d6 | D/C/A/A | 100C 25M | 10C | 25s | 2 | Barracks |
+| Warthog | UNSC | Veh | Kinetic | 0/12/25 | 2d4 | A/N/D/D | 150C 50M 15A | 15C 1A | 30s | 3 | Vehicle Depot |
+| Scorpion | UNSC | Veh | Explosive | 0/38/38 | 4d6+1 | N/C/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Vehicle Depot |
+| M9 Wolverine | UNSC | Veh | Explosive | 0/25/30 | 3d6 | D/D/C/D | 200C 80M 25A | 20C 2A | 40s | 3 | Vehicle Depot |
+| Hornet | UNSC | Air | Kinetic | 0/12/25 | 2d6 | D/A/A/N | 300C 150M 40A | 30C 2A | 50s | 4 | Air Pad |
+| Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | N/D/A/D | 50C | 5C | 15s | 1 | Hall |
+| Elite | Covenant | Inf | Explosive | 10/0/14 | 2d6 | D/C/A/A | 100C 25M | 10C | 25s | 2 | Hall |
+| Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | A/D/D/D | 150C 50M 15A | 15C 1A | 30s | 3 | Summoning Foundry |
+| Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | N/C/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Summoning Foundry |
+| AA Wraith | Covenant | Veh | Plasma | 12/12/28 | 3d6 | D/D/C/D | 200C 80M 25A | 20C 2A | 40s | 3 | Summoning Foundry |
+| Banshee | Covenant | Air | Plasma | 13/5/23 | 2d6 | D/A/A/N | 300C 150M 40A | 30C 2A | 50s | 4 | Summit |
 
 ### Buildings
 

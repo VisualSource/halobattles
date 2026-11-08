@@ -376,7 +376,8 @@ type Combat struct {
 	// Hp corresponds to the JSON schema field "hp".
 	Hp int `json:"hp"`
 
-	// Closest it fires, in cells (artillery). Defaults to 0.
+	// Closest it fires, in cells (artillery: a long range and a minRange). Defaults
+	// to 0.
 	MinRange *float64 `json:"minRange,omitempty,omitzero"`
 
 	// Farthest it fires, in cells; defaults from battle.classDefaults.
@@ -391,10 +392,9 @@ type Combat struct {
 	// Cells per second; defaults from the Ruleset's battle.classDefaults.
 	Speed *float64 `json:"speed,omitempty,omitzero"`
 
-	// Per Unit Class id, how this attacker rolls against it: advantage rolls the
-	// to-hit and damage twice and keeps the higher, disadvantage keeps the lower,
-	// none can't target it.
-	Tiers map[string]CombatTiersValue `json:"tiers,omitempty,omitzero"`
+	// Per Unit Class id, how this attacker rolls against it (see tier). A class left
+	// out takes this attacker's Unit Class default (its tiers), else normal.
+	Tiers map[string]Tier `json:"tiers,omitempty,omitzero"`
 
 	// UnitClass corresponds to the JSON schema field "unitClass".
 	UnitClass ID `json:"unitClass"`
@@ -402,13 +402,6 @@ type Combat struct {
 	// WeaponType corresponds to the JSON schema field "weaponType".
 	WeaponType ID `json:"weaponType"`
 }
-
-type CombatTiersValue string
-
-const CombatTiersValueAdvantage CombatTiersValue = "advantage"
-const CombatTiersValueDisadvantage CombatTiersValue = "disadvantage"
-const CombatTiersValueNone CombatTiersValue = "none"
-const CombatTiersValueNormal CombatTiersValue = "normal"
 
 // The defender's objective structure, on every Battlefield: destroying it wins the
 // Battle for the attacker. It never fires.
@@ -1349,6 +1342,14 @@ type TerrainPreset struct {
 	Replace *bool `json:"replace,omitempty,omitzero"`
 }
 
+type Tier string
+
+const TierAdvantage Tier = "advantage"
+const TierCounter Tier = "counter"
+const TierDisadvantage Tier = "disadvantage"
+const TierNone Tier = "none"
+const TierNormal Tier = "normal"
+
 type Track struct {
 	// An audio file the browser can play, such as MP3.
 	File Asset `json:"file"`
@@ -1399,6 +1400,12 @@ type Unit struct {
 
 	// Name corresponds to the JSON schema field "name".
 	Name Name `json:"name"`
+
+	// A Battle balance tag: units of one peer group (e.g. basic infantry: the Marine,
+	// Grunt, Promethean Soldier and Aggressor Sentinel) are each other's equals
+	// across Factions, and should fight each other to about even. The duel matrix
+	// checks only units with one.
+	PeerGroup *string `json:"peerGroup,omitempty,omitzero"`
 
 	// Replace an existing definition with this id.
 	Replace *bool `json:"replace,omitempty,omitzero"`
@@ -1456,6 +1463,10 @@ type UnitClass struct {
 	// follow (keeps behind the leaders) or hunt (goes for enemies it fights at a
 	// better tier than the rest of the force). Defaults to follow.
 	TaskForceRole *UnitClassTaskForceRole `json:"taskForceRole,omitempty,omitzero"`
+
+	// Default tiers for attackers of this class, per Unit Class id: an attacker's own
+	// tiers override them (see combat.tiers).
+	Tiers map[string]Tier `json:"tiers,omitempty,omitzero"`
 }
 
 type UnitClassTaskForceRole string

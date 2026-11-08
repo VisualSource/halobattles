@@ -2,23 +2,22 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "phaeton",
   "name": "Phaeton",
+  "peerGroup": "gunship",
   "faction": "forerunner",
   "tactics": "A Forerunner gunship that shreds infantry. Answer it with anti-air.",
   "cost": {},
   "buildTime": 50,
-  "commandPoints": 5,
+  "commandPoints": 4,
   "combat": {
     "unitClass": "aircraft",
     "weaponType": "hard-light",
     "shield": 15,
     "armor": 0,
-    "hp": 20,
-    "damage": "1d12",
+    "hp": 28,
+    "damage": "2d6",
     "tiers": {
       "infantry": "advantage",
-      "vehicle": "normal",
-      "aircraft": "normal",
-      "structure": "normal"
+      "vehicle": "normal"
     }
   },
   "description": "The Phaeton (UNSC Z-classification: Z-1800 Exoatmospheric Multirole Fighter, Z-1800 EMF), is a class of Forerunner weapon-ship. It is employed in a role analogous to a human VTOL gunship. These craft were encountered by UNSC forces in several engagements following the Requiem Campaign."

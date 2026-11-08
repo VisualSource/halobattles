@@ -3,5 +3,6 @@
   "id": "vehicle",
   "name": "Vehicle",
   "squadSize": 2,
-  "taskForceRole": "lead"
+  "taskForceRole": "lead",
+  "tiers": { "infantry": "advantage", "aircraft": "disadvantage" }
 }

@@ -15,11 +15,10 @@
     "hp": 10,
     "damage": "1d4",
     "tiers": {
-      "structure": "disadvantage",
-      "infantry": "advantage",
-      "artillery": "disadvantage",
+      "infantry": "counter",
       "vehicle": "disadvantage",
-      "aircraft": "disadvantage"
+      "aircraft": "disadvantage",
+      "structure": "disadvantage"
     },
     "fireInterval": 2
   },

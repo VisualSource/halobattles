@@ -2,23 +2,20 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "spectre",
   "name": "Spectre",
+  "peerGroup": "light-vehicle",
   "faction": "covenant",
   "tactics": "A shock vehicle that cuts through infantry and can Raid. Keep it away from aircraft.",
-  "cost": {},
+  "cost": { "credits": 150, "materials": 50, "alloys": 15 },
   "buildTime": 30,
-  "commandPoints": 1,
+  "commandPoints": 3,
   "roles": ["shock"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "plasma",
-    "shield": 0,
-    "armor": 0,
-    "hp": 10,
-    "damage": "1d4",
-    "tiers": {
-      "infantry": "advantage",
-      "aircraft": "disadvantage"
-    }
+    "shield": 10,
+    "armor": 6,
+    "hp": 27,
+    "damage": "2d4"
   },
   "description": "The Wuzum-pattern Patroller (UNSC Type classification: Type-46 Infantry Support Vehicle, T-46 ISV),  more commonly known as the Spectre, is a Covenant anti-infantry and transportation vehicle."
 }

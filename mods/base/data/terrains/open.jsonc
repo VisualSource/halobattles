@@ -7,7 +7,6 @@
   "movement": {
     "infantry": 1,
     "vehicle": 1,
-    "aircraft": 1,
-    "artillery": 1
+    "aircraft": 1
   }
 }

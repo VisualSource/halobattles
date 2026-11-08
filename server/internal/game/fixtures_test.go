@@ -37,12 +37,12 @@ func withBattles(c *cs.Content) *cs.Content {
 
 // battleContent is the combat stats the test units fight with.
 func battleContent() *cs.Content {
-	unit := func(class, weapon string, sh, ar, hp int, dmg string, tiers map[string]cs.CombatTiersValue) cs.Unit {
+	unit := func(class, weapon string, sh, ar, hp int, dmg string, tiers map[string]cs.Tier) cs.Unit {
 		return cs.Unit{Combat: cs.Combat{
 			UnitClass: cs.ID(class), WeaponType: cs.ID(weapon), Shield: sh, Armor: ar, Hp: hp, Damage: dmg, Tiers: tiers,
 		}}
 	}
-	vsInfantry := map[string]cs.CombatTiersValue{"base:infantry": "advantage", "base:vehicle": "disadvantage", "base:structure": "disadvantage"}
+	vsInfantry := map[string]cs.Tier{"base:infantry": "advantage", "base:vehicle": "disadvantage", "base:structure": "disadvantage"}
 	return &cs.Content{
 		WeaponTypes: map[string]cs.WeaponType{
 			"base:kinetic": {Shield: 0.75, Armor: 1, Hp: 1.25},

@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VisualSource/halobattles/server/internal/battle"
 	"github.com/VisualSource/halobattles/server/internal/content"
@@ -382,5 +383,80 @@ func TestTheLabDeploysTheDefenderByItsLayout(t *testing.T) {
 		if sq.Building && !sq.CommandPost && sq.Unit == "base:hall" && sq.Cell != after.Sites[after.BuildingSites[0]] {
 			t.Errorf("the Hall deployed at %v; want its site %v", sq.Cell, after.Sites[after.BuildingSites[0]])
 		}
+	}
+}
+
+func TestTheLabPlaysADuelAsTheMatrixFightsIt(t *testing.T) {
+	h := newLab(t)
+	h.loop(labMsg(labDuelOp, labDuel{A: "base:warthog", B: "base:marine", Seed: 1}))
+	f := h.frame()
+	if f.Tick != 0 || !f.Paused || f.Thinking != [2]*battle.Thinking{} {
+		t.Fatalf("first frame tick %d paused %v thinking %v; want the duel paused at the start, no AI", f.Tick, f.Paused, f.Thinking)
+	}
+	counts := map[battle.Side]int{}
+	for _, sq := range f.Snapshot.Squads {
+		if !sq.Building && !sq.CommandPost {
+			counts[sq.Side] += sq.Count
+		}
+	}
+	if counts[battle.Attacker] != 4 || counts[battle.Defender] != 12 {
+		t.Errorf("squads %v; want 4 Warthogs against 12 Marines, 12 CP a side", counts)
+	}
+	c := h.m.content.Doc
+	want := battle.NewDuel(&c, c.Rulesets["base:rules"], "base:warthog", 4, "base:marine", 12, 1)
+	for !want.Over {
+		battle.DuelStep(want)
+	}
+	for i := 0; i < 100 && !h.frame().Over; i++ {
+		h.loop(labMsg(labControlOp, labControl{Step: 80}))
+	}
+	if f := h.frame(); f.Tick != want.Tick || f.Winner != want.Winner || f.Reason != want.Reason {
+		t.Errorf("Lab duel ended tick %d, %v (%s); the matrix's tick %d, %v (%s)", f.Tick, f.Winner, f.Reason, want.Tick, want.Winner, want.Reason)
+	}
+	h.loop(labMsg(labDuelOp, labDuel{A: "base:warthog-m12a", B: "base:marine"}))
+	var e map[string]string
+	if !h.d.last(t, labErrorOp, &e) || !strings.Contains(e["error"], "duel matrix") {
+		t.Errorf("a unit with no peer group: %v; want it refused", e)
+	}
+}
+
+func TestTheLabFightsTheDuelMatrix(t *testing.T) {
+	h := newLab(t)
+	h.loop(labMsg(labDuelsOp, labDuels{Seeds: 1}))
+	h.loop(labMsg(labDuelsOp, labDuels{Seeds: 1}))
+	var e map[string]string
+	if !h.d.last(t, labErrorOp, &e) || !strings.Contains(e["error"], "already running") {
+		t.Errorf("a second run: %v; want it refused", e)
+	}
+	cells := map[[2]string]battle.DuelCell{}
+	var units []string
+	total, done := 0, false
+	read := func() {
+		for _, s := range h.d.sent {
+			var m labMatrix
+			if s.op != labMatrixOp || json.Unmarshal(s.data, &m) != nil {
+				continue
+			}
+			if m.Units != nil { // the first, as it starts
+				units = m.Units
+			}
+			for _, d := range m.Cells {
+				cells[[2]string{d.A, d.B}] = d
+			}
+			total, done = m.Total, m.Done
+		}
+		h.d.sent = nil
+	}
+	read()
+	for start := time.Now(); !done && time.Since(start) < time.Minute; {
+		time.Sleep(time.Millisecond)
+		h.loop()
+		read()
+	}
+	if !done || len(units) == 0 || len(cells) != total || total != len(units)*(len(units)-1) {
+		t.Fatalf("done %v, %d units, %d of %d cells; want every pair", done, len(units), len(cells), total)
+	}
+	if d := cells[[2]string{"base:warthog", "base:marine"}]; d.Want != battle.DuelWin || d.NA != 4 || d.NB != 12 {
+		t.Errorf("Warthog against Marines %+v; want 4 against 12, meant to win", d)
 	}
 }

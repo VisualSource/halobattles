@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "wraith",
   "name": "Wraith",
+  "peerGroup": "heavy-vehicle",
   "faction": "covenant",
   "description": "The Zurdo-pattern Mortar Tank (UNSC Type classification: Type-26 Assault Gun Carriage, T-26 AGC), more commonly known as the Wraith, is the Covenant's main armoured infantry support/assault gun vehicle for ground engagements.",
   "tactics": "The Covenant's heavy tank: break armour and bases with it. It can't fire on aircraft, so bring anti-air.",
@@ -16,6 +17,11 @@
     "armor": 17,
     "hp": 30,
     "damage": "4d6+1",
-    "tiers": { "infantry": "normal", "vehicle": "advantage", "aircraft": "none", "structure": "advantage" }
+    "tiers": {
+      "vehicle": "counter",
+      "infantry": "normal",
+      "aircraft": "none",
+      "structure": "advantage"
+    }
   }
 }

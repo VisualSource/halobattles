@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/VisualSource/halobattles/server/internal/battle"
 	"github.com/VisualSource/halobattles/server/internal/content"
@@ -30,11 +32,14 @@ const (
 	labControlOp = 2 // labControl: pause, speed, step, restart
 	labReplayOp  = 3 // labReplay: build a Battle from a match log's battleReplay
 	labOrderOp   = 4 // labOrder: an order for a side you command
+	labDuelsOp   = 5 // labDuels: fight the duel matrix
+	labDuelOp    = 6 // labDuel: build one duel and start it, paused
 
 	// To the page.
-	labFieldOp = 100 // the Battle's Field, once per build
-	labStateOp = 101 // labFrame, after each run of steps
-	labErrorOp = 102 // {"error": "..."}
+	labFieldOp  = 100 // the Battle's Field, once per build
+	labStateOp  = 101 // labFrame, after each run of steps
+	labErrorOp  = 102 // {"error": "..."}
+	labMatrixOp = 103 // labMatrix: the duel matrix's cells so far
 
 	labMaxSteps = 80 // per match tick: 8× at 10 sim ticks a second, with room for a manual step
 )
@@ -65,6 +70,39 @@ type labSetup struct {
 	Seed      uint64  `json:"seed"`
 	Attack    labSide `json:"attack"`
 	Defend    labSide `json:"defend"`
+}
+
+// labDuels runs the duel matrix (battle.DuelMatrix): every pair, over Seeds.
+type labDuels struct {
+	Seeds uint64 `json:"seeds"`
+}
+
+// labDuel is one duel of the matrix: A attacking B, as many of each as battle.DuelCounts says.
+type labDuel struct {
+	A    string `json:"a"`
+	B    string `json:"b"`
+	Seed uint64 `json:"seed"`
+}
+
+// labMatrix is the duel matrix as it fills: the units in order, and the
+// cells finished since the last; Done with the last of them.
+type labMatrix struct {
+	Units   []string          `json:"units,omitempty"` // with the first
+	Seeds   uint64            `json:"seeds"`
+	Total   int               `json:"total"`
+	Cells   []battle.DuelCell `json:"cells"`
+	Done    bool              `json:"done"`
+	Seconds float64           `json:"seconds"` // since it started
+}
+
+// duelRun is a duel matrix being fought off the match loop.
+type duelRun struct {
+	mu      sync.Mutex
+	cells   []battle.DuelCell // finished, not yet sent
+	done    bool
+	started time.Time
+	seeds   uint64
+	total   int
 }
 
 type labControl struct {
@@ -133,6 +171,8 @@ type labState struct {
 	defend    battle.Force // the defender's, for its layout
 	reach     float64      // the Ruleset's startReach
 	dirty     bool         // send a frame this tick
+	duel      bool         // the Battle is a duel: battle.DuelStep, no AI
+	matrix    *duelRun     // the duel matrix, while it runs
 }
 
 func (m *labMatch) MatchInit(context.Context, runtime.Logger, *sql.DB, runtime.NakamaModule, map[string]interface{}) (interface{}, int, string) {
@@ -182,6 +222,7 @@ func (m *labMatch) MatchLoop(_ context.Context, _ runtime.Logger, _ *sql.DB, _ r
 	if s.dirty {
 		s.sendFrame(dispatcher)
 	}
+	s.sendMatrix(dispatcher)
 	return s
 }
 
@@ -269,6 +310,30 @@ func (s *labState) handle(c *content.Content, op int64, data []byte, dispatcher 
 			return nil
 		}
 		return s.sim.CommandGroup(in.Side, in.Squads, in.Order)
+	case labDuelsOp:
+		var in labDuels
+		if err := json.Unmarshal(data, &in); err != nil {
+			return fmt.Errorf("bad duels: %w", err)
+		}
+		if s.matrix != nil {
+			return errors.New("the duel matrix is already running")
+		}
+		s.runMatrix(dispatcher, doc, min(max(in.Seeds, 1), 500))
+	case labDuelOp:
+		var in labDuel
+		if err := json.Unmarshal(data, &in); err != nil {
+			return fmt.Errorf("bad duel: %w", err)
+		}
+		for _, u := range []string{in.A, in.B} {
+			if def, ok := doc.Units[u]; !ok || def.PeerGroup == nil {
+				return fmt.Errorf("%q isn't in the duel matrix", u)
+			}
+		}
+		return s.start(dispatcher, func() (*battle.Sim, error) {
+			na, nb := battle.DuelCounts(doc, in.A, in.B)
+			s.defend, s.duel = battle.Force{}, true
+			return battle.NewDuel(doc, doc.Rulesets[game.RulesetID], in.A, na, in.B, nb, in.Seed), nil
+		})
 	default:
 		return fmt.Errorf("unknown Lab message %d", op)
 	}
@@ -281,9 +346,11 @@ func (s *labState) start(dispatcher runtime.MatchDispatcher, build func() (*batt
 	// build fills these for the new Battle; a failed one leaves the old as it was.
 	orders, decisions, volleys, think := s.orders, s.decisions, s.volleys, s.think
 	s.orders, s.decisions, s.volleys, s.think = nil, nil, nil, [2]*battle.Thinking{}
+	duel := s.duel
+	s.duel = false // a duel's build sets it
 	sim, err := build()
 	if err != nil {
-		s.orders, s.decisions, s.volleys, s.think = orders, decisions, volleys, think
+		s.orders, s.decisions, s.volleys, s.think, s.duel = orders, decisions, volleys, think, duel
 		return err
 	}
 	s.sim, s.build, s.paused, s.acc, s.dirty = sim, build, true, 0, true
@@ -422,7 +489,11 @@ func (s *labState) step(n int) {
 			s.sim.Command(s.orders[0].Side, s.orders[0].Order)
 			s.orders = s.orders[1:]
 		}
-		s.volleys = append(s.volleys, s.sim.Step()...)
+		if s.duel {
+			s.volleys = append(s.volleys, battle.DuelStep(s.sim)...)
+		} else {
+			s.volleys = append(s.volleys, s.sim.Step()...)
+		}
 		s.dirty = true
 	}
 }
@@ -455,6 +526,49 @@ func (s *labState) sendFrame(dispatcher runtime.MatchDispatcher) {
 	}
 	s.send(dispatcher, labStateOp, fr, nil)
 	s.volleys, s.decisions, s.dirty = nil, nil, false
+}
+
+// runMatrix fights the duel matrix off the match loop; sendMatrix passes
+// on its cells as they finish.
+//
+// shortcut: a Lab closed mid-run lets the run finish unseen (a minute at most
+// at 100 seeds); add a cancel if runs get long.
+func (s *labState) runMatrix(dispatcher runtime.MatchDispatcher, c *cs.Content, seeds uint64) {
+	units := battle.DuelUnits(c)
+	run := &duelRun{started: time.Now(), seeds: seeds, total: len(units) * (len(units) - 1)}
+	s.matrix = run
+	s.send(dispatcher, labMatrixOp, labMatrix{Units: units, Seeds: seeds, Total: run.total, Cells: []battle.DuelCell{}}, nil)
+	go func() {
+		battle.DuelMatrix(c, c.Rulesets[game.RulesetID], seeds, true, func(d battle.DuelCell) {
+			run.mu.Lock()
+			run.cells = append(run.cells, d)
+			run.mu.Unlock()
+		})
+		run.mu.Lock()
+		run.done = true
+		run.mu.Unlock()
+	}()
+}
+
+func (s *labState) sendMatrix(dispatcher runtime.MatchDispatcher) {
+	run := s.matrix
+	if run == nil {
+		return
+	}
+	run.mu.Lock()
+	m := labMatrix{Seeds: run.seeds, Total: run.total, Cells: run.cells, Done: run.done, Seconds: time.Since(run.started).Seconds()}
+	run.cells = nil
+	run.mu.Unlock()
+	if len(m.Cells) == 0 && !m.Done {
+		return
+	}
+	if m.Cells == nil {
+		m.Cells = []battle.DuelCell{}
+	}
+	s.send(dispatcher, labMatrixOp, m, nil)
+	if m.Done {
+		s.matrix = nil
+	}
 }
 
 // send is v as JSON to everyone, or to the sender of reply.

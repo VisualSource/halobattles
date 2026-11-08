@@ -98,9 +98,9 @@ func TestPlacement(t *testing.T) {
 func TestUnitChoice(t *testing.T) {
 	c := lineContent()
 	c.Units["base:hog"] = cs.Unit{Cost: credits(150), Combat: cs.Combat{Hp: 30, Damage: "1d4", UnitClass: "base:vehicle",
-		Tiers: map[string]cs.CombatTiersValue{"base:infantry": "disadvantage"}}}
+		Tiers: map[string]cs.Tier{"base:infantry": "disadvantage"}}}
 	m := c.Units["base:marine"]
-	m.Combat.Tiers = map[string]cs.CombatTiersValue{"base:vehicle": "disadvantage"}
+	m.Combat.Tiers = map[string]cs.Tier{"base:vehicle": "disadvantage"}
 	c.Units["base:marine"] = m
 	bk := c.Buildings["base:barracks"]
 	bk.Trains = []cs.ID{"base:marine", "base:hog"}

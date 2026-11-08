@@ -4,5 +4,6 @@
   "name": "Aircraft",
   "squadSize": 2,
   "air": true,
-  "taskForceRole": "hunt"
+  "taskForceRole": "hunt",
+  "tiers": { "vehicle": "advantage", "infantry": "disadvantage" }
 }

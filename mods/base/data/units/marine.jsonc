@@ -2,10 +2,11 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "marine",
   "name": "Marine",
+  "peerGroup": "basic-infantry",
   "faction": "unsc",
   "model": "__base__/models/marine.glb",
   "description": "The UNSC's line infantry: cheap, quick to train, and best against other infantry. Mass them to hold points.",
-  "tactics": "Cheap and quick to train: mass them to hold Control Points and screen your vehicles. Keep them away from tanks and aircraft, which shred them.",
+  "tactics": "Cheap and quick to train: mass them to hold Control Points, screen your vehicles and drive off aircraft. Keep them away from vehicles, which shred them.",
   "cost": { "credits": 50 },
   "upkeep": { "credits": 5 },
   "buildTime": 15,
@@ -17,6 +18,8 @@
     "armor": 0,
     "hp": 12,
     "damage": "1d4",
-    "tiers": { "infantry": "advantage", "vehicle": "disadvantage", "aircraft": "disadvantage", "structure": "disadvantage" }
+    "tiers": {
+      "structure": "disadvantage"
+    }
   }
 }

@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "odst",
   "name": "ODST",
+  "peerGroup": "elite-infantry",
   "faction": "unsc",
   "description": "Shock troops with explosives that crack vehicles and buildings. Pricier than Marines, and weaker against infantry.",
   "tactics": "Anti-armour drop troopers: send them at vehicles and buildings, or on Raids. Escort them, since massed infantry beats them.",
@@ -15,8 +16,12 @@
     "weaponType": "explosive",
     "shield": 0,
     "armor": 2,
-    "hp": 19,
+    "hp": 23,
     "damage": "2d6",
-    "tiers": { "infantry": "disadvantage", "vehicle": "advantage", "aircraft": "normal", "structure": "advantage" }
+    "tiers": {
+      "vehicle": "counter",
+      "infantry": "disadvantage",
+      "structure": "advantage"
+    }
   }
 }

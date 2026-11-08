@@ -2,23 +2,26 @@
   "$schema": "../../../../schema/content/unit.schema.json",
   "id": "banshee",
   "name": "Banshee",
+  "peerGroup": "gunship",
   "faction": "covenant",
   "icon": "__base__/units/banshee.webp",
   "model": "__base__/models/banshee.glb",
   "description": "A Covenant attack aircraft that strikes vehicles and aircraft from the air.",
-  "tactics": "Fast air support against vehicles and other aircraft. Keep it clear of anti-air.",
+  "tactics": "Fast air support against vehicles and other aircraft. Keep it clear of anti-air and massed infantry.",
   "cost": { "credits": 300, "materials": 150, "alloys": 40 },
   "upkeep": { "credits": 30, "alloys": 2 },
   "buildTime": 50,
-  "commandPoints": 5,
+  "commandPoints": 4,
   "roles": ["skirmisher"],
   "combat": {
     "unitClass": "aircraft",
     "weaponType": "plasma",
     "shield": 13,
     "armor": 5,
-    "hp": 20,
-    "damage": "1d12",
-    "tiers": { "infantry": "normal", "vehicle": "advantage", "aircraft": "advantage", "structure": "normal" }
+    "hp": 23,
+    "damage": "2d6",
+    "tiers": {
+      "aircraft": "advantage"
+    }
   }
 }

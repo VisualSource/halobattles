@@ -2,6 +2,7 @@
   "$schema": "../../../../schema/content/unit-variant.schema.json",
   "id": "wraith-aa",
   "name": "AA Wraith",
+  "peerGroup": "anti-air-vehicle",
   "description": "The Ogab'd-pattern Skyhunter (UNSC Type classification: Type-52 Anti-Aircraft Artillery, T-52 AAA) is a Skyhunter variant of the Wraith line of armoured vehicles, used by the Covenant and its remnants.  Strong against aircraft, weak against everything else, and it can shoot down Dropships.",
   "tactics": "Anti-air: keep it with your army to shoot down aircraft and Dropships. It's weak against ground units, so keep it behind the front.",
   "cost": {
@@ -21,14 +22,13 @@
     "weaponType": "plasma",
     "shield": 12,
     "armor": 12,
-    "hp": 24,
+    "hp": 28,
     "damage": "3d6",
     "tiers": {
+      "aircraft": "counter",
       "infantry": "disadvantage",
       "vehicle": "disadvantage",
-      "aircraft": "advantage",
-      "structure": "disadvantage",
-      "artillery": "disadvantage"
+      "structure": "disadvantage"
     },
     "range": 9
   },

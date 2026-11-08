@@ -24,6 +24,9 @@
   --color-ok-edge: #2f6b45;
   --color-danger: #f08a7a;
   --color-danger-wash: #3a1a17;
+  --color-even: #8fb8f5;
+  --color-even-wash: #16243a;
+  /* the Lab's duel matrix: peers that came out even */
 
   --color-divider: #1f2830;
   /* between list rows */

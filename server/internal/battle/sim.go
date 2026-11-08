@@ -1016,7 +1016,7 @@ func (s *Sim) fire() []Volley {
 				continue
 			}
 			v.Hits++
-			roll := rollWith(tier, func() int { return sq.dice.roll(s.rng) })
+			roll := damageWith(tier, sq.dice, s.rng)
 			roll = int(math.Round(sq.boost.Damage.apply(float64(roll))))
 			d := hit(sq.weapon, &t.Members[0], roll)
 			v.ShieldDmg, v.ArmorDmg, v.HPDmg = v.ShieldDmg+d.Shield, v.ArmorDmg+d.Armor, v.HPDmg+d.HP
