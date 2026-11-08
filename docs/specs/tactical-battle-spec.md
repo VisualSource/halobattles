@@ -394,6 +394,7 @@ Each one waits until a profile or real play shows the cost. Rough order: cheapes
 - Two evenly matched forces should fight for about **1–3 minutes**.
 - The two Starting Kits should stay roughly even, with a lean to the defender allowed: either one attacking wins 40–55% of the time, on a range of seeded Battlefields, each side playing its Faction's AI weights. A heavy lean to the defender is as much a problem as one to the attacker.
 - A Go test checks both over 100 seeds per matchup. When last tuned (Battlefield layout, #64): about 77 s per Battle; UNSC attacking wins 54%, Covenant attacking 54%. Three Stacks a side, still skipped under #40: 50% / 54%.
+- **During v4 (#115) it stays skipped** until the last step; see [Done when](#done-when).
 - **During v3 (#95) the test is skipped**, since the AI and the rules are changing; `HALO_BALANCE=1` runs it to measure. After the Command Post (#98), Starting Kit attackers win 69% / 63%. Balance is tuned once every v3 sub-issue is in.
 - The test covers **big Battles** too (three Starting Kit Stacks a side), skipped under #40 until the map generation rework (#64) settles; the current figures are in the line above. They were 73% / 67% before roles, the paused hold timer, guard posts, and cover for any positive weight, and 64% / 54% before focus fire.
 - Mirror matches with neutral weights showed the attacker winning about 60% before two AI fixes: caution no longer makes defenders abandon threatened points, and the defender hurries to retake a point while the hold timer runs.
@@ -630,13 +631,157 @@ Tried for #104 and dropped for [layouts](#layouts): routes joining the base, Lan
 
 Related: ~~the defence layout~~ (#91), built; see [Defence layout](#defence-layout). Measured in the Lab: big Battles favouring the attacker (#40), and an AI that chooses to Retreat (#61).
 
+## Tactical Battles v4
+
+Planned (#115), not built. Each step below is its own sub-issue. As each one lands it replaces the matching section above, and this section shrinks. Research: [RTS bots that are fun to fight](../research/rts-bot-ai-fun.md).
+
+Why: after the 2026-11-05 playtest (#107) the Battle AI still feels poor, frustrating and unfair. Large forces lost to small ones, squads didn't lock on to targets, fire came in lumps, and the controls felt loose. v4 moves the units toward Halo Wars 2's rock-paper-scissors, rebuilds the AI as one Hard AI that the lower difficulties limit, adds rules the 3D view now makes visible, and tightens the RTS controls.
+
+### Done when
+
+The playtest complaints become tests:
+
+- **Size counts:** a force twice the size, of the same mix, wins at least 90% of Battles.
+- **Counters work:** each triangle counter wins its one-on-one duel at equal cost at least 80% of the time.
+- **Hard counters hold:** every `counter` entry in the [duel matrix](#the-duel-matrix) wins as the table says.
+- **Balance:** the Starting Kits stay at 40–55% attacker wins (see [Pacing](#pacing)).
+
+The balance test stays skipped while v4 is built (`HALO_BALANCE=1` measures it), as it was for v3; balance is tuned once, after the last step.
+
+### Sim rate (step 1)
+
+- The sim steps at **10 Hz**, set by the Ruleset's `battle.ticksPerSecond` (10). Every duration is still given in seconds and converted to whole ticks, so timers round to 100 ms instead of 200 ms.
+- **Lockstep:** each 5 Hz match tick runs as many sim steps as fit (2 at 10 Hz) for every Battle, each Battle in **its own goroutine**, all joined before the tick returns. That's safe because Battles share no state and make no Nakama calls. It stays deterministic and needs no clocks, and pause and the Lab's speed work as before. Views still go out once per match tick.
+- **Logs and wire:** match logs record the rate, so logs made at 5 Hz replay at 5 Hz. Each `BattleView` carries the rate, and the client works out the Battle clock from it rather than from a fixed 5.
+- The spec's tick counts (`Setup`, a blocked squad's 1 s wait, and the like) are restated in seconds.
+- The 2 ms step budget still applies per step; the benchmark runs at the new rate.
+- If 5 Hz views still look rough in 3D, raising the match tick rate is a separate change.
+
+### Fire (step 2)
+
+- **Staggered members:** each member of a squad fires on its own `fireInterval` timer, offset from the others by an even share of the interval, so a squad's fire reads as a steady stream rather than one volley. A shot is followed by the pause, as in Halo Wars 2; there's no burst mechanic. Damage per second is unchanged.
+- **Target lock:** a squad keeps its target until the target dies, leaves its range or Sight, or an order changes it. Automatic target picking ([Firing](#firing)) chooses only when there's no locked target. A Task Force's one target and an `attack` order both set the lock.
+- The client draws a tracer per member's shot.
+
+### Counters (step 3)
+
+- **A fifth tier, `counter`:** Advantage on the To-hit roll, and the Damage roll's dice rolled twice and added (a Marine's 1d4 becomes 2d4), like a D&D critical. It reads plainly in a log ("rolled 2d4 = 6") and keeps [ADR 0003](../adr/0003-dice-damage.md)'s rule against multipliers. `advantage`, `normal`, `disadvantage` and `none` are unchanged.
+- **The triangle:** each Unit Class sets its units' default tiers, and a unit lists only the tiers where it differs:
+
+  | Unit Class | Advantage vs | Disadvantage vs |
+  |---|---|---|
+  | Infantry | Aircraft | Vehicle |
+  | Vehicle | Infantry | Aircraft |
+  | Aircraft | Vehicle | Infantry |
+
+  Structure keeps its tiers. Basic infantry (Marines, Grunts) become strong against aircraft and normal against infantry.
+- **The Artillery class goes.** Artillery is a profile, not a class: a Vehicle with a long `range`, a `minRange` and the `hangBack` [behaviour](#unit-behaviours-step-5a). `artillery.jsonc`, its class default and the `artillery` tier entries on the Hunters, Jackal Sniper, Locust and Wraith AA are removed. Loading fails on a tier for a Unit Class that doesn't exist.
+- **Named counters:** everything not listed plays its class default.
+
+  | `counter` vs | UNSC | Covenant | Forerunner |
+  |---|---|---|---|
+  | Vehicle | ODST, Scorpion | Elite, Hunters, Wraith | Enforcer, Retriever |
+  | Aircraft | Wolverine, Warthog M12 Rocket | Wraith AA | — |
+  | Infantry | — | Jackal Sniper | Promethean Knight |
+  | Structure | Rhino | Locust | — |
+
+  The Pelican and Phantom stay unarmed; the Warthog M12A and M12G1 keep Advantage against vehicles. Forerunners, a neutral garrison, have no anti-air counter.
+- **The Rhino** becomes artillery: a Vehicle, range 12, `minRange` 4, `fireInterval` 4 s, heavy dice, `counter` against Structure, normal against infantry and vehicles, none against aircraft, and `hangBack`. Splash damage waits for [Later](#later).
+- **The roster is retuned** to the table, numbers first-pass, with the duel matrix as the check.
+
+### The duel matrix
+
+- A Go test fights every armed unit against every other one-on-one, at equal cost, over 100 seeds on open ground, and checks each pair against the intended outcome: the counter table above and the triangle. The intended outcome is content, so a Mod states its own.
+- **In the Lab:** a Duels table, units down and across, each cell the attacker's win rate, coloured by whether it matches the intended outcome. Clicking a cell plays that duel.
+
+### 3D rules (step 4)
+
+Rules the 3D view now shows the player, in this order:
+
+1. **Air layer:** Aircraft path with every cell costing 1, over water and cliffs, and stand in their own layer: an aircraft can be above a ground squad, and neither blocks the other. Aircraft still don't share a cell with another aircraft.
+2. **Height:** +1 cell of `range` and `sight` for each height level above the target, at most +2. This joins the +2 To-hit for high ground.
+3. **Line of sight:** a straight line between two cells is blocked by any cell on it that's higher than both ends, by a fixture's blocked cells, or by more than 2 forest cells. Fog uses the same test, so a side can't see or fire past a ridge. It's checked only for pairs already within Sight or range, to stay in the step budget. Aircraft, as shooter or target, ignore it.
+
+Facing and turn time for vehicles are left out: more micro, not more fun.
+
+### The Hard AI (step 5)
+
+The Battle AI is rebuilt as one **Hard** AI. Normal and Easy are the same AI with limits ([step 5c](#difficulty-step-5c)), the way Halo Wars 2 scales its tables down from Legendary; none has a stat bonus. Hard fixes:
+
+- **Masses before going in:** the attacker commits together instead of sending 2 squads to the Command Post and the rest touring pads, then arriving a squad at a time (#109).
+- **Target lock** ([step 2](#fire-step-2)).
+- **No relentless chase:** it stops pursuing a target that's been out of its range for 6 s.
+- **No flip-flopping:** a squad or force that fell back won't go in again for 5 s.
+- **Matchups count:** with real counters, the Commander's matchup scaling rises from ×1.15 / ×0.9 to about ×1.5 / ×0.6, measured against the balance band.
+
+#### Unit behaviours (step 5a)
+
+A unit's optional `behaviors` list, content, tells its squad planner how it fights. This replaces "Per-unit AI behaviour" in [Later](#later).
+
+- **`hangBack`:** keeps behind its force's front and fires from its full range, never nearer than its `minRange`. The Rhino.
+- **`escort`:** stays with the main force instead of leading, and fires on aircraft first. The Wolverine, Wraith AA and Warthog M12 Rocket.
+- **`seekCounter`:** in a fight, goes for the enemy it has `counter` against. The ODST, Elite and Hunters (vehicles); the Jackal Sniper and Promethean Knight (infantry).
+- **`pullback`:** a squad below 30% of its members backs off to its nearest friendlies for 10 s, then rejoins. Every unit, without listing it.
+- **`raider`:** prefers raid goals on buildings. The Ghost and Jackrabbit.
+
+Kiting stays automatic. Scout, skirmisher and the `lead` / `follow` / `hunt` Task Force roles stay as they are.
+
+#### Commander tactics (step 5b)
+
+- **Mass, then commit** (above).
+- **Mixed Task Forces:** a force is made up from the counter table against the threat at its goal (anti-air when it has seen aircraft, anti-vehicle against vehicles) rather than in id order.
+- **Regroup:** a force that falls below half its strength falls back to the nearest held point, merges with any other force there, and goes in again together instead of trickling in.
+- **Defender falls back to the Command Post** once it has lost its points and is outnumbered 2 to 1, rather than dying spread over them.
+- Coming in from several bearings stays as it is; choke points stay in Later.
+
+#### Difficulty (step 5c)
+
+The limits are Ruleset data, a `battle` block on each `botDifficulties` entry:
+
+| | Hard | Normal | Easy |
+|---|---|---|---|
+| Reacts to a new sighting after | 0.2 s | 0.6 s | 1.2 s |
+| Replans every | 1 s | 1.5 s | 2.5 s |
+| Goal score noise | 0 | ±10% | ±25% |
+| Takes the second-best target within 20% of the best | never | sometimes | often |
+| Focus fire, kiting, Task Force gathering | on | on | off |
+| `pullback`, `seekCounter` | on | on | off |
+
+- **Who plays what:** a Bot plays its own difficulty; a player's side on Auto plays Hard; a neutral garrison plays Normal.
+- The reaction delays follow the research's 0.2–0.4 s human floor; Easy's mistakes are meant to be plausible (slow, second-best), never the jarring kind.
+
+### RTS controls (step 6)
+
+Built on [Command](#command). **Mockup first**, agreed before any of it is built. It can be worked alongside any other step.
+
+- **Control groups:** Ctrl+1–9 sets, 1–9 selects, a double tap moves the camera there.
+- **Select all army:** `Q`.
+- **Double-click** a squad to select every squad of that unit type on screen.
+- **Stop:** `S`.
+- **Queued orders:** Shift with an order adds it to the end of the squad's queue.
+- **Right-click a pad** to take it.
+- **Right-click the minimap** to move there.
+- **Orders stick:** a commanded squad keeps its order until it's done; the AI never overrides it.
+- Right-click stays Move / Attack. Unit abilities are for later.
+
+### Order of work
+
+1. Sim rate: 10 Hz, a goroutine per Battle.
+2. Fire: staggered members, target lock.
+3. Counters: the `counter` tier, the triangle, dropping Artillery, the roster retune, the duel matrix.
+4. 3D rules: the air layer, height, then line of sight.
+5. The Hard AI: 5a unit behaviours, 5b Commander tactics, 5c the Normal and Easy limits.
+6. RTS controls, mockup first, alongside any step.
+
+Then balance against [Done when](#done-when).
+
 ## Later
 
 Not in v1, but kept in mind:
 
 - **Player control** of Squads, beyond Retreat; and AI that chooses to Retreat.
-- **Per-unit AI behaviour:** a unit's own `ai` weights layered on its Faction's. For example, artillery (long `range`, `minRange`) would weigh `takeHighGround` and `keepDistance` heavily and hang back behind friendly Squads instead of moving to the front, while a Ghost would weigh `raid`.
-- **Line-of-sight** blocking.
+- **Per-unit AI weights:** a unit's own `ai` weights layered on its Faction's. Its behaviours come in v4 ([Unit behaviours](#unit-behaviours-step-5a)).
+- **Splash damage** for artillery, hitting more than one member or squad.
 - **Unit vision needs a rework.** Seen commanding squads in the Lab (#92): four squads moved into an area together, and only about one of them fired. Likely causes to check: squads sent somewhere hold there and fire only at what's in their own range (short next to Sight), so those behind the front never get a shot; nothing in a group moves up to engage what its neighbours can see. To be scoped before balancing.
 - **Capital-world variant:** a defender HQ the attacker must reach and hold or destroy.
 - **Building sites:** fixed spots on each Planet's Battlefield, with the player choosing what goes where.

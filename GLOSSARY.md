@@ -208,6 +208,14 @@ _Avoid_: Strong, bonus
 An attacker's weakness against a Unit Class: it rolls the To-hit roll and the Damage roll twice each and keeps the lower.
 _Avoid_: Weak, penalty
 
+**Counter**:
+An attacker's hard edge against a Unit Class, stronger than Advantage: it rolls the To-hit roll with Advantage and the Damage roll's dice twice, added together.
+_Avoid_: Hard counter, strong
+
+**Behaviour**:
+A unit's way of fighting in a Battle, set in its content and followed by its Squad's planner (e.g. `hangBack` for artillery, `escort` for anti-air).
+_Avoid_: Role (a role is a job the Commander gives a Squad, e.g. scout), stance, AI weight
+
 **Locked**:
 The state of a Planet while a Battle is in progress on it.
 _Avoid_: Contested, in-battle
