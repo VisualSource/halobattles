@@ -11,6 +11,7 @@
   "buildTime": 25,
   "commandPoints": 2,
   "roles": ["infiltration"],
+  "behaviors": ["seekCounter"],
   "combat": {
     "unitClass": "infantry",
     "weaponType": "explosive",

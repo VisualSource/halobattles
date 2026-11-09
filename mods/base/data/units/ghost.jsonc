@@ -12,6 +12,7 @@
   "upkeep": { "credits": 15, "alloys": 1 },
   "buildTime": 30,
   "commandPoints": 3,
+  "behaviors": ["raider"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "plasma",

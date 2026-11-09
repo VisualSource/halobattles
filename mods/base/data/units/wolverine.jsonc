@@ -11,6 +11,7 @@
   "buildTime": 40,
   "commandPoints": 3,
   "roles": ["aa"],
+  "behaviors": ["escort"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "explosive",

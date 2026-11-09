@@ -3,6 +3,7 @@
   "id": "warthog-m12-rocket",
   "name": "M12R Rocket Warthog",
   "peerGroup": null, // a placeholder: out of the duel matrix till it's statted
+  "behaviors": ["escort"],
   "variantOf": "warthog",
   // Placeholder stats: kept off the Vehicle Depot until they are balanced.
   "trainable": false,

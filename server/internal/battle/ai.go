@@ -58,9 +58,10 @@ const (
 )
 
 // matchup scales a kill or raid goal by the squad's tier against the
-// target, so squads go after what they're good against. Kept mild: at 1.5 and
-// 0.6 the attacker, free to pick its fights, won 75% of Starting Kit Battles.
-var matchup = map[string]float64{Counter: 1.15, Advantage: 1.15, Normal: 1, Disadvantage: 0.9} // step 5 of v4 (#120) tunes these
+// target, so squads go after what they're good against. Before real
+// counters, 1.5 and 0.6 won the attacker, free to pick its fights, 75% of
+// Starting Kit Battles; with them it's the Hard AI's (v4, #120).
+var matchup = map[string]float64{Counter: 1.5, Advantage: 1.5, Normal: 1, Disadvantage: 0.6}
 
 // goal is what the Commander gives a squad: a place, and for kill and raid
 // the target's id.
@@ -108,6 +109,7 @@ type plan struct {
 	beatAt    int  // the tick it last set out on its beat
 	beatUntil int  // the tick it's back from its beat
 	waiting   bool // a Task Force follower holding back behind its leaders
+	inRangeAt int  // a kill goal: the tick it last had its target in range, or was given it
 }
 
 // AI drives a side: a Commander that hands each squad a goal, and a
@@ -125,6 +127,8 @@ type AI struct {
 	forces  map[forceKey]*taskForce
 	forceOf map[int]*taskForce // squads in a Task Force, by id
 	rested  map[int]int        // the tick a squad got back from falling back
+	pulled  map[int]int        // squads that have pulled back (once each), by id: the tick they rejoin
+	gaveUp  map[[2]int]int     // a squad's chase it gave up, by squad and target id: the tick
 	round   map[int]int        // a skirmisher's place on its patrol
 	// Trace, if set, hears each change in what a squad has been told to do,
 	// for a Match log.
@@ -174,6 +178,7 @@ func NewAI(w Weights) *AI {
 	return &AI{
 		weights: w, plans: map[int]*plan{}, seen: map[int]Cell{}, sighted: map[int]sighting{},
 		roles: map[int]role{}, rested: map[int]int{}, round: map[int]int{},
+		pulled: map[int]int{}, gaveUp: map[[2]int]int{},
 	}
 }
 
@@ -255,7 +260,25 @@ const (
 	nearRadius     = 3 // cells: a friendly this close is near
 	threatRadius   = 6 // cells: enemies this close to a goal threaten it
 	distScale      = 12.0
+	// The Hard AI's fixes (v4): chaseSeconds is how long a squad goes after a
+	// target it can't hit before it gives up on it for as long again;
+	// regroupSeconds, how long after falling back before it goes in again.
+	chaseSeconds   = 6
+	regroupSeconds = 5
+	// pullback: a squad down to pullbackShare of its members backs off to its
+	// nearest friendlies for pullbackSeconds, once, then rejoins.
+	pullbackShare   = 0.3
+	pullbackSeconds = 10
+	// raiderValue scales a raid goal for a raider; seekValue, a kill goal on
+	// an enemy a seekCounter unit counters.
+	raiderValue = 2
+	seekValue   = 1.5
 )
+
+// does is whether a unit squad has a behaviour (cs.Unit.Behaviors).
+func (s *Sim) does(sq *Squad, b cs.UnitBehaviorsElem) bool {
+	return !sq.Building && slices.Contains(s.content.Units[sq.Unit].Behaviors, b)
+}
 
 func (ai *AI) Orders(v View) []Order {
 	s := v.sim
@@ -297,7 +320,15 @@ func (ai *AI) Orders(v View) []Order {
 			}
 		}
 		tf := ai.forceOf[sq.ID]
+		// The chase clock runs only once it's going: not while its force gathers.
+		if t := s.squad(p.goal.target); t != nil && (tf != nil && !tf.going || s.canHit(sq, t)) {
+			p.inRangeAt = v.Tick()
+		}
 		out = append(out, ai.aim(v, sq, tf)...)
+		if o, ok := ai.pullback(v, sq); ok {
+			out = append(out, o...)
+			continue
+		}
 		if e := ai.foe(v, sq, p, enemies); e != nil {
 			if s.tier(sq, e) == None {
 				out = append(out, ai.evade(v, sq, p, e)...)
@@ -522,12 +553,18 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		busy = ai.assignRoles(v, own, enemies)
 	}
 	for _, sq := range own {
-		if sq.speed == 0 || sq.retreating || busy[sq.ID] {
+		if until, ok := ai.pulled[sq.ID]; sq.speed == 0 || sq.retreating || busy[sq.ID] || ok && v.Tick() < until {
 			continue
 		}
 		best, bestScore := -1, math.Inf(-1)
 		var bestWhy factors
 		current := ai.plans[sq.ID]
+		// A chase it's had no shot in for chaseSeconds: given up, for as long again.
+		if current != nil && current.goal.kind == kill && v.Tick()-current.inRangeAt > chaseSeconds*s.TPS() {
+			ai.gaveUp[[2]int{sq.ID, current.goal.target}] = v.Tick()
+		}
+		back, fellBack := ai.rested[sq.ID]
+		regrouping := fellBack && v.Tick()-back < regroupSeconds*s.TPS()
 		for i, g := range goals {
 			if g.target != 0 && s.tier(sq, s.squad(g.target)) == None {
 				continue // it can't hurt that
@@ -535,12 +572,28 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			if g.kind == takePad && s.setup() && (!s.Builders[v.Side] || !ai.backInTime(v, sq, g.cell)) {
 				continue // no use to it yet, or it would still be out when the fighting starts
 			}
-			f := factors{value: values[i], dist: 1 + dist(sq.Cell, g.cell)/distScale, crowd: 1, matchup: 1, fear: 1, stick: 1}
-			if !g.kind.forms() || len(on[i]) >= minForce && members[i] >= need[i] {
-				f.crowd = 1 + assigned[i] // spread out, once a Task Force has what it needs
+			if at, ok := ai.gaveUp[[2]int{sq.ID, g.target}]; g.kind == kill && ok && v.Tick()-at < chaseSeconds*s.TPS() {
+				continue // no relentless chase
 			}
-			if g.target != 0 {
-				f.matchup = matchup[s.tier(sq, s.squad(g.target))] // go after what it's good against
+			if regrouping && g.kind.forms() {
+				continue // fell back lately: no going straight back in
+			}
+			f := factors{value: values[i], dist: 1 + dist(sq.Cell, g.cell)/distScale, crowd: 1, matchup: 1, fear: 1, stick: 1}
+			// Spread out, once a Task Force has what it needs; but the attacker
+			// masses everything on the assault rather than touring pads and
+			// arriving a squad at a time (#109).
+			if g.kind != assault && (!g.kind.forms() || len(on[i]) >= minForce && members[i] >= need[i]) {
+				f.crowd = 1 + assigned[i]
+			}
+			if g.target != 0 && g.kind != assault { // the Command Post is the job, whatever the tier
+				t := s.tier(sq, s.squad(g.target))
+				f.matchup = matchup[t] // go after what it's good against
+				if t == Counter && g.kind == kill && s.does(sq, cs.UnitBehaviorsElemSeekCounter) {
+					f.matchup *= seekValue
+				}
+			}
+			if g.kind == raid && s.does(sq, cs.UnitBehaviorsElemRaider) {
+				f.value *= raiderValue
 			}
 			if g.kind != defend { // a threatened point is the one to hold, not to shy from
 				f.fear = 1 + caution*threat[i]/max(1, strength)
@@ -568,7 +621,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			p.goal = goals[best]
 			continue
 		}
-		ai.plans[sq.ID] = &plan{goal: goals[best]}
+		ai.plans[sq.ID] = &plan{goal: goals[best], inRangeAt: v.Tick()}
 	}
 	ai.form(v, goals, on)
 	for _, tf := range ai.forces {
@@ -1418,6 +1471,7 @@ func (s *Sim) firingPosition(sq *Squad, target Cell, cover, standoff float64) (C
 		found bool
 	}
 	anywhere, past := pick{score: math.Inf(1)}, pick{score: math.Inf(1)} // past: beyond the standoff
+	hang := s.does(sq, cs.UnitBehaviorsElemHangBack)
 	r := int(sq.reach)
 	for y := target.Y - r; y <= target.Y+r; y++ {
 		for x := target.X - r; x <= target.X+r; x++ {
@@ -1429,6 +1483,9 @@ func (s *Sim) firingPosition(sq *Squad, target Cell, cover, standoff float64) (C
 				continue
 			}
 			score := dist(sq.Cell, c)
+			if hang {
+				score += 2 * (sq.reach - d) // from its full range
+			}
 			if !sq.air {
 				score -= cover * (2*float64(s.height(c)-s.height(target)) - float64(s.coverAt(c)))
 			}
@@ -1448,10 +1505,42 @@ func (s *Sim) firingPosition(sq *Squad, target Cell, cover, standoff float64) (C
 
 // standoff is how far from e, in cells, sq should fire from: beyond e's
 // reach, against an armed enemy that can hurt it and that it outranges and
-// outruns, so it can fire and back off as e closes. 0: it doesn't kite e.
+// outruns, so it can fire and back off as e closes. A hangBack unit with a
+// minRange always keeps off: past that, and past e's reach while it can
+// still hit e. 0: it doesn't kite e.
 func (s *Sim) standoff(sq, e *Squad) float64 {
+	if sq.minRange > 0 && s.does(sq, cs.UnitBehaviorsElemHangBack) {
+		return max(sq.minRange+1, min(e.reach, sq.reach-1)) // never nearer than its minRange; past e's reach if it can
+	}
 	if e.Armed && e.speed > 0 && sq.speed > e.speed && sq.reach > e.reach && s.tier(e, sq) != None {
 		return e.reach
 	}
 	return 0
+}
+
+// pullback has a squad down to pullbackShare of its members back off to its
+// nearest friendly squad for pullbackSeconds, once, then rejoin. It reports
+// whether the squad is pulling back.
+func (ai *AI) pullback(v View, sq *Squad) ([]Order, bool) {
+	if until, done := ai.pulled[sq.ID]; done {
+		return nil, v.Tick() < until
+	}
+	if float64(len(sq.Members)) >= pullbackShare*float64(sq.Start) {
+		return nil, false
+	}
+	var near *Squad
+	for _, o := range ai.own {
+		if o != sq && o.alive() && !o.Building && (near == nil || dist2(sq.Cell, o.Cell) < dist2(sq.Cell, near.Cell)) {
+			near = o
+		}
+	}
+	if near == nil {
+		ai.pulled[sq.ID] = v.Tick() // no one to pull back to: it fights on
+		return nil, false
+	}
+	ai.pulled[sq.ID] = v.Tick() + pullbackSeconds*v.sim.TPS()
+	if p := ai.plans[sq.ID]; p != nil {
+		p.steps, p.sent, p.engaged = nil, false, 0 // its plan starts afresh after
+	}
+	return []Order{{Kind: Move, Squad: sq.ID, Cell: near.Cell}}, true
 }

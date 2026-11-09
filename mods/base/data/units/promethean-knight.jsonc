@@ -8,6 +8,7 @@
   "cost": {},
   "buildTime": 30,
   "commandPoints": 4,
+  "behaviors": ["seekCounter"],
   "combat": {
     "unitClass": "infantry",
     "weaponType": "hard-light",

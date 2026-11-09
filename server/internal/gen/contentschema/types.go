@@ -1376,6 +1376,14 @@ type Unit struct {
 	// Schema corresponds to the JSON schema field "$schema".
 	Schema *string `json:"$schema,omitempty,omitzero"`
 
+	// How the Battle AI fights this unit. hangBack: keeps behind its force's front
+	// and fires from its full range, never nearer than its minRange. escort: stays
+	// with the main force instead of leading, and fires on aircraft first.
+	// seekCounter: in a fight, goes for an enemy it counters. raider: prefers raid
+	// goals on buildings. Every unit also pulls back to its friends for a while when
+	// nearly wiped out.
+	Behaviors []UnitBehaviorsElem `json:"behaviors,omitempty,omitzero"`
+
 	// Seconds to train one.
 	BuildTime Seconds `json:"buildTime"`
 
@@ -1450,6 +1458,13 @@ type Unit struct {
 	// against unit-variant.schema.json; the loader merges it over its parent.
 	VariantOf *ID `json:"variantOf,omitempty,omitzero"`
 }
+
+type UnitBehaviorsElem string
+
+const UnitBehaviorsElemEscort UnitBehaviorsElem = "escort"
+const UnitBehaviorsElemHangBack UnitBehaviorsElem = "hangBack"
+const UnitBehaviorsElemRaider UnitBehaviorsElem = "raider"
+const UnitBehaviorsElemSeekCounter UnitBehaviorsElem = "seekCounter"
 
 // A combat category that attackers are more or less effective against.
 type UnitClass struct {

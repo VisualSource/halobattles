@@ -698,23 +698,24 @@ Facing and turn time for vehicles are left out: more micro, not more fun.
 
 ### The Hard AI (step 5)
 
-The Battle AI is rebuilt as one **Hard** AI. Normal and Easy are the same AI with limits ([step 5c](#difficulty-step-5c)), the way Halo Wars 2 scales its tables down from Legendary; none has a stat bonus. Hard fixes:
+The Battle AI is rebuilt as one **Hard** AI. Its fixes and the unit behaviours are built (#120); Commander tactics and the difficulty limits are next. Normal and Easy are the same AI with limits ([step 5c](#difficulty-step-5c)), the way Halo Wars 2 scales its tables down from Legendary; none has a stat bonus. Hard fixes:
 
-- **Masses before going in:** the attacker commits together instead of sending 2 squads to the Command Post and the rest touring pads, then arriving a squad at a time (#109).
+- **Masses before going in:** the attacker commits together instead of sending 2 squads to the Command Post and the rest touring pads, then arriving a squad at a time (#109). Built as: the assault never loses score for squads already on it, so every squad without a scout or skirmisher role goes on it, in Task Forces that gather and go in together. Its score doesn't take the squad's tier against the Command Post either: the Command Post is the job.
 - **Target lock** (built, see [Firing](#firing)).
-- **No relentless chase:** it stops pursuing a target that's been out of its range for 6 s.
-- **No flip-flopping:** a squad or force that fell back won't go in again for 5 s.
-- **Matchups count:** with real counters, the Commander's matchup scaling rises from ×1.15 / ×0.9 to about ×1.5 / ×0.6, measured against the balance band.
+- **No relentless chase:** it stops pursuing a target that's been out of its range for 6 s, and won't take that chase up again for 6 s.
+- **No flip-flopping:** a squad that fell back won't take a Task Force goal (assault, capture, kill, raid) for 5 s.
+- **Matchups count:** with real counters, the Commander's matchup scaling rises from ×1.15 / ×0.9 to ×1.5 (`counter` and `advantage`) / ×0.6. Against ×1.15 / ×0.9 it changed the Starting Kit balance by no more than noise.
+- **The Command Post is a structure to every tier:** its Unit Class was never given its Mod's prefix, so tiers against Structure missed it. Fixed: the Rhino counters it, and most units fight it at Disadvantage. With that and all of the above, UNSC attacking Covenant wins 61% and Covenant attacking UNSC 41% (from 66% and 53%); the balance pass at the end of v4 takes it from there.
 
 #### Unit behaviours (step 5a)
 
-A unit's optional `behaviors` list, content, tells its squad planner how it fights. This replaces "Per-unit AI behaviour" in [Later](#later).
+A unit's optional `behaviors` list, content, tells its squad planner how it fights. This replaces "Per-unit AI behaviour" in [Later](#later). Built (#120):
 
-- **`hangBack`:** keeps behind its force's front and fires from its full range, never nearer than its `minRange`. The Rhino.
-- **`escort`:** stays with the main force instead of leading, and fires on aircraft first. The Wolverine, Wraith AA and Warthog M12 Rocket.
-- **`seekCounter`:** in a fight, goes for the enemy it has `counter` against. The ODST, Elite and Hunters (vehicles); the Jackal Sniper and Promethean Knight (infantry).
-- **`pullback`:** a squad below 30% of its members backs off to its nearest friendlies for 10 s, then rejoins. Every unit, without listing it.
-- **`raider`:** prefers raid goals on buildings. The Ghost and Jackrabbit.
+- **`hangBack`:** keeps behind its force's front and fires from its full range, never nearer than its `minRange`. The Rhino. Built as: it follows its Task Force's leaders as a follower does; its firing positions favour its full range; and it always keeps a standoff past its `minRange`, and past the target's reach while it can still hit it.
+- **`escort`:** stays with the main force instead of leading, and fires on aircraft first. The Wolverine, Wraith AA and Warthog M12 Rocket. Built as: a follower in its Task Force, firing on the nearest aircraft it can hit before its force's target.
+- **`seekCounter`:** in a fight, goes for the enemy it has `counter` against. The ODST, Elite and Hunters (vehicles); the Jackal Sniper and Promethean Knight (infantry). Built as: it fires on the nearest enemy it counters and can hit before its force's target, and the Commander scores a kill goal on one ×1.5 more.
+- **`pullback`:** a squad below 30% of its members backs off to its nearest friendlies for 10 s, then rejoins. Every unit, without listing it. Once per squad, or it would never rejoin.
+- **`raider`:** prefers raid goals on buildings. The Ghost and Jackrabbit. Built as: a raid goal is worth twice as much to it.
 
 Kiting stays automatic. Scout, skirmisher and the `lead` / `follow` / `hunt` Task Force roles stay as they are.
 
@@ -762,7 +763,7 @@ Built on [Command](#command). **Mockup first**, agreed before any of it is built
 2. ~~Fire: staggered members, target lock~~ (#117): now in [Firing](#firing).
 3. Counters: the `counter` tier, the triangle, dropping Artillery, the roster retune, the duel matrix (#118).
 4. ~~3D rules: the air layer, height, then line of sight~~ (#119): now in [Height](#height).
-5. The Hard AI: 5a unit behaviours (#120), 5b Commander tactics (#121), 5c the Normal and Easy limits (#122).
+5. The Hard AI: ~~5a unit behaviours and the Hard AI fixes~~ (#120), 5b Commander tactics (#121), 5c the Normal and Easy limits (#122).
 6. RTS controls, mockup first, alongside any step (#123).
 
 Then balance against [Done when](#done-when).

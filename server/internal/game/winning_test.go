@@ -18,7 +18,7 @@ func TestLosingYourCapitalEliminatesYou(t *testing.T) {
 	s.Planets["d"].Owner = 0
 	s.Planets["d"].Stacks[0] = Stack{{Unit: "base:marine", Count: 3}}
 	s.LastID++
-	s.Armies = map[uint32]*Army{s.LastID: {ID: s.LastID, Owner: 1, Units: Stack{{Unit: "base:grunt", Count: 1}}, From: "c", To: "b", Arrives: 99_000}}
+	s.Armies = map[uint32]*Army{s.LastID: {ID: s.LastID, Owner: 1, Units: Stack{{Unit: "base:grunt", Count: 1}}, From: "c", To: "b", Arrives: 299_000}} // still out when the Capital falls
 	if err := s.OrderArmy(0, "d", marines(3), "e", 0); err != nil {
 		t.Fatal(err)
 	}

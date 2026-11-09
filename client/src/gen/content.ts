@@ -716,6 +716,10 @@ export interface Unit {
    */
   roles?: ("scout" | "skirmisher" | "infiltration" | "shock" | "aa")[];
   /**
+   * How the Battle AI fights this unit. hangBack: keeps behind its force's front and fires from its full range, never nearer than its minRange. escort: stays with the main force instead of leading, and fires on aircraft first. seekCounter: in a fight, goes for an enemy it counters. raider: prefers raid goals on buildings. Every unit also pulls back to its friends for a while when nearly wiped out.
+   */
+  behaviors?: ("hangBack" | "escort" | "seekCounter" | "raider")[];
+  /**
    * A Dropship: the Command Points of units it lands in a Battle already under way, once a Battle. It never fires.
    */
   carry?: number;

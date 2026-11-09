@@ -152,6 +152,16 @@
         }
       ]
     },
+    "behaviors": {
+      "anyOf": [
+        {
+          "$ref": "unit.schema.json#/properties/behaviors"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "combat": {
       "description": "Merged over the parent's combat key by key.",
       "type": "object",

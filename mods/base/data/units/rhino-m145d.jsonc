@@ -8,6 +8,7 @@
   "cost": { "credits": 250, "materials": 100, "alloys": 30 },
   "buildTime": 30,
   "commandPoints": 4,
+  "behaviors": ["hangBack"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "plasma",

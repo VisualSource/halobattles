@@ -18,6 +18,7 @@
   ],
   "buildTime": 40,
   "commandPoints": 3,
+  "behaviors": ["escort"],
   "combat": {
     "weaponType": "plasma",
     "shield": 12,

@@ -321,6 +321,9 @@ func (ai *AI) aim(v View, sq *Squad, tf *taskForce) []Order {
 			t = 0
 		}
 	}
+	if e := ai.preferred(v, sq); e != nil {
+		t = e.ID
+	}
 	if sq.target == t {
 		return nil
 	}
@@ -335,18 +338,25 @@ const followDist = 3
 // before its followers stop waiting for them.
 const stallSeconds = 2
 
+// follower is whether a squad keeps behind its Task Force's leaders: its
+// Unit Class follows, or it hangs back or escorts. An aircraft never does.
+func (ai *AI) follower(v View, sq *Squad) bool {
+	return !sq.air && (sq.tfRole == cs.UnitClassTaskForceRoleFollow ||
+		v.sim.does(sq, cs.UnitBehaviorsElemHangBack) || v.sim.does(sq, cs.UnitBehaviorsElemEscort))
+}
+
 // follow keeps a follower behind its Task Force's leaders (vehicles, in the
 // base Mod) while they're getting nearer the goal: it waits while it's less
 // than followDist further from the goal than the nearest leader, and moves
 // on once it's a cell more than that behind. Once the leaders have got no
 // nearer for stallSeconds, to fight, at the goal or stuck, it comes on.
 func (ai *AI) follow(v View, sq *Squad, p *plan, tf *taskForce) ([]Order, bool) {
-	if sq.tfRole != cs.UnitClassTaskForceRoleFollow || sq.air {
+	if !ai.follower(v, sq) {
 		return nil, false
 	}
 	lead := math.Inf(1)
 	for _, o := range tf.members {
-		if o.tfRole == cs.UnitClassTaskForceRoleLead && !o.air && o.alive() {
+		if o.tfRole == cs.UnitClassTaskForceRoleLead && !o.air && o.alive() && !ai.follower(v, o) {
 			lead = min(lead, dist(o.Cell, tf.goal.cell))
 		}
 	}
@@ -377,4 +387,32 @@ func (ai *AI) follow(v View, sq *Squad, p *plan, tf *taskForce) ([]Order, bool) 
 // shotBy is whether e fired on one of the Task Force's members lately.
 func (tf *taskForce) shotBy(v View, e *Squad) bool {
 	return slices.ContainsFunc(tf.members, func(sq *Squad) bool { return sq.hitBy == e.ID && v.Tick()-sq.hitAt <= underFireSeconds*v.sim.TPS() })
+}
+
+// preferred is the enemy a squad's behaviour has it fire on before its Task
+// Force's target: for an escort, an aircraft it can hit; for a seekCounter
+// unit, an enemy it counters that it can hit. The one it's firing on while it
+// still fits, else the nearest. nil: none.
+func (ai *AI) preferred(v View, sq *Squad) *Squad {
+	s := v.sim
+	escort, seek := s.does(sq, cs.UnitBehaviorsElemEscort), s.does(sq, cs.UnitBehaviorsElemSeekCounter)
+	if !escort && !seek {
+		return nil
+	}
+	fits := func(e *Squad) bool {
+		return e.Side != sq.Side && s.canHit(sq, e) && (!escort || e.air) && (!seek || s.tier(sq, e) == Counter)
+	}
+	if e := s.squad(sq.target); e != nil && fits(e) {
+		return e // keeps the one it has, as a target lock does
+	}
+	var best *Squad
+	for _, e := range s.Squads {
+		if !fits(e) {
+			continue
+		}
+		if best == nil || dist2(sq.Cell, e.Cell) < dist2(sq.Cell, best.Cell) {
+			best = e
+		}
+	}
+	return best
 }

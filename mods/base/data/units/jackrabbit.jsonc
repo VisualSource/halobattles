@@ -11,6 +11,7 @@
   "buildTime": 30,
   "commandPoints": 3,
   "roles": ["scout"],
+  "behaviors": ["raider"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "explosive",

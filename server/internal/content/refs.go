@@ -40,8 +40,10 @@ func resolveRefs(kind string, obj map[string]any, ns string) {
 		if b, ok := obj["battle"].(map[string]any); ok {
 			qualifyKeys(b, "classDefaults", ns)
 			qualifyKeys(b, "neutralFunds", ns)
-			if s, ok := b["structure"].(map[string]any); ok {
-				qualifyField(s, "unitClass", ns)
+			for _, k := range []string{"structure", "commandPost"} {
+				if s, ok := b[k].(map[string]any); ok {
+					qualifyField(s, "unitClass", ns)
+				}
 			}
 		}
 	case "factions":
@@ -249,6 +251,7 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 		c.ref(where+": battlefield", "terrainPresets", string(r.Battlefield.TerrainPreset))
 		c.ref(where+": battlefield pathClass", "unitClasses", string(r.Battlefield.PathClass))
 		c.ref(where+": battle structure", "unitClasses", string(r.Battle.Structure.UnitClass))
+		c.ref(where+": battle commandPost", "unitClasses", string(r.Battle.CommandPost.UnitClass))
 		c.resourceKeys(where+": battle neutralFunds", r.Battle.NeutralFunds)
 		for _, class := range slices.Sorted(maps.Keys(r.Battle.ClassDefaults)) {
 			c.ref(where+": battle classDefaults", "unitClasses", class)
