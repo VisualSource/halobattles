@@ -18,6 +18,10 @@ const (
 // tierRank orders tiers for picking a target, best first.
 var tierRank = map[string]int{Counter: -1, Advantage: 0, Normal: 1, Disadvantage: 2}
 
+// tierFit is how much a tier counts in a squad's fit against a threat
+// (fitness): a counter most, none not at all.
+var tierFit = map[string]float64{Counter: 3, Advantage: 2, Normal: 1, Disadvantage: 0.5, None: 0}
+
 // rollWith makes a roll, twice with advantage (keeping the higher) or
 // disadvantage (keeping the lower). A counter rolls the To-hit roll with
 // advantage; its Damage roll is damageWith's.

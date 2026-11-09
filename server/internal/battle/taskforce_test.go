@@ -93,8 +93,8 @@ func TestAGoalThatNeedsMoreThanACapGetsTaskForcesOnDifferentBearings(t *testing.
 		forces = append(forces, tf)
 	}
 	slices.SortFunc(forces, func(a, b *taskForce) int { return a.n - b.n })
-	if len(forces) != 2 || len(forces[0].members) != forceCap || len(forces[1].members) != 6-forceCap {
-		t.Fatalf("%d Task Forces; want 2, of %d and %d squads", len(forces), forceCap, 6-forceCap)
+	if len(forces) != 2 || len(forces[0].members) != 3 || len(forces[1].members) != 3 {
+		t.Fatalf("%d Task Forces; want 2, of 3 squads each: dealt round, so each gets some of the best", len(forces))
 	}
 	if forces[0].going || forces[1].going {
 		t.Fatal("went straight in; want them to gather first")

@@ -129,6 +129,7 @@ type AI struct {
 	rested  map[int]int        // the tick a squad got back from falling back
 	pulled  map[int]int        // squads that have pulled back (once each), by id: the tick they rejoin
 	gaveUp  map[[2]int]int     // a squad's chase it gave up, by squad and target id: the tick
+	holding bool               // a defender fallen back to its Command Post, till it holds a point again
 	round   map[int]int        // a skirmisher's place on its patrol
 	// Trace, if set, hears each change in what a squad has been told to do,
 	// for a Match log.
@@ -508,6 +509,20 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	if len(goals) == 0 {
 		return
 	}
+	// A defender that has lost its points and is outnumbered 2 to 1 falls
+	// back to its Command Post, rather than dying spread over them.
+	holdOut := ai.holdOut(v, own)
+	if holdOut {
+		var keep []goal
+		var kept []float64
+		for i, g := range goals {
+			if g.kind == defend && cp != nil && g.cell == cp.Cell {
+				keep, kept = append(keep, g), append(kept, values[i])
+			}
+		}
+		goals, values = keep, kept
+		clear(ai.roles) // no scouting or skirmishing either
+	}
 
 	// Threat counts enemies seen lately, not only those in view now, and
 	// armed buildings seen, out to their reach: a turret outranges infantry.
@@ -549,7 +564,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	}
 	chose := map[int]Choice{}
 	busy := map[int]bool{} // setup is for taking pads: jobs wait for the fighting
-	if !s.setup() {
+	if !s.setup() && !holdOut {
 		busy = ai.assignRoles(v, own, enemies)
 	}
 	for _, sq := range own {
@@ -1543,4 +1558,38 @@ func (ai *AI) pullback(v View, sq *Squad) ([]Order, bool) {
 		p.steps, p.sent, p.engaged = nil, false, 0 // its plan starts afresh after
 	}
 	return []Order{{Kind: Move, Squad: sq.ID, Cell: near.Cell}}, true
+}
+
+// holdOut is whether a defender falls back to its Command Post: the fighting
+// has started, it isn't Raided (a raider is after the buildings), it holds
+// none of the Control Points, and the enemy it has seen lately has twice its
+// members. Once it has, it stays till it holds a point again: huddled at the
+// Command Post it loses sight of an army waiting on the points, and would
+// walk back out into it.
+func (ai *AI) holdOut(v View, own []*Squad) bool {
+	s := v.sim
+	if v.Side != Defender || s.setup() || s.Raid {
+		return false
+	}
+	if slices.ContainsFunc(s.Points, func(p Point) bool { return p.Owner == Defender }) {
+		ai.holding = false
+		return false
+	}
+	if cp := s.commandPost(); cp == nil || !cp.alive() {
+		return false
+	}
+	if ai.holding {
+		return true
+	}
+	mine, theirs := 0, 0
+	for _, sq := range own {
+		if !sq.Building {
+			mine += len(sq.Members)
+		}
+	}
+	for _, sg := range ai.sighted {
+		theirs += sg.members
+	}
+	ai.holding = theirs >= 2*mine
+	return ai.holding
 }

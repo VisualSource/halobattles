@@ -2,6 +2,7 @@ package battle
 
 import (
 	"cmp"
+	"maps"
 	"math"
 	"slices"
 
@@ -25,6 +26,7 @@ type taskForce struct {
 	leadBest   float64      // the nearest its leaders have got to the goal
 	leadAt     int          // the tick they last got nearer
 	huntTarget int          // the one its hunters go for: one the rest can't hurt, or 0
+	peak       int          // the most members it has had since it last gathered
 }
 
 const (
@@ -47,6 +49,9 @@ const (
 	// flankAngle is the turn, in radians, between Task Forces' bearings on
 	// one goal.
 	flankAngle = math.Pi / 3.5
+	// regroupReach is how near, in cells, a held point must be for a Task Force
+	// to regroup on it.
+	regroupReach = 2 * stageDist
 )
 
 // forms reports whether a goal is a Task Force's rather than one squad's.
@@ -87,9 +92,21 @@ func (ai *AI) form(v View, goals []goal, on [][]*Squad) {
 				fresh = append(fresh, sq)
 			}
 		}
-		for n := 0; len(fresh) > 0; n++ {
-			k := min(forceCap-len(groups[n]), len(fresh))
-			groups[n], fresh = append(groups[n], fresh[:k]...), fresh[k:]
+		// Made up from the counter table: the best against the threat at the
+		// goal first, dealt round the forces it needs so each gets some.
+		if len(fresh) > 0 {
+			fit := ai.fitness(v, g)
+			score := map[int]float64{}
+			for _, sq := range fresh {
+				score[sq.ID] = fit(sq)
+			}
+			slices.SortStableFunc(fresh, func(a, b *Squad) int { return cmp.Compare(score[b.ID], score[a.ID]) })
+		}
+		need := (len(on[i]) + forceCap - 1) / forceCap
+		for n := 0; len(fresh) > 0; n = (n + 1) % need {
+			if len(groups[n]) < forceCap {
+				groups[n], fresh = append(groups[n], fresh[0]), fresh[1:]
+			}
 		}
 		for n := 0; n < len(on[i]); n++ {
 			if len(groups[n]) == 0 {
@@ -100,14 +117,25 @@ func (ai *AI) form(v View, goals []goal, on [][]*Squad) {
 			if tf == nil {
 				tf, fresh = &taskForce{n: n, formedAt: v.Tick(), near: map[int]bool{}, leadBest: math.Inf(1)}, true
 			}
+			// A member the Commander moved to another goal isn't a loss.
+			for _, sq := range tf.members {
+				if !slices.Contains(groups[n], sq) {
+					tf.peak -= len(sq.Members)
+				}
+			}
 			tf.goal, tf.members = g, groups[n]
 			tf.pace = math.Inf(1)
+			strength := 0
 			for _, sq := range tf.members {
 				tf.pace = min(tf.pace, sq.speed)
 				ai.forceOf[sq.ID] = tf
+				strength += len(sq.Members)
 			}
+			tf.peak = max(tf.peak, strength)
 			if fresh {
 				ai.placeStage(v, tf)
+			} else if tf.going && 2*strength < tf.peak {
+				ai.regroup(v, tf, strength)
 			}
 			forces[k] = tf
 			order = append(order, k)
@@ -152,12 +180,7 @@ func (tf *taskForce) gathered() bool {
 // that near, or after a moving target, goes straight in.
 func (ai *AI) placeStage(v View, tf *taskForce) {
 	s := v.sim
-	var x, y float64
-	for _, sq := range tf.members {
-		x, y = x+float64(sq.Cell.X), y+float64(sq.Cell.Y)
-	}
-	n := float64(len(tf.members))
-	mid := Cell{int(math.Round(x / n)), int(math.Round(y / n))}
+	x, y, mid := tf.middle()
 	// The Command Post is under fire: no time to gather.
 	cp := s.commandPost()
 	urgent := v.Side == Defender && cp != nil && cp.alive() && cp.damaged(s.rules.CommandPost)
@@ -165,11 +188,23 @@ func (ai *AI) placeStage(v View, tf *taskForce) {
 		tf.going = true
 		return
 	}
+	if at, ok := ai.stageFor(v, tf, x, y); ok {
+		tf.stage = at
+	} else {
+		tf.going = true
+	}
+}
+
+// stageFor is where a Task Force whose members' middle is (x, y) gathers:
+// stageDist from its goal toward them, turned by its place on the goal, on a
+// cell every member can stand on.
+func (ai *AI) stageFor(v View, tf *taskForce, x, y float64) (Cell, bool) {
+	s := v.sim
 	turn := flankAngle * float64((tf.n+1)/2)
 	if tf.n%2 == 0 {
 		turn = -turn
 	}
-	dx, dy := x/n-float64(tf.goal.cell.X), y/n-float64(tf.goal.cell.Y)
+	dx, dy := x-float64(tf.goal.cell.X), y-float64(tf.goal.cell.Y)
 	l := math.Hypot(dx, dy)
 	dx, dy = dx/l, dy/l
 	dx, dy = dx*math.Cos(turn)-dy*math.Sin(turn), dx*math.Sin(turn)+dy*math.Cos(turn)
@@ -189,11 +224,7 @@ func (ai *AI) placeStage(v View, tf *taskForce) {
 			}
 		}
 	}
-	if !found {
-		tf.going = true
-		return
-	}
-	tf.stage = best
+	return best, found
 }
 
 // gather sends a Task Force member still gathering to its stage, and holds
@@ -415,4 +446,62 @@ func (ai *AI) preferred(v View, sq *Squad) *Squad {
 		}
 	}
 	return best
+}
+
+// fitness rates a squad for a Task Force on g by the counter table: its
+// tiers against the enemies seen lately near the goal, or against all of
+// them if none are, each by its members.
+func (ai *AI) fitness(v View, g goal) func(*Squad) float64 {
+	s := v.sim
+	var threat []int
+	for _, near := range []bool{true, false} {
+		for _, id := range slices.Sorted(maps.Keys(ai.sighted)) {
+			if e := s.squad(id); e != nil && e.alive() && (!near || dist(ai.sighted[id].cell, g.cell) <= threatRadius) {
+				threat = append(threat, id)
+			}
+		}
+		if len(threat) > 0 {
+			break
+		}
+	}
+	return func(sq *Squad) float64 {
+		f := 0.0
+		for _, id := range threat {
+			f += tierFit[s.tier(sq, s.squad(id))] * float64(ai.sighted[id].members)
+		}
+		return f
+	}
+}
+
+// regroup sends a Task Force that has lost half its strength back to
+// gather and go in again together (with any other force on the goal that's
+// gathering) rather than trickle in: to the nearest point its side holds,
+// if one is within regroupReach, or else back to stageDist from the goal. A
+// point across the map cost more than the regroup won: Covenant attacks fell
+// from 40% to 29%, a fifth of them timing out. With nowhere to go it fights on.
+func (ai *AI) regroup(v View, tf *taskForce, strength int) {
+	x, y, mid := tf.middle()
+	stage, ok := Cell{}, false
+	if at := home(v); len(at) > 0 {
+		near := slices.MinFunc(at, func(a, b Cell) int { return cmp.Compare(dist2(mid, a), dist2(mid, b)) })
+		stage, ok = near, dist(mid, near) <= regroupReach
+	}
+	if !ok && dist(mid, tf.goal.cell) > 0 {
+		stage, ok = ai.stageFor(v, tf, x, y)
+	}
+	if !ok {
+		return
+	}
+	tf.stage, tf.going, tf.formedAt, tf.near, tf.peak = stage, false, v.Tick(), map[int]bool{}, strength
+}
+
+// middle is where a Task Force's members are on average, and the cell
+// nearest that.
+func (tf *taskForce) middle() (x, y float64, mid Cell) {
+	for _, sq := range tf.members {
+		x, y = x+float64(sq.Cell.X), y+float64(sq.Cell.Y)
+	}
+	n := float64(len(tf.members))
+	x, y = x/n, y/n
+	return x, y, Cell{int(math.Round(x)), int(math.Round(y))}
 }

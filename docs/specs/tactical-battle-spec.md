@@ -698,7 +698,7 @@ Facing and turn time for vehicles are left out: more micro, not more fun.
 
 ### The Hard AI (step 5)
 
-The Battle AI is rebuilt as one **Hard** AI. Its fixes and the unit behaviours are built (#120); Commander tactics and the difficulty limits are next. Normal and Easy are the same AI with limits ([step 5c](#difficulty-step-5c)), the way Halo Wars 2 scales its tables down from Legendary; none has a stat bonus. Hard fixes:
+The Battle AI is rebuilt as one **Hard** AI. Its fixes, the unit behaviours (#120) and Commander tactics (#121) are built; the difficulty limits are next. Normal and Easy are the same AI with limits ([step 5c](#difficulty-step-5c)), the way Halo Wars 2 scales its tables down from Legendary; none has a stat bonus. Hard fixes:
 
 - **Masses before going in:** the attacker commits together instead of sending 2 squads to the Command Post and the rest touring pads, then arriving a squad at a time (#109). Built as: the assault never loses score for squads already on it, so every squad without a scout or skirmisher role goes on it, in Task Forces that gather and go in together. Its score doesn't take the squad's tier against the Command Post either: the Command Post is the job.
 - **Target lock** (built, see [Firing](#firing)).
@@ -722,9 +722,12 @@ Kiting stays automatic. Scout, skirmisher and the `lead` / `follow` / `hunt` Tas
 #### Commander tactics (step 5b)
 
 - **Mass, then commit** (above).
-- **Mixed Task Forces:** a force is made up from the counter table against the threat at its goal (anti-air when it has seen aircraft, anti-vehicle against vehicles) rather than in id order.
-- **Regroup:** a force that falls below half its strength falls back to the nearest held point, merges with any other force there, and goes in again together instead of trickling in.
-- **Defender falls back to the Command Post** once it has lost its points and is outnumbered 2 to 1, rather than dying spread over them.
+Built (#121):
+
+- **Mixed Task Forces:** a force is made up from the counter table against the threat at its goal (anti-air when it has seen aircraft, anti-vehicle against vehicles) rather than in id order. Built as: new members are ranked by their tiers against the enemies seen lately near the goal (or all seen, if none are near), each by its members, and dealt round the forces the goal needs, so each gets some of the best rather than the first force taking them all.
+- **Regroup:** a force that falls below half its strength falls back to the nearest held point, merges with any other force there, and goes in again together instead of trickling in. Built as: a held point counts only within 16 cells of the force; otherwise it gathers again at its stage distance from the goal. An attacker's held point is usually its Landing Zone across the map, and walking back there cost more than regrouping won: Covenant attacks fell from 40% to 29%, a fifth timing out. Forces on the same goal go in together, as when they first gather.
+- **Defender falls back to the Command Post** once it has lost its points and is outnumbered 2 to 1, rather than dying spread over them. Built as: once the fighting has started, it holds no Control Point, and the enemies it has seen lately have twice its members, holding the Command Post is its only goal, and it drops scouting and skirmishing.
+- With all three, UNSC attacking Covenant wins 58% and Covenant attacking UNSC 42% (from 61% and 41%; 57% and 42% after review fixes).
 - Coming in from several bearings stays as it is; choke points stay in Later.
 
 #### Difficulty (step 5c)
@@ -763,7 +766,7 @@ Built on [Command](#command). **Mockup first**, agreed before any of it is built
 2. ~~Fire: staggered members, target lock~~ (#117): now in [Firing](#firing).
 3. Counters: the `counter` tier, the triangle, dropping Artillery, the roster retune, the duel matrix (#118).
 4. ~~3D rules: the air layer, height, then line of sight~~ (#119): now in [Height](#height).
-5. The Hard AI: ~~5a unit behaviours and the Hard AI fixes~~ (#120), 5b Commander tactics (#121), 5c the Normal and Easy limits (#122).
+5. The Hard AI: ~~5a unit behaviours and the Hard AI fixes~~ (#120), ~~5b Commander tactics~~ (#121), 5c the Normal and Easy limits (#122).
 6. RTS controls, mockup first, alongside any step (#123).
 
 Then balance against [Done when](#done-when).
