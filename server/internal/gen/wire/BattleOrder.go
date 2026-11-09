@@ -14,6 +14,7 @@ type BattleOrderT struct {
 	X      uint16          `json:"x"`
 	Y      uint16          `json:"y"`
 	Target uint16          `json:"target"`
+	Queue  bool            `json:"queue"`
 }
 
 func (t *BattleOrderT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -41,6 +42,7 @@ func (t *BattleOrderT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleOrderAddX(builder, t.X)
 	BattleOrderAddY(builder, t.Y)
 	BattleOrderAddTarget(builder, t.Target)
+	BattleOrderAddQueue(builder, t.Queue)
 	return BattleOrderEnd(builder)
 }
 
@@ -56,6 +58,7 @@ func (rcv *BattleOrder) UnPackTo(t *BattleOrderT) {
 	t.X = rcv.X()
 	t.Y = rcv.Y()
 	t.Target = rcv.Target()
+	t.Queue = rcv.Queue()
 }
 
 func (rcv *BattleOrder) UnPack() *BattleOrderT {
@@ -196,8 +199,20 @@ func (rcv *BattleOrder) MutateTarget(n uint16) bool {
 	return rcv._tab.MutateUint16Slot(16, n)
 }
 
+func (rcv *BattleOrder) Queue() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *BattleOrder) MutateQueue(n bool) bool {
+	return rcv._tab.MutateBoolSlot(18, n)
+}
+
 func BattleOrderStart(builder *flatbuffers.Builder) {
-	builder.StartObject(7)
+	builder.StartObject(8)
 }
 func BattleOrderAddSeq(builder *flatbuffers.Builder, seq uint32) {
 	builder.PrependUint32Slot(0, seq, 0)
@@ -222,6 +237,9 @@ func BattleOrderAddY(builder *flatbuffers.Builder, y uint16) {
 }
 func BattleOrderAddTarget(builder *flatbuffers.Builder, target uint16) {
 	builder.PrependUint16Slot(6, target, 0)
+}
+func BattleOrderAddQueue(builder *flatbuffers.Builder, queue bool) {
+	builder.PrependBoolSlot(7, queue, false)
 }
 func BattleOrderEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

@@ -108,6 +108,8 @@ export type Squad = {
   goal: { x: number; y: number } | null;
   target: number;
   dropship: boolean; // a Dropship in flight: it can't be fired on
+  /** Your own squads': where its queued orders take it next, in turn; attack, an enemy there. */
+  queue: { x: number; y: number; attack: boolean }[];
 };
 
 /** One of your side's Dropships over a Battle. */
@@ -125,6 +127,7 @@ export type SquadOrder = {
   kind: "move" | "attack" | "attackMove" | "hold";
   cell?: { x: number; y: number }; // move and attackMove
   target?: number; // attack: the enemy squad
+  queue?: boolean; // after the squads' current and queued orders, not in their place
 };
 
 export type ControlPoint = {

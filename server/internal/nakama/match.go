@@ -682,6 +682,7 @@ func battles(bs []game.BattleView, withField bool) []*wire.BattleViewT {
 				X: uint16(sq.Cell.X), Y: uint16(sq.Cell.Y), Count: uint32(sq.Count), Start: uint32(sq.Start),
 				Shield: float32(max(0, sq.Front.Shield)), Armor: float32(max(0, sq.Front.Armor)), Hp: float32(max(0, sq.Front.HP)),
 				CommandPost: sq.CommandPost, Moving: sq.Moving, GoalX: uint16(sq.Goal.X), GoalY: uint16(sq.Goal.Y), Target: uint16(sq.Target), Dropship: sq.Dropship,
+				Queue: waypoints(sq.Queue),
 			})
 		}
 		for _, d := range b.Drops {
@@ -843,6 +844,15 @@ func seats(ss []int) []byte {
 	out := make([]byte, len(ss))
 	for i, s := range ss {
 		out[i] = byte(s)
+	}
+	return out
+}
+
+// waypoints is a squad's queue for the wire.
+func waypoints(q []battle.Waypoint) []*wire.WaypointT {
+	var out []*wire.WaypointT
+	for _, w := range q {
+		out = append(out, &wire.WaypointT{X: uint16(w.Cell.X), Y: uint16(w.Cell.Y), Attack: w.Attack})
 	}
 	return out
 }

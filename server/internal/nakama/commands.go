@@ -194,7 +194,7 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 			if !ok {
 				return errors.New("unknown order")
 			}
-			return s.play.BattleOrder(s.seat(user), c.Planet, kind, squads, battle.Cell{X: int(c.X), Y: int(c.Y)}, int(c.Target))
+			return s.play.BattleOrder(s.seat(user), c.Planet, kind, squads, battle.Cell{X: int(c.X), Y: int(c.Y)}, int(c.Target), c.Queue)
 		}
 	case wire.OpRequestDefenceLayout:
 		c := wire.GetRootAsRequestDefenceLayout(data, 0)

@@ -24,7 +24,12 @@ import {
 } from "../scene/battlefield3d";
 import { seatColour } from "../scene/galaxy";
 import { amounts } from "./buildings";
-import { type Commander, SelectionStrip, useCommandKeys } from "./command";
+import {
+  type Commander,
+  orderable,
+  SelectionStrip,
+  useCommandKeys,
+} from "./command";
 import type { MatchConnection } from "./connection";
 import {
   allied,
@@ -175,7 +180,8 @@ export function BattlePanel(props: {
       planet !== undefined && conn.battleOrder(planet, ids, o),
     [conn, planet],
   );
-  useCommandKeys(!!commanding, picked, commander, order);
+  const own = orderable(battle?.squads ?? [], commanding);
+  const groups = useCommandKeys(!!commanding, own, picked, commander, order);
 
   if (id === null) return null;
   const close = () => conn.local.setState({ watching: null });
@@ -511,6 +517,8 @@ export function BattlePanel(props: {
       squads={battle.squads}
       picked={picked}
       name={name}
+      groups={groups}
+      onArmy={() => commander.current?.pick(own)}
       onAttackMove={() => commander.current?.armAttackMove()}
       onHold={() => order(picked, { kind: "hold" })}
     />

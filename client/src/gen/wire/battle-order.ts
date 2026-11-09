@@ -72,8 +72,13 @@ target():number {
   return offset ? this.bb!.readUint16(this.bb_pos + offset) : 0;
 }
 
+queue():boolean {
+  const offset = this.bb!.__offset(this.bb_pos, 18);
+  return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
+}
+
 static startBattleOrder(builder:flatbuffers.Builder) {
-  builder.startObject(7);
+  builder.startObject(8);
 }
 
 static addSeq(builder:flatbuffers.Builder, seq:number) {
@@ -121,12 +126,16 @@ static addTarget(builder:flatbuffers.Builder, target:number) {
   builder.addFieldInt16(6, target, 0);
 }
 
+static addQueue(builder:flatbuffers.Builder, queue:boolean) {
+  builder.addFieldInt8(7, +queue, +false);
+}
+
 static endBattleOrder(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createBattleOrder(builder:flatbuffers.Builder, seq:number, planetOffset:flatbuffers.Offset, kind:BattleOrderKind, squadsOffset:flatbuffers.Offset, x:number, y:number, target:number):flatbuffers.Offset {
+static createBattleOrder(builder:flatbuffers.Builder, seq:number, planetOffset:flatbuffers.Offset, kind:BattleOrderKind, squadsOffset:flatbuffers.Offset, x:number, y:number, target:number, queue:boolean):flatbuffers.Offset {
   BattleOrder.startBattleOrder(builder);
   BattleOrder.addSeq(builder, seq);
   BattleOrder.addPlanet(builder, planetOffset);
@@ -135,6 +144,7 @@ static createBattleOrder(builder:flatbuffers.Builder, seq:number, planetOffset:f
   BattleOrder.addX(builder, x);
   BattleOrder.addY(builder, y);
   BattleOrder.addTarget(builder, target);
+  BattleOrder.addQueue(builder, queue);
   return BattleOrder.endBattleOrder(builder);
 }
 
@@ -146,7 +156,8 @@ unpack(): BattleOrderT {
     this.bb!.createScalarList<number>(this.squads.bind(this), this.squadsLength()),
     this.x(),
     this.y(),
-    this.target()
+    this.target(),
+    this.queue()
   );
 }
 
@@ -159,6 +170,7 @@ unpackTo(_o: BattleOrderT): void {
   _o.x = this.x();
   _o.y = this.y();
   _o.target = this.target();
+  _o.queue = this.queue();
 }
 }
 
@@ -170,7 +182,8 @@ constructor(
   public squads: (number)[] = [],
   public x: number = 0,
   public y: number = 0,
-  public target: number = 0
+  public target: number = 0,
+  public queue: boolean = false
 ){}
 
 
@@ -185,7 +198,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     squads,
     this.x,
     this.y,
-    this.target
+    this.target,
+    this.queue
   );
 }
 }

@@ -7,23 +7,24 @@ import (
 )
 
 type BattleSquadT struct {
-	Id          uint16  `json:"id"`
-	Side        byte    `json:"side"`
-	Unit        string  `json:"unit"`
-	Building    bool    `json:"building"`
-	X           uint16  `json:"x"`
-	Y           uint16  `json:"y"`
-	Count       uint32  `json:"count"`
-	Start       uint32  `json:"start"`
-	Shield      float32 `json:"shield"`
-	Armor       float32 `json:"armor"`
-	Hp          float32 `json:"hp"`
-	CommandPost bool    `json:"command_post"`
-	Moving      bool    `json:"moving"`
-	GoalX       uint16  `json:"goal_x"`
-	GoalY       uint16  `json:"goal_y"`
-	Target      uint16  `json:"target"`
-	Dropship    bool    `json:"dropship"`
+	Id          uint16       `json:"id"`
+	Side        byte         `json:"side"`
+	Unit        string       `json:"unit"`
+	Building    bool         `json:"building"`
+	X           uint16       `json:"x"`
+	Y           uint16       `json:"y"`
+	Count       uint32       `json:"count"`
+	Start       uint32       `json:"start"`
+	Shield      float32      `json:"shield"`
+	Armor       float32      `json:"armor"`
+	Hp          float32      `json:"hp"`
+	CommandPost bool         `json:"command_post"`
+	Moving      bool         `json:"moving"`
+	GoalX       uint16       `json:"goal_x"`
+	GoalY       uint16       `json:"goal_y"`
+	Target      uint16       `json:"target"`
+	Dropship    bool         `json:"dropship"`
+	Queue       []*WaypointT `json:"queue"`
 }
 
 func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -33,6 +34,15 @@ func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	unitOffset := flatbuffers.UOffsetT(0)
 	if t.Unit != "" {
 		unitOffset = builder.CreateString(t.Unit)
+	}
+	queueOffset := flatbuffers.UOffsetT(0)
+	if t.Queue != nil {
+		queueLength := len(t.Queue)
+		BattleSquadStartQueueVector(builder, queueLength)
+		for j := queueLength - 1; j >= 0; j-- {
+			t.Queue[j].Pack(builder)
+		}
+		queueOffset = builder.EndVector(queueLength)
 	}
 	BattleSquadStart(builder)
 	BattleSquadAddId(builder, t.Id)
@@ -52,6 +62,7 @@ func (t *BattleSquadT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleSquadAddGoalY(builder, t.GoalY)
 	BattleSquadAddTarget(builder, t.Target)
 	BattleSquadAddDropship(builder, t.Dropship)
+	BattleSquadAddQueue(builder, queueOffset)
 	return BattleSquadEnd(builder)
 }
 
@@ -73,6 +84,13 @@ func (rcv *BattleSquad) UnPackTo(t *BattleSquadT) {
 	t.GoalY = rcv.GoalY()
 	t.Target = rcv.Target()
 	t.Dropship = rcv.Dropship()
+	queueLength := rcv.QueueLength()
+	t.Queue = make([]*WaypointT, queueLength)
+	for j := 0; j < queueLength; j++ {
+		x := Waypoint{}
+		rcv.Queue(&x, j)
+		t.Queue[j] = x.UnPack()
+	}
 }
 
 func (rcv *BattleSquad) UnPack() *BattleSquadT {
@@ -356,8 +374,27 @@ func (rcv *BattleSquad) MutateDropship(n bool) bool {
 	return rcv._tab.MutateBoolSlot(36, n)
 }
 
+func (rcv *BattleSquad) Queue(obj *Waypoint, j int) bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(38))
+	if o != 0 {
+		x := rcv._tab.Vector(o)
+		x += flatbuffers.UOffsetT(j) * 6
+		obj.Init(rcv._tab.Bytes, x)
+		return true
+	}
+	return false
+}
+
+func (rcv *BattleSquad) QueueLength() int {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(38))
+	if o != 0 {
+		return rcv._tab.VectorLen(o)
+	}
+	return 0
+}
+
 func BattleSquadStart(builder *flatbuffers.Builder) {
-	builder.StartObject(17)
+	builder.StartObject(18)
 }
 func BattleSquadAddId(builder *flatbuffers.Builder, id uint16) {
 	builder.PrependUint16Slot(0, id, 0)
@@ -409,6 +446,12 @@ func BattleSquadAddTarget(builder *flatbuffers.Builder, target uint16) {
 }
 func BattleSquadAddDropship(builder *flatbuffers.Builder, dropship bool) {
 	builder.PrependBoolSlot(16, dropship, false)
+}
+func BattleSquadAddQueue(builder *flatbuffers.Builder, queue flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(17, flatbuffers.UOffsetT(queue), 0)
+}
+func BattleSquadStartQueueVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
+	return builder.StartVector(6, numElems, 2)
 }
 func BattleSquadEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

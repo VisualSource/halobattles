@@ -70,7 +70,7 @@ func TestATooLongOrderIsRefused(t *testing.T) {
 	s, b := commandedBattle(t)
 	b.Sim.Tick = b.Sim.Setup
 	ids := make([]int, len(b.Sim.Squads)+1)
-	if err := s.BattleOrder(0, "b", battle.Hold, ids, battle.Cell{}, 0); err == nil || len(b.Sim.Log) != 0 {
+	if err := s.BattleOrder(0, "b", battle.Hold, ids, battle.Cell{}, 0, false); err == nil || len(b.Sim.Log) != 0 {
 		t.Errorf("err %v, %d logged; want a list longer than the Battle's squads refused, nothing logged", err, len(b.Sim.Log))
 	}
 }
@@ -79,11 +79,11 @@ func TestBattleOrdersGoToTheSquadsOfASideYouCommand(t *testing.T) {
 	s, b := commandedBattle(t)
 	marine := b.Sim.Squads[0]
 	to := battle.Cell{X: b.Sim.Field.W / 2, Y: b.Sim.Field.H / 2}
-	if err := s.BattleOrder(0, "b", battle.Move, []int{marine.ID}, to, 0); err == nil || !strings.Contains(err.Error(), "until the fighting starts") {
+	if err := s.BattleOrder(0, "b", battle.Move, []int{marine.ID}, to, 0, false); err == nil || !strings.Contains(err.Error(), "until the fighting starts") {
 		t.Errorf("a move in setup: err %v", err)
 	}
 	b.Sim.Tick = b.Sim.Setup
-	if err := s.BattleOrder(0, "b", battle.Move, []int{marine.ID}, to, 0); err != nil {
+	if err := s.BattleOrder(0, "b", battle.Move, []int{marine.ID}, to, 0, false); err != nil {
 		t.Fatal(err)
 	}
 	if got := b.Sim.Log; len(got) != 1 || got[0].Order.Kind != battle.Move || got[0].Order.Squad != marine.ID {
@@ -95,7 +95,7 @@ func TestBattleOrdersGoToTheSquadsOfASideYouCommand(t *testing.T) {
 		t.Fatalf("after a disconnect: controller %v, switches %+v; want the AI from now", b.Sim.Controllers[battle.Attacker], b.Switches)
 	}
 	s.Reconnect(0)
-	if err := s.BattleOrder(0, "b", battle.Hold, []int{marine.ID}, to, 0); err == nil {
+	if err := s.BattleOrder(0, "b", battle.Hold, []int{marine.ID}, to, 0, false); err == nil {
 		t.Error("back from a disconnect, they took the Battle back from the AI")
 	}
 }

@@ -236,6 +236,8 @@ export type BattlefieldDrawing = Pick<
   | "pick"
   | "pointAt"
   | "armAttackMove"
+  | "setGroups"
+  | "centreOn"
   | "fire"
   | "onPick"
   | "onPadMenu"
@@ -298,6 +300,7 @@ export class BattlefieldScene {
   // dragged box; the right button orders them; the middle button pans.
   private commandSide: Side | null = null;
   private readonly picked = new Set<number>();
+  private groupOf = new Map<number, number>(); // each squad's control group
   private armed = false; // the next left click is an Attack-move
   private readonly rings = new Map<number, THREE.Mesh>();
   private readonly moveLines = new THREE.LineSegments(
@@ -382,6 +385,7 @@ export class BattlefieldScene {
     canvas.addEventListener("pointerdown", this.onDown);
     canvas.addEventListener("pointermove", this.onMove);
     canvas.addEventListener("pointerup", this.onUp);
+    canvas.addEventListener("dblclick", this.onDouble);
     canvas.addEventListener("contextmenu", (e) => e.preventDefault()); // the right button orders
 
     this.observer = new ResizeObserver(() => this.resize());
@@ -434,6 +438,8 @@ export class BattlefieldScene {
         : sq.dropship
           ? "Dropship"
           : String(sq.count);
+      const group = this.groupOf.get(sq.id);
+      if (group) t.label.element.append(groupBadge(group));
       t.label.element.style.opacity = sq.count < sq.start ? "0.85" : "1";
     }
     for (const [id, t] of this.tokens) {
@@ -520,6 +526,50 @@ export class BattlefieldScene {
     return i < 0 ? null : i;
   }
 
+  /** Shows each squad's control group, by id, on its token. */
+  setGroups(groups: Map<number, number>) {
+    this.groupOf = groups;
+  }
+
+  /** Moves the camera to the middle of these squads. */
+  centreOn(squads: number[]) {
+    const at = squads.flatMap((id) => {
+      const t = this.tokens.get(id);
+      return t ? [t.mesh.position] : [];
+    });
+    if (at.length === 0) return;
+    this.centre.set(
+      at.reduce((n, p) => n + p.x, 0) / at.length,
+      at.reduce((n, p) => n + p.y, 0) / at.length,
+    );
+    this.place();
+  }
+
+  /** A double-click on a squad of yours picks every one of its unit on screen. */
+  private readonly onDouble = (e: MouseEvent) => {
+    if (this.commandSide === null) return;
+    const id = this.squadAt(this.world(e), (sq) => this.orderable(sq));
+    const unit = this.lastSquads.find((sq) => sq.id === id)?.unit;
+    if (unit === undefined) return;
+    const c = this.camera;
+    this.pick(
+      this.lastSquads
+        .filter((sq) => {
+          const at = this.tokens.get(sq.id)?.mesh.position;
+          return (
+            at &&
+            sq.unit === unit &&
+            this.orderable(sq) &&
+            at.x >= c.left &&
+            at.x <= c.right &&
+            at.y >= c.bottom &&
+            at.y <= c.top
+          );
+        })
+        .map((sq) => sq.id),
+    );
+  };
+
   /** The next left click sends the picked squads on an Attack-move. */
   armAttackMove() {
     if (this.picked.size === 0) return;
@@ -558,19 +608,26 @@ export class BattlefieldScene {
     return best;
   }
 
-  /** Orders the picked squads at a world point, and marks where. */
-  private order(at: THREE.Vector2, kind: "move" | "attackMove") {
+  /** Orders the picked squads at a world point, and marks where: on a pad, onto it, to take it. With queue, after their other orders. */
+  private order(at: THREE.Vector2, kind: "move" | "attackMove", queue = false) {
     if (this.picked.size === 0) return;
     const enemy = this.squadAt(at, (sq) => sq.side !== this.commandSide);
-    const cell = {
-      x: Math.min(Math.max(Math.floor(at.x), 0), this.field.width - 1),
-      y: Math.min(Math.max(Math.floor(-at.y), 0), this.field.height - 1),
-    };
+    const pad = this.lastPads.find(
+      (q) =>
+        Math.abs(q.x + 0.5 - at.x) <= 0.8 &&
+        Math.abs(-(q.y + 0.5) - at.y) <= 0.8,
+    );
+    const cell = pad
+      ? { x: pad.x, y: pad.y }
+      : {
+          x: Math.min(Math.max(Math.floor(at.x), 0), this.field.width - 1),
+          y: Math.min(Math.max(Math.floor(-at.y), 0), this.field.height - 1),
+        };
     this.onOrder?.(
       [...this.picked],
       enemy !== null && kind === "move"
-        ? { kind: "attack", target: enemy }
-        : { kind, cell },
+        ? { kind: "attack", target: enemy, queue }
+        : { kind, cell, queue },
     );
     const mark = new THREE.Mesh(
       new THREE.RingGeometry(0.35, 0.55, 20),
@@ -616,6 +673,17 @@ export class BattlefieldScene {
         );
       else if (sq.goal)
         moves.push(x, y, 0, sq.goal.x + 0.5, -(sq.goal.y + 0.5), 0);
+      // Then each queued order's leg, from where the one before ends.
+      let from = target
+        ? target.mesh.position
+        : sq.goal
+          ? { x: sq.goal.x + 0.5, y: -(sq.goal.y + 0.5) }
+          : { x, y };
+      for (const w of sq.queue) {
+        const to = { x: w.x + 0.5, y: -(w.y + 0.5) };
+        (w.attack ? attacks : moves).push(from.x, from.y, 0, to.x, to.y, 0);
+        from = to;
+      }
     }
     const set = (lines: THREE.LineSegments, points: number[]) =>
       lines.geometry.setAttribute(
@@ -1026,9 +1094,9 @@ export class BattlefieldScene {
       if (e.button === 2) {
         this.armed = false;
         this.renderer.domElement.style.cursor = "";
-        this.order(this.world(e), "move");
+        this.order(this.world(e), "move", e.shiftKey);
       } else if (e.button === 0 && click && this.armed) {
-        this.order(this.world(e), "attackMove");
+        this.order(this.world(e), "attackMove", e.shiftKey);
         this.armed = false;
         this.renderer.domElement.style.cursor = "";
       } else if (e.button === 0 && click) {
@@ -1081,4 +1149,13 @@ export class BattlefieldScene {
     }
     this.onPick(best);
   };
+}
+
+/** A token's control-group number, after its count. */
+export function groupBadge(group: number) {
+  const el = document.createElement("span");
+  el.className =
+    "ml-1 rounded-[2px] bg-accent px-0.5 font-semibold text-accent-ink";
+  el.textContent = String(group);
+  return el;
 }

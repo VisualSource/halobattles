@@ -296,6 +296,7 @@ const toBattle = (
     goal: q.moving ? { x: q.goalX, y: q.goalY } : null,
     target: q.target,
     dropship: q.dropship,
+    queue: q.queue.map((w) => ({ x: w.x, y: w.y, attack: w.attack })),
   })),
   points: b.points.map((p) => ({
     x: p.x,
@@ -721,6 +722,7 @@ export class MatchConnection {
           o.cell?.x ?? 0,
           o.cell?.y ?? 0,
           o.target ?? 0,
+          o.queue ?? false,
         ),
     );
   }

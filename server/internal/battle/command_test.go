@@ -47,3 +47,33 @@ func TestTheAttackerCantMoveInSetup(t *testing.T) {
 		t.Error("the attacker was given a path in setup")
 	}
 }
+
+// A Shift order goes on the end of the squad's queue; each starts once the
+// one before is done, and an order without Shift, or Hold, replaces them all.
+func TestQueuedOrdersRunInTurn(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
+	m := s.Squads[0]
+	first, second := m.Cell.add(Cell{3, 0}), m.Cell.add(Cell{3, 3})
+	s.Command(Attacker, Order{Kind: Move, Squad: m.ID, Cell: first})
+	s.Command(Attacker, Order{Kind: Move, Squad: m.ID, Cell: second, Queue: true})
+	if v := s.Snapshot(Attacker).Squads[0]; v.Goal != first || len(v.Queue) != 1 || v.Queue[0].Cell != second {
+		t.Fatalf("goal %v, queue %v; want on to %v, then %v", v.Goal, v.Queue, first, second)
+	}
+	for i := 0; i < 20*s.TPS() && m.Cell != second; i++ {
+		s.Step()
+	}
+	if m.Cell != second {
+		t.Fatalf("stopped at %v; want it at %v after %v", m.Cell, second, first)
+	}
+
+	s.Command(Attacker, Order{Kind: Move, Squad: m.ID, Cell: first})
+	s.Command(Attacker, Order{Kind: Move, Squad: m.ID, Cell: second, Queue: true})
+	s.Command(Attacker, Order{Kind: Hold, Squad: m.ID})
+	if len(m.queue) != 0 || len(m.path) != 0 {
+		t.Error("Hold left the queue; want it dropped")
+	}
+	s.Command(Attacker, Order{Kind: Move, Squad: m.ID, Cell: first, Queue: true}) // nothing under way: at once
+	if m.goal != first || len(m.path) == 0 {
+		t.Error("a queued order with nothing before it waits; want it started at once")
+	}
+}

@@ -77,7 +77,26 @@ export function SettingsButton(props: { quiet?: boolean; className?: string }) {
   );
 }
 
-const SECTIONS = ["Battles"] as const;
+const SECTIONS = ["Battles", "Controls"] as const;
+
+/** The keys and clicks for a Battle you command, as the Controls section lists them. */
+const CONTROLS: [string, string][] = [
+  ["Click, drag", "Select your squads; Shift adds or takes away"],
+  ["Double-click", "Every squad of that unit on screen"],
+  ["Q", "Your whole army"],
+  [
+    "Ctrl 1–9",
+    "Make the selection a control group (or Ctrl-click a group slot)",
+  ],
+  ["1–9", "Select a group; press it twice to move the camera there"],
+  ["Right-click", "Move, or Attack an enemy"],
+  ["Right-click a pad", "Take it"],
+  ["Right-click the minimap", "Move there (3D view)"],
+  ["Shift + order", "Add it to the end of the squads' queue"],
+  ["A, then click", "Attack-move: move, stopping to fight"],
+  ["H or S", "Hold or Stop: stay put and fire, dropping every order"],
+  ["Esc", "Clear the selection"],
+];
 
 function SettingsScreen(props: { onClose: () => void }) {
   const battles = useStore(settings, (s) => s.battles);
@@ -143,33 +162,55 @@ function SettingsScreen(props: { onClose: () => void }) {
             </button>
           ))}
         </nav>
-        <div className="flex max-w-190 flex-1 flex-col gap-6 overflow-y-auto px-12 py-8">
-          <div className="flex flex-col gap-1.5">
-            <h3 className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
-              BATTLES
-            </h3>
-            <p className="text-ink-2">
-              Who fights your Battles, when one starts.
+        {section === "Controls" ? (
+          <div className="flex max-w-190 flex-1 flex-col gap-6 overflow-y-auto px-12 py-8">
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
+                CONTROLS
+              </h3>
+              <p className="text-ink-2">
+                In a Battle you command. Squads you've ordered keep their orders
+                till they're done; the AI never takes them back.
+              </p>
+            </div>
+            <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5">
+              {CONTROLS.map(([keys, what]) => (
+                <div key={keys} className="contents">
+                  <dt className="font-mono text-sm">{keys}</dt>
+                  <dd className="text-ink-2 m-0">{what}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : (
+          <div className="flex max-w-190 flex-1 flex-col gap-6 overflow-y-auto px-12 py-8">
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-ink-3 text-xs font-semibold tracking-[0.14em]">
+                BATTLES
+              </h3>
+              <p className="text-ink-2">
+                Who fights your Battles, when one starts.
+              </p>
+            </div>
+            <fieldset className="m-0 grid grid-cols-2 gap-3 border-0 p-0">
+              <legend className="sr-only">Who fights your Battles</legend>
+              {choice(
+                "auto",
+                "Auto",
+                "The AI fights them for you. You can open a Battle to watch, and still Retreat.",
+              )}
+              {choice(
+                "command",
+                "Command",
+                "You give the orders. A Battle's window opens when it starts.",
+              )}
+            </fieldset>
+            <p className="text-ink-3 text-sm">
+              Applies to Battles that start from now on, and to your next
+              Matches. An Army can override it in its own window.
             </p>
           </div>
-          <fieldset className="m-0 grid grid-cols-2 gap-3 border-0 p-0">
-            <legend className="sr-only">Who fights your Battles</legend>
-            {choice(
-              "auto",
-              "Auto",
-              "The AI fights them for you. You can open a Battle to watch, and still Retreat.",
-            )}
-            {choice(
-              "command",
-              "Command",
-              "You give the orders. A Battle's window opens when it starts.",
-            )}
-          </fieldset>
-          <p className="text-ink-3 text-sm">
-            Applies to Battles that start from now on, and to your next Matches.
-            An Army can override it in its own window.
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );

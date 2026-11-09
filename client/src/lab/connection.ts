@@ -154,6 +154,7 @@ type GoSquad = {
   Goal: GoCell;
   Target: number;
   Dropship?: boolean;
+  Queue?: { Cell: GoCell; Attack: boolean }[];
 };
 type GoFrame = {
   tick: number;
@@ -229,6 +230,11 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     hp: q.Front.HP,
     commandPost: q.CommandPost,
     goal: q.Moving ? { x: q.Goal.X, y: q.Goal.Y } : null,
+    queue: (q.Queue ?? []).map((w) => ({
+      x: w.Cell.X,
+      y: w.Cell.Y,
+      attack: w.Attack,
+    })),
     target: q.Target,
     dropship: !!q.Dropship,
   }));
@@ -378,6 +384,7 @@ export class LabConnection {
         Kind: SIM_KINDS[o.kind],
         Cell: { X: o.cell?.x ?? 0, Y: o.cell?.y ?? 0 },
         Target: o.target ?? 0,
+        Queue: o.queue ?? false,
       },
     });
   }

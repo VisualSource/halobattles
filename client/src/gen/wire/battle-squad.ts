@@ -4,6 +4,7 @@
 
 import * as flatbuffers from 'flatbuffers';
 
+import { Waypoint, WaypointT } from '../wire/waypoint.js';
 
 
 export class BattleSquad implements flatbuffers.IUnpackableObject<BattleSquadT> {
@@ -111,8 +112,18 @@ dropship():boolean {
   return offset ? !!this.bb!.readInt8(this.bb_pos + offset) : false;
 }
 
+queue(index: number, obj?:Waypoint):Waypoint|null {
+  const offset = this.bb!.__offset(this.bb_pos, 38);
+  return offset ? (obj || new Waypoint()).__init(this.bb!.__vector(this.bb_pos + offset) + index * 6, this.bb!) : null;
+}
+
+queueLength():number {
+  const offset = this.bb!.__offset(this.bb_pos, 38);
+  return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
+}
+
 static startBattleSquad(builder:flatbuffers.Builder) {
-  builder.startObject(17);
+  builder.startObject(18);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -183,12 +194,20 @@ static addDropship(builder:flatbuffers.Builder, dropship:boolean) {
   builder.addFieldInt8(16, +dropship, +false);
 }
 
+static addQueue(builder:flatbuffers.Builder, queueOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(17, queueOffset, 0);
+}
+
+static startQueueVector(builder:flatbuffers.Builder, numElems:number) {
+  builder.startVector(6, numElems, 2);
+}
+
 static endBattleSquad(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, unitOffset:flatbuffers.Offset, building:boolean, x:number, y:number, count:number, start:number, shield:number, armor:number, hp:number, commandPost:boolean, moving:boolean, goalX:number, goalY:number, target:number, dropship:boolean):flatbuffers.Offset {
+static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, unitOffset:flatbuffers.Offset, building:boolean, x:number, y:number, count:number, start:number, shield:number, armor:number, hp:number, commandPost:boolean, moving:boolean, goalX:number, goalY:number, target:number, dropship:boolean, queueOffset:flatbuffers.Offset):flatbuffers.Offset {
   BattleSquad.startBattleSquad(builder);
   BattleSquad.addId(builder, id);
   BattleSquad.addSide(builder, side);
@@ -207,6 +226,7 @@ static createBattleSquad(builder:flatbuffers.Builder, id:number, side:number, un
   BattleSquad.addGoalY(builder, goalY);
   BattleSquad.addTarget(builder, target);
   BattleSquad.addDropship(builder, dropship);
+  BattleSquad.addQueue(builder, queueOffset);
   return BattleSquad.endBattleSquad(builder);
 }
 
@@ -228,7 +248,8 @@ unpack(): BattleSquadT {
     this.goalX(),
     this.goalY(),
     this.target(),
-    this.dropship()
+    this.dropship(),
+    this.bb!.createObjList<Waypoint, WaypointT>(this.queue.bind(this), this.queueLength())
   );
 }
 
@@ -251,6 +272,7 @@ unpackTo(_o: BattleSquadT): void {
   _o.goalY = this.goalY();
   _o.target = this.target();
   _o.dropship = this.dropship();
+  _o.queue = this.bb!.createObjList<Waypoint, WaypointT>(this.queue.bind(this), this.queueLength());
 }
 }
 
@@ -272,12 +294,14 @@ constructor(
   public goalX: number = 0,
   public goalY: number = 0,
   public target: number = 0,
-  public dropship: boolean = false
+  public dropship: boolean = false,
+  public queue: (WaypointT)[] = []
 ){}
 
 
 pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   const unit = (this.unit !== null ? builder.createString(this.unit!) : 0);
+  const queue = builder.createStructOffsetList(this.queue, BattleSquad.startQueueVector);
 
   return BattleSquad.createBattleSquad(builder,
     this.id,
@@ -296,7 +320,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.goalX,
     this.goalY,
     this.target,
-    this.dropship
+    this.dropship,
+    queue
   );
 }
 }

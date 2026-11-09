@@ -537,7 +537,7 @@ A player can command their side of a Battle instead of the AI (#92). The AI then
   - **Shown:** selected squads draw a line to where they're going, red to an attack target, and a marker flashes where you clicked.
   - **The selection strip** in the Battle window lists what's selected (unit, count, health), with Hold and Attack-move buttons, so it all works without the keyboard.
   - **Setup:** a commanding defender can move squads, and take pads by moving onto them. The attacker's orders wait for the fighting, as now.
-  - Retreat and pad turrets work as now. Guard, scout and control groups are for later.
+  - Retreat and pad turrets work as now. Guard and scout are for later; control groups came with [RTS controls](#rts-controls-step-6).
 - **Squads you haven't ordered** hold their position and fire at whatever comes in range.
 - **Wire:** one `BattleOrder` op (planet, kind, squads, cell, target). The server checks the squads are yours and the Battle is yours to command; orders go into the Battle's log, so replays stay exact.
 - **The Lab** uses the same controls, so "You command" there works, and is where they're tried first.
@@ -750,16 +750,17 @@ Built (#122). The limits are Ruleset data, a `battle` block on each `botDifficul
 
 ### RTS controls (step 6)
 
-Built on [Command](#command). **Mockup first**, agreed before any of it is built. It can be worked alongside any other step.
+Built on [Command](#command), to its agreed mockup (#123), except that the controls list lives in Settings' Controls section rather than the Battle window.
 
-- **Control groups:** Ctrl+1–9 sets, 1–9 selects, a double tap moves the camera there.
-- **Select all army:** `Q`.
+- **Control groups:** Ctrl+1–9 sets, 1–9 selects, a double tap moves the camera there. A groups bar over the selection strip has a fixed slot for each, showing its squads; a click selects it and a Ctrl-click sets it. Each squad in a group wears its number. A squad is in one group at most, and groups last for the Battle. Browsers keep Ctrl+1–9 for switching tabs, so the keys are for the game played full screen or as an installed app (Tauri, say); the Ctrl-click works anywhere.
+- **Select all army:** `Q`, or the strip's Army button. In the 3D view, Q and E no longer turn the camera while you command; the middle button does.
 - **Double-click** a squad to select every squad of that unit type on screen.
-- **Stop:** `S`.
-- **Queued orders:** Shift with an order adds it to the end of the squad's queue.
-- **Right-click a pad** to take it.
-- **Right-click the minimap** to move there.
-- **Orders stick:** a commanded squad keeps its order until it's done; the AI never overrides it.
+- **Stop:** `S`, or the strip's Stop button: the squads stay put and fire, dropping every order. It's the same order as Hold, since a squad you command never chases.
+- **Queued orders:** Shift with an order adds it to the end of the squad's queue. The sim keeps each squad's queue and starts the next order once the one before is done (arrived, or its attack target dead); an order without Shift, or Hold, replaces the queue. Your own squads' queues go to you as waypoints (`BattleSquad.queue`), drawn as further legs of its order line, and the strip shows how many each has queued. Orders carry `queue` on the wire and in the Battle's log, so replays stay exact.
+- **Right-click a pad** to take it: the order goes onto the pad's cell, wherever on the pad you click.
+- **Right-click the minimap** to move there (the 3D view, which has one).
+- **Orders stick:** a commanded squad keeps its order until it's done; the AI never overrides it. A side you command has no AI, so this held already.
+- **Double-click** picks every squad of that unit on screen: in view of the camera, not the whole field.
 - Right-click stays Move / Attack. Unit abilities are for later.
 
 ### Order of work
@@ -769,7 +770,7 @@ Built on [Command](#command). **Mockup first**, agreed before any of it is built
 3. Counters: the `counter` tier, the triangle, dropping Artillery, the roster retune, the duel matrix (#118).
 4. ~~3D rules: the air layer, height, then line of sight~~ (#119): now in [Height](#height).
 5. The Hard AI: ~~5a unit behaviours and the Hard AI fixes~~ (#120), ~~5b Commander tactics~~ (#121), ~~5c the Normal and Easy limits~~ (#122).
-6. RTS controls, mockup first, alongside any step (#123).
+6. ~~RTS controls~~ (#123).
 
 Then balance against [Done when](#done-when).
 

@@ -37,6 +37,9 @@ type Order struct {
 	Cargo    []Slot  `json:",omitempty"` // for Arrive: the troops
 	Owner    int     `json:",omitempty"` // for Arrive: whose they are, a Seat
 	Point    int     `json:",omitempty"` // for Land: the Landing Zone
+	// Queue, for a squad order: after the squad's current order and any
+	// already queued, rather than in their place.
+	Queue bool `json:",omitempty"`
 }
 
 // Controller drives one side: each tick it reads the side's View and returns

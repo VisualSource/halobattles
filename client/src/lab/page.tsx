@@ -15,7 +15,7 @@ import {
   Reinforcements,
   statsOf,
 } from "../match/battle";
-import { SelectionStrip, useCommandKeys } from "../match/command";
+import { orderable, SelectionStrip, useCommandKeys } from "../match/command";
 import { LayoutMap } from "../match/layout";
 import type { Side, Squad, SquadOrder, Volley } from "../match/store";
 import {
@@ -829,7 +829,8 @@ function Field(props: {
       commandSide && conn.order(commandSide, ids, o),
     [conn, commandSide],
   );
-  useCommandKeys(!!commandSide, picked, scene, order);
+  const own = orderable(battle?.squads ?? [], commandSide);
+  const groups = useCommandKeys(!!commandSide, own, picked, scene, order);
 
   useEffect(() => {
     if (!ref.current || !field) return;
@@ -988,6 +989,8 @@ function Field(props: {
           squads={battle?.squads ?? []}
           picked={picked}
           name={(u) => nameOf(content, u)}
+          groups={groups}
+          onArmy={() => scene.current?.pick(own)}
           onAttackMove={() => scene.current?.armAttackMove()}
           onHold={() => order(picked, { kind: "hold" })}
         />

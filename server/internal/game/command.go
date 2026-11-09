@@ -63,7 +63,7 @@ func (b *Battle) control(side battle.Side, command bool) {
 
 // BattleOrder orders seat's squads in the Battle on planet, which they must
 // command. A group sent to a cell keeps its shape round it.
-func (s *State) BattleOrder(seat int, planet string, kind battle.OrderKind, squads []int, cell battle.Cell, target int) error {
+func (s *State) BattleOrder(seat int, planet string, kind battle.OrderKind, squads []int, cell battle.Cell, target int, queue bool) error {
 	b, side, err := s.sideIn(seat, planet)
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func (s *State) BattleOrder(seat int, planet string, kind battle.OrderKind, squa
 	case len(squads) == 0:
 		return errors.New("pick some squads")
 	}
-	return b.Sim.CommandGroup(side, squads, battle.Order{Kind: kind, Cell: cell, Target: target})
+	return b.Sim.CommandGroup(side, squads, battle.Order{Kind: kind, Cell: cell, Target: target, Queue: queue})
 }
 
 // commanded is whether a player commands side now: as it started, then each

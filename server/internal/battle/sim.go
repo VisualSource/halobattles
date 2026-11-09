@@ -140,6 +140,8 @@ type Squad struct {
 	retreating             bool
 	attackMove             bool     // on an Attack-move: it stops while it has something to hit
 	roles                  []string // the unit's AI role hints: "scout", "skirmisher"
+	current                Order    // the squad order it's carrying out
+	queue                  []Order  // orders to carry out after it, in turn
 	exit                   int      // the edge it Retreats off: 0 top, 1 right, 2 bottom, 3 left
 	flashUntil             int      // the tick its muzzle flash fades: till then the enemy sees it
 	hitBy, hitAt           int      // the last squad to fire on it, and the tick it did
@@ -564,6 +566,7 @@ func (s *Sim) Step() []Volley {
 	s.retreat()
 	s.raiseTurrets()
 	s.dropships()
+	s.nextOrders()
 	s.move()
 	s.see()
 	volleys := s.fire()
@@ -636,6 +639,18 @@ func (s *Sim) apply(side Side, o Order) {
 	if s.setup() && side == Attacker && o.Kind != Attack {
 		return // the attacker can't move yet
 	}
+	if o.Queue && s.busy(sq) {
+		o.Queue = false
+		sq.queue = append(sq.queue, o)
+		return
+	}
+	sq.queue, sq.current = nil, o
+	s.carryOut(sq, o)
+}
+
+// carryOut starts a squad on one order.
+func (s *Sim) carryOut(sq *Squad, o Order) {
+	side := sq.Side
 	switch o.Kind {
 	case Move, AttackMove:
 		if sq.speed == 0 || o.Cell.X < 0 || o.Cell.Y < 0 || o.Cell.X >= s.Field.W || o.Cell.Y >= s.Field.H {
@@ -652,6 +667,29 @@ func (s *Sim) apply(side Side, o Order) {
 		}
 	case Hold:
 		sq.path, sq.target, sq.locked, sq.attackMove = nil, 0, 0, false
+	}
+}
+
+// busy is whether a squad is still carrying out its current order: on its
+// way, or with its attack target alive.
+func (s *Sim) busy(sq *Squad) bool {
+	switch sq.current.Kind {
+	case Move, AttackMove:
+		return len(sq.path) > 0
+	case Attack:
+		t := s.squad(sq.current.Target)
+		return sq.target == sq.current.Target && t != nil && t.alive()
+	}
+	return false
+}
+
+// nextOrders starts each squad done with its order on the next it queued.
+func (s *Sim) nextOrders() {
+	for _, sq := range s.Squads {
+		for len(sq.queue) > 0 && sq.alive() && !sq.retreating && !s.busy(sq) {
+			sq.current, sq.queue = sq.queue[0], sq.queue[1:]
+			s.carryOut(sq, sq.current)
+		}
 	}
 }
 
@@ -1269,6 +1307,15 @@ type SquadView struct {
 	Goal     Cell
 	Target   int
 	Dropship bool // in flight: both sides see it
+	// Its own side's: where its queued orders take it next, in turn.
+	Queue []Waypoint `json:",omitempty"`
+}
+
+// Waypoint is where a queued order sends a squad: a cell, or an enemy it
+// attacks there.
+type Waypoint struct {
+	Cell   Cell
+	Attack bool
 }
 
 // Snapshot is one side's picture of the Battle: its own squads, the enemies
@@ -1330,6 +1377,13 @@ func (s *Sim) snapshot(side Side, all bool) Snapshot {
 			}
 			if all || sq.Side == side { // its orders: only its own side sees them
 				v.Moving, v.Goal, v.Target = len(sq.path) > 0, sq.goal, sq.target
+				for _, o := range sq.queue {
+					if t := s.squad(o.Target); o.Kind == Attack && t != nil && (all || s.visible[side][t.ID]) {
+						v.Queue = append(v.Queue, Waypoint{t.Cell, true})
+					} else if o.Kind == Move || o.Kind == AttackMove {
+						v.Queue = append(v.Queue, Waypoint{o.Cell, false})
+					}
+				}
 			}
 			snap.Squads = append(snap.Squads, v)
 		}

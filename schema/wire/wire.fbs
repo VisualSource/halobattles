@@ -294,6 +294,7 @@ table BattleOrder {
   x: ushort;               // Move and AttackMove
   y: ushort;
   target: ushort;          // Attack: the enemy squad
+  queue: bool;             // after each squad's current and queued orders, not in their place
 }
 
 table Exchange {          // any time in play, even in debt
@@ -504,6 +505,14 @@ table BattleSquad {
   goal_y: ushort;
   target: ushort;          // your own squads': the enemy it was told to attack, or 0
   dropship: bool;          // a Dropship in flight: only anti-air can fire on it, and both sides see it
+  queue: [Waypoint];       // your own squads': where its queued orders take it next, in turn
+}
+
+// Where a queued order sends a squad: a cell, or an enemy it attacks there.
+struct Waypoint {
+  x: ushort;
+  y: ushort;
+  attack: bool;
 }
 
 enum DropState : ubyte { Orbit = 0, Flying = 1, Done = 2 }

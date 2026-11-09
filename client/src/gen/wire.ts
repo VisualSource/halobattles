@@ -87,4 +87,5 @@ export { ViewDelta, ViewDeltaT } from './wire/view-delta.js';
 export { ViewFull, ViewFullT } from './wire/view-full.js';
 export { Volley, VolleyT } from './wire/volley.js';
 export { WatchBattle, WatchBattleT } from './wire/watch-battle.js';
+export { Waypoint, WaypointT } from './wire/waypoint.js';
 export { WinHold, WinHoldT } from './wire/win-hold.js';

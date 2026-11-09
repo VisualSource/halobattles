@@ -805,6 +805,7 @@ describe("MatchConnection", () => {
           goal: null,
           target: 0,
           dropship: false,
+          queue: [],
         },
         {
           id: 2,
@@ -822,6 +823,7 @@ describe("MatchConnection", () => {
           goal: null,
           target: 0,
           dropship: false,
+          queue: [],
         },
       ],
       points: [
@@ -1173,13 +1175,23 @@ describe("MatchConnection", () => {
     const o = BattleOrder.getRootAsBattleOrder(
       new flatbuffers.ByteBuffer(sent[0]?.data ?? new Uint8Array()),
     ).unpack();
-    expect([o.planet, o.kind, o.squads, o.x, o.y]).toEqual([
+    expect([o.planet, o.kind, o.squads, o.x, o.y, o.queue]).toEqual([
       "c",
       BattleOrderKind.AttackMove,
       [3, 4],
       7,
       9,
+      false,
     ]);
+    conn.battleOrder("c", [3], {
+      kind: "move",
+      cell: { x: 1, y: 2 },
+      queue: true,
+    });
+    const queued = BattleOrder.getRootAsBattleOrder(
+      new flatbuffers.ByteBuffer(sent[1]?.data ?? new Uint8Array()),
+    ).unpack();
+    expect(queued.queue).toBe(true); // Shift: after its other orders
 
     conn.store.setState({ view: { spectating: false } as View });
     settings.setState({ battles: "command" });

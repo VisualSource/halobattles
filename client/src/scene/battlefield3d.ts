@@ -18,6 +18,7 @@ import {
   type BattlefieldDrawing,
   type BattlefieldLook,
   fogOver,
+  groupBadge,
   type OverlayLine,
   POINT_NAMES,
   UNHELD,
@@ -142,6 +143,8 @@ export class Battlefield3DScene implements BattlefieldDrawing {
   // dragged on screen; the right button orders them; the middle pans.
   private commandSide: Side | null = null;
   private readonly picked = new Set<number>();
+  private groupOf = new Map<number, number>(); // each squad's control group
+  private readonly badges = new Map<number, CSS2DObject>(); // their numbers, over the tokens
   private armed = false; // the next left click is an Attack-move
   private readonly pickedRings = new Map<number, THREE.Mesh>();
   private readonly pickedRing = onTop(
@@ -297,7 +300,9 @@ export class Battlefield3DScene implements BattlefieldDrawing {
     canvas.addEventListener("pointerdown", this.onDown);
     canvas.addEventListener("pointermove", this.onMove);
     canvas.addEventListener("pointerup", this.onUp);
+    canvas.addEventListener("dblclick", this.onDouble);
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    this.mini.addEventListener("contextmenu", (e) => e.preventDefault()); // the right button orders
     // On the container, so moving onto the minimap over the canvas still counts.
     container.addEventListener("pointerenter", this.onHover);
     container.addEventListener("pointerleave", this.onHover);
@@ -330,6 +335,7 @@ export class Battlefield3DScene implements BattlefieldDrawing {
     this.renderer.dispose();
     this.renderer.forceContextLoss(); // browsers cap how many WebGL contexts are open
     this.renderer.domElement.remove();
+    for (const b of this.badges.values()) b.element.remove();
     this.labels.domElement.remove();
     this.box.remove();
     this.mini.remove();
@@ -485,6 +491,77 @@ export class Battlefield3DScene implements BattlefieldDrawing {
     this.onSelect?.([...this.picked]);
   }
 
+  /** Shows each squad's control group, by id, over its token. */
+  setGroups(groups: Map<number, number>) {
+    this.groupOf = groups;
+  }
+
+  /** Moves the camera to the middle of these squads. */
+  centreOn(squads: number[]) {
+    const at = squads.flatMap((id) => {
+      const t = this.tokens.get(id);
+      return t ? [t.pos] : [];
+    });
+    if (at.length === 0) return;
+    this.target.x = at.reduce((n, p) => n + p.x, 0) / at.length;
+    this.target.z = at.reduce((n, p) => n + p.z, 0) / at.length;
+  }
+
+  /** A number over each squad in a control group. */
+  private drawBadges() {
+    for (const [id, b] of this.badges) {
+      const group = this.groupOf.get(id);
+      if (
+        group &&
+        this.tokens.has(id) &&
+        b.element.textContent === String(group)
+      )
+        continue;
+      this.scene.remove(b);
+      b.element.remove();
+      this.badges.delete(id);
+    }
+    for (const [id, group] of this.groupOf) {
+      const t = this.tokens.get(id);
+      if (!t) continue;
+      let b = this.badges.get(id);
+      if (!b) {
+        const el = groupBadge(group);
+        el.classList.remove("ml-1");
+        el.classList.add("font-mono", "text-[10px]");
+        b = new CSS2DObject(el);
+        b.center.set(-0.6, 1.4);
+        this.badges.set(id, b);
+        this.scene.add(b);
+      }
+      b.position.copy(t.pos);
+    }
+  }
+
+  /** A double-click on a squad of yours picks every one of its unit on screen. */
+  private readonly onDouble = (e: MouseEvent) => {
+    if (this.commandSide === null) return;
+    const id = this.squadNear(e.clientX, e.clientY, (sq) => this.orderable(sq));
+    const unit = id === null ? undefined : this.tokens.get(id)?.sq.unit;
+    if (unit === undefined) return;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const picks: number[] = [];
+    for (const t of this.tokens.values()) {
+      const s = this.onScreen(t);
+      if (
+        t.sq.unit === unit &&
+        this.orderable(t.sq) &&
+        !s.behind &&
+        s.x >= rect.left &&
+        s.x <= rect.right &&
+        s.y >= rect.top &&
+        s.y <= rect.bottom
+      )
+        picks.push(t.sq.id);
+    }
+    this.pick(picks);
+  };
+
   /** The next left click sends the picked squads on an Attack-move. */
   armAttackMove() {
     if (this.picked.size === 0) return;
@@ -535,17 +612,32 @@ export class Battlefield3DScene implements BattlefieldDrawing {
     };
   }
 
-  /** Orders the picked squads at a screen point, and marks where. */
-  private order(clientX: number, clientY: number, kind: "move" | "attackMove") {
+  /** Orders the picked squads at a screen point, and marks where: on a pad, onto it, to take it. With queue, after their other orders. */
+  private order(
+    clientX: number,
+    clientY: number,
+    kind: "move" | "attackMove",
+    queue = false,
+  ) {
     if (this.picked.size === 0) return;
     const enemy =
       kind === "move"
         ? this.squadNear(clientX, clientY, (sq) => sq.side !== this.commandSide)
         : null;
-    const cell = this.cellAt(clientX, clientY);
+    const at = this.groundAt(clientX, clientY);
+    const pad =
+      at &&
+      this.lastPads.find(
+        (q) =>
+          Math.abs(q.x + 0.5 - at.x) <= 0.8 &&
+          Math.abs(q.y + 0.5 - at.z) <= 0.8,
+      );
+    const cell = pad ? { x: pad.x, y: pad.y } : this.cellAt(clientX, clientY);
     if (!cell) return;
     const o: SquadOrder =
-      enemy !== null ? { kind: "attack", target: enemy } : { kind, cell };
+      enemy !== null
+        ? { kind: "attack", target: enemy, queue }
+        : { kind, cell, queue };
     this.onOrder?.([...this.picked], o);
     const mark = new THREE.Mesh(
       new THREE.RingGeometry(0.35, 0.55, 20).rotateX(-Math.PI / 2),
@@ -603,6 +695,24 @@ export class Battlefield3DScene implements BattlefieldDrawing {
         const gx = t.sq.goal.x + 0.5;
         const gz = t.sq.goal.y + 0.5;
         moves.push(x, y + lift, z, gx, this.heightAt(gx, gz) + lift, gz);
+      }
+      // Then each queued order's leg, from where the one before ends.
+      let from = target
+        ? { x: target.pos.x, z: target.pos.z }
+        : t.sq.goal
+          ? { x: t.sq.goal.x + 0.5, z: t.sq.goal.y + 0.5 }
+          : { x, z };
+      for (const w of t.sq.queue) {
+        const to = { x: w.x + 0.5, z: w.y + 0.5 };
+        (w.attack ? attacks : moves).push(
+          from.x,
+          this.heightAt(from.x, from.z) + lift,
+          from.z,
+          to.x,
+          this.heightAt(to.x, to.z) + lift,
+          to.z,
+        );
+        from = to;
       }
     }
     const set = (lines: THREE.LineSegments, points: number[]) =>
@@ -933,6 +1043,31 @@ export class Battlefield3DScene implements BattlefieldDrawing {
   }
 
   private readonly onMini = (e: PointerEvent) => {
+    if (e.type === "pointerdown" && e.button === 2) {
+      // A right-click on the minimap sends the picked squads there.
+      const rect = this.mini.getBoundingClientRect();
+      const cell = {
+        x: clamp(
+          Math.floor(((e.clientX - rect.left) / rect.width) * this.field.width),
+          0,
+          this.field.width - 1,
+        ),
+        y: clamp(
+          Math.floor(
+            ((e.clientY - rect.top) / rect.height) * this.field.height,
+          ),
+          0,
+          this.field.height - 1,
+        ),
+      };
+      if (this.commandSide !== null && this.picked.size > 0)
+        this.onOrder?.([...this.picked], {
+          kind: "move",
+          cell,
+          queue: e.shiftKey,
+        });
+      return;
+    }
     if (e.type === "pointerdown") {
       if (e.button !== 0) return;
       this.mini.setPointerCapture(e.pointerId);
@@ -1072,6 +1207,7 @@ export class Battlefield3DScene implements BattlefieldDrawing {
     this.drawSquads(t, dt);
     if (this.commandSide !== null || this.pickedRings.size > 0)
       this.drawOrders();
+    this.drawBadges();
     const sel =
       this.selected === null ? undefined : this.tokens.get(this.selected);
     this.ring.visible = !!sel;
@@ -1330,9 +1466,9 @@ export class Battlefield3DScene implements BattlefieldDrawing {
       if (e.button === 2) {
         this.armed = false;
         this.renderer.domElement.style.cursor = "";
-        this.order(e.clientX, e.clientY, "move");
+        this.order(e.clientX, e.clientY, "move", e.shiftKey);
       } else if (e.button === 0 && click && this.armed) {
-        this.order(e.clientX, e.clientY, "attackMove");
+        this.order(e.clientX, e.clientY, "attackMove", e.shiftKey);
         this.armed = false;
         this.renderer.domElement.style.cursor = "";
       } else if (e.button === 0 && click) {
@@ -1377,7 +1513,9 @@ export class Battlefield3DScene implements BattlefieldDrawing {
 
   private readonly onKey = (e: KeyboardEvent) => {
     const k = e.key.toLowerCase();
-    if (!(k in PAN_KEYS) && k !== "q" && k !== "e") return;
+    // Commanding, Q selects your army: turn with the middle button instead.
+    const turn = (k === "q" || k === "e") && this.commandSide === null;
+    if (!(k in PAN_KEYS) && !turn) return;
     if (e.type === "keyup") {
       this.held.delete(k);
       return;
