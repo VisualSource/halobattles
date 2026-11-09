@@ -722,11 +722,21 @@ function BattlefieldView(props: {
     scene.onOrder = (ids, o) => command.current?.onOrder(ids, o);
     scene.command(side);
     if (command.current) command.current.map.current = scene;
-    scene.update(battle);
+    // The Command Post as last seen (#124): out of Sight it isn't sent, but its
+    // loss ends the Battle, so gone from view it still stands where it was.
+    let lastPost: Squad | undefined;
+    const update = (b: Battle) => {
+      const post = b.squads.find((q) => q.commandPost);
+      lastPost = post ?? lastPost;
+      scene.update(
+        post || !lastPost ? b : { ...b, squads: [...b.squads, lastPost] },
+      );
+    };
+    update(battle);
     const unsubscribe = conn.store.subscribe((s, prev) => {
       const next = s.view?.battles.get(id);
       if (next && !next.summary && next !== prev.view?.battles.get(id))
-        scene.update(next);
+        update(next);
     });
     const onTick = (e: Event) => {
       const t = (e as CustomEvent<TickEvent>).detail;
@@ -1007,20 +1017,31 @@ function Points(props: {
       ) : (
         <span
           className="flex items-center gap-2 whitespace-nowrap"
-          title="The attacker wins by destroying the defender's Command Post"
+          title="The attacker wins by destroying the defender's Command Post. Its shield blocks every hit until the attacker holds half the Landing Zones."
         >
           <span className={label}>Command Post</span>
+          <span
+            className={cn(
+              "font-mono text-xs",
+              shieldNeed(battle) > 0 ? "text-res-research" : "text-ink-3",
+            )}
+          >
+            {shieldNeed(battle) > 0
+              ? `Shield up: take ${shieldNeed(battle)} more Landing Zone${shieldNeed(battle) > 1 ? "s" : ""}`
+              : "Shield down"}
+          </span>
           <span className="bg-line h-2 w-24 overflow-hidden rounded">
             <span
               className="block h-full"
               style={{
-                width: `${health * 100}%`,
+                width: `${(health ?? 0) * 100}%`,
                 background: colourOf(battle.defender),
               }}
             />
           </span>
+          {/* Out of the attacker's Sight: its health isn't known. */}
           <span className="text-ink-3 w-9 text-right font-mono text-xs">
-            {Math.round(health * 100)}%
+            {health === null ? "—" : `${Math.round(health * 100)}%`}
           </span>
         </span>
       )}
@@ -1031,14 +1052,27 @@ function Points(props: {
 /** The Command Post squad's unit id (server battle.CommandPostID): no unit or building has it. */
 export const COMMAND_POST = "commandPost";
 
-/** The Command Post's Armor and HP left, of the Ruleset's; 0 once it's destroyed. */
+/**
+ * The Command Post's Armor and HP left, of the Ruleset's; 0 once it's
+ * destroyed, and null while the attacker can't see it (#124).
+ */
 export function commandPostHealth(
   battle: Battle,
   full: { armor: number; hp: number },
 ) {
   const cp = battle.squads.find((q) => q.commandPost);
-  if (!cp) return 0;
+  if (!cp) return null;
   return Math.max(0, cp.armor + cp.hp) / Math.max(1, full.armor + full.hp);
+}
+
+/**
+ * How many more Landing Zones the attacker needs to bring the Command Post's
+ * shield down, as the server's Sim.shielded counts: half, rounded up (#124).
+ * 0: the shield's down.
+ */
+export function shieldNeed(battle: Battle) {
+  const held = battle.points.filter((p) => p.owner === "attacker").length;
+  return Math.max(0, Math.ceil(battle.points.length / 2) - held);
 }
 
 /**

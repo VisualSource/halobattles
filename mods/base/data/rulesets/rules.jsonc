@@ -85,7 +85,7 @@
     "ticksPerSecond": 10,
     // Seconds to open the Battle before the fighting starts.
     "startDelay": 15,
-    "timeCap": 180,
+    "timeCap": 240,
     // A Raid: 100 s to find and destroy the buildings, with up to 10 Command Points.
     "raidTime": 100,
     "raidCap": 10,

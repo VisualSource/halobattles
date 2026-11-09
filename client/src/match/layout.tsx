@@ -86,7 +86,8 @@ export function LayoutWindow(props: {
               pending ||
               planet.locked ||
               (shown.setSites.every((k) => k === null) &&
-                shown.setStarts.size === 0)
+                shown.setStarts.size === 0 &&
+                shown.setPost === null)
             }
             onClick={() => conn.setLayout(shown.planet, [], new Map())}
             className="border-edge bg-raised min-h-7 rounded px-2.5 text-xs disabled:opacity-50"
@@ -101,14 +102,14 @@ export function LayoutWindow(props: {
           ? "Select one of your Planets to lay out its defence."
           : planet?.locked
             ? "Locked by a Battle: the layout can change once it's over."
-            : "Drag a building to another site, or a Stack to where it starts the Battle. Changes apply to the next Battle here."}
+            : "Drag a building or your Command Post to another site, or a Stack to where it starts the Battle. Changes apply to the next Battle here."}
       </p>
       <div className="flex h-118">
         {shown && planet ? (
           <LayoutMap
             content={content}
-            onChange={(sites, starts) =>
-              conn.setLayout(shown.planet, sites, starts)
+            onChange={(sites, starts, post) =>
+              conn.setLayout(shown.planet, sites, starts, post)
             }
             layout={shown}
             buildings={planet.buildings}
@@ -189,6 +190,7 @@ export function moveBuilding(
 
 type Drag =
   | { kind: "building"; slot: number; at: Cell }
+  | { kind: "post"; at: Cell } // the Command Post (#124)
   | { kind: "stack"; stack: number; at: Cell };
 
 /**
@@ -201,7 +203,11 @@ export function LayoutMap(props: {
   layout: DefenceLayout;
   buildings: string[];
   editable: boolean;
-  onChange: (sites: (number | null)[], starts: Map<number, Cell>) => void;
+  onChange: (
+    sites: (number | null)[],
+    starts: Map<number, Cell>,
+    post: number | null,
+  ) => void;
 }) {
   const { content, layout: l, onChange } = props;
   const terrain = useTerrain(l.field, content);
@@ -242,15 +248,30 @@ export function LayoutMap(props: {
   const drop = (d: Drag) => {
     setDrag(null);
     if (d.kind === "building") {
-      const sites = moveBuilding(l.buildingSites, d.slot, siteNear(d.at));
-      if (sites) onChange(sites, l.setStarts);
+      const k = siteNear(d.at);
+      const sites = moveBuilding(l.buildingSites, d.slot, k);
+      // Onto the Command Post's site: it swaps, to the building's old one.
+      const post =
+        k === l.setPost ? (l.buildingSites[d.slot] ?? null) : l.setPost;
+      if (sites) onChange(sites, l.setStarts, post);
+      return;
+    }
+    if (d.kind === "post") {
+      const k = siteNear(d.at);
+      if (k < 0 || k === l.setPost) return;
+      // A building there swaps to where the Command Post stood: its site, or
+      // its own default if it stood at the base's own spot.
+      const sites = [...l.buildingSites];
+      const other = sites.indexOf(k);
+      if (other >= 0) sites[other] = l.setPost;
+      onChange(sites, l.setStarts, k);
       return;
     }
     if (!held.some((c) => near(c, d.at, l.reach))) {
       setRefused("Too far from your base");
       return;
     }
-    onChange(l.setSites, new Map(l.setStarts).set(d.stack, d.at));
+    onChange(l.setSites, new Map(l.setStarts).set(d.stack, d.at), l.setPost);
   };
 
   const grab = (e: React.PointerEvent, d: Drag) => {
@@ -263,16 +284,25 @@ export function LayoutMap(props: {
   const stackAt = (k: number) =>
     drag?.kind === "stack" && drag.stack === k ? drag.at : l.stackStarts[k];
   const slotOnSite = (k: number) => l.buildingSites.indexOf(k);
-  const target = drag?.kind === "building" ? siteNear(drag.at) : -1;
+  const onSite = drag?.kind === "building" || drag?.kind === "post";
+  const target = onSite ? siteNear(drag.at) : -1;
   const from =
-    drag?.kind === "building" ? (l.buildingSites[drag.slot] ?? null) : null;
+    drag?.kind === "building"
+      ? (l.buildingSites[drag.slot] ?? null)
+      : drag?.kind === "post"
+        ? l.setPost
+        : null;
   // What the drop would do, or why the last one was refused.
   const note = (() => {
-    if (drag?.kind === "building") {
-      const name = buildingName(drag.slot);
+    if (onSite) {
+      const name =
+        drag.kind === "building" ? buildingName(drag.slot) : "Command Post";
       if (target < 0 || target === from)
-        return `Moving ${name}: drop it on a lit site`;
+        return `Moving the ${name}: drop it on a lit site`;
       const other = slotOnSite(target);
+      if (other >= 0 && drag.kind === "post")
+        return `Swap the Command Post with ${buildingName(other)}`;
+      if (target === l.setPost) return `Swap ${name} with the Command Post`;
       return other >= 0
         ? `Swap ${name} with ${buildingName(other)}`
         : `${name} → site ${target + 1}`;
@@ -300,7 +330,7 @@ export function LayoutMap(props: {
           height={h}
           style={{ imageRendering: "pixelated" }}
         />
-        {drag?.kind === "building" &&
+        {onSite &&
           l.sites.map((s, k) =>
             k === from ? null : (
               <circle
@@ -365,15 +395,23 @@ export function LayoutMap(props: {
             />
           ))}
         </g>
+        {/* The Command Post: dragged onto a building site (#124). */}
         <rect
-          x={l.commandPost.x}
-          y={l.commandPost.y}
-          width={1}
-          height={1}
+          x={(drag?.kind === "post" ? drag.at : l.commandPost).x - 0.3}
+          y={(drag?.kind === "post" ? drag.at : l.commandPost).y - 0.3}
+          width={1.6}
+          height={1.6}
           fill="var(--color-accent)"
+          fillOpacity={drag?.kind === "post" ? 0.7 : 1}
           stroke="#000"
           strokeWidth={0.15}
-        />
+          className={props.editable ? "cursor-grab" : ""}
+          onPointerDown={(e) =>
+            grab(e, { kind: "post", at: { ...l.commandPost } })
+          }
+        >
+          <title>Your Command Post. Drag it onto a building site.</title>
+        </rect>
         {l.sites.map((s, k) => {
           const slot = slotOnSite(k);
           const lit = k === target && k !== from;

@@ -23,11 +23,21 @@ func marines(n int) [][]Slot {
 	return [][]Slot{f}
 }
 
+// cpPhase puts a Battle in the attacker's Command Post phase (#124): it's
+// shown, so found, and the attacker holds every Landing Zone, so its shield is down.
+func cpPhase(s *Sim) {
+	s.ShowCommandPost = true
+	for i := range s.Points {
+		s.Points[i].Owner = Attacker
+	}
+}
+
 // A force bigger than one Task Force splits: past forceCap squads on the
 // Command Post, a second force comes in on its own bearing, or squads go on
 // to other goals.
 func TestTheCommanderSplitsABigForce(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(6)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
+	cpPhase(s)
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Attacker}
 	ai.command(v, v.Own(), nil)
@@ -229,8 +239,10 @@ func TestSquadsDontFlipFlopBetweenGoals(t *testing.T) {
 			worst = max(worst, n)
 		}
 	}
-	if worst > 12 {
-		t.Errorf("a squad changed goals %d times in one Battle; want at most 12", worst)
+	// 14: the attacker's phases (Landing Zones, then the Command Post, and back
+	// if the shield comes up, #124) add a few changes of their own.
+	if worst > 14 {
+		t.Errorf("a squad changed goals %d times in one Battle; want at most 14", worst)
 	}
 }
 

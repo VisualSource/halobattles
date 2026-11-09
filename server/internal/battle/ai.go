@@ -26,7 +26,7 @@ type Weights struct {
 type Limits struct {
 	React       float64 `json:"react,omitempty"`       // seconds before an enemy newly in view counts
 	Replan      float64 `json:"replan,omitempty"`      // seconds between Commander passes; 0 is 1
-	Noise       float64 `json:"noise,omitempty"`       // the ± share on each squad's goal scores
+	Noise       float64 `json:"noise,omitempty"`       // the Â± share on each squad's goal scores
 	SecondBest  float64 `json:"secondBest,omitempty"`  // the chance a squad takes a goal within 20% of its best
 	NoTactics   bool    `json:"noTactics,omitempty"`   // no focus fire, kiting or Task Forces gathering
 	NoBehaviors bool    `json:"noBehaviors,omitempty"` // no pullback or seekCounter
@@ -145,11 +145,17 @@ type AI struct {
 	forces  map[forceKey]*taskForce
 	forceOf map[int]*taskForce // squads in a Task Force, by id
 	rested  map[int]int        // the tick a squad got back from falling back
-	pulled  map[int]int        // squads that have pulled back (once each), by id: the tick they rejoin
-	gaveUp  map[[2]int]int     // a squad's chase it gave up, by squad and target id: the tick
-	holding bool               // a defender fallen back to its Command Post, till it holds a point again
-	inView  map[int]int        // enemies in view, by id: the tick each came into view
-	round   map[int]int        // a skirmisher's place on its patrol
+	// converging: the defender has met the attack at one point and is
+	// gathering there (#124), so it sends no skirmishers.
+	converging bool
+	// seeking: an attacker that hasn't found the standing Command Post yet
+	// (#124), so it sends scouts.
+	seeking bool
+	pulled  map[int]int    // squads that have pulled back (once each), by id: the tick they rejoin
+	gaveUp  map[[2]int]int // a squad's chase it gave up, by squad and target id: the tick
+	holding bool           // a defender fallen back to its Command Post, till it holds a point again
+	inView  map[int]int    // enemies in view, by id: the tick each came into view
+	round   map[int]int    // a skirmisher's place on its patrol
 	// Trace, if set, hears each change in what a squad has been told to do,
 	// for a Match log.
 	Trace    func(Decision)
@@ -232,6 +238,9 @@ const (
 	holdCommandPost     = 3
 	landingZone         = 1.2
 	attackerLandingZone = 0.3
+	// holdLandingZone is what the defender wants a Landing Zone it holds:
+	// holding enough keeps the Command Post's shield up (#124). First pass.
+	holdLandingZone = 3
 	// block is the side, in cells, of the squares the AI tracks looking at.
 	block = 8
 	// scoutShare is the part of a defender's mobile squads sent scouting,
@@ -279,6 +288,12 @@ const (
 	buildingThreat = 5
 	nearRadius     = 3 // cells: a friendly this close is near
 	threatRadius   = 6 // cells: enemies this close to a goal threaten it
+	// convergeMembers: the defender converges on a point only once at least
+	// this many enemy members threaten it, so a lone scout doesn't pull it in.
+	convergeMembers = 3
+	// attackerScouts is the most squads an attacker sends looking for a hidden
+	// Command Post; the rest work on the Landing Zones meanwhile.
+	attackerScouts = 2
 	distScale      = 12.0
 	// The Hard AI's fixes (v4): chaseSeconds is how long a squad goes after a
 	// target it can't hit before it gives up on it for as long again;
@@ -445,9 +460,24 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	// until reinforcements land on them (#57).
 	cp := s.commandPost()
 	raider := s.Raid && v.Side == Attacker // after the buildings, not the Command Post or the Landing Zones
+	// The attacker knows where the Command Post is once it has seen it (#124).
+	cpAt, found := Cell{}, false
+	if cp != nil && cp.alive() {
+		if at, ok := ai.seen[cp.ID]; ok && v.Side == Attacker && !s.ShowCommandPost {
+			cpAt, found = at, true
+		} else if v.Side == Defender || s.ShowCommandPost {
+			cpAt, found = cp.Cell, true
+		}
+	}
+	ai.seeking = v.Side == Attacker && !raider && cp != nil && cp.alive() && !found
+	// Two phases (#124): while the Landing Zones keep the Command Post's shield
+	// up, or it hasn't been found, the attacker masses on them; then on it.
+	zones := v.Side == Attacker && !raider && cp != nil && cp.alive() && (s.shielded() || !found)
 	if cp != nil && cp.alive() && !raider {
-		if v.Side == Attacker {
-			add(goal{kind: assault, cell: cp.Cell, target: cp.ID}, assaultValue)
+		if zones {
+			// No assault yet: the shield blocks every hit, or it's not been found.
+		} else if v.Side == Attacker {
+			add(goal{kind: assault, cell: cpAt, target: cp.ID}, assaultValue)
 		} else if s.setup() {
 			add(goal{kind: defend, cell: cp.Cell}, 1) // the attacker can't move yet: pads first
 		} else {
@@ -459,12 +489,14 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	for _, p := range s.Points {
 		switch {
 		case raider:
+		case p.Owner != v.Side && zones:
+			add(goal{kind: capture, cell: p.Cell}, assaultValue) // what the assault is worth: the way to it
 		case p.Owner != v.Side && v.Side == Attacker:
 			add(goal{kind: capture, cell: p.Cell}, attackerLandingZone)
 		case p.Owner != v.Side:
 			add(goal{kind: capture, cell: p.Cell}, landingZone)
 		case v.Side == Defender:
-			add(goal{kind: defend, cell: p.Cell}, 1)
+			add(goal{kind: defend, cell: p.Cell}, holdLandingZone) // they hold its shield up
 		}
 	}
 	pad := padValue
@@ -484,7 +516,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 		}
 	}
 	// A raider's buildings are worth what an assault is; others, in sight,
-	// 1.2 × the Raid weight, and as last seen 1 ×.
+	// 1.2 Ã— the Raid weight, and as last seen 1 Ã—.
 	raidValue := func(e *Squad, inSight bool) float64 {
 		switch {
 		case raider && e.planetBuilding():
@@ -562,6 +594,33 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	for _, sq := range own {
 		strength += float64(len(sq.Members))
 	}
+	// Converge (#124): once most of the attack it has seen is at one point,
+	// the guards of its other points go there too, and its skirmishers come
+	// back, rather than meeting the attack a squad at a time.
+	ai.converging = false
+	if v.Side == Defender && !s.setup() && !holdOut {
+		seen, at := 0.0, -1
+		for _, sg := range ai.sighted {
+			seen += float64(sg.members)
+		}
+		for i, g := range goals {
+			if g.kind == defend && (at < 0 || threat[i] > threat[at]) {
+				at = i
+			}
+		}
+		if at >= 0 && threat[at] >= convergeMembers && threat[at] >= seen/2 {
+			ai.converging = true
+			var keepG []goal
+			var keepV, keepT []float64
+			for i, g := range goals {
+				if g.kind == defend && i != at && (cp == nil || g.cell != cp.Cell) {
+					continue // a quiet point: left for the threatened one
+				}
+				keepG, keepV, keepT = append(keepG, g), append(keepV, values[i]), append(keepT, threat[i])
+			}
+			goals, values, threat = keepG, keepV, keepT
+		}
+	}
 	assigned := make([]float64, len(goals))
 	on := make([][]*Squad, len(goals))
 	need, members := make([]float64, len(goals)), make([]float64, len(goals))
@@ -617,7 +676,8 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			// Spread out, once a Task Force has what it needs; but the attacker
 			// masses everything on the assault rather than touring pads and
 			// arriving a squad at a time (#109).
-			if g.kind != assault && (!g.kind.forms() || len(on[i]) >= minForce && members[i] >= need[i]) {
+			massing := g.kind == assault || zones && g.kind == capture // the job: no spreading out
+			if !massing && (!g.kind.forms() || len(on[i]) >= minForce && members[i] >= need[i]) {
 				f.crowd = 1 + assigned[i]
 			}
 			if g.target != 0 && g.kind != assault { // the Command Post is the job, whatever the tier
@@ -1045,9 +1105,10 @@ func (ai *AI) assignRoles(v View, own, enemies []*Squad) map[int]bool {
 				ai.rested[sq.ID] = v.Tick()
 				continue
 			}
-		case r == scouting && len(ai.sighted) > 0 && !ai.inContact(v, sq):
-			// The enemy's found: back to the usual goals. Scouting on, a
-			// Warthog roamed empty corners while its base fell (seed 246130).
+		case r == scouting && (v.Side == Defender && len(ai.sighted) > 0 || v.Side == Attacker && !ai.seeking) && !ai.inContact(v, sq):
+			// What it looked for is found (the enemy; for the attacker, the
+			// Command Post): back to the usual goals. Scouting on, a Warthog
+			// roamed empty corners while its base fell (seed 246130).
 			delete(ai.roles, sq.ID)
 			delete(ai.plans, sq.ID)
 			ai.rested[sq.ID] = v.Tick()
@@ -1104,6 +1165,11 @@ func (ai *AI) assignRoles(v View, own, enemies []*Squad) map[int]bool {
 	if v.Side == Defender && len(mobile) >= minForScouts && w.Scout > 0 && !scoutedOnce && len(ai.sighted) == 0 {
 		scouts = min(max(1, int(math.Round(float64(len(mobile))*scoutShare*w.Scout))), maxScouts, len(mobile)-1)
 	}
+	// The attacker looks for a hidden Command Post (#124): one or two scouts.
+	// Even its only squad: one that never looks never finds it, and waits out the cap.
+	if ai.seeking && len(mobile) > 0 && w.Scout > 0 {
+		scouts = min(max(1, int(math.Round(float64(len(mobile))*scoutShare*w.Scout))), attackerScouts, max(1, len(mobile)-1))
+	}
 	if want := scouts - count(scouting); want > 0 {
 		cands := free()
 		slices.SortStableFunc(cands, func(a, b *Squad) int {
@@ -1127,7 +1193,9 @@ func (ai *AI) assignRoles(v View, own, enemies []*Squad) map[int]bool {
 	spare := len(mobile) - need - scouts
 	// A handful at most: they find and delay the enemy for the main force.
 	skirmishers := min(spare, maxSkirmishers, max(1, int(math.Round(float64(len(mobile))*skirmishShare*w.Aggression))))
-	if skirmishers <= 0 || w.Aggression <= 0 {
+	// The attacker goes in as one mass (#124): its skirmishers, its fastest
+	// squads, ranged out ahead of it and met the defence alone.
+	if skirmishers <= 0 || w.Aggression <= 0 || v.Side == Attacker || ai.converging {
 		skirmishers = 0
 	}
 	for i := len(mobile) - 1; i >= 0 && count(skirmish) > skirmishers; i-- {
@@ -1271,6 +1339,9 @@ func (ai *AI) waypoint(v View, sq *Squad, taken map[Cell]bool) (Cell, bool) {
 		}
 		stale := min(float64(v.Tick()-at)/float64(v.sim.TPS()), staleCap)
 		toward := float64(max(f.W, f.H)-s.depth(s.Edge, mid)) / float64(max(f.W, f.H)) // 1 at the attacker's edge
+		if v.Side == Attacker {
+			toward = 1 - toward // its scouts look for the Command Post, on the defender's side
+		}
 		score := stale + 20*toward - dist(sq.Cell, mid)/max(sq.speed, 0.1)/2
 		if score > bestScore { // ties keep the lower block
 			best, bestScore, found = mid, score, true

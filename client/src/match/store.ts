@@ -176,6 +176,7 @@ export type DefenceLayout = {
   stackStarts: Cell[];
   setSites: (number | null)[]; // the layout as set, per Building Slot; null is its default
   setStarts: Map<number, Cell>;
+  setPost: number | null; // the Command Post's site as set (#124); null is the base's own spot
 };
 
 /** One squad's fire in one sim tick, added up. */

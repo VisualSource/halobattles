@@ -139,8 +139,13 @@ setStartsLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+setPost():number {
+  const offset = this.bb!.__offset(this.bb_pos, 28);
+  return offset ? this.bb!.readInt8(this.bb_pos + offset) : -1;
+}
+
 static startDefenceLayout(builder:flatbuffers.Builder) {
-  builder.startObject(12);
+  builder.startObject(13);
 }
 
 static addPlanet(builder:flatbuffers.Builder, planetOffset:flatbuffers.Offset) {
@@ -257,6 +262,10 @@ static startSetStartsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addSetPost(builder:flatbuffers.Builder, setPost:number) {
+  builder.addFieldInt8(12, setPost, -1);
+}
+
 static endDefenceLayout(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -276,7 +285,8 @@ unpack(): DefenceLayoutT {
     this.bb!.createScalarList<number>(this.buildingSites.bind(this), this.buildingSitesLength()),
     this.bb!.createObjList<Cell, CellT>(this.stackStarts.bind(this), this.stackStartsLength()),
     this.bb!.createScalarList<number>(this.setSites.bind(this), this.setSitesLength()),
-    this.bb!.createObjList<LayoutStart, LayoutStartT>(this.setStarts.bind(this), this.setStartsLength())
+    this.bb!.createObjList<LayoutStart, LayoutStartT>(this.setStarts.bind(this), this.setStartsLength()),
+    this.setPost()
   );
 }
 
@@ -294,6 +304,7 @@ unpackTo(_o: DefenceLayoutT): void {
   _o.stackStarts = this.bb!.createObjList<Cell, CellT>(this.stackStarts.bind(this), this.stackStartsLength());
   _o.setSites = this.bb!.createScalarList<number>(this.setSites.bind(this), this.setSitesLength());
   _o.setStarts = this.bb!.createObjList<LayoutStart, LayoutStartT>(this.setStarts.bind(this), this.setStartsLength());
+  _o.setPost = this.setPost();
 }
 }
 
@@ -310,7 +321,8 @@ constructor(
   public buildingSites: (number)[] = [],
   public stackStarts: (CellT)[] = [],
   public setSites: (number)[] = [],
-  public setStarts: (LayoutStartT)[] = []
+  public setStarts: (LayoutStartT)[] = [],
+  public setPost: number = -1
 ){}
 
 
@@ -339,6 +351,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   DefenceLayout.addStackStarts(builder, stackStarts);
   DefenceLayout.addSetSites(builder, setSites);
   DefenceLayout.addSetStarts(builder, setStarts);
+  DefenceLayout.addSetPost(builder, this.setPost);
 
   return DefenceLayout.endDefenceLayout(builder);
 }

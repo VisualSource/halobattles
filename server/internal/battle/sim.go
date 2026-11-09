@@ -20,7 +20,7 @@ const (
 )
 
 // Slot is a Unit Slot going into a Battle: Cell is its place in its Stack's
-// 3 × 5 grid, which sets its place in the formation.
+// 3 Ã— 5 grid, which sets its place in the formation.
 type Slot struct {
 	Unit  string
 	Count int
@@ -45,18 +45,25 @@ type Force struct {
 type Layout struct {
 	Sites  map[int]int  `json:",omitempty"`
 	Starts map[int]Cell `json:",omitempty"`
+	// Post is the site the Command Post stands on (#124); nil is the base's own spot.
+	Post *int `json:",omitempty"`
 }
 
-// Deploy is where a defender's buildings (by Building Slot: an index into
-// Sites; -1 for an empty slot, or one with no free site, which stands by the
-// Command Post) and Stacks start. A
-// building the layout places takes its site first; the rest take their own
+// Deploy is where a defender's Command Post, buildings (by Building Slot: an
+// index into Sites; -1 for an empty slot, or one with no free site, which
+// stands by the Command Post) and Stacks start. The Command Post takes the
+// site its layout gives it first (#124), else stands at the base's own spot.
+// A building the layout places takes its site next; the rest take their own
 // slot's site if it's free, else the first free one. A Stack's start counts
 // only within reach of the Command Post or a site with a building on it;
 // otherwise it starts at the base's unit start, or past those the Command Post.
-func (f *Field) Deploy(buildings []string, stacks int, l Layout, reach float64) (at []int, starts []Cell) {
+func (f *Field) Deploy(buildings []string, stacks int, l Layout, reach float64) (at []int, starts []Cell, post Cell) {
 	at = make([]int, len(buildings))
 	taken := make([]bool, len(f.Sites))
+	post = f.CommandPost
+	if l.Post != nil && *l.Post >= 0 && *l.Post < len(f.Sites) {
+		post, taken[*l.Post] = f.Sites[*l.Post], true
+	}
 	for slot, id := range buildings {
 		at[slot] = -1
 		if k, ok := l.Sites[slot]; ok && id != "" && k >= 0 && k < len(f.Sites) && !taken[k] {
@@ -74,14 +81,14 @@ func (f *Field) Deploy(buildings []string, stacks int, l Layout, reach float64) 
 			}
 		}
 	}
-	held := []Cell{f.CommandPost}
+	held := []Cell{post}
 	for _, k := range at {
 		if k >= 0 {
 			held = append(held, f.Sites[k])
 		}
 	}
 	for k := range stacks {
-		p := f.CommandPost
+		p := post
 		if k < len(f.UnitStarts) {
 			p = f.UnitStarts[k]
 		}
@@ -90,7 +97,7 @@ func (f *Field) Deploy(buildings []string, stacks int, l Layout, reach float64) 
 		}
 		starts = append(starts, p)
 	}
-	return at, starts
+	return at, starts, post
 }
 
 // Boost is what Tech effects add to a unit's or building's combat stats.
@@ -139,6 +146,7 @@ type Squad struct {
 	blocked                int // ticks spent waiting for a cell
 	retreating             bool
 	attackMove             bool     // on an Attack-move: it stops while it has something to hit
+	post                   *Cell    // a commanded squad fighting back: where it was put, to go back to (#124)
 	roles                  []string // the unit's AI role hints: "scout", "skirmisher"
 	current                Order    // the squad order it's carrying out
 	queue                  []Order  // orders to carry out after it, in turn
@@ -224,6 +232,9 @@ type Sim struct {
 	// raidTime, the Command Post decides nothing, and the defender can't
 	// Retreat. Set before the first Step.
 	Raid bool
+	// ShowCommandPost has both sides see the Command Post all Battle, the Lab's
+	// switch (#124); off, the attacker sees it only in Sight, as a building.
+	ShowCommandPost bool
 	// Drops are the Dropships over the Battle, in the order they arrived.
 	Drops  []Drop
 	Over   bool
@@ -319,7 +330,7 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 		}
 	}
 	// Each Stack deploys round its start, its buildings on their sites.
-	sites, starts := f.Deploy(defend.Buildings, len(defend.Formations), defend.Layout, rules.Battle.StartReach)
+	sites, starts, post := f.Deploy(defend.Buildings, len(defend.Formations), defend.Layout, rules.Battle.StartReach)
 	for k, form := range defend.Formations {
 		for _, sl := range form {
 			col, row := sl.Cell%5, sl.Cell/5
@@ -327,12 +338,12 @@ func New(c *cs.Content, rules cs.Ruleset, f *Field, attack, defend Force, seed u
 			s.addUnit(Defender, k, sl, starts[k].add(side.scale(col-2)).add(in.scale(row-1)))
 		}
 	}
-	s.addCommandPost(f.CommandPost)
+	s.addCommandPost(post)
 	for slot, id := range defend.Buildings {
 		switch {
 		case id == "":
 		case sites[slot] < 0: // no free site: by the Command Post
-			s.addBuilding(slot, id, f.CommandPost)
+			s.addBuilding(slot, id, post)
 		default:
 			s.addBuilding(slot, id, f.Sites[sites[slot]])
 		}
@@ -422,6 +433,19 @@ func (s *Sim) commandPost() *Squad {
 		}
 	}
 	return nil
+}
+
+// shielded is whether the Command Post's shield is up (#124): until the
+// attacker holds at least half the Landing Zones, rounded up, it blocks every
+// hit, so the map between the landing and the base matters.
+func (s *Sim) shielded() bool {
+	held := 0
+	for _, p := range s.Points {
+		if p.Owner == Attacker {
+			held++
+		}
+	}
+	return held < (len(s.Points)+1)/2
 }
 
 // layers is a fresh member's Shield, Armor and HP, with its side's Boost.
@@ -567,6 +591,7 @@ func (s *Sim) Step() []Volley {
 	s.raiseTurrets()
 	s.dropships()
 	s.nextOrders()
+	s.fightBack()
 	s.move()
 	s.see()
 	volleys := s.fire()
@@ -650,9 +675,49 @@ func (s *Sim) apply(side Side, o Order) {
 	s.carryOut(sq, o)
 }
 
+// fightBack has each idle squad of a commanded side, one with no order left
+// and not on Hold, go after the nearest enemy it can see and hurt within its
+// Sight of where it was put, stopping to fire once in range, then walk back
+// there once that enemy's dead or gone (#124). Without it, squads sent to a
+// spot stood idle beside an enemy their front ranks were fighting.
+func (s *Sim) fightBack() {
+	for _, sq := range s.Squads {
+		if s.Controllers[sq.Side] != nil || !sq.alive() || sq.speed == 0 || sq.retreating || sq.Dropship || sq.Building ||
+			sq.current.Kind == Hold || len(sq.queue) > 0 || sq.post == nil && (s.busy(sq) || s.targetOf(sq) != nil) {
+			continue
+		}
+		post := sq.Cell
+		if sq.post != nil {
+			post = *sq.post
+		}
+		var foe *Squad
+		for _, e := range s.Squads {
+			if e.Side != sq.Side && e.alive() && s.visible[sq.Side][e.ID] && s.tier(sq, e) != None && !e.Dropship &&
+				dist(post, e.Cell) <= sq.sight && (foe == nil || dist2(sq.Cell, e.Cell) < dist2(sq.Cell, foe.Cell)) {
+				foe = e
+			}
+		}
+		switch {
+		case foe != nil:
+			sq.post = &post
+			if dist(sq.goal, foe.Cell) > 2 || len(sq.path) == 0 { // re-routed only as it moves off: a path a tick is dear
+				to := s.nearestStandable(sq, foe.Cell, nil) // its cell is taken: beside it
+				sq.goal, sq.blocked, sq.pace, sq.attackMove = to, 0, 0, true
+				sq.path = s.Field.path(s.costsFor(sq.class), sq.Cell, to, nil)
+			}
+		case sq.Cell == post || len(sq.path) == 0 && sq.goal == post:
+			sq.post = nil // back, or as near as it gets
+		case sq.goal != post:
+			sq.goal, sq.blocked, sq.pace, sq.attackMove = post, 0, 0, false
+			sq.path = s.Field.path(s.costsFor(sq.class), sq.Cell, post, nil)
+		}
+	}
+}
+
 // carryOut starts a squad on one order.
 func (s *Sim) carryOut(sq *Squad, o Order) {
 	side := sq.Side
+	sq.post = nil // a new order: no going back to where it fought from
 	switch o.Kind {
 	case Move, AttackMove:
 		if sq.speed == 0 || o.Cell.X < 0 || o.Cell.Y < 0 || o.Cell.X >= s.Field.W || o.Cell.Y >= s.Field.H {
@@ -1007,7 +1072,9 @@ func (s *Sim) targetOf(sq *Squad) *Squad {
 	if t := s.squad(sq.target); t != nil && s.canHit(sq, t) {
 		return t
 	}
-	if t := s.squad(sq.locked); t != nil && s.canHit(sq, t) {
+	// A shielded Command Post is no target of its own choosing; an order still fires on it.
+	wasted := func(t *Squad) bool { return t.CommandPost && s.shielded() }
+	if t := s.squad(sq.locked); t != nil && s.canHit(sq, t) && !wasted(t) {
 		return t // target lock: it doesn't switch to a better pick mid-fight
 	}
 	sq.locked = 0 // gone or out of reach: the lock ends, even with nothing else to pick
@@ -1026,7 +1093,7 @@ func (s *Sim) targetOf(sq *Squad) *Squad {
 	}
 	var best *Squad
 	for _, t := range s.Squads {
-		if !s.canHit(sq, t) {
+		if !s.canHit(sq, t) || wasted(t) {
 			continue
 		}
 		if best == nil || cmp.Or(
@@ -1113,6 +1180,9 @@ func (s *Sim) fire() []Volley {
 				continue
 			}
 			v.Hits++
+			if t.CommandPost && s.shielded() {
+				continue // blocked: a hit with no damage, which the client shows as a ripple
+			}
 			roll := damageWith(tier, sq.dice, s.rng)
 			roll = int(math.Round(sq.boost.Damage.apply(float64(roll))))
 			d := hit(sq.weapon, &t.Members[0], roll)
@@ -1303,8 +1373,8 @@ type SquadView struct {
 	Count    int
 	Start    int
 	Front    Layers
-	// CommandPost: the defender's; both sides always see it, an objective
-	// marked on the map.
+	// CommandPost: the defender's objective; the attacker sees it only in
+	// Sight, unless the Sim shows it (ShowCommandPost).
 	CommandPost bool
 	// Its own side's: whether it's on its way to Goal, and the enemy it was
 	// told to attack, or 0.
@@ -1375,7 +1445,7 @@ func (s *Sim) snapshot(side Side, all bool) Snapshot {
 		}
 	}
 	for _, sq := range s.Squads {
-		if sq.alive() && (all || s.visible[side][sq.ID] || sq.CommandPost) {
+		if sq.alive() && (all || s.visible[side][sq.ID] || sq.CommandPost && s.ShowCommandPost) {
 			v := SquadView{
 				ID: sq.ID, Side: sq.Side, Unit: sq.Unit, Building: sq.Building, Cell: sq.Cell,
 				Count: len(sq.Members), Start: sq.Start, Front: sq.Members[0], CommandPost: sq.CommandPost, Dropship: sq.Dropship,

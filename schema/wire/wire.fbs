@@ -265,6 +265,7 @@ table SetDefenceLayout {
   planet: string;
   sites: [byte];           // per Building Slot: the base site it stands on; -1 its default
   starts: [LayoutStart];
+  post: byte = -1;         // the site the Command Post stands on; -1 the base's own spot
 }
 
 // The Battle you have open, by its Planet; "" is none. Only that one's view
@@ -795,4 +796,5 @@ table DefenceLayout {
   stack_starts: [Cell];    // where each Stack deploys
   set_sites: [byte];       // the layout as set: per Building Slot, -1 is its default
   set_starts: [LayoutStart];
+  set_post: byte = -1;     // the Command Post's site as set; -1 the base's own spot
 }

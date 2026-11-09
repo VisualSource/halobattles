@@ -19,6 +19,7 @@ func moves(orders []Order) map[int]Order {
 func TestATaskForceGathersThenGoesInBehindItsVehiclesAtTheSlowestPace(t *testing.T) {
 	s := aiSim(t, Force{Formations: [][]Slot{{{"base:marine", 5, 0}, {"base:warthog", 1, 1}}}},
 		Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
+	cpPhase(s) // no scout sent off to look for the Command Post
 	marines, warthog := s.Squads[0], s.Squads[1]
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Attacker}
@@ -173,6 +174,7 @@ func TestASquadStaysInItsTaskForceWhenAnotherJoinsTheGoal(t *testing.T) {
 
 func TestTheCommanderMassesSquadsOnOneGoal(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(2)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
+	cpPhase(s) // no scout sent off to look for the Command Post
 	ai := NewAI(WeightsOf(nil))
 	v := View{s, Attacker}
 	ai.command(v, v.Own(), nil)

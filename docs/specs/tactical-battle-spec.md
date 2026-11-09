@@ -151,7 +151,8 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 ## Sight and fog of war
 
 - Each unit has a `sight` radius, plus its height bonus. A **side sees the union** of its Squads' and buildings' Sight.
-- **Always visible to both sides:** the terrain, every Landing Zone with its owner and capture progress, and the Command Post with its health.
+- **Always visible to both sides:** the terrain, and every Landing Zone with its owner and capture progress.
+- **The Command Post** (#124): the defender always sees its own; the attacker sees it only in Sight, as a building, and the Battle window keeps drawing it where it was last seen. Its health shows only while it's in view.
 - **Visible only within Sight:** enemy Squads.
 - **Muzzle flash:** a Squad that fires is seen by the side it fired on for 3 s after each volley, wherever it stands. A turret that outranges the Sight of what it shoots still gives itself away, and the side being hit always knows its shooter.
 - **Buildings:** the defender always sees its own. An attacker sees an enemy building once it comes into Sight, and the client keeps a **last-seen marker** for it after that.
@@ -180,7 +181,7 @@ Landing Zones are what the code calls Control Points. Until reinforcements (#57)
 
 - **Attacker wins** only by **destroying the Command Post**. Wiping out the defence leaves it standing to be destroyed, and the time cap still runs. A defender that Retreats abandons the Battle: once its Retreat is over, its Command Post blows up and the attacker wins. An empty Planet, enemy or neutral, with no units and no buildings, is captured with no Battle at all.
 - **Defender wins** by:
-  - the **time cap, 3 min** of fighting, counted after the start delay;
+  - the **time cap, 4 min** of fighting, counted after the start delay (3 min before #124's shield and hidden Command Post);
   - **elimination**: the attacker has no Squads left;
   - the attacker **Retreating** ([Retreat](#retreat-in-battle)).
 - **Mutual wipe-out**, or both sides finishing a Retreat on the same tick: the defender keeps the Planet, as before.
@@ -413,7 +414,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battlefield.deployDepth` | 4 cells |
 | `battlefield.pointArea` | 3 cells |
 | `battle.startDelay` | 15 s |
-| `battle.timeCap` | 180 s |
+| `battle.timeCap` | 240 s |
 | `battle.raidTime` | 100 s |
 | `battle.raidCap` | 10 Command Points |
 | `battle.captureRadius` | 2 cells |
@@ -763,6 +764,45 @@ Built on [Command](#command), to its agreed mockup (#123), except that the contr
 - **Double-click** picks every squad of that unit on screen: in view of the camera, not the whole field.
 - Right-click stays Move / Attack. Unit abilities are for later.
 
+### Grouped forces and objectives (step 7)
+
+From watching v4 Battles (#124): the attacker went straight for the Command Post as one group with its fast units far out in front; the defender scattered and was wiped out a squad at a time; a player's squads sent to one spot mostly stood idle by a visible enemy; and with the Command Post always visible and the only way to win, the rest of the map didn't matter.
+
+- **Grouping:**
+  - The attacker has no skirmishers: it attacks as one mass, and fast units stay in their Task Force at its pace. Skirmishers had been its fastest units patrolling between the points, ahead of everything else.
+  - **The defender converges:** once it has sighted the attacker's main force, the guards of points the attacker isn't heading for go, as one Task Force, to the threatened point (or the Command Post, if nearer), and its skirmishers fall back too. Its defender skirmishers are dropped only if the measurements still show it losing squads piecemeal.
+- **Squads you command:**
+  - **Idle squads fight back:** one with no order left, not on Hold or Stop, goes after the nearest enemy it can see and hurt within its Sight, moving into range and firing, then returns to where it was put. Hold and Stop keep standing and firing at what's in range. A Move still ignores enemies on the way; an Attack-move fights along it.
+  - **Group moves spread out:** squads ordered to one spot together each get their own cell around it, keeping their places relative to one another. Already built in step 6 ([`Formation`](#rts-controls-step-6)); what left back squads idle was the "never chases" rule, which fighting back replaces.
+- **Landing Zones power the Command Post's shield:** the Command Post can be damaged only while the attacker holds at least half the Landing Zones, rounded up; otherwise its shield blocks every hit. The attacker starts holding the one it lands at. If the defender retakes enough, the shield comes back up. Shown on the Command Post as up or down, as a Battle window line such as "Shield up: take 1 more Landing Zone", and as a ripple on a blocked hit.
+- **Two phases:** the attacker masses on Landing Zones, nearest and least defended first, until the shield is down, then on the Command Post, and goes back to the zones if it comes up again. The defender values holding zones more. This replaces step 5's "every squad goes on the assault".
+- **The hidden Command Post:**
+  - Hidden like a building: the attacker sees it only once it's in Sight, then as a last-seen marker, with its health only while in view. The defender always sees its own.
+  - **Placed in the defence layout:** dragged to any building site, swapping with a building there, never onto a Landing Zone or pad. Left alone, it stays where generation puts it. Bots and neutral garrisons put theirs on a random building site on their side, from the Battle's seed.
+  - **The attacker scouts for it:** one or two fast squads roam the defender's side, avoiding fights, until the Command Post has been seen, then rejoin the main force, which works on the Landing Zones meanwhile.
+  - The Lab can show it or hide it, so both can be measured; if hiding proves worse, it becomes a Ruleset setting.
+- **The time cap** rose from 3 to 4 min: with the Command Post hidden, up to 30% of Battles ran out the clock.
+- **Built as:**
+  - The defender converges once at least 3 enemy members, and at least half of all it has seen lately, threaten one point it holds.
+  - The defender values holding a Landing Zone at 3 (it was 1); at 1 and 2 its guards rarely held one long enough to matter.
+  - The attacker sends one scout, or two, while the Command Post is unfound, even when that's its only squad: a lone squad that never looked waited out the cap.
+  - A shielded Command Post is no target a squad picks for itself; an order on it still fires, and its hits land as blocked (no damage), which the client draws as a pale blue ripple.
+  - A Bot's or a neutral garrison's Command Post goes on site (Battle seed mod sites).
+  - The Lab's "Command Post visible to the attacker" switch shows it all Battle.
+- **Measured**, attacker wins over 100 seeds (Starting Kits, then three Stacks a side):
+
+  | | UNSC attacks Covenant | Covenant attacks UNSC | Big: UNSC attacks | Big: Covenant attacks |
+  |---|---|---|---|---|
+  | Before step 7 | 61% | 44% | 44% | 20% |
+  | No attacker skirmishers | 61% | 44% | 56% | 37% |
+  | + converging | 63% | 43% | 56% | 33% |
+  | + shield, two phases (visible) | 73% | 47% | 69% | 48% |
+  | + hidden, 3 min cap | 48% | 21% | 36% | 22% |
+  | + 4 min cap (as built) | 67% | 33% | 45% | 24% |
+
+  Fights last 141–155 s. Taking the zones first had the attacker fight the defence in the open, away from its turrets (attackers wiped out fell from about 29% to 11%); hiding the Command Post took most of that back. The UNSC-against-Covenant lean was there before and is the end-of-v4 balance pass's.
+- **Known gaps:** a Raid's attacker still looks for buildings round the Command Post's real cell, and an attacker's Dropship picks the Landing Zone nearest the real one; both should go by what it has seen.
+
 ### Order of work
 
 1. ~~Sim rate: 10 Hz, a goroutine per Battle~~ (#116): now in [Time and movement](#time-and-movement).
@@ -771,6 +811,7 @@ Built on [Command](#command), to its agreed mockup (#123), except that the contr
 4. ~~3D rules: the air layer, height, then line of sight~~ (#119): now in [Height](#height).
 5. The Hard AI: ~~5a unit behaviours and the Hard AI fixes~~ (#120), ~~5b Commander tactics~~ (#121), ~~5c the Normal and Easy limits~~ (#122).
 6. ~~RTS controls~~ (#123).
+7. Grouped forces, Landing Zones that matter, a hidden Command Post (#124): see [Grouped forces and objectives](#grouped-forces-and-objectives-step-7).
 
 Then balance against [Done when](#done-when).
 

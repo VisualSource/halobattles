@@ -213,7 +213,9 @@ export function LabPage(props: { session: Session; content: ContentLookups }) {
               <button
                 type="button"
                 className="border-edge bg-raised min-h-7 rounded border px-2.5 text-xs"
-                onClick={() => relayout({ sites: [], starts: new Map() })}
+                onClick={() =>
+                  relayout({ sites: [], starts: new Map(), post: null })
+                }
               >
                 Reset layout
               </button>
@@ -275,10 +277,13 @@ function LabLayout(props: {
           ...layout,
           setSites: props.setup.layout.sites,
           setStarts: props.setup.layout.starts,
+          setPost: props.setup.layout.post,
         }}
         buildings={props.setup.sides[1].buildings}
         editable
-        onChange={(sites, starts) => props.onChange({ sites, starts })}
+        onChange={(sites, starts, post) =>
+          props.onChange({ sites, starts, post })
+        }
       />
     </div>
   );
@@ -304,12 +309,13 @@ function defaultSetup(content: ContentLookups): LabSetup {
     plan: "",
     neutral: false,
     raid: false,
+    showCommandPost: false,
     seed: 1,
     sides: [
       kit(factions[0] ?? "", false),
       kit(factions[1] ?? factions[0] ?? "", true),
     ],
-    layout: { sites: [], starts: new Map() },
+    layout: { sites: [], starts: new Map(), post: null },
   };
 }
 
@@ -582,6 +588,16 @@ function SetupPanel(props: {
             onChange={(e) => onChange({ ...setup, raid: e.target.checked })}
           />
           <span>Raid: the attacker is after the buildings</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={setup.showCommandPost}
+            onChange={(e) =>
+              onChange({ ...setup, showCommandPost: e.target.checked })
+            }
+          />
+          <span>Command Post visible to the attacker (the game hides it)</span>
         </label>
         <div className="flex items-end gap-2">
           <label className="flex flex-1 flex-col gap-1">
@@ -1108,10 +1124,10 @@ function Status(props: { conn: LabConnection; content: ContentLookups }) {
           <span className="font-mono">
             Command Post{" "}
             {Math.round(
-              commandPostHealth(
+              (commandPostHealth(
                 battle,
                 props.content.rules.battle.commandPost,
-              ) * 100,
+              ) ?? 0) * 100, // the Lab sees both sides: always found
             )}
             %
           </span>

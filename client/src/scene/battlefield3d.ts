@@ -458,10 +458,19 @@ export class Battlefield3DScene implements BattlefieldDrawing {
         this.effects.push({ obj: line, t0: now, ms: TRACER_MS });
       }
       if (v.hits > 0) {
-        // Bigger when it kills.
+        // Bigger when it kills. Hits that do no damage are the Command Post's
+        // shield blocking them (#124): a wide, pale blue ripple.
+        const blocked = v.shieldDmg + v.armorDmg + v.hpDmg === 0;
         const flash = new THREE.Mesh(
-          new THREE.SphereGeometry(v.kills > 0 ? 0.32 : 0.2, 10, 8),
-          new THREE.MeshBasicMaterial({ color: "#ffd27a", transparent: true }),
+          new THREE.SphereGeometry(
+            blocked ? 0.9 : v.kills > 0 ? 0.32 : 0.2,
+            12,
+            8,
+          ),
+          new THREE.MeshBasicMaterial({
+            color: blocked ? "#7fd8ff" : "#ffd27a",
+            transparent: true,
+          }),
         );
         flash.position.copy(at);
         this.scene.add(flash);

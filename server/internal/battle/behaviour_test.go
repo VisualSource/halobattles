@@ -124,6 +124,7 @@ func TestARaiderPrefersRaidingBuildings(t *testing.T) {
 	freeAt(t, s, ghost, at, 0)
 	freeAt(t, s, revenant, at, 2)
 	s.relocate(barracks, at.add(Cell{5, 0})) // in Sight, nearer than the Command Post, far enough that only a raider turns aside for it
+	cpPhase(s)
 	s.see()
 	ai, v := NewAI(WeightsOf(nil)), View{s, Attacker}
 	ai.command(v, v.Own(), v.Enemies())
@@ -137,6 +138,7 @@ func TestARaiderPrefersRaidingBuildings(t *testing.T) {
 
 func TestTheAttackerMassesOnTheAssault(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(8)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
+	cpPhase(s)
 	ai, v := NewAI(WeightsOf(nil)), View{s, Attacker}
 	ai.command(v, v.Own(), v.Enemies())
 	for _, sq := range v.Own() {
@@ -146,8 +148,32 @@ func TestTheAttackerMassesOnTheAssault(t *testing.T) {
 	}
 }
 
+// While the Landing Zones keep the shield up, or the Command Post is unfound,
+// the attacker masses on the zones and sends scouts; never the assault (#124).
+func TestTheAttackerTakesTheLandingZonesFirst(t *testing.T) {
+	s := aiSim(t, Force{Formations: marines(8)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
+	ai, v := NewAI(WeightsOf(nil)), View{s, Attacker}
+	ai.command(v, v.Own(), v.Enemies())
+	scouts := 0
+	for _, sq := range v.Own() {
+		switch p := ai.plans[sq.ID]; {
+		case ai.roles[sq.ID] == scouting:
+			scouts++
+		case p == nil || p.goal.kind != capture:
+			t.Errorf("squad %d's goal %v; want every squad not scouting on a Landing Zone", sq.ID, p)
+		}
+	}
+	if scouts < 1 || scouts > attackerScouts {
+		t.Errorf("%d scouts looking for the Command Post; want 1 to %d", scouts, attackerScouts)
+	}
+	if !s.shielded() {
+		t.Fatal("the shield is down at the start; want it up until the attacker holds half the zones")
+	}
+}
+
 func TestASquadGivesUpAChaseItHasNoShotIn(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 5, 0}}}})
+	cpPhase(s)
 	m, grunts := s.Squads[0], unitsOf(t, s, "base:grunt")
 	freeAt(t, s, grunts, m.Cell, 7) // in Sight, out of range
 	s.see()
@@ -189,6 +215,7 @@ func TestAChaseClockWaitsWhileItsForceGathers(t *testing.T) {
 
 func TestASquadThatFellBackDoesntGoStraightBackIn(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
+	cpPhase(s)
 	m := s.Squads[0]
 	ai, v := NewAI(WeightsOf(nil)), View{s, Attacker}
 	s.Tick = 10 * s.TPS()

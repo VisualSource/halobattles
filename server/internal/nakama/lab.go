@@ -62,14 +62,17 @@ type labSide struct {
 }
 
 type labSetup struct {
-	Preset    string  `json:"preset"`              // a Terrain Preset id; "" is the Ruleset's
-	Archetype string  `json:"archetype,omitempty"` // a Battlefield Archetype; "" is the preset's pick
-	Layout    string  `json:"layout,omitempty"`    // which layout; "" lets the seed pick
-	Raid      bool    `json:"raid,omitempty"`      // the attacker Raids: after the buildings, within raidTime
-	Neutral   bool    `json:"neutral,omitempty"`   // the defender is a neutral garrison: its base, and turret funds
-	Seed      uint64  `json:"seed"`
-	Attack    labSide `json:"attack"`
-	Defend    labSide `json:"defend"`
+	Preset    string `json:"preset"`              // a Terrain Preset id; "" is the Ruleset's
+	Archetype string `json:"archetype,omitempty"` // a Battlefield Archetype; "" is the preset's pick
+	Layout    string `json:"layout,omitempty"`    // which layout; "" lets the seed pick
+	Raid      bool   `json:"raid,omitempty"`      // the attacker Raids: after the buildings, within raidTime
+	Neutral   bool   `json:"neutral,omitempty"`   // the defender is a neutral garrison: its base, and turret funds
+	// ShowCommandPost: both sides see the Command Post all Battle, to measure
+	// against it hidden, as the game plays it (#124).
+	ShowCommandPost bool    `json:"showCommandPost,omitempty"`
+	Seed            uint64  `json:"seed"`
+	Attack          labSide `json:"attack"`
+	Defend          labSide `json:"defend"`
 }
 
 // labDuels runs the duel matrix (battle.DuelMatrix): every pair, over Seeds.
@@ -407,7 +410,7 @@ func (s *labState) fromSetup(c *cs.Content, in labSetup) (*battle.Sim, error) {
 	f := battle.GenerateLayout(c, rules.Battlefield, override, in.Seed, base, in.Layout)
 	sim := battle.New(c, rules, f, forces[0], forces[1], in.Seed)
 	sim.Setup = rules.Battle.StartDelay * sim.TPS()
-	sim.Raid = in.Raid
+	sim.Raid, sim.ShowCommandPost = in.Raid, in.ShowCommandPost
 	for i, sd := range sides {
 		sim.Funds[i] = maps.Clone(sd.Funds)
 		sim.Builders[i] = buildsTurrets(c, sd.Faction)
@@ -513,9 +516,10 @@ type labField struct {
 }
 
 func (s *labState) sendField(dispatcher runtime.MatchDispatcher) {
-	f := s.sim.Field
-	sites, starts := f.Deploy(s.defend.Buildings, len(s.defend.Formations), s.defend.Layout, s.reach)
-	s.send(dispatcher, labFieldOp, labField{Field: f, BuildingSites: sites, StackStarts: starts, Reach: s.reach}, nil)
+	sites, starts, post := s.sim.Field.Deploy(s.defend.Buildings, len(s.defend.Formations), s.defend.Layout, s.reach)
+	f := *s.sim.Field // a shallow copy: its Command Post where the layout stands it (#124)
+	f.CommandPost = post
+	s.send(dispatcher, labFieldOp, labField{Field: &f, BuildingSites: sites, StackStarts: starts, Reach: s.reach}, nil)
 }
 
 func (s *labState) sendFrame(dispatcher runtime.MatchDispatcher) {

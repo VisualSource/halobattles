@@ -62,8 +62,13 @@ startsLength():number {
   return offset ? this.bb!.__vector_len(this.bb_pos + offset) : 0;
 }
 
+post():number {
+  const offset = this.bb!.__offset(this.bb_pos, 12);
+  return offset ? this.bb!.readInt8(this.bb_pos + offset) : -1;
+}
+
 static startSetDefenceLayout(builder:flatbuffers.Builder) {
-  builder.startObject(4);
+  builder.startObject(5);
 }
 
 static addSeq(builder:flatbuffers.Builder, seq:number) {
@@ -111,17 +116,22 @@ static startStartsVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(4, numElems, 4);
 }
 
+static addPost(builder:flatbuffers.Builder, post:number) {
+  builder.addFieldInt8(4, post, -1);
+}
+
 static endSetDefenceLayout(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createSetDefenceLayout(builder:flatbuffers.Builder, seq:number, planetOffset:flatbuffers.Offset, sitesOffset:flatbuffers.Offset, startsOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createSetDefenceLayout(builder:flatbuffers.Builder, seq:number, planetOffset:flatbuffers.Offset, sitesOffset:flatbuffers.Offset, startsOffset:flatbuffers.Offset, post:number):flatbuffers.Offset {
   SetDefenceLayout.startSetDefenceLayout(builder);
   SetDefenceLayout.addSeq(builder, seq);
   SetDefenceLayout.addPlanet(builder, planetOffset);
   SetDefenceLayout.addSites(builder, sitesOffset);
   SetDefenceLayout.addStarts(builder, startsOffset);
+  SetDefenceLayout.addPost(builder, post);
   return SetDefenceLayout.endSetDefenceLayout(builder);
 }
 
@@ -130,7 +140,8 @@ unpack(): SetDefenceLayoutT {
     this.seq(),
     this.planet(),
     this.bb!.createScalarList<number>(this.sites.bind(this), this.sitesLength()),
-    this.bb!.createObjList<LayoutStart, LayoutStartT>(this.starts.bind(this), this.startsLength())
+    this.bb!.createObjList<LayoutStart, LayoutStartT>(this.starts.bind(this), this.startsLength()),
+    this.post()
   );
 }
 
@@ -140,6 +151,7 @@ unpackTo(_o: SetDefenceLayoutT): void {
   _o.planet = this.planet();
   _o.sites = this.bb!.createScalarList<number>(this.sites.bind(this), this.sitesLength());
   _o.starts = this.bb!.createObjList<LayoutStart, LayoutStartT>(this.starts.bind(this), this.startsLength());
+  _o.post = this.post();
 }
 }
 
@@ -148,7 +160,8 @@ constructor(
   public seq: number = 0,
   public planet: string|Uint8Array|null = null,
   public sites: (number)[] = [],
-  public starts: (LayoutStartT)[] = []
+  public starts: (LayoutStartT)[] = [],
+  public post: number = -1
 ){}
 
 
@@ -161,7 +174,8 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
     this.seq,
     planet,
     sites,
-    starts
+    starts,
+    this.post
   );
 }
 }

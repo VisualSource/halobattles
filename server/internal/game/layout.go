@@ -16,7 +16,8 @@ type DefenceLayout struct {
 	Planet        string
 	Field         *battle.Field
 	Reach         float64
-	BuildingSites []int // per Building Slot: an index into Field.Sites, or -1
+	CommandPost   battle.Cell // where it stands: on its site (#124), or the base's own spot
+	BuildingSites []int       // per Building Slot: an index into Field.Sites, or -1
 	StackStarts   []battle.Cell
 	Layout        battle.Layout
 }
@@ -29,12 +30,12 @@ func (s *State) DefenceLayout(c *cs.Content, seat int, planet string) (DefenceLa
 	}
 	f := s.field(c, p.ID, s.Players[seat].Faction)
 	reach := c.Rulesets[RulesetID].Battle.StartReach
-	sites, starts := f.Deploy(p.Buildings, StacksPerPlanet, p.Layout, reach)
-	return DefenceLayout{Planet: p.ID, Field: f, Reach: reach, BuildingSites: sites, StackStarts: starts, Layout: p.Layout}, nil
+	sites, starts, post := f.Deploy(p.Buildings, StacksPerPlanet, p.Layout, reach)
+	return DefenceLayout{Planet: p.ID, Field: f, Reach: reach, CommandPost: post, BuildingSites: sites, StackStarts: starts, Layout: p.Layout}, nil
 }
 
-// SetDefenceLayout replaces seat's own Planet's layout: each Building Slot's
-// site, and each Stack's start. A start out of reach of the Command Post and
+// SetDefenceLayout replaces seat's own Planet's layout: the Command Post's
+// site, each Building Slot's site, and each Stack's start. A start out of reach of the Command Post and
 // the buildings is dropped, as Deploy would: a building moved or sold away
 // from a Stack never blocks the change. Changes apply to the next Battle there.
 func (s *State) SetDefenceLayout(c *cs.Content, seat int, planet string, l battle.Layout) error {
@@ -53,8 +54,11 @@ func (s *State) SetDefenceLayout(c *cs.Content, seat int, planet string, l battl
 		}
 		used[k] = true
 	}
+	if k := l.Post; k != nil && (*k < 0 || *k >= len(f.Sites) || used[*k]) {
+		return errors.New("the Command Post goes on a free building site")
+	}
 	reach := c.Rulesets[RulesetID].Battle.StartReach
-	_, starts := f.Deploy(p.Buildings, StacksPerPlanet, l, reach)
+	_, starts, _ := f.Deploy(p.Buildings, StacksPerPlanet, l, reach)
 	for k, at := range l.Starts {
 		switch {
 		case k < 0 || k >= StacksPerPlanet:

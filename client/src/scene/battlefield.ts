@@ -722,10 +722,20 @@ export class BattlefieldScene {
         this.effects.push({ obj: line, t0: now, ms: TRACER_MS });
       }
       if (v.hits > 0) {
-        // A flash where the hits land; bigger when it kills.
+        // A flash where the hits land; bigger when it kills. Hits that do no
+        // damage are the Command Post's shield blocking them (#124): a wider,
+        // pale blue ripple.
+        const blocked = v.shieldDmg + v.armorDmg + v.hpDmg === 0;
         const flash = new THREE.Mesh(
-          new THREE.RingGeometry(0.45, v.kills > 0 ? 0.75 : 0.6, 20),
-          new THREE.MeshBasicMaterial({ color: "#ffd27a", transparent: true }),
+          new THREE.RingGeometry(
+            blocked ? 0.8 : 0.45,
+            blocked ? 1.05 : v.kills > 0 ? 0.75 : 0.6,
+            24,
+          ),
+          new THREE.MeshBasicMaterial({
+            color: blocked ? "#7fd8ff" : "#ffd27a",
+            transparent: true,
+          }),
         );
         flash.position.set(target.mesh.position.x, target.mesh.position.y, 1.1);
         this.scene.add(flash);

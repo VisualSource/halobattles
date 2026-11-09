@@ -218,6 +218,10 @@ func (s *matchState) handle(user string, op int64, data []byte, tick int64, earl
 			}
 			l.Starts[int(st.Stack)] = battle.Cell{X: int(st.X), Y: int(st.Y)}
 		}
+		if c.Post >= 0 {
+			k := int(c.Post)
+			l.Post = &k
+		}
 		seq, phase, apply = c.Seq, wire.PhasePlay, func(*game.Lobby) error {
 			if err := s.play.SetDefenceLayout(doc, s.seat(user), c.Planet, l); err != nil {
 				return err
@@ -346,7 +350,7 @@ func (s *matchState) replyLayout(seat int, planet string) error {
 	}
 	f := l.Field
 	t := &wire.DefenceLayoutT{
-		Planet: l.Planet, Field: field(f), CommandPost: cell(f.CommandPost),
+		Planet: l.Planet, Field: field(f), CommandPost: cell(l.CommandPost), SetPost: -1,
 		Sites: cells(f.Sites), Points: cells(f.Points), Landings: cells(f.Starts), Pads: cells(f.Pads),
 		Reach: float32(l.Reach), StackStarts: cells(l.StackStarts),
 	}
@@ -361,6 +365,9 @@ func (s *matchState) replyLayout(seat int, planet string) error {
 	for _, k := range slices.Sorted(maps.Keys(l.Layout.Starts)) {
 		c := l.Layout.Starts[k]
 		t.SetStarts = append(t.SetStarts, &wire.LayoutStartT{Stack: uint8(k), X: uint16(c.X), Y: uint16(c.Y)})
+	}
+	if l.Layout.Post != nil {
+		t.SetPost = int8(*l.Layout.Post)
 	}
 	s.reply = finish(t)
 	return nil

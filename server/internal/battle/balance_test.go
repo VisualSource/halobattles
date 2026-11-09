@@ -68,8 +68,8 @@ func TestStartingKitsArePacedAndBalanced(t *testing.T) {
 		{"big: Covenant attacks UNSC", "base:covenant", "base:unsc", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.big {
-				t.Skip("issue #40: big Battles favour the attacker, 62–66% either way")
+			if tc.big && os.Getenv("HALO_BALANCE") != "big" {
+				t.Skip("issue #40: big Battles favour the attacker, 62–66% either way; HALO_BALANCE=big runs them to measure")
 			}
 			const seeds = 100
 			wins, ticks := 0, 0

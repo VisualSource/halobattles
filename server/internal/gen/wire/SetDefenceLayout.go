@@ -11,6 +11,7 @@ type SetDefenceLayoutT struct {
 	Planet string          `json:"planet"`
 	Sites  []int8          `json:"sites"`
 	Starts []*LayoutStartT `json:"starts"`
+	Post   int8            `json:"post"`
 }
 
 func (t *SetDefenceLayoutT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -48,6 +49,7 @@ func (t *SetDefenceLayoutT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffs
 	SetDefenceLayoutAddPlanet(builder, planetOffset)
 	SetDefenceLayoutAddSites(builder, sitesOffset)
 	SetDefenceLayoutAddStarts(builder, startsOffset)
+	SetDefenceLayoutAddPost(builder, t.Post)
 	return SetDefenceLayoutEnd(builder)
 }
 
@@ -66,6 +68,7 @@ func (rcv *SetDefenceLayout) UnPackTo(t *SetDefenceLayoutT) {
 		rcv.Starts(&x, j)
 		t.Starts[j] = x.UnPack()
 	}
+	t.Post = rcv.Post()
 }
 
 func (rcv *SetDefenceLayout) UnPack() *SetDefenceLayoutT {
@@ -178,8 +181,20 @@ func (rcv *SetDefenceLayout) StartsLength() int {
 	return 0
 }
 
+func (rcv *SetDefenceLayout) Post() int8 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	if o != 0 {
+		return rcv._tab.GetInt8(o + rcv._tab.Pos)
+	}
+	return -1
+}
+
+func (rcv *SetDefenceLayout) MutatePost(n int8) bool {
+	return rcv._tab.MutateInt8Slot(12, n)
+}
+
 func SetDefenceLayoutStart(builder *flatbuffers.Builder) {
-	builder.StartObject(4)
+	builder.StartObject(5)
 }
 func SetDefenceLayoutAddSeq(builder *flatbuffers.Builder, seq uint32) {
 	builder.PrependUint32Slot(0, seq, 0)
@@ -198,6 +213,9 @@ func SetDefenceLayoutAddStarts(builder *flatbuffers.Builder, starts flatbuffers.
 }
 func SetDefenceLayoutStartStartsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
+}
+func SetDefenceLayoutAddPost(builder *flatbuffers.Builder, post int8) {
+	builder.PrependInt8Slot(4, post, -1)
 }
 func SetDefenceLayoutEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

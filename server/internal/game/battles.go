@@ -110,15 +110,23 @@ func (s *State) startBattle(c *cs.Content, a *Army, p *Planet, ev *Events) {
 		defend.Formations = append(defend.Formations, f)
 	}
 	defend.Buildings = slices.Clone(p.Buildings)
-	defend.Layout = battle.Layout{Sites: maps.Clone(p.Layout.Sites), Starts: maps.Clone(p.Layout.Starts)}
+	defend.Layout = battle.Layout{Sites: maps.Clone(p.Layout.Sites), Starts: maps.Clone(p.Layout.Starts), Post: p.Layout.Post}
 	attack.Boosts, defend.Boosts = s.boosts(c, b.Attacker), s.boosts(c, b.Defender)
 	// Seeded from the Match seed plus the Battle id, so it can be replayed.
-	b.Attack, b.Defend, b.Seed, b.FieldSeed = attack, defend, s.Seed+uint64(b.ID), s.fieldSeed(p.ID)
+	b.Seed, b.FieldSeed = s.Seed+uint64(b.ID), s.fieldSeed(p.ID)
 	if b.Defender != Neutral {
 		b.FieldFaction = s.Players[b.Defender].Faction
 	}
+	field := s.field(c, p.ID, b.FieldFaction)
+	// A Bot or a neutral garrison hides its Command Post on a site of the
+	// Battle's seed (#124), so an attacker can't learn where it always is.
+	if ai := b.Defender == Neutral || s.Players[b.Defender].Bot != ""; ai && defend.Layout.Post == nil && len(field.Sites) > 0 {
+		k := int(b.Seed % uint64(len(field.Sites)))
+		defend.Layout.Post = &k
+	}
+	b.Attack, b.Defend = attack, defend
 	b.Weights = [2]battle.Weights{s.aiWeights(c, b.Attacker), s.aiWeights(c, b.Defender)}
-	b.Sim = battle.New(c, c.Rulesets[RulesetID], s.field(c, p.ID, b.FieldFaction), attack, defend, b.Seed)
+	b.Sim = battle.New(c, c.Rulesets[RulesetID], field, attack, defend, b.Seed)
 	b.Commanded = [2]bool{s.commands(b.Attacker), s.commands(b.Defender)}
 	for side := range b.Sim.Controllers {
 		if !b.Commanded[side] {

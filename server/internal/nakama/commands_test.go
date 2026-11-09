@@ -574,7 +574,7 @@ func TestALayoutSwapComesBackToItsSender(t *testing.T) {
 		t.Fatalf("rejected %q; want a DefenceLayout", r)
 	}
 	a, b := h.d.layout.BuildingSites[0], h.d.layout.BuildingSites[1]
-	h.loop(cmd(u1, wire.OpSetDefenceLayout, &wire.SetDefenceLayoutT{Seq: 104, Planet: capital, Sites: []int8{b, a}}))
+	h.loop(cmd(u1, wire.OpSetDefenceLayout, &wire.SetDefenceLayoutT{Seq: 104, Planet: capital, Sites: []int8{b, a}, Post: -1})) // -1: the Command Post at the base's own spot
 	if r := h.rejection(u1, 104); r != "" {
 		t.Fatalf("swap rejected: %s", r)
 	}

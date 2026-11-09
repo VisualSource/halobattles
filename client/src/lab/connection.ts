@@ -43,10 +43,15 @@ export type LabSetup = {
   plan: string; // which layout; "" lets the seed pick
   neutral: boolean; // the defender is a neutral garrison: its base and turret funds
   raid: boolean; // the attacker Raids: after the buildings, within raidTime
+  showCommandPost: boolean; // the attacker sees the Command Post all Battle (#124); the game hides it
   seed: number;
   sides: [LabSide, LabSide];
-  /** The defender's layout: each Building Slot's site (null its default), each Stack's start. */
-  layout: { sites: (number | null)[]; starts: Map<number, Cell> };
+  /** The defender's layout: each Building Slot's site (null its default), each Stack's start, the Command Post's site (null the base's own spot). */
+  layout: {
+    sites: (number | null)[];
+    starts: Map<number, Cell>;
+    post: number | null;
+  };
 };
 
 export type Thinking = {
@@ -110,7 +115,7 @@ export type LabState = {
   generator: string; // the layout it was remixed from: "layout: <id>"
   routes: { from: Cell; to: Cell }[]; // a layout's lanes, as they wind, step by step
   /** Where the defender's layout put things, without the layout as set: the page has that. */
-  layout: Omit<DefenceLayout, "setSites" | "setStarts"> | null;
+  layout: Omit<DefenceLayout, "setSites" | "setStarts" | "setPost"> | null;
   battle: Battle | null;
   tick: number;
   setupTicks: number;
@@ -351,6 +356,7 @@ export class LabConnection {
             Starts: Object.fromEntries(
               [...s.layout.starts].map(([k, c]) => [k, { X: c.x, Y: c.y }]),
             ),
+            Post: s.layout.post ?? undefined,
           }
         : undefined,
     });
@@ -360,6 +366,7 @@ export class LabConnection {
       layout: s.plan || undefined,
       neutral: s.neutral,
       raid: s.raid,
+      showCommandPost: s.showCommandPost || undefined,
       seed: s.seed,
       attack: side(s.sides[0], false),
       defend: side(s.sides[1], true),

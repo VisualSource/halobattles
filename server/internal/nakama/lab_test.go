@@ -243,6 +243,9 @@ func TestTheLabReplaysABattleTheAITookOver(t *testing.T) {
 	weights := [2]battle.Weights{
 		battle.WeightsOf(c.Doc.Factions["base:unsc"].Ai), battle.WeightsOf(c.Doc.Factions["base:covenant"].Ai),
 	}
+	for i := range weights { // the limits fromSetup gave the defender: the replay must play the same
+		weights[i].Limits = game.BattleLimits(&c.Doc, c.Doc.Rulesets["base:rules"].Battle.AutoDifficulty)
+	}
 	for sim.Tick < sim.Setup+10 {
 		sim.Step()
 	}

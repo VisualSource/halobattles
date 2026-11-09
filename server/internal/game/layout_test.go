@@ -27,10 +27,20 @@ func TestAnOwnerLaysOutTheirDefence(t *testing.T) {
 	if l, _ = s.DefenceLayout(c, 0, "a"); l.BuildingSites[0] != 1 || l.StackStarts[2] != near {
 		t.Errorf("sites %v, starts %v; want slot 1 on site 2 and Stack 3 at %v", l.BuildingSites, l.StackStarts, near)
 	}
+	// The Command Post onto a free site (#124): it stands there.
+	zero, one, none := 0, 1, len(f.Sites)
+	if err := s.SetDefenceLayout(c, 0, "a", battle.Layout{Sites: map[int]int{0: 1}, Post: &zero}); err != nil {
+		t.Fatal(err)
+	}
+	if l, _ = s.DefenceLayout(c, 0, "a"); l.CommandPost != f.Sites[0] {
+		t.Errorf("Command Post at %v; want site 1, %v", l.CommandPost, f.Sites[0])
+	}
 	for name, bad := range map[string]battle.Layout{
-		"a site that isn't": {Sites: map[int]int{0: len(f.Sites)}},
-		"two on one site":   {Sites: map[int]int{0: 1, 1: 1}},
-		"a fourth Stack":    {Starts: map[int]battle.Cell{3: near}},
+		"a site that isn't":                   {Sites: map[int]int{0: len(f.Sites)}},
+		"two on one site":                     {Sites: map[int]int{0: 1, 1: 1}},
+		"a fourth Stack":                      {Starts: map[int]battle.Cell{3: near}},
+		"the Command Post on a building site": {Sites: map[int]int{0: 1}, Post: &one},
+		"the Command Post off the sites":      {Post: &none},
 	} {
 		if err := s.SetDefenceLayout(c, 0, "a", bad); err == nil {
 			t.Errorf("%s: accepted", name)

@@ -257,6 +257,7 @@ export const toLayout = (t: DefenceLayoutT): DefenceLayout => ({
   stackStarts: t.stackStarts.map(toCell),
   setSites: t.setSites.map(toSite),
   setStarts: new Map(t.setStarts.map((s) => [s.stack, { x: s.x, y: s.y }])),
+  setPost: toSite(t.setPost),
 });
 
 const toField = (f: BattlefieldT): Battlefield => ({
@@ -689,11 +690,16 @@ export class MatchConnection {
     );
   }
 
-  /** Sets your Planet's defence layout, whole: each Building Slot's site (null its default), each Stack's start. */
+  /**
+   * Sets your Planet's defence layout, whole: each Building Slot's site (null
+   * its default), each Stack's start, and the Command Post's site (null the
+   * base's own spot).
+   */
   setLayout(
     planet: string,
     sites: (number | null)[],
     starts: Map<number, { x: number; y: number }>,
+    post: number | null = null,
   ) {
     this.send(
       Op.SetDefenceLayout,
@@ -704,6 +710,7 @@ export class MatchConnection {
           planet,
           sites.map((k) => k ?? -1),
           [...starts].map(([k, c]) => new LayoutStartT(k, c.x, c.y)),
+          post ?? -1,
         ),
     );
   }

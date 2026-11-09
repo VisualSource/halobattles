@@ -53,6 +53,7 @@ func TestANewSightingCountsOnlyAfterTheReactionTime(t *testing.T) {
 // an AI that always takes the second-best there picks differently from Hard.
 func TestAnEasyAITakesItsSecondBestGoalWhenItsClose(t *testing.T) {
 	s := aiSim(t, Force{Formations: marines(1)}, Force{Formations: [][]Slot{{{"base:grunt", 1, 0}}}})
+	cpPhase(s)
 	m := s.Squads[0]
 	v := View{s, Attacker}
 	for y := 2; y < s.Field.H-2; y += 2 {
