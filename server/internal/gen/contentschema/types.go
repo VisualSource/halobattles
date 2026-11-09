@@ -70,8 +70,36 @@ type BandTerrain struct {
 	UpTo float64 `json:"upTo"`
 }
 
+// How its Battle AI is limited; see
+// docs/specs/tactical-battle-spec.md#difficulty-step-5c. The Ruleset's battle
+// autoDifficulty and garrisonDifficulty pick one for a player's Auto side and a
+// neutral garrison.
+type BattleDifficulty struct {
+	// The pullback and seekCounter unit behaviours.
+	Behaviors bool `json:"behaviors"`
+
+	// The random ± spread on each squad's goal scores.
+	NoisePercent int `json:"noisePercent"`
+
+	// How long before an enemy newly in view counts.
+	ReactSeconds float64 `json:"reactSeconds"`
+
+	// How often the Commander hands out goals.
+	ReplanSeconds float64 `json:"replanSeconds"`
+
+	// The chance a squad takes its second-best goal when it scores within 20% of the
+	// best.
+	SecondBestPercent int `json:"secondBestPercent"`
+
+	// Focus fire, kiting and Task Forces gathering before they go in.
+	Tactics bool `json:"tactics"`
+}
+
 // How a Battle runs on its Battlefield.
 type BattleRules struct {
+	// The botDifficulties id a player's side plays at when the AI fights its Battle.
+	AutoDifficulty LocalID `json:"autoDifficulty"`
+
 	// How near, in cells, a ground Squad must be to a Landing Zone to hold or take
 	// it.
 	CaptureRadius float64 `json:"captureRadius"`
@@ -86,6 +114,9 @@ type BattleRules struct {
 	// The defender's objective structure, on every Battlefield: destroying it wins
 	// the Battle for the attacker. It never fires.
 	CommandPost CommandPost `json:"commandPost"`
+
+	// The botDifficulties id a neutral garrison plays at.
+	GarrisonDifficulty LocalID `json:"garrisonDifficulty"`
 
 	// The most height levels that count for heightReach.
 	HeightLevels int `json:"heightLevels"`
@@ -180,6 +211,12 @@ type BattlefieldRules struct {
 type BotDifficulty struct {
 	// How many times a target's estimated strength its Army needs before it attacks.
 	AttackMargin float64 `json:"attackMargin"`
+
+	// How its Battle AI is limited; see
+	// docs/specs/tactical-battle-spec.md#difficulty-step-5c. The Ruleset's battle
+	// autoDifficulty and garrisonDifficulty pick one for a player's Auto side and a
+	// neutral garrison.
+	Battle BattleDifficulty `json:"battle"`
 
 	// Local to the Ruleset, e.g. easy.
 	ID LocalID `json:"id"`

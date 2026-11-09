@@ -17,6 +17,24 @@ type Weights struct {
 	Raid       float64 // going after enemy buildings
 	Scout      float64 // searching when no enemy is in view
 	Mass       float64 // strength a Task Force gathers over the threat at its goal
+	// Limits make it easier: its difficulty's, not its Faction's. The zero
+	// value has none, so Weights keep the side's whole AI setup for replays.
+	Limits Limits `json:",omitzero"`
+}
+
+// Limits make a Battle AI easier (docs/specs/tactical-battle-spec.md#difficulty-step-5c).
+type Limits struct {
+	React       float64 `json:"react,omitempty"`       // seconds before an enemy newly in view counts
+	Replan      float64 `json:"replan,omitempty"`      // seconds between Commander passes; 0 is 1
+	Noise       float64 `json:"noise,omitempty"`       // the ± share on each squad's goal scores
+	SecondBest  float64 `json:"secondBest,omitempty"`  // the chance a squad takes a goal within 20% of its best
+	NoTactics   bool    `json:"noTactics,omitempty"`   // no focus fire, kiting or Task Forces gathering
+	NoBehaviors bool    `json:"noBehaviors,omitempty"` // no pullback or seekCounter
+}
+
+// LimitsOf reads a difficulty's battle block.
+func LimitsOf(d cs.BattleDifficulty) Limits {
+	return Limits{d.ReactSeconds, d.ReplanSeconds, float64(d.NoisePercent) / 100, float64(d.SecondBestPercent) / 100, !d.Tactics, !d.Behaviors}
 }
 
 // WeightsOf reads a Faction's AI block; anything it leaves out is 1.
@@ -28,9 +46,9 @@ func WeightsOf(w *cs.AIWeights) Weights {
 		return *p
 	}
 	if w == nil {
-		return Weights{1, 1, 1, 1, 1, 1}
+		return Weights{1, 1, 1, 1, 1, 1, Limits{}}
 	}
-	return Weights{or(w.Aggression), or(w.Caution), or(w.Cover), or(w.Raid), or(w.Scout), or(w.Mass)}
+	return Weights{or(w.Aggression), or(w.Caution), or(w.Cover), or(w.Raid), or(w.Scout), or(w.Mass), Limits{}}
 }
 
 type goalKind int
@@ -130,6 +148,7 @@ type AI struct {
 	pulled  map[int]int        // squads that have pulled back (once each), by id: the tick they rejoin
 	gaveUp  map[[2]int]int     // a squad's chase it gave up, by squad and target id: the tick
 	holding bool               // a defender fallen back to its Command Post, till it holds a point again
+	inView  map[int]int        // enemies in view, by id: the tick each came into view
 	round   map[int]int        // a skirmisher's place on its patrol
 	// Trace, if set, hears each change in what a squad has been told to do,
 	// for a Match log.
@@ -179,7 +198,7 @@ func NewAI(w Weights) *AI {
 	return &AI{
 		weights: w, plans: map[int]*plan{}, seen: map[int]Cell{}, sighted: map[int]sighting{},
 		roles: map[int]role{}, rested: map[int]int{}, round: map[int]int{},
-		pulled: map[int]int{}, gaveUp: map[[2]int]int{},
+		pulled: map[int]int{}, gaveUp: map[[2]int]int{}, inView: map[int]int{},
 	}
 }
 
@@ -283,7 +302,7 @@ func (s *Sim) does(sq *Squad, b cs.UnitBehaviorsElem) bool {
 
 func (ai *AI) Orders(v View) []Order {
 	s := v.sim
-	enemies := v.Enemies()
+	enemies := ai.noticed(v, v.Enemies())
 	own := v.Own()
 	ai.own = own
 	ai.remember(v, own, enemies)
@@ -297,7 +316,7 @@ func (ai *AI) Orders(v View) []Order {
 		ai.owners = append(ai.owners, p.Owner)
 	}
 	var out []Order
-	if flipped || v.Tick()%v.sim.TPS() == 0 {
+	if flipped || v.Tick()%ai.replanTicks(v) == 0 {
 		ai.look(v, own)
 		ai.command(v, own, enemies)
 		if ai.Trace != nil {
@@ -572,7 +591,8 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			continue
 		}
 		best, bestScore := -1, math.Inf(-1)
-		var bestWhy factors
+		second, secondScore := -1, math.Inf(-1)
+		var bestWhy, secondWhy factors
 		current := ai.plans[sq.ID]
 		// A chase it's had no shot in for chaseSeconds: given up, for as long again.
 		if current != nil && current.goal.kind == kill && v.Tick()-current.inRangeAt > chaseSeconds*s.TPS() {
@@ -603,7 +623,7 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			if g.target != 0 && g.kind != assault { // the Command Post is the job, whatever the tier
 				t := s.tier(sq, s.squad(g.target))
 				f.matchup = matchup[t] // go after what it's good against
-				if t == Counter && g.kind == kill && s.does(sq, cs.UnitBehaviorsElemSeekCounter) {
+				if t == Counter && g.kind == kill && ai.does(s, sq, cs.UnitBehaviorsElemSeekCounter) {
 					f.matchup *= seekValue
 				}
 			}
@@ -617,12 +637,21 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 				f.stick = stickiness
 			}
 			score := f.value / f.dist / f.crowd * f.matchup / f.fear * f.stick
+			if l := ai.weights.Limits; l.Noise > 0 {
+				score *= 1 + l.Noise*(2*s.rng.Float64()-1)
+			}
 			if score > bestScore { // ties keep the earlier goal
+				second, secondScore, secondWhy = best, bestScore, bestWhy
 				best, bestScore, bestWhy = i, score, f
+			} else if score > secondScore {
+				second, secondScore, secondWhy = i, score, f
 			}
 		}
 		if best < 0 {
 			continue
+		}
+		if l := ai.weights.Limits; l.SecondBest > 0 && second >= 0 && secondScore >= 0.8*bestScore && s.rng.Float64() < l.SecondBest {
+			best, bestScore, bestWhy = second, secondScore, secondWhy // a plausible mistake
 		}
 		assigned[best]++
 		if ai.thinking != nil {
@@ -880,7 +909,7 @@ func (ai *AI) engage(v View, sq *Squad, p *plan, e *Squad) []Order {
 	s := v.sim
 	fresh := p.engaged != e.ID
 	p.engaged = e.ID
-	standoff := s.standoff(sq, e)
+	standoff := ai.standoff(s, sq, e)
 	if s.canHit(sq, e) && dist(sq.Cell, e.Cell) > standoff {
 		if len(sq.path) > 0 {
 			return []Order{{Kind: Hold, Squad: sq.ID}}
@@ -1268,7 +1297,7 @@ func (ai *AI) state(v View, sq *Squad, g goal) facts {
 	}
 	if t := s.squad(g.target); t != nil && s.canHit(sq, t) {
 		f |= inRange
-		if dist(sq.Cell, t.Cell) > s.standoff(sq, t) {
+		if dist(sq.Cell, t.Cell) > ai.standoff(s, sq, t) {
 			f |= atStandoff
 		}
 	}
@@ -1296,7 +1325,7 @@ func (ai *AI) want(v View, sq *Squad, g goal) facts {
 	switch g.kind {
 	case kill, raid, assault:
 		want := inRange
-		if t := v.sim.squad(g.target); t != nil && v.sim.standoff(sq, t) > 0 {
+		if t := v.sim.squad(g.target); t != nil && ai.standoff(v.sim, sq, t) > 0 {
 			want |= atStandoff // it kites this one
 		}
 		if len(sq.Members)*2 < sq.Start && w.Caution >= 1 {
@@ -1355,7 +1384,7 @@ func (ai *AI) replan(v View, sq *Squad, p *plan) {
 				f, cost = (f|nearFriendly)&^(inCover|atGoal), 3/max(w.Caution, 0.1)
 			case keepDistance:
 				t := v.sim.squad(p.goal.target)
-				ok = t != nil && v.sim.standoff(sq, t) > 0
+				ok = t != nil && ai.standoff(v.sim, sq, t) > 0
 				f, cost = (f|inRange|atStandoff)&^inCover, 1+max(0, dist(sq.Cell, p.goal.cell)-sq.reach)/speed
 			}
 			if !ok || f == n.f {
@@ -1420,7 +1449,7 @@ func (ai *AI) cellFor(v View, sq *Squad, p *plan) (Cell, bool) {
 	case keepDistance:
 		standoff := 0.0
 		if t := s.squad(p.goal.target); t != nil {
-			standoff = s.standoff(sq, t)
+			standoff = ai.standoff(s, sq, t)
 		}
 		return s.firingPosition(sq, p.goal.cell, ai.weightsOf(sq).Cover, standoff)
 	case takeCover:
@@ -1537,6 +1566,9 @@ func (s *Sim) standoff(sq, e *Squad) float64 {
 // nearest friendly squad for pullbackSeconds, once, then rejoin. It reports
 // whether the squad is pulling back.
 func (ai *AI) pullback(v View, sq *Squad) ([]Order, bool) {
+	if ai.weights.Limits.NoBehaviors {
+		return nil, false
+	}
 	if until, done := ai.pulled[sq.ID]; done {
 		return nil, v.Tick() < until
 	}
@@ -1592,4 +1624,51 @@ func (ai *AI) holdOut(v View, own []*Squad) bool {
 	}
 	ai.holding = theirs >= 2*mine
 	return ai.holding
+}
+
+// does is whether a squad has a behaviour that this AI plays: an Easy one
+// leaves seekCounter out.
+func (ai *AI) does(s *Sim, sq *Squad, b cs.UnitBehaviorsElem) bool {
+	return s.does(sq, b) && !(ai.weights.Limits.NoBehaviors && b == cs.UnitBehaviorsElemSeekCounter)
+}
+
+// standoff is Sim.standoff, but an AI without tactics doesn't kite: only a
+// hangBack unit keeps off.
+func (ai *AI) standoff(s *Sim, sq, e *Squad) float64 {
+	if ai.weights.Limits.NoTactics && !s.does(sq, cs.UnitBehaviorsElemHangBack) {
+		return 0
+	}
+	return s.standoff(sq, e)
+}
+
+// replanTicks is how often the Commander hands out goals, in ticks.
+func (ai *AI) replanTicks(v View) int {
+	if r := ai.weights.Limits.Replan; r > 0 {
+		return max(1, v.sim.ticks(r))
+	}
+	return v.sim.TPS()
+}
+
+// noticed is the enemies in view that have been for the AI's reaction time.
+func (ai *AI) noticed(v View, enemies []*Squad) []*Squad {
+	react := v.sim.ticks(ai.weights.Limits.React)
+	seen := map[int]bool{}
+	var out []*Squad
+	for _, e := range enemies {
+		seen[e.ID] = true
+		at, ok := ai.inView[e.ID]
+		if !ok {
+			at = v.Tick()
+			ai.inView[e.ID] = at
+		}
+		if v.Tick()-at >= react {
+			out = append(out, e)
+		}
+	}
+	for id := range ai.inView {
+		if !seen[id] {
+			delete(ai.inView, id) // out of view: noticed afresh next time
+		}
+	}
+	return out
 }

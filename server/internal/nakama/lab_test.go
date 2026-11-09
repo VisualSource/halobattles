@@ -212,6 +212,9 @@ func testReplay(t *testing.T, old bool) {
 			battle.WeightsOf(c.Doc.Factions["base:unsc"].Ai), battle.WeightsOf(c.Doc.Factions["base:covenant"].Ai),
 		},
 	}
+	for i := range r.Weights { // as the Lab plays a side: a player's on Auto
+		r.Weights[i].Limits = game.BattleLimits(&c.Doc, rules.Battle.AutoDifficulty)
+	}
 	for name := range c.Doc.Maps {
 		h.loop(labMsg(labReplayOp, labReplay{Map: name, Replay: r}))
 		break

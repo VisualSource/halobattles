@@ -238,6 +238,11 @@ func (l *loader) crossCheck(doc *contentschema.Content, defs map[string]map[stri
 			}
 			difficulties[d.ID] = true
 		}
+		for name, id := range map[string]contentschema.LocalID{"autoDifficulty": r.Battle.AutoDifficulty, "garrisonDifficulty": r.Battle.GarrisonDifficulty} {
+			if !difficulties[id] {
+				c.fail("%s: battle %s %s isn't in botDifficulties", where, name, id)
+			}
+		}
 		if !slices.IsSorted(r.ThreatBands) {
 			c.fail("%s: threatBands %v must go up in order", where, r.ThreatBands)
 		}

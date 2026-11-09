@@ -112,6 +112,9 @@ The Ruleset's `botDifficulties`, one profile per level; a Mod can retune them or
 | Goal weights | all 1 | all 1 | all 1 |
 | Unit choice | fixed mix | by Advantage | by Advantage |
 | Research | first card | by goals | by goals |
+| Battle AI | see below | | |
+
+Each profile's `battle` block limits its Battle AI: how fast it reacts, how often it replans, its goal noise, how often it takes a close second-best, and whether it uses tactics and unit behaviours. See the [tactical spec](tactical-battle-spec.md#difficulty-step-5c), which also sets the difficulty a player's side on Auto and a neutral garrison play at.
 
 A Faction's `ai` block gains a `bot` sub-block of goal weights (`expand`, `attack`, `defend`, `economy`, `army`, `research`); anything left out is 1.
 

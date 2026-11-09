@@ -165,7 +165,7 @@
       "description": "How a Battle runs on its Battlefield.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["ticksPerSecond", "startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "landingDelay", "padSight", "padCooldown", "startReach", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "highGroundToHit", "heightReach", "heightLevels", "sightObscured", "retreatCountdown", "structure", "commandPost", "classDefaults"],
+      "required": ["ticksPerSecond", "startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "landingDelay", "padSight", "padCooldown", "startReach", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "autoDifficulty", "garrisonDifficulty", "highGroundToHit", "heightReach", "heightLevels", "sightObscured", "retreatCountdown", "structure", "commandPost", "classDefaults"],
       "properties": {
         "ticksPerSecond": { "description": "Sim steps a second. The Match ticks 5 times a second, so it runs this many steps per Match tick, rounded down: use a multiple of 5.", "type": "integer", "minimum": 5, "multipleOf": 5 },
         "startDelay": { "description": "Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.", "type": "integer", "minimum": 0 },
@@ -181,6 +181,8 @@
         "raidRoles": { "description": "The unit roles that can Raid: a Stack raids only if every unit has one.", "type": "array", "uniqueItems": true, "items": { "enum": ["scout", "skirmisher", "infiltration", "shock"] } },
         "captureRadius": { "description": "How near, in cells, a ground Squad must be to a Landing Zone to hold or take it.", "type": "number", "minimum": 0 },
         "captureSeconds": { "description": "How long one side alone must be in range to take a Landing Zone.", "type": "number", "minimum": 0 },
+        "autoDifficulty": { "description": "The botDifficulties id a player's side plays at when the AI fights its Battle.", "$ref": "defs.schema.json#/definitions/localId" },
+        "garrisonDifficulty": { "description": "The botDifficulties id a neutral garrison plays at.", "$ref": "defs.schema.json#/definitions/localId" },
         "highGroundToHit": { "description": "Added to the To-hit roll of a ground attack from a higher height level.", "type": "integer" },
         "retreatCountdown": { "description": "Seconds from ordering a Retreat until the side turns and heads off the field; it fights on meanwhile, and can call it off.", "type": "number", "minimum": 0 },
         "heightReach": { "description": "Extra range and Sight, in cells, per height level a ground unit stands above a ground target.", "type": "number", "minimum": 0 },

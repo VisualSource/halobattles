@@ -283,6 +283,7 @@ export interface BotDifficulty {
    */
   research: "first" | "goals";
   weights?: BotGoalWeights;
+  battle: BattleDifficulty;
 }
 /**
  * Its goal weights, times its Faction's.
@@ -312,6 +313,35 @@ export interface BotGoalWeights {
    * Defaults to 1.
    */
   research?: number;
+}
+/**
+ * How its Battle AI is limited; see docs/specs/tactical-battle-spec.md#difficulty-step-5c. The Ruleset's battle autoDifficulty and garrisonDifficulty pick one for a player's Auto side and a neutral garrison.
+ */
+export interface BattleDifficulty {
+  /**
+   * How long before an enemy newly in view counts.
+   */
+  reactSeconds: number;
+  /**
+   * How often the Commander hands out goals.
+   */
+  replanSeconds: number;
+  /**
+   * The random ± spread on each squad's goal scores.
+   */
+  noisePercent: number;
+  /**
+   * The chance a squad takes its second-best goal when it scores within 20% of the best.
+   */
+  secondBestPercent: number;
+  /**
+   * Focus fire, kiting and Task Forces gathering before they go in.
+   */
+  tactics: boolean;
+  /**
+   * The pullback and seekCounter unit behaviours.
+   */
+  behaviors: boolean;
 }
 /**
  * Amounts keyed by Resource id.
@@ -465,6 +495,14 @@ export interface BattleRules {
    * How long one side alone must be in range to take a Landing Zone.
    */
   captureSeconds: number;
+  /**
+   * The botDifficulties id a player's side plays at when the AI fights its Battle.
+   */
+  autoDifficulty: string;
+  /**
+   * The botDifficulties id a neutral garrison plays at.
+   */
+  garrisonDifficulty: string;
   /**
    * Added to the To-hit roll of a ground attack from a higher height level.
    */

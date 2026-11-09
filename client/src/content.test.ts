@@ -35,6 +35,14 @@ const rules: Ruleset = {
       retreatBelowPercent: 0,
       unitChoice: "fixed",
       research: "first",
+      battle: {
+        reactSeconds: 1.2,
+        replanSeconds: 2.5,
+        noisePercent: 25,
+        secondBestPercent: 50,
+        tactics: false,
+        behaviors: false,
+      },
     },
   ],
   tech: {
@@ -80,6 +88,8 @@ const rules: Ruleset = {
     captureRadius: 2,
     captureSeconds: 5,
     highGroundToHit: 2,
+    autoDifficulty: "easy",
+    garrisonDifficulty: "easy",
     heightReach: 1,
     heightLevels: 2,
     sightObscured: 2,

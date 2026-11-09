@@ -132,7 +132,9 @@ func (ai *AI) form(v View, goals []goal, on [][]*Squad) {
 				strength += len(sq.Members)
 			}
 			tf.peak = max(tf.peak, strength)
-			if fresh {
+			if fresh && ai.weights.Limits.NoTactics {
+				tf.going = true // in at once, no gathering
+			} else if fresh {
 				ai.placeStage(v, tf)
 			} else if tf.going && 2*strength < tf.peak {
 				ai.regroup(v, tf, strength)
@@ -343,7 +345,7 @@ func (ai *AI) pickTarget(v View, tf *taskForce, enemies []*Squad) {
 func (ai *AI) aim(v View, sq *Squad, tf *taskForce) []Order {
 	s := v.sim
 	t := 0
-	if tf != nil {
+	if tf != nil && !ai.weights.Limits.NoTactics { // focus fire
 		t = tf.target
 		if sq.tfRole == cs.UnitClassTaskForceRoleHunt && tf.huntTarget != 0 {
 			t = tf.huntTarget
@@ -426,7 +428,7 @@ func (tf *taskForce) shotBy(v View, e *Squad) bool {
 // still fits, else the nearest. nil: none.
 func (ai *AI) preferred(v View, sq *Squad) *Squad {
 	s := v.sim
-	escort, seek := s.does(sq, cs.UnitBehaviorsElemEscort), s.does(sq, cs.UnitBehaviorsElemSeekCounter)
+	escort, seek := s.does(sq, cs.UnitBehaviorsElemEscort), ai.does(s, sq, cs.UnitBehaviorsElemSeekCounter)
 	if !escort && !seek {
 		return nil
 	}

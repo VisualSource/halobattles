@@ -27,6 +27,17 @@ func kitForce(c *cs.Content, faction string, defending bool) Force {
 	return f
 }
 
+// autoLimits is the Battle AI limits a player's side on Auto plays at.
+func autoLimits(c *cs.Content) Limits {
+	r := ruleset(c)
+	for _, d := range r.BotDifficulties {
+		if d.ID == r.Battle.AutoDifficulty {
+			return LimitsOf(d.Battle)
+		}
+	}
+	return Limits{}
+}
+
 // The roster's pacing and balance targets: the two Starting Kits, alone and
 // three Stacks a side, fight for 1–3 minutes on average, and either attacking the other wins 40–55% of the
 // time, each side playing its Faction's AI weights: a lean to the defender
@@ -70,9 +81,9 @@ func TestStartingKitsArePacedAndBalanced(t *testing.T) {
 				}
 				s := New(c, r, Generate(c, r.Battlefield, nil, seed), attack, defend, seed)
 				s.Setup = r.Battle.StartDelay * s.TPS() // as the game runs it
-				s.Controllers = [2]Controller{
-					NewAI(WeightsOf(c.Factions[tc.attack].Ai)), NewAI(WeightsOf(c.Factions[tc.defend].Ai)),
-				}
+				wa, wd := WeightsOf(c.Factions[tc.attack].Ai), WeightsOf(c.Factions[tc.defend].Ai)
+				wa.Limits, wd.Limits = autoLimits(c), autoLimits(c) // both played as a player's side on Auto
+				s.Controllers = [2]Controller{NewAI(wa), NewAI(wd)}
 				for !s.Over {
 					s.Step()
 				}

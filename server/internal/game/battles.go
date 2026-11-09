@@ -153,13 +153,31 @@ func (s *State) canBuildTurrets(c *cs.Content, seat int) bool {
 	})
 }
 
-// aiWeights is how a Seat's Faction plays its Battles; a neutral garrison
-// plays the defaults.
+// aiWeights is how a Seat's Faction plays its Battles, at its difficulty: a
+// Bot's own, or for a player's side the Ruleset's autoDifficulty. A neutral
+// garrison plays the default weights at garrisonDifficulty.
 func (s *State) aiWeights(c *cs.Content, seat int) battle.Weights {
-	if seat == Neutral {
-		return battle.WeightsOf(nil)
+	r := c.Rulesets[RulesetID]
+	w, difficulty := battle.WeightsOf(nil), r.Battle.GarrisonDifficulty
+	if seat != Neutral {
+		w, difficulty = battle.WeightsOf(c.Factions[s.Players[seat].Faction].Ai), r.Battle.AutoDifficulty
+		if b := s.Players[seat].Bot; b != "" {
+			difficulty = cs.LocalID(b) // a Bot plays its own
+		}
 	}
-	return battle.WeightsOf(c.Factions[s.Players[seat].Faction].Ai)
+	w.Limits = BattleLimits(c, difficulty)
+	return w
+}
+
+// BattleLimits is a difficulty's Battle AI limits; none for one that isn't
+// in the Ruleset (the loader checks the ones it names).
+func BattleLimits(c *cs.Content, difficulty cs.LocalID) battle.Limits {
+	for _, d := range c.Rulesets[RulesetID].BotDifficulties {
+		if d.ID == difficulty {
+			return battle.LimitsOf(d.Battle)
+		}
+	}
+	return battle.Limits{}
 }
 
 // fightBattles steps each Battle's sim once per sim tick that's due, each

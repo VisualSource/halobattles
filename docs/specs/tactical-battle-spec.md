@@ -698,7 +698,7 @@ Facing and turn time for vehicles are left out: more micro, not more fun.
 
 ### The Hard AI (step 5)
 
-The Battle AI is rebuilt as one **Hard** AI. Its fixes, the unit behaviours (#120) and Commander tactics (#121) are built; the difficulty limits are next. Normal and Easy are the same AI with limits ([step 5c](#difficulty-step-5c)), the way Halo Wars 2 scales its tables down from Legendary; none has a stat bonus. Hard fixes:
+The Battle AI is rebuilt as one **Hard** AI. Its fixes, the unit behaviours (#120), Commander tactics (#121) and the difficulty limits (#122) are built. Normal and Easy are the same AI with limits ([step 5c](#difficulty-step-5c)), the way Halo Wars 2 scales its tables down from Legendary; none has a stat bonus. Hard fixes:
 
 - **Masses before going in:** the attacker commits together instead of sending 2 squads to the Command Post and the rest touring pads, then arriving a squad at a time (#109). Built as: the assault never loses score for squads already on it, so every squad without a scout or skirmisher role goes on it, in Task Forces that gather and go in together. Its score doesn't take the squad's tier against the Command Post either: the Command Post is the job.
 - **Target lock** (built, see [Firing](#firing)).
@@ -732,18 +732,20 @@ Built (#121):
 
 #### Difficulty (step 5c)
 
-The limits are Ruleset data, a `battle` block on each `botDifficulties` entry:
+Built (#122). The limits are Ruleset data, a `battle` block on each `botDifficulties` entry (`reactSeconds`, `replanSeconds`, `noisePercent`, `secondBestPercent`, `tactics`, `behaviors`):
 
 | | Hard | Normal | Easy |
 |---|---|---|---|
 | Reacts to a new sighting after | 0.2 s | 0.6 s | 1.2 s |
 | Replans every | 1 s | 1.5 s | 2.5 s |
 | Goal score noise | 0 | ±10% | ±25% |
-| Takes the second-best target within 20% of the best | never | sometimes | often |
+| Takes the second-best goal within 20% of the best | never | 25% of the time | 50% |
 | Focus fire, kiting, Task Force gathering | on | on | off |
 | `pullback`, `seekCounter` | on | on | off |
 
-- **Who plays what:** a Bot plays its own difficulty; a player's side on Auto plays Hard; a neutral garrison plays Normal.
+- **Who plays what:** a Bot plays its own difficulty; a player's side on Auto plays Hard; a neutral garrison plays Normal. These are the Ruleset's `battle.autoDifficulty` and `battle.garrisonDifficulty`, and the Battle Lab plays its sides the same way. A side's limits travel with its AI weights, so a Battle's replay plays at the difficulty it was fought at.
+- **Built as:** the reaction delay holds back an enemy newly in view from the Commander and its squads until it has been in view that long; out of view and back, it starts again. The noise is drawn per squad per goal each Commander pass, from the Battle's own seeded dice, so replays match. "Target" is the Commander's goal for a squad, which is where the AI picks what to go after. Without tactics, a Task Force goes straight in, there's no shared target (each squad's own target pick stays), and nothing kites except a `hangBack` unit.
+- With both sides at Hard, as the Starting Kit test now plays them, UNSC attacking Covenant wins 61% and Covenant attacking UNSC 44%.
 - The reaction delays follow the research's 0.2–0.4 s human floor; Easy's mistakes are meant to be plausible (slow, second-best), never the jarring kind.
 
 ### RTS controls (step 6)
@@ -766,7 +768,7 @@ Built on [Command](#command). **Mockup first**, agreed before any of it is built
 2. ~~Fire: staggered members, target lock~~ (#117): now in [Firing](#firing).
 3. Counters: the `counter` tier, the triangle, dropping Artillery, the roster retune, the duel matrix (#118).
 4. ~~3D rules: the air layer, height, then line of sight~~ (#119): now in [Height](#height).
-5. The Hard AI: ~~5a unit behaviours and the Hard AI fixes~~ (#120), ~~5b Commander tactics~~ (#121), 5c the Normal and Easy limits (#122).
+5. The Hard AI: ~~5a unit behaviours and the Hard AI fixes~~ (#120), ~~5b Commander tactics~~ (#121), ~~5c the Normal and Easy limits~~ (#122).
 6. RTS controls, mockup first, alongside any step (#123).
 
 Then balance against [Done when](#done-when).

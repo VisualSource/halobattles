@@ -73,7 +73,7 @@
       "description": "One level a Bot can play at. See docs/specs/bot-spec.md#difficulties.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "thinkSeconds", "noisePercent", "attackMargin", "planDepth", "reservePercent", "retreatBelowPercent", "unitChoice", "research"],
+      "required": ["id", "name", "thinkSeconds", "noisePercent", "attackMargin", "planDepth", "reservePercent", "retreatBelowPercent", "unitChoice", "research", "battle"],
       "properties": {
         "id": { "description": "Local to the Ruleset, e.g. easy.", "$ref": "#/definitions/localId" },
         "name": { "$ref": "#/definitions/name" },
@@ -85,7 +85,22 @@
         "retreatBelowPercent": { "description": "It Retreats from a Battle when its strength falls below this share of the enemy's; 0 never Retreats.", "type": "integer", "minimum": 0, "maximum": 100 },
         "unitChoice": { "description": "fixed: a set mix; advantage: by Advantage against the enemies seen.", "enum": ["fixed", "advantage"] },
         "research": { "description": "first: the first card; goals: by its goals.", "enum": ["first", "goals"] },
-        "weights": { "description": "Its goal weights, times its Faction's.", "$ref": "#/definitions/botGoalWeights" }
+        "weights": { "description": "Its goal weights, times its Faction's.", "$ref": "#/definitions/botGoalWeights" },
+        "battle": {
+          "title": "Battle Difficulty",
+          "description": "How its Battle AI is limited; see docs/specs/tactical-battle-spec.md#difficulty-step-5c. The Ruleset's battle autoDifficulty and garrisonDifficulty pick one for a player's Auto side and a neutral garrison.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reactSeconds", "replanSeconds", "noisePercent", "secondBestPercent", "tactics", "behaviors"],
+          "properties": {
+            "reactSeconds": { "description": "How long before an enemy newly in view counts.", "type": "number", "minimum": 0 },
+            "replanSeconds": { "description": "How often the Commander hands out goals.", "type": "number", "exclusiveMinimum": 0 },
+            "noisePercent": { "description": "The random ± spread on each squad's goal scores.", "type": "integer", "minimum": 0, "maximum": 100 },
+            "secondBestPercent": { "description": "The chance a squad takes its second-best goal when it scores within 20% of the best.", "type": "integer", "minimum": 0, "maximum": 100 },
+            "tactics": { "description": "Focus fire, kiting and Task Forces gathering before they go in.", "type": "boolean" },
+            "behaviors": { "description": "The pullback and seekCounter unit behaviours.", "type": "boolean" }
+          }
+        }
       }
     },
     "researchField": {

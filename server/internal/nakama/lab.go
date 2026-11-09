@@ -413,6 +413,11 @@ func (s *labState) fromSetup(c *cs.Content, in labSetup) (*battle.Sim, error) {
 		sim.Builders[i] = buildsTurrets(c, sd.Faction)
 		if !sd.Command {
 			w := battle.WeightsOf(c.Factions[sd.Faction].Ai)
+			w.Limits = game.BattleLimits(c, rules.Battle.AutoDifficulty) // as a player's side on Auto
+			if i == int(battle.Defender) && in.Neutral {
+				w = battle.WeightsOf(nil)
+				w.Limits = game.BattleLimits(c, rules.Battle.GarrisonDifficulty)
+			}
 			if sd.Weights != nil {
 				w = *sd.Weights
 			}

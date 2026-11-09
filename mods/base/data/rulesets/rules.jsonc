@@ -33,11 +33,14 @@
   // docs/specs/bot-spec.md#difficulties, in the order the lobby offers them.
   "botDifficulties": [
     { "id": "easy", "name": "Easy", "thinkSeconds": 10, "noisePercent": 30, "attackMargin": 1.0, "planDepth": 3,
-      "reservePercent": 10, "retreatBelowPercent": 0, "unitChoice": "fixed", "research": "first" },
+      "reservePercent": 10, "retreatBelowPercent": 0, "unitChoice": "fixed", "research": "first",
+      "battle": { "reactSeconds": 1.2, "replanSeconds": 2.5, "noisePercent": 25, "secondBestPercent": 50, "tactics": false, "behaviors": false } },
     { "id": "normal", "name": "Normal", "thinkSeconds": 5, "noisePercent": 15, "attackMargin": 1.25, "planDepth": 5,
-      "reservePercent": 15, "retreatBelowPercent": 40, "unitChoice": "advantage", "research": "goals" },
+      "reservePercent": 15, "retreatBelowPercent": 40, "unitChoice": "advantage", "research": "goals",
+      "battle": { "reactSeconds": 0.6, "replanSeconds": 1.5, "noisePercent": 10, "secondBestPercent": 25, "tactics": true, "behaviors": true } },
     { "id": "hard", "name": "Hard", "thinkSeconds": 2, "noisePercent": 0, "attackMargin": 1.5, "planDepth": 8,
-      "reservePercent": 20, "retreatBelowPercent": 50, "unitChoice": "advantage", "research": "goals" }
+      "reservePercent": 20, "retreatBelowPercent": 50, "unitChoice": "advantage", "research": "goals",
+      "battle": { "reactSeconds": 0.2, "replanSeconds": 1, "noisePercent": 0, "secondBestPercent": 0, "tactics": true, "behaviors": true } }
   ],
   // docs/specs/tech-spec.md#ruleset-additions
   "tech": {
@@ -75,6 +78,9 @@
     "pointArea": 3
   },
   "battle": {
+    // botDifficulties a player's Auto side and a neutral garrison play at.
+    "autoDifficulty": "hard",
+    "garrisonDifficulty": "normal",
     // Sim steps a second: 2 per Match tick.
     "ticksPerSecond": 10,
     // Seconds to open the Battle before the fighting starts.

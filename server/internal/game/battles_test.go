@@ -511,3 +511,25 @@ func TestTwoBattlesAtOnceStepInParallelTheSameEachRun(t *testing.T) {
 		t.Errorf("two runs of the same Match differ:\n%s\n%s", a, b)
 	}
 }
+
+// A Bot's Battles play at its difficulty, a player's side on Auto at Hard,
+// and a neutral garrison at Normal.
+func TestEachSidePlaysItsBattlesAtItsDifficulty(t *testing.T) {
+	s, c := fixedMatch(t), lineContent()
+	r := c.Rulesets[RulesetID]
+	r.BotDifficulties = baseMod().Rulesets[RulesetID].BotDifficulties
+	c.Rulesets[RulesetID] = r
+	s.Players[1].Bot = "easy"
+	for _, tc := range []struct {
+		who        string
+		seat       int
+		difficulty cs.LocalID
+	}{{"a player on Auto", 0, "hard"}, {"an Easy Bot", 1, "easy"}, {"a neutral garrison", Neutral, "normal"}} {
+		if got, want := s.aiWeights(c, tc.seat).Limits, BattleLimits(c, tc.difficulty); got != want {
+			t.Errorf("%s plays %+v; want %s's %+v", tc.who, got, tc.difficulty, want)
+		}
+	}
+	if BattleLimits(c, "easy") == BattleLimits(c, "hard") {
+		t.Error("Easy and Hard play alike; the test can't tell them apart")
+	}
+}
