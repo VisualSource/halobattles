@@ -181,7 +181,14 @@ export function BattlePanel(props: {
     [conn, planet],
   );
   const own = orderable(battle?.squads ?? [], commanding);
-  const groups = useCommandKeys(!!commanding, own, picked, commander, order);
+  const groups = useCommandKeys(
+    id,
+    !!commanding,
+    own,
+    picked,
+    commander,
+    order,
+  );
 
   if (id === null) return null;
   const close = () => conn.local.setState({ watching: null });

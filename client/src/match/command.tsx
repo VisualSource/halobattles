@@ -2,6 +2,7 @@ import {
   type RefObject,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -60,16 +61,30 @@ const DOUBLE_TAP_MS = 350;
  * them (both drop their orders), Q picks your whole army, Ctrl+1–9 makes the
  * selection a control group, 1–9 picks one (twice moves the camera to it), and
  * Esc clears the selection, before anything else hears it (full screen, the
- * galaxy). Groups last as long as the hook: one Battle.
+ * galaxy). Groups belong to one Battle, battle: squad ids start again in
+ * each, so another Battle's groups would pick the wrong squads.
  */
 export function useCommandKeys(
+  battle: unknown,
   on: boolean,
   own: number[],
   picked: number[],
   map: RefObject<Commander | null>,
   order: (squads: number[], o: SquadOrder) => void,
 ): Groups {
-  const [groups, setGroups] = useState<Map<number, number[]>>(new Map());
+  const [tagged, setTagged] = useState<{
+    battle: unknown;
+    groups: Map<number, number[]>;
+  }>({ battle, groups: new Map() });
+  const groups = useMemo(
+    () =>
+      tagged.battle === battle ? tagged.groups : new Map<number, number[]>(),
+    [tagged, battle],
+  );
+  const setGroups = useCallback(
+    (next: Map<number, number[]>) => setTagged({ battle, groups: next }),
+    [battle],
+  );
   const tap = useRef({ group: 0, at: 0 });
   const of = useCallback(
     (g: number) => (groups.get(g) ?? []).filter((id) => own.includes(id)),
@@ -78,7 +93,7 @@ export function useCommandKeys(
   const set = useCallback(
     (g: number) =>
       picked.length > 0 && setGroups(assignGroup(groups, g, picked)),
-    [groups, picked],
+    [groups, picked, setGroups],
   );
   const select = useCallback(
     (g: number) => {

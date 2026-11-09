@@ -76,4 +76,10 @@ func TestQueuedOrdersRunInTurn(t *testing.T) {
 	if m.goal != first || len(m.path) == 0 {
 		t.Error("a queued order with nothing before it waits; want it started at once")
 	}
+	for range maxQueue + 10 {
+		s.Command(Attacker, Order{Kind: Move, Squad: m.ID, Cell: second, Queue: true})
+	}
+	if len(m.queue) != maxQueue {
+		t.Errorf("%d orders queued; want at most %d", len(m.queue), maxQueue)
+	}
 }

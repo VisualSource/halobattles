@@ -830,7 +830,14 @@ function Field(props: {
     [conn, commandSide],
   );
   const own = orderable(battle?.squads ?? [], commandSide);
-  const groups = useCommandKeys(!!commandSide, own, picked, scene, order);
+  const groups = useCommandKeys(
+    field,
+    !!commandSide,
+    own,
+    picked,
+    scene,
+    order,
+  );
 
   useEffect(() => {
     if (!ref.current || !field) return;

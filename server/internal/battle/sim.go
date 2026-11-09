@@ -640,8 +640,10 @@ func (s *Sim) apply(side Side, o Order) {
 		return // the attacker can't move yet
 	}
 	if o.Queue && s.busy(sq) {
-		o.Queue = false
-		sq.queue = append(sq.queue, o)
+		if len(sq.queue) < maxQueue { // a full queue drops it: a client can't grow it without end
+			o.Queue = false
+			sq.queue = append(sq.queue, o)
+		}
 		return
 	}
 	sq.queue, sq.current = nil, o
@@ -669,6 +671,9 @@ func (s *Sim) carryOut(sq *Squad, o Order) {
 		sq.path, sq.target, sq.locked, sq.attackMove = nil, 0, 0, false
 	}
 }
+
+// maxQueue is the most orders a squad queues after the one it's carrying out.
+const maxQueue = 32
 
 // busy is whether a squad is still carrying out its current order: on its
 // way, or with its attack target alive.
