@@ -16,7 +16,6 @@ watchexec = "2.7.3"
 description = "Install client deps and the pre-push hook"
 run = [
   "pnpm -C client install",
-  "mise generate git-pre-commit --write --hook pre-push --task pre-push",
 ]
 
 [tasks.gen]
