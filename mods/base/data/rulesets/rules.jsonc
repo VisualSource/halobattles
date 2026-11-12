@@ -85,7 +85,10 @@
     "ticksPerSecond": 10,
     // Seconds to open the Battle before the fighting starts.
     "startDelay": 15,
+    // At the cap the side holding more Landing Zones wins, the defender on a tie.
     "timeCap": 240,
+    // The attacker also wins by holding every Landing Zone this long.
+    "zoneHoldSeconds": 30,
     // A Raid: 100 s to find and destroy the buildings, with up to 10 Command Points.
     "raidTime": 100,
     "raidCap": 10,

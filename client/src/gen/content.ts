@@ -468,9 +468,13 @@ export interface BattleRules {
   padBuildSeconds: number;
   neutralFunds: ResourceMap3;
   /**
-   * Seconds of fighting, after startDelay, until the defender wins.
+   * Seconds of fighting, after startDelay, until the Battle ends: the attacker wins if it holds more Landing Zones than the defender, and otherwise the defender does.
    */
   timeCap: number;
+  /**
+   * Seconds in a row the attacker must hold every Landing Zone to win the Battle.
+   */
+  zoneHoldSeconds: number;
   /**
    * Seconds of fighting a Raid has to destroy the Planet's buildings; then the raiders go home.
    */

@@ -334,6 +334,7 @@ export function BattlePanel(props: {
       battle={battle}
       commandPost={rules.commandPost}
       captureSeconds={rules.captureSeconds}
+      zoneHoldSeconds={rules.zoneHoldSeconds}
     />
   );
   // A Spectator is neither side: it sees both. A Teammate of a side sees it
@@ -973,9 +974,13 @@ function Points(props: {
   battle: Battle;
   commandPost: { armor: number; hp: number };
   captureSeconds: number;
+  zoneHoldSeconds: number;
 }) {
   const { battle } = props;
   const health = commandPostHealth(battle, props.commandPost);
+  const held = (side: Side) =>
+    battle.points.filter((p) => p.owner === side).length;
+  const holdLeft = props.zoneHoldSeconds - battle.zonesHeld / battle.tickRate;
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 pt-3 text-sm">
       <span className={label}>Landing Zones</span>
@@ -1000,6 +1005,26 @@ function Points(props: {
           </span>
         </span>
       ))}
+      {/* The ground score: it decides the Battle at the time limit, or sooner. */}
+      {!battle.raid && (
+        <span
+          className="font-mono whitespace-nowrap"
+          title={`The attacker wins by holding every Landing Zone for ${props.zoneHoldSeconds} s. At the time limit the side holding more wins; a tie goes to the defender.`}
+        >
+          <span style={{ color: colourOf(battle.attacker) }}>
+            {held("attacker")}
+          </span>
+          <span className="text-ink-3"> – </span>
+          <span style={{ color: colourOf(battle.defender) }}>
+            {held("defender")}
+          </span>
+          {battle.zonesHeld > 0 && (
+            <span className="text-danger ml-2 text-xs">
+              All held: attacker wins in {clock(Math.max(0, holdLeft))}
+            </span>
+          )}
+        </span>
+      )}
       <span className="flex-1" />
       {battle.raid ? (
         <span

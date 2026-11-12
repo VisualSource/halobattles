@@ -30,6 +30,7 @@ type BattleViewT struct {
 	AttackerDamage     float32          `json:"attacker_damage"`
 	DefenderDamage     float32          `json:"defender_damage"`
 	TickRate           byte             `json:"tick_rate"`
+	ZonesHeld          uint32           `json:"zones_held"`
 }
 
 func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -117,6 +118,7 @@ func (t *BattleViewT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BattleViewAddAttackerDamage(builder, t.AttackerDamage)
 	BattleViewAddDefenderDamage(builder, t.DefenderDamage)
 	BattleViewAddTickRate(builder, t.TickRate)
+	BattleViewAddZonesHeld(builder, t.ZonesHeld)
 	return BattleViewEnd(builder)
 }
 
@@ -168,6 +170,7 @@ func (rcv *BattleView) UnPackTo(t *BattleViewT) {
 	t.AttackerDamage = rcv.AttackerDamage()
 	t.DefenderDamage = rcv.DefenderDamage()
 	t.TickRate = rcv.TickRate()
+	t.ZonesHeld = rcv.ZonesHeld()
 }
 
 func (rcv *BattleView) UnPack() *BattleViewT {
@@ -565,8 +568,20 @@ func (rcv *BattleView) MutateTickRate(n byte) bool {
 	return rcv._tab.MutateByteSlot(52, n)
 }
 
+func (rcv *BattleView) ZonesHeld() uint32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(54))
+	if o != 0 {
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BattleView) MutateZonesHeld(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(54, n)
+}
+
 func BattleViewStart(builder *flatbuffers.Builder) {
-	builder.StartObject(25)
+	builder.StartObject(26)
 }
 func BattleViewAddId(builder *flatbuffers.Builder, id uint32) {
 	builder.PrependUint32Slot(0, id, 0)
@@ -648,6 +663,9 @@ func BattleViewAddDefenderDamage(builder *flatbuffers.Builder, defenderDamage fl
 }
 func BattleViewAddTickRate(builder *flatbuffers.Builder, tickRate byte) {
 	builder.PrependByteSlot(24, tickRate, 0)
+}
+func BattleViewAddZonesHeld(builder *flatbuffers.Builder, zonesHeld uint32) {
+	builder.PrependUint32Slot(25, zonesHeld, 0)
 }
 func BattleViewEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

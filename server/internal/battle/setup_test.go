@@ -170,3 +170,26 @@ func TestASquadPartwayThroughAPadKeepsTakingIt(t *testing.T) {
 		t.Errorf("a fresh 5 s capture fits in %d ticks; want it not to", s.Setup-s.Tick)
 	}
 }
+
+// One squad takes a pad: the rest of the base doesn't follow it there (#115).
+func TestOneSquadGoesForEachPad(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	for seed := range uint64(10) {
+		s := newSim(c, unsc, cov, seed)
+		s.Setup = 15 * s.TPS()
+		s.Builders[Defender] = true
+		ai := s.Controllers[Defender].(*AI)
+		for s.Tick < s.Setup+30*s.TPS() && !s.Over {
+			s.Step()
+			on := map[Cell]int{}
+			for id, p := range ai.plans {
+				if sq := s.squad(id); p.goal.kind == takePad && sq.alive() {
+					if on[p.goal.cell]++; on[p.goal.cell] > 1 {
+						t.Fatalf("seed %d, tick %d: %d squads going for the pad at %v", seed, s.Tick, on[p.goal.cell], p.goal.cell)
+					}
+				}
+			}
+		}
+	}
+}

@@ -180,8 +180,13 @@ type BattleRules struct {
 	// steps per Match tick, rounded down: use a multiple of 5.
 	TicksPerSecond int `json:"ticksPerSecond"`
 
-	// Seconds of fighting, after startDelay, until the defender wins.
+	// Seconds of fighting, after startDelay, until the Battle ends: the attacker wins
+	// if it holds more Landing Zones than the defender, and otherwise the defender
+	// does.
 	TimeCap int `json:"timeCap"`
+
+	// Seconds in a row the attacker must hold every Landing Zone to win the Battle.
+	ZoneHoldSeconds int `json:"zoneHoldSeconds"`
 }
 
 // How Battlefields are generated. A map's Planet can override the size and preset.

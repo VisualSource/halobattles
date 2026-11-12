@@ -192,6 +192,7 @@ type GoFrame = {
     Retreating: [boolean, boolean];
     BuildingsLeft: number;
     Buildings: number;
+    ZonesHeld: number;
     Drops:
       | {
           Side: number;
@@ -278,6 +279,7 @@ export function toBattle(f: GoFrame, field: Battlefield): Battle {
     raid: !!f.raid,
     buildingsLeft: s.BuildingsLeft,
     buildings: s.Buildings,
+    zonesHeld: s.ZonesHeld,
     commanded: false, // the Lab page knows which sides it commands
     // Both sides' Dropships, in the sim's order: a Land order names one by it.
     drops: (s.Drops ?? []).map((d) => ({

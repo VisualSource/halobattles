@@ -326,6 +326,7 @@ const toBattle = (
   raid: b.raid,
   buildingsLeft: b.buildingsLeft,
   buildings: b.buildings,
+  zonesHeld: b.zonesHeld,
   commanded: b.commanded,
   summary: b.summary,
   damage: { attacker: b.attackerDamage, defender: b.defenderDamage },

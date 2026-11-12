@@ -240,9 +240,11 @@ func TestSquadsDontFlipFlopBetweenGoals(t *testing.T) {
 		}
 	}
 	// 14: the attacker's phases (Landing Zones, then the Command Post, and back
-	// if the shield comes up, #124) add a few changes of their own.
-	if worst > 14 {
-		t.Errorf("a squad changed goals %d times in one Battle; want at most 14", worst)
+	// if the shield comes up, #124) add a few changes of their own; 16 since a
+	// defender behind on zones goes out to retake them (#115), so they and the
+	// shield change hands more.
+	if worst > 16 {
+		t.Errorf("a squad changed goals %d times in one Battle; want at most 16", worst)
 	}
 }
 

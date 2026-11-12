@@ -1131,6 +1131,18 @@ function Status(props: { conn: LabConnection; content: ContentLookups }) {
             )}
             %
           </span>
+          {battle.zonesHeld > 0 && (
+            <span className="text-danger ml-3 font-mono">
+              all held: attacker wins in{" "}
+              {clock(
+                Math.max(
+                  0,
+                  props.content.rules.battle.zoneHoldSeconds -
+                    battle.zonesHeld / battle.tickRate,
+                ),
+              )}
+            </span>
+          )}
         </span>
       </div>
       <div className="border-line bg-panel flex flex-1 flex-col gap-1 rounded-lg border px-3 py-2">

@@ -166,8 +166,13 @@ tickRate():number {
   return offset ? this.bb!.readUint8(this.bb_pos + offset) : 0;
 }
 
+zonesHeld():number {
+  const offset = this.bb!.__offset(this.bb_pos, 54);
+  return offset ? this.bb!.readUint32(this.bb_pos + offset) : 0;
+}
+
 static startBattleView(builder:flatbuffers.Builder) {
-  builder.startObject(25);
+  builder.startObject(26);
 }
 
 static addId(builder:flatbuffers.Builder, id:number) {
@@ -310,6 +315,10 @@ static addTickRate(builder:flatbuffers.Builder, tickRate:number) {
   builder.addFieldInt8(24, tickRate, 0);
 }
 
+static addZonesHeld(builder:flatbuffers.Builder, zonesHeld:number) {
+  builder.addFieldInt32(25, zonesHeld, 0);
+}
+
 static endBattleView(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
@@ -340,7 +349,8 @@ unpack(): BattleViewT {
     this.summary(),
     this.attackerDamage(),
     this.defenderDamage(),
-    this.tickRate()
+    this.tickRate(),
+    this.zonesHeld()
   );
 }
 
@@ -369,6 +379,7 @@ unpackTo(_o: BattleViewT): void {
   _o.attackerDamage = this.attackerDamage();
   _o.defenderDamage = this.defenderDamage();
   _o.tickRate = this.tickRate();
+  _o.zonesHeld = this.zonesHeld();
 }
 }
 
@@ -396,7 +407,8 @@ constructor(
   public summary: boolean = false,
   public attackerDamage: number = 0.0,
   public defenderDamage: number = 0.0,
-  public tickRate: number = 0
+  public tickRate: number = 0,
+  public zonesHeld: number = 0
 ){}
 
 
@@ -432,6 +444,7 @@ pack(builder:flatbuffers.Builder): flatbuffers.Offset {
   BattleView.addAttackerDamage(builder, this.attackerDamage);
   BattleView.addDefenderDamage(builder, this.defenderDamage);
   BattleView.addTickRate(builder, this.tickRate);
+  BattleView.addZonesHeld(builder, this.zonesHeld);
 
   return BattleView.endBattleView(builder);
 }

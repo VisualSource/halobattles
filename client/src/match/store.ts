@@ -210,6 +210,7 @@ export type Battle = {
   raid: boolean; // the attacker is after the buildings, within raidTime
   buildingsLeft: number; // public: the Planet's buildings standing, a Raid's score
   buildings: number; // and at the start
+  zonesHeld: number; // public: ticks in a row the attacker has held every Landing Zone
   commanded: boolean; // your side is yours to command: no AI runs it
   drops: Drop[]; // your side's Dropships
   /**

@@ -195,6 +195,7 @@ const (
 	TimeUp     = "time"
 	Retreated  = "retreat"
 	Raided     = "raided" // a Raid destroyed every Planet building
+	Zones      = "zones"  // the attacker held every Landing Zone for zoneHoldSeconds
 )
 
 // Logged is a player's order and the tick it came in before, so a Battle can
@@ -236,10 +237,13 @@ type Sim struct {
 	// switch (#124); off, the attacker sees it only in Sight, as a building.
 	ShowCommandPost bool
 	// Drops are the Dropships over the Battle, in the order they arrived.
-	Drops  []Drop
-	Over   bool
-	Winner Side
-	Reason string
+	Drops []Drop
+	// ZonesHeld is how many ticks in a row the attacker has held every
+	// Landing Zone: at zoneHoldSeconds' worth it wins.
+	ZonesHeld int
+	Over      bool
+	Winner    Side
+	Reason    string
 	// RetreatAt is the tick each side's Retreat countdown ends, or 0; once it
 	// has, the side is Retreating and can't call it off.
 	RetreatAt  [2]int
@@ -439,13 +443,17 @@ func (s *Sim) commandPost() *Squad {
 // attacker holds at least half the Landing Zones, rounded up, it blocks every
 // hit, so the map between the landing and the base matters.
 func (s *Sim) shielded() bool {
-	held := 0
+	return s.zones()[Attacker] < (len(s.Points)+1)/2
+}
+
+// zones is how many Landing Zones each side holds.
+func (s *Sim) zones() (held [2]int) {
 	for _, p := range s.Points {
-		if p.Owner == Attacker {
-			held++
+		if p.Owner != NoSide {
+			held[p.Owner]++
 		}
 	}
-	return held < (len(s.Points)+1)/2
+	return held
 }
 
 // layers is a fresh member's Shield, Armor and HP, with its side's Boost.
@@ -1231,6 +1239,11 @@ func (s *Sim) capture() {
 			}
 		}
 	}
+	if n := len(s.Points); n > 0 && s.zones()[Attacker] == n && !s.setup() && !s.Raid {
+		s.ZonesHeld++
+	} else {
+		s.ZonesHeld = 0
+	}
 	for i := range s.Pads {
 		p := &s.Pads[i]
 		if t := s.squad(p.Turret); t != nil && !t.alive() {
@@ -1353,12 +1366,19 @@ func (s *Sim) end() {
 			cp.Members = nil
 		}
 		s.Over, s.Winner, s.Reason = true, Attacker, Retreated
-	// Otherwise the attacker wins only by destroying the Command Post: a
-	// defence wiped out leaves it standing to be destroyed.
+	// Otherwise the attacker wins by destroying the Command Post (a defence
+	// wiped out leaves it standing to be destroyed), or on ground: holding
+	// every Landing Zone for zoneHoldSeconds, or more of them than the
+	// defender at the time cap.
 	case cp != nil && !cp.alive():
 		s.Over, s.Winner, s.Reason = true, Attacker, Destroyed
+	case s.rules.ZoneHoldSeconds > 0 && s.ZonesHeld >= s.rules.ZoneHoldSeconds*s.TPS():
+		s.Over, s.Winner, s.Reason = true, Attacker, Zones
 	case s.Tick-s.Setup >= s.rules.TimeCap*s.TPS(): // fighting time only
 		s.Over, s.Winner, s.Reason = true, Defender, TimeUp
+		if held := s.zones(); held[Attacker] > held[Defender] {
+			s.Winner = Attacker
+		}
 	}
 }
 
@@ -1407,6 +1427,7 @@ type Snapshot struct {
 	// The Planet's buildings standing, and at the start: public in a Raid,
 	// its score.
 	BuildingsLeft, Buildings int
+	ZonesHeld                int // public: ticks in a row the attacker has held every Landing Zone
 	// Drops are the side's Dropships, by their index in the Sim's.
 	Drops []SideDrop
 }
@@ -1426,7 +1447,7 @@ func (s *Sim) SnapshotAll() Snapshot { return s.snapshot(NoSide, true) }
 func (s *Sim) snapshot(side Side, all bool) Snapshot {
 	snap := Snapshot{
 		Tick: s.Tick, Edge: s.Edge, Points: slices.Clone(s.Points), Pads: slices.Clone(s.Pads),
-		Retreating: s.Retreating,
+		Retreating: s.Retreating, ZonesHeld: s.ZonesHeld,
 	}
 	for _, sq := range s.Squads {
 		if sq.planetBuilding() {

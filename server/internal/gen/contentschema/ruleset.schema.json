@@ -165,7 +165,7 @@
       "description": "How a Battle runs on its Battlefield.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["ticksPerSecond", "startDelay", "timeCap", "raidTime", "raidCap", "raidRoles", "landingDelay", "padSight", "padCooldown", "startReach", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "autoDifficulty", "garrisonDifficulty", "highGroundToHit", "heightReach", "heightLevels", "sightObscured", "retreatCountdown", "structure", "commandPost", "classDefaults"],
+      "required": ["ticksPerSecond", "startDelay", "timeCap", "zoneHoldSeconds", "raidTime", "raidCap", "raidRoles", "landingDelay", "padSight", "padCooldown", "startReach", "padBuildSeconds", "neutralFunds", "captureRadius", "captureSeconds", "autoDifficulty", "garrisonDifficulty", "highGroundToHit", "heightReach", "heightLevels", "sightObscured", "retreatCountdown", "structure", "commandPost", "classDefaults"],
       "properties": {
         "ticksPerSecond": { "description": "Sim steps a second. The Match ticks 5 times a second, so it runs this many steps per Match tick, rounded down: use a multiple of 5.", "type": "integer", "minimum": 5, "multipleOf": 5 },
         "startDelay": { "description": "Seconds from an Army's arrival to the first sim tick: both sides are deployed and the Planet Locked, so players can open the Battle.", "type": "integer", "minimum": 0 },
@@ -174,7 +174,8 @@
         "startReach": { "description": "How far, in cells, from the Command Post or one of its buildings a Planet's owner can place a Stack's start in its defence layout.", "type": "number", "minimum": 0 },
         "padBuildSeconds": { "description": "Seconds a turret takes to build on a build pad.", "type": "number", "minimum": 0 },
         "neutralFunds": { "description": "What a neutral garrison has to spend on pad turrets in each Battle, having no economy.", "$ref": "defs.schema.json#/definitions/resourceMap" },
-        "timeCap": { "description": "Seconds of fighting, after startDelay, until the defender wins.", "type": "integer", "minimum": 1 },
+        "timeCap": { "description": "Seconds of fighting, after startDelay, until the Battle ends: the attacker wins if it holds more Landing Zones than the defender, and otherwise the defender does.", "type": "integer", "minimum": 1 },
+        "zoneHoldSeconds": { "description": "Seconds in a row the attacker must hold every Landing Zone to win the Battle.", "type": "integer", "minimum": 1 },
         "raidTime": { "description": "Seconds of fighting a Raid has to destroy the Planet's buildings; then the raiders go home.", "type": "integer", "minimum": 1 },
         "raidCap": { "description": "The most Command Points a raiding Stack can hold.", "type": "integer", "minimum": 1 },
         "landingDelay": { "description": "Seconds a Dropship waits in orbit over a Battle before the AI sends it to a Landing Zone; a commanding player can send it sooner.", "type": "number", "minimum": 0 },

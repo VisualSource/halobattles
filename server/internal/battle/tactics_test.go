@@ -110,3 +110,28 @@ func TestASquadMovedToAnotherGoalIsntALossToItsForce(t *testing.T) {
 		t.Error("the Warthog regroups when the Marines were sent elsewhere, none of them lost")
 	}
 }
+
+// A defender behind on Landing Zones loses at the time cap, so its last
+// squad leaves a Command Post nobody threatens to take one back (#115):
+// it sat by it for three minutes while one Marine held a zone.
+func TestADefenderBehindOnZonesLeavesAQuietCommandPost(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	s := newSim(c, unsc, cov, 3)
+	var last *Squad
+	for _, sq := range s.Squads {
+		if sq.Side == Defender && !sq.Building && last != nil {
+			sq.Members = nil // dead
+		} else if sq.Side == Defender && !sq.Building {
+			last = sq
+		}
+	}
+	freeAt(t, s, last, s.Field.CommandPost, 1)
+	s.see()
+	ai := s.Controllers[Defender].(*AI)
+	v := View{s, Defender}
+	ai.command(v, v.Own(), v.Enemies())
+	if p := ai.plans[last.ID]; p == nil || p.goal.kind == defend {
+		t.Errorf("the last squad's plan %+v; want it off after a Landing Zone or pad, not guarding", p)
+	}
+}

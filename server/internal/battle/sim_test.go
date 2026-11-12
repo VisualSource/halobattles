@@ -189,7 +189,7 @@ func TestDestroyingTheCommandPostWins(t *testing.T) {
 	if cp == nil || cp.Side != Defender || !cp.Building || cp.Armed || cp.Cell != s.Field.CommandPost {
 		t.Fatalf("Command Post %+v; want the defender's, unarmed, at the Field's cell %v", cp, s.Field.CommandPost)
 	}
-	for i := range s.Points { // holding every Landing Zone wins nothing
+	for i := range s.Points { // holding every Landing Zone wins nothing at once
 		s.Points[i].Owner = Attacker
 	}
 	s.end()
@@ -224,11 +224,75 @@ func TestTheDefendersStacksDeployInTheirBase(t *testing.T) {
 	}
 }
 
+// The attacker wins by holding every Landing Zone for zoneHoldSeconds in a
+// row; losing one starts the count again.
+func TestHoldingEveryLandingZoneWins(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	s := newSim(c, unsc, cov, 3)
+	s.Controllers = [2]Controller{} // nobody moves
+	for i := range s.Points {
+		s.Points[i].Owner = Attacker
+	}
+	need := s.rules.ZoneHoldSeconds * s.TPS()
+	for range need - 1 {
+		s.Step()
+	}
+	if s.Over {
+		t.Fatalf("over after %d ticks of %d: %v by %s", s.ZonesHeld, need, s.Winner, s.Reason)
+	}
+	s.Points[0].Owner = Defender
+	s.Step()
+	if s.Over || s.ZonesHeld != 0 {
+		t.Fatalf("a zone lost: over %v, held %d ticks; want the count started again", s.Over, s.ZonesHeld)
+	}
+	s.Points[0].Owner = Attacker
+	for range need {
+		s.Step()
+	}
+	if !s.Over || s.Winner != Attacker || s.Reason != Zones {
+		t.Errorf("over %v, winner %v, reason %q; want the attacker's, on zones", s.Over, s.Winner, s.Reason)
+	}
+}
+
+// At the time cap the side holding more Landing Zones wins, the defender on a tie.
+func TestTimeCapGoesToTheSideWithMoreLandingZones(t *testing.T) {
+	c := baseContent(t)
+	unsc, cov := kits()
+	for _, tc := range []struct {
+		owners []Side
+		want   Side
+	}{
+		{[]Side{Attacker, Defender}, Defender}, // a tie
+		{[]Side{Attacker, NoSide}, Attacker},
+		{[]Side{NoSide, Defender}, Defender},
+	} {
+		s := newSim(c, unsc, cov, 3)
+		for i := range s.Points {
+			s.Points[i].Owner = NoSide
+		}
+		for i, o := range tc.owners {
+			s.Points[i].Owner = o
+		}
+		s.Tick = s.rules.TimeCap*s.TPS() - 1
+		if s.end(); s.Over {
+			t.Fatal("over before the cap")
+		}
+		s.Tick++
+		if s.end(); !s.Over || s.Winner != tc.want || s.Reason != TimeUp {
+			t.Errorf("zones %v: over %v, winner %v, reason %q; want %v's, on time", tc.owners, s.Over, s.Winner, s.Reason, tc.want)
+		}
+	}
+}
+
 func TestTimeCapGoesToTheDefender(t *testing.T) {
 	c := baseContent(t)
 	unsc, cov := kits()
 	s := newSim(c, unsc, cov, 3)
 	s.Controllers = [2]Controller{} // nobody moves
+	for i := range s.Points {       // level on Landing Zones: a tie
+		s.Points[i].Owner = NoSide
+	}
 	s.Tick = s.rules.TimeCap*s.TPS() - 1
 	s.end()
 	if s.Over {

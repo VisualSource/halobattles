@@ -16,7 +16,6 @@ watchexec = "2.7.3"
 description = "Install client deps and the pre-push hook"
 run = [
   "pnpm -C client install",
-  "mise generate git-pre-commit --write --hook pre-push --task pre-push",
 ]
 
 [tasks.gen]
@@ -77,6 +76,8 @@ run = [
   # Build first, then start Nakama once on the fresh .so. Starting it before
   # the build finished meant a second restart that dropped every Match.
   "mise run build",
+  # Gitignored, so missing on a fresh checkout; podman won't create a bind mount's source.
+  "mkdir -p match-logs",
   "${CONTAINER:-podman} compose -f deploy/compose.yml up -d --force-recreate nakama",
   # Watch sources, not server/: vendor/ churn shows up as events on server/
   # itself. Add new top-level Go dirs the .so builds from here. Queue, don't

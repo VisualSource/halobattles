@@ -89,7 +89,7 @@ Base-Mod Terrains:
 
 - **Start delay:** when an Army arrives, the Planet Locks and both sides deploy at once, but the fighting waits `battle.startDelay` (15 s). That gives players time to open the Battle and see the layout. The window counts down meanwhile. A Battle decided on arrival (one side has nothing that can fight) ends at once.
 - **Setup phase** (#68): the sim runs through the start delay, at its usual rate, as a setup phase for the defender. Its first ticks (`Setup`, the delay's worth) are setup; the fighting starts after them.
-  - Only the defender moves, and only if its side can build a pad turret at all: a neutral garrison always can; a player once they hold a Tech that unlocks one of their Faction's. It's there to take pads: its AI sends a squad only to a pad it can walk to, take, and walk back from to a held point before the fighting starts, valuing a pad at 5 against 2 for holding a point. Roles and sentry beats wait for the fighting. A defender that can't build waits on its points, as before the setup phase existed.
+  - Only the defender moves, and only if its side can build a pad turret at all: a neutral garrison always can; a player once they hold a Tech that unlocks one of their Faction's. It's there to take pads: its AI sends a squad only to a pad it can walk to, take, and walk back from to a held point before the fighting starts, valuing a pad at 5 against 2 for holding a point. One squad goes for each pad, in setup and after: at 5, a pad shared three ways still beat guarding, and a whole base walked to one (#115). Roles and sentry beats wait for the fighting. A defender that can't build waits on its points, as before the setup phase existed.
   - The attacker only watches. A Retreat ordered in setup counts its countdown from the first fighting tick.
   - Nothing fires; points can't change hands; no side wins or loses.
   - Captures and turret builds take their usual times (`captureSeconds`, `padBuildSeconds`), so a turret started in setup finishes early in the fight.
@@ -169,7 +169,7 @@ The Ruleset's `classDefaults` holds the default value of each field per Unit Cla
 
 ### Landing Zones
 
-Landing Zones are what the code calls Control Points. Until reinforcements (#57) land on them, holding one changes nothing; both sides still fight over them.
+Landing Zones are what the code calls Control Points. Holding them powers the Command Post's shield, lands reinforcements, and can win the Battle (see [Winning](#winning)).
 
 - A Battlefield has its layout's Landing Zones, each layout its own number (3 or 4 in the base Mod), in the main region; the layout marks those an attacker can land at, on its far side from the base.
 - **Nobody holds them** when the Battle starts, except the one the attacker lands at. The defender takes them like anyone else.
@@ -179,9 +179,32 @@ Landing Zones are what the code calls Control Points. Until reinforcements (#57)
 
 ### Winning
 
-- **Attacker wins** only by **destroying the Command Post**. Wiping out the defence leaves it standing to be destroyed, and the time cap still runs. A defender that Retreats abandons the Battle: once its Retreat is over, its Command Post blows up and the attacker wins. An empty Planet, enemy or neutral, with no units and no buildings, is captured with no Battle at all.
+- **Attacker wins** by:
+  - **destroying the Command Post**. Wiping out the defence leaves it standing to be destroyed, and the time cap still runs;
+  - **holding every Landing Zone** for `battle.zoneHoldSeconds` (30 s) in a row; losing one starts the count again;
+  - holding **more Landing Zones than the defender at the time cap**.
+
+  A defender that Retreats abandons the Battle: once its Retreat is over, its Command Post blows up and the attacker wins. An empty Planet, enemy or neutral, with no units and no buildings, is captured with no Battle at all.
+- **Why ground wins** (#115, from [the battle-structure research](../research/rts-battle-structure-eaw-halo-wars-2.md)): neither Empire at War nor Halo Wars 2 hands the timer to the defender. The attacker lands holding one zone, so a defender that takes none loses at the cap. A Raid is unchanged.
+  - **The defender's AI** values taking a zone at 2 while it holds fewer than the attacker (otherwise 1.2). At 3, as much as holding one, it measured 62% / 61% / 52% / 54%, but its squads left an enemy in plain view alone for the zones. The attacker's AI is unchanged.
+  - **Measured**, attacker wins over 100 seeds, both sides at Hard (UNSC attacks, Covenant attacks, then the same with three Stacks a side):
+
+    | | UNSC | Covenant | Big: UNSC | Big: Covenant |
+    |---|---|---|---|---|
+    | Before: the cap to the defender | 47% | 54% | 28% | 37% |
+    | The cap scored by zones | 58% | 68% | 39% | 43% |
+    | + all zones held 30 s wins | 70% | 75% | 46% | 47% |
+    | + the defender retakes when behind | 64% | 60% | 50% | 53% |
+
+    | + the defender leaves a quiet Command Post, and knows when it's shelled (below) | 47% | 57% | 36% | 43% |
+
+  - **A defender behind on zones doesn't guard a quiet Command Post:** while it holds fewer zones than the attacker and has seen no enemy within 12 cells of the Command Post lately, it has no goal to hold it, so its squads go for zones and pads. Standing by the Command Post brings no shield back up, and loses at the cap. Seen in the Lab on seed 1: its last Spectre sat by the Command Post for three minutes while one Marine held a zone.
+  - **Threat to the Command Post** counts enemies seen within 12 cells of it (6 for any other goal): a vehicle shells it from 7, and its guards never counted that as a threat.
+  - **Falling back to the Command Post** (step 5b) lasts 30 s past the last sighting of twice the defender's numbers, where it had lasted until the defender held a zone again.
+
+    Before those three, as first built, 16–25% of Battles ended on zones and 5–17% at the cap; a 60 s hold measured within 2 points of 30 s, and a 3 min cap 57–62% (both with the retake at 3). As built now, 5–12% end on zones and 7–14% at the cap, and fights last 131–143 s. Covenant attacks sit 2 points over the 40–55% target and big UNSC attacks 4 under, left for the balance pass.
 - **Defender wins** by:
-  - the **time cap, 4 min** of fighting, counted after the start delay (3 min before #124's shield and hidden Command Post);
+  - the **time cap, 4 min** of fighting, counted after the start delay, if it holds as many Landing Zones as the attacker or more;
   - **elimination**: the attacker has no Squads left;
   - the attacker **Retreating** ([Retreat](#retreat-in-battle)).
 - **Mutual wipe-out**, or both sides finishing a Retreat on the same tick: the defender keeps the Planet, as before.
@@ -415,6 +438,7 @@ These are replaced: the Initiative die, the Round duration and the Round cap.
 | `battlefield.pointArea` | 3 cells |
 | `battle.startDelay` | 15 s |
 | `battle.timeCap` | 240 s |
+| `battle.zoneHoldSeconds` | 30 s |
 | `battle.raidTime` | 100 s |
 | `battle.raidCap` | 10 Command Points |
 | `battle.captureRadius` | 2 cells |

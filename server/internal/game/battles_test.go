@@ -132,6 +132,10 @@ func TestABeatenAttackerRetreatsToItsNearestPlanet(t *testing.T) {
 	a := s.Planets["a"]
 	_ = s.OrderArmy(0, "a", []ArmyUnits{{0, "base:warthog", 2}}, "b", 0)
 	s.Advance(c, 30_000)
+	sim := onlyBattle(t, s).Sim
+	for i := range sim.Points { // level on Landing Zones, or the attacker's own would win it the cap
+		sim.Points[i].Owner = battle.NoSide
+	}
 
 	ev := fight(t, s, c)
 

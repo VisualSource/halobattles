@@ -76,6 +76,7 @@ const rules: Ruleset = {
     ticksPerSecond: 10,
     startDelay: 30,
     timeCap: 180,
+    zoneHoldSeconds: 30,
     raidTime: 100,
     raidCap: 10,
     raidRoles: ["scout"],

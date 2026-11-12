@@ -847,6 +847,7 @@ describe("MatchConnection", () => {
       raid: false,
       buildingsLeft: 0,
       buildings: 0,
+      zonesHeld: 0,
       commanded: false,
       drops: [],
     });

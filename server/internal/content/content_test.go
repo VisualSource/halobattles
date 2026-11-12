@@ -37,7 +37,7 @@ const baseRules = `{
 	"techTransferCost": {"common": {"credits": 100}, "uncommon": {"credits": 200}, "rare": {"credits": 400}, "legendary": {"credits": 800}},
 	"battlefield": {"width": 32, "height": 24, "terrainPreset": "plain", "pathClass": "infantry",
 		"deployDepth": 3},
-	"battle": {"ticksPerSecond": 10, "startDelay": 30, "timeCap": 180, "raidTime": 100, "raidCap": 10, "raidRoles": ["scout"], "landingDelay": 20, "padSight": 4, "padCooldown": 20, "startReach": 8, "padBuildSeconds": 10, "neutralFunds": {"credits": 400}, "captureRadius": 2, "captureSeconds": 5,
+	"battle": {"ticksPerSecond": 10, "startDelay": 30, "timeCap": 180, "zoneHoldSeconds": 30, "raidTime": 100, "raidCap": 10, "raidRoles": ["scout"], "landingDelay": 20, "padSight": 4, "padCooldown": 20, "startReach": 8, "padBuildSeconds": 10, "neutralFunds": {"credits": 400}, "captureRadius": 2, "captureSeconds": 5,
 		"autoDifficulty": "easy", "garrisonDifficulty": "easy", "highGroundToHit": 2, "heightReach": 1, "heightLevels": 2, "sightObscured": 2, "retreatCountdown": 10, "structure": {"unitClass": "infantry", "shield": 0, "armor": 20, "hp": 30},
 		"commandPost": {"unitClass": "infantry", "shield": 0, "armor": 60, "hp": 150},
 		"classDefaults": {"infantry": {"speed": 1.5, "range": 5, "fireInterval": 1.5, "sight": 8}}},

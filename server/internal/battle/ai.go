@@ -150,12 +150,12 @@ type AI struct {
 	converging bool
 	// seeking: an attacker that hasn't found the standing Command Post yet
 	// (#124), so it sends scouts.
-	seeking bool
-	pulled  map[int]int    // squads that have pulled back (once each), by id: the tick they rejoin
-	gaveUp  map[[2]int]int // a squad's chase it gave up, by squad and target id: the tick
-	holding bool           // a defender fallen back to its Command Post, till it holds a point again
-	inView  map[int]int    // enemies in view, by id: the tick each came into view
-	round   map[int]int    // a skirmisher's place on its patrol
+	seeking  bool
+	pulled   map[int]int    // squads that have pulled back (once each), by id: the tick they rejoin
+	gaveUp   map[[2]int]int // a squad's chase it gave up, by squad and target id: the tick
+	holdTill int            // a defender fallen back to its Command Post: the tick it comes out again
+	inView   map[int]int    // enemies in view, by id: the tick each came into view
+	round    map[int]int    // a skirmisher's place on its patrol
 	// Trace, if set, hears each change in what a squad has been told to do,
 	// for a Match log.
 	Trace    func(Decision)
@@ -241,6 +241,13 @@ const (
 	// holdLandingZone is what the defender wants a Landing Zone it holds:
 	// holding enough keeps the Command Post's shield up (#124). First pass.
 	holdLandingZone = 3
+	// holdOutSeconds is how long a defender fallen back to its Command Post
+	// stays after it last saw twice its numbers.
+	holdOutSeconds = 30
+	// retakeLandingZone is what the defender wants a Landing Zone while it
+	// holds fewer than the attacker, and so would lose at the time cap (#115).
+	// At 3 its squads left an enemy in plain view alone for the zones.
+	retakeLandingZone = 2
 	// block is the side, in cells, of the squares the AI tracks looking at.
 	block = 8
 	// scoutShare is the part of a defender's mobile squads sent scouting,
@@ -288,6 +295,9 @@ const (
 	buildingThreat = 5
 	nearRadius     = 3 // cells: a friendly this close is near
 	threatRadius   = 6 // cells: enemies this close to a goal threaten it
+	// postRadius is how close they threaten the Command Post: a vehicle
+	// shells it from 7 cells, past threatRadius, and its guards never knew.
+	postRadius = 12
 	// convergeMembers: the defender converges on a point only once at least
 	// this many enemy members threaten it, so a lone scout doesn't pull it in.
 	convergeMembers = 3
@@ -473,7 +483,13 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	// Two phases (#124): while the Landing Zones keep the Command Post's shield
 	// up, or it hasn't been found, the attacker masses on them; then on it.
 	zones := v.Side == Attacker && !raider && cp != nil && cp.alive() && (s.shielded() || !found)
-	if cp != nil && cp.alive() && !raider {
+	// A defender behind on zones loses at the time cap, and standing by its
+	// Command Post brings no shield back up: with no enemy seen near it, its
+	// squads go for the zones instead (#115). One fallen back there stays.
+	holdOut := ai.holdOut(v, own)
+	sally := v.Side == Defender && !s.setup() && !holdOut && cp != nil && s.zones()[Attacker] > s.zones()[Defender] &&
+		!slices.ContainsFunc(slices.Collect(maps.Values(ai.sighted)), func(sg sighting) bool { return dist(sg.cell, cp.Cell) <= postRadius })
+	if cp != nil && cp.alive() && !raider && !sally {
 		if zones {
 			// No assault yet: the shield blocks every hit, or it's not been found.
 		} else if v.Side == Attacker {
@@ -493,6 +509,9 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			add(goal{kind: capture, cell: p.Cell}, assaultValue) // what the assault is worth: the way to it
 		case p.Owner != v.Side && v.Side == Attacker:
 			add(goal{kind: capture, cell: p.Cell}, attackerLandingZone)
+		case p.Owner != v.Side && s.zones()[Attacker] > s.zones()[Defender]:
+			// Behind on zones, the defender loses at the time cap, or sooner.
+			add(goal{kind: capture, cell: p.Cell}, retakeLandingZone)
 		case p.Owner != v.Side:
 			add(goal{kind: capture, cell: p.Cell}, landingZone)
 		case v.Side == Defender:
@@ -562,7 +581,6 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	}
 	// A defender that has lost its points and is outnumbered 2 to 1 falls
 	// back to its Command Post, rather than dying spread over them.
-	holdOut := ai.holdOut(v, own)
 	if holdOut {
 		var keep []goal
 		var kept []float64
@@ -580,7 +598,11 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 	threat := make([]float64, len(goals))
 	for i, g := range goals {
 		for _, id := range slices.Sorted(maps.Keys(ai.sighted)) {
-			if sg := ai.sighted[id]; id != g.target && dist(sg.cell, g.cell) <= threatRadius {
+			reach := threatRadius
+			if g.kind == defend && cp != nil && g.cell == cp.Cell {
+				reach = postRadius
+			}
+			if sg := ai.sighted[id]; id != g.target && dist(sg.cell, g.cell) <= float64(reach) {
 				threat[i] += float64(sg.members)
 			}
 		}
@@ -665,6 +687,9 @@ func (ai *AI) command(v View, own, enemies []*Squad) {
 			}
 			if g.kind == takePad && s.setup() && (!s.Builders[v.Side] || !ai.backInTime(v, sq, g.cell)) {
 				continue // no use to it yet, or it would still be out when the fighting starts
+			}
+			if g.kind == takePad && assigned[i] > 0 {
+				continue // one squad takes a pad: the rest have better to do
 			}
 			if at, ok := ai.gaveUp[[2]int{sq.ID, g.target}]; g.kind == kill && ok && v.Tick()-at < chaseSeconds*s.TPS() {
 				continue // no relentless chase
@@ -1666,23 +1691,21 @@ func (ai *AI) pullback(v View, sq *Squad) ([]Order, bool) {
 // holdOut is whether a defender falls back to its Command Post: the fighting
 // has started, it isn't Raided (a raider is after the buildings), it holds
 // none of the Control Points, and the enemy it has seen lately has twice its
-// members. Once it has, it stays till it holds a point again: huddled at the
-// Command Post it loses sight of an army waiting on the points, and would
-// walk back out into it.
+// members. It stays holdOutSeconds past the last such sighting: huddled at
+// the Command Post it loses sight of an army waiting on the points, and would
+// walk straight back out into it. But not for good: holding no zone it loses
+// at the time cap (#115), so once the enemy has gone quiet it comes out.
 func (ai *AI) holdOut(v View, own []*Squad) bool {
 	s := v.sim
 	if v.Side != Defender || s.setup() || s.Raid {
 		return false
 	}
 	if slices.ContainsFunc(s.Points, func(p Point) bool { return p.Owner == Defender }) {
-		ai.holding = false
+		ai.holdTill = 0
 		return false
 	}
 	if cp := s.commandPost(); cp == nil || !cp.alive() {
 		return false
-	}
-	if ai.holding {
-		return true
 	}
 	mine, theirs := 0, 0
 	for _, sq := range own {
@@ -1693,8 +1716,10 @@ func (ai *AI) holdOut(v View, own []*Squad) bool {
 	for _, sg := range ai.sighted {
 		theirs += sg.members
 	}
-	ai.holding = theirs >= 2*mine
-	return ai.holding
+	if theirs >= 2*mine {
+		ai.holdTill = v.Tick() + holdOutSeconds*s.TPS()
+	}
+	return v.Tick() < ai.holdTill
 }
 
 // does is whether a squad has a behaviour that this AI plays: an Easy one
