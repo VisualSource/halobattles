@@ -90,8 +90,15 @@ func DuelWant(c *cs.Content, a, b string) string {
 // it with DuelStep.
 func NewDuel(c *cs.Content, r cs.Ruleset, a string, na int, b string, nb int, seed uint64) *Sim {
 	force := func(u string, n int) Force { return Force{Formations: [][]Slot{{{u, n, 0}}}} }
+	return NewDuelOf(c, r, force(a, na), force(b, nb), seed)
+}
+
+// NewDuelOf is attack against defend as a duel: their units only, laid out
+// as NewDuel lays out two.
+func NewDuelOf(c *cs.Content, r cs.Ruleset, attack, defend Force, seed uint64) *Sim {
+	attack.Buildings, defend.Buildings = nil, nil
 	f := openField(64, 48)
-	s := New(c, r, f, force(a, na), force(b, nb), seed)
+	s := New(c, r, f, attack, defend, seed)
 	for _, sq := range s.Squads {
 		if sq.Building || sq.CommandPost {
 			sq.Members = nil // nothing but the two forces
@@ -164,7 +171,11 @@ func DuelStep(s *Sim) []Volley {
 
 // fight is one duel, a attacking, and a's share of the win: 1, 0, or 0.5 for a Draw.
 func fight(c *cs.Content, r cs.Ruleset, a string, na int, b string, nb int, seed uint64) float64 {
-	s := NewDuel(c, r, a, na, b, nb, seed)
+	return outcome(NewDuel(c, r, a, na, b, nb, seed))
+}
+
+// outcome plays a duel out: the attacker's share of the win.
+func outcome(s *Sim) float64 {
 	for !s.Over {
 		DuelStep(s)
 	}

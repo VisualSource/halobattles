@@ -801,6 +801,7 @@ From watching v4 Battles (#124): the attacker went straight for the Command Post
   | + 4 min cap (as built) | 67% | 33% | 45% | 24% |
 
   Fights last 141–155 s. Taking the zones first had the attacker fight the defence in the open, away from its turrets (attackers wiped out fell from about 29% to 11%); hiding the Command Post took most of that back. The UNSC-against-Covenant lean was there before and is the end-of-v4 balance pass's.
+- **The Covenant kit's Ghosts** (after step 7, from [the battle-structure research](../research/rts-battle-structure-eaw-halo-wars-2.md)): the Faction gap was the kits, not the Command Post. On open ground the UNSC kit beat the Covenant's 70%: the infantry halves were even, but 2 Warthogs beat 2 Ghosts 98%, since a Ghost fights vehicles at Disadvantage. A Faction-even Command Post layer mix (54/27/135) only took UNSC attacks from 67% to 58% and left Covenant ones where they were. The Covenant kit now has 2 Spectres, the Warthog's peer, with its Shield 10 → 9 (Warthog against Spectre 55% in the duel matrix, the kits 46% on open ground), and a test holds the kits within 40–60% of each other. Attacker wins: UNSC 47%, Covenant 54%; big Battles 28% and 37%, which leaves big Battles leaning hard to the defender, an attacker/defender question for the balance pass rather than a Faction one.
 - **Known gaps:** a Raid's attacker still looks for buildings round the Command Post's real cell, and an attacker's Dropship picks the Landing Zone nearest the real one; both should go by what it has seen.
 
 ### Order of work

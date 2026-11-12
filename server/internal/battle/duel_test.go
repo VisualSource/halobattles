@@ -52,3 +52,23 @@ func TestTheDuelMatrixHoldsTheCounters(t *testing.T) {
 	}
 	t.Logf("row's win rate against column (peers in equal numbers, the rest at %d CP a side); * should win, = should be even, ! isn't:\n%s", DuelBudget, table.String())
 }
+
+// The Starting Kits, fought on open ground as a duel (no AI, no buildings),
+// on both sides, come out about even: a Faction's kit isn't the reason its
+// attacks win or lose. A Ghost that folded against vehicles once lost the
+// Covenant kit 70% of these, unseen by the pairs above.
+func TestTheStartingKitsAreEvenOnOpenGround(t *testing.T) {
+	c := modContent(t)
+	r := ruleset(c)
+	kits := func(a, b string, seed uint64) float64 {
+		return outcome(NewDuelOf(c, r, kitForce(c, a, false), kitForce(c, b, false), seed))
+	}
+	const seeds = 100
+	wins := 0.0
+	for seed := range uint64(seeds) {
+		wins += (kits("base:unsc", "base:covenant", seed) + 1 - kits("base:covenant", "base:unsc", seed)) / 2
+	}
+	if rate := wins / seeds; rate < 0.4 || rate > 0.6 {
+		t.Errorf("the UNSC kit beats the Covenant kit %.0f%%, want 40–60%%", rate*100)
+	}
+}

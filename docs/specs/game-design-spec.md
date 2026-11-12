@@ -171,7 +171,7 @@ The rosters mirror each other's roles and costs. Covenant units put part of thei
 
 A [Unit Variant](../../GLOSSARY.md) (the M12A Rocket Warthog from the M12 Warthog, say) is trained where its parent is and locked while its parent is; it stays out of the build picker until the player can train it ([content](technical-architecture-spec.md#unit-variants), [locking](tech-spec.md#locked-content)).
 
-Tiers below are written C (`counter`), A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`), as they come out after a unit's own tiers are laid over its Unit Class's (the triangle: infantry beats aircraft, aircraft beats vehicles, vehicles beat infantry; see [Counters](tactical-battle-spec.md#counters-step-3)). The duel matrix keeps peers (Marine and Grunt, Warthog and Ghost...) even and the counters winning; the Starting Kit balance is retuned at the end of Tactical Battles v4 (see [Pacing](tactical-battle-spec.md#pacing)).
+Tiers below are written C (`counter`), A (`advantage`), N (`normal`), D (`disadvantage`) and – (`none`), as they come out after a unit's own tiers are laid over its Unit Class's (the triangle: infantry beats aircraft, aircraft beats vehicles, vehicles beat infantry; see [Counters](tactical-battle-spec.md#counters-step-3)). The duel matrix keeps peers (Marine and Grunt, Warthog and Spectre...) even, and the Starting Kits even against each other, and the counters winning; the Starting Kit balance is retuned at the end of Tactical Battles v4 (see [Pacing](tactical-battle-spec.md#pacing)).
 
 | Unit | Faction | Class | Weapon | Sh/Ar/HP | Damage roll | Tiers Inf/Veh/Air/Str | Cost | Upkeep | Time | CP | Trained at |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -184,6 +184,7 @@ Tiers below are written C (`counter`), A (`advantage`), N (`normal`), D (`disadv
 | Grunt | Covenant | Inf | Plasma | 2/0/10 | 1d4 | N/D/A/D | 50C | 5C | 15s | 1 | Hall |
 | Elite | Covenant | Inf | Explosive | 10/0/14 | 2d6 | D/C/A/A | 100C 25M | 10C | 25s | 2 | Hall |
 | Ghost | Covenant | Veh | Plasma | 14/5/18 | 2d4 | A/D/D/D | 150C 50M 15A | 15C 1A | 30s | 3 | Summoning Foundry |
+| Spectre | Covenant | Veh | Plasma | 9/6/27 | 2d4 | A/N/D/D | 150C 50M 15A | 15C 1A | 30s | 3 | none yet |
 | Wraith | Covenant | Veh | Explosive | 17/17/30 | 4d6+1 | N/C/–/A | 250C 100M 30A | 25C 2A | 45s | 4 | Summoning Foundry |
 | AA Wraith | Covenant | Veh | Plasma | 12/12/28 | 3d6 | D/D/C/D | 200C 80M 25A | 20C 2A | 40s | 3 | Summoning Foundry |
 | Banshee | Covenant | Air | Plasma | 13/5/23 | 2d6 | D/A/A/N | 300C 150M 40A | 30C 2A | 50s | 4 | Summit |
@@ -230,7 +231,7 @@ A Planet pays its base income itself; Richness (none ×0, poor ×0.5, normal ×1
 Each kit puts three buildings on the Capital, one of them a [Lab](tech-spec.md#labs), leaving 1 of its 4 Building Slots free. Its first Stack holds 10 basic infantry and 2 light vehicles, which use 16 of the Capital's 20 Command Points.
 
 - **UNSC:** Barracks, Supply Pad, Research Lab, 10 Marines, 2 Warthogs.
-- **Covenant:** Hall, Warehouse, Sanctum, 10 Grunts, 2 Ghosts.
+- **Covenant:** Hall, Warehouse, Sanctum, 10 Grunts, 2 Spectres. The Spectre is the Warthog's peer; Ghosts, which fight vehicles at Disadvantage, lost the Covenant kit 70% of open-ground fights against the UNSC's.
 
 ## The first map
 

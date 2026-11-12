@@ -6,13 +6,14 @@
   "faction": "covenant",
   "tactics": "A shock vehicle that cuts through infantry and can Raid. Keep it away from aircraft.",
   "cost": { "credits": 150, "materials": 50, "alloys": 15 },
+  "upkeep": { "credits": 15, "alloys": 1 },
   "buildTime": 30,
   "commandPoints": 3,
   "roles": ["shock"],
   "combat": {
     "unitClass": "vehicle",
     "weaponType": "plasma",
-    "shield": 10,
+    "shield": 9,
     "armor": 6,
     "hp": 27,
     "damage": "2d4"
