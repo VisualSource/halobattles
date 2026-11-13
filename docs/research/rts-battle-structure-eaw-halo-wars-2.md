@@ -127,6 +127,46 @@ Sources:
 
 - The manual gives no length for campaign battles, and I found no first-party figure. Skirmish battles "are shorter conflicts" (p. 5). There's no time limit (see above).
 
+### From the game files
+
+Read from XML and Lua files copied out of the game and two mods. Cited as `source: file, tag`, where the source is one of:
+- `base`: EaW;
+- `foc`: Forces of Corruption;
+- `tr`: the Thrawn's Revenge mod;
+- `aotr`: the Awakening of the Rebellion mod.
+
+These are data files, not design notes. The mods are fan work.
+
+- **The fan figures above check out.** In `foc: GAMECONSTANTS.XML`:
+  - captures and retreat are both locked for 30 s (`Land_Capture_Allowed_Countdown_Seconds`, `Land_Retreat_Allowed_Countdown_Seconds`);
+  - retreat attrition is 0 (`Land_Retreat_Attrition_Factor`);
+  - auto-resolve costs the loser 80% and the winner 75% (`AutoResolveLoserAttrition`, `AutoResolveWinnerAttrition`);
+  - a fleeing retreat in auto-resolve costs 65% and 50%;
+  - orbital bombardment comes every 260 s.
+- **No time limit anywhere.** None of the four sets has a battle timer.
+  - A battle ends in one of three ways: one side is wiped out, the attacker overruns (below), or the domination win in multiplayer, which needs every control point held for 30 s (`Control_Point_Domination_Victory_Time_In_Secs`; aotr 60 s).
+- **Overrun.** At 3:1 odds, after at least 30 s, the battle is called for the stronger side (`Tactical_Overrun_Multiple`, `Minimum_Tactical_Overrun_Time_In_Secs`).
+  - Both mods raise the minimum to 100 s, so a battle is always fought for a while.
+  - tr turns overrun off (multiple 999).
+- **Land unit cap.** The cap is 10 in skirmish, falling to 5 with 8 players (`aotr: FACTIONS.XML, Land_Skirmish_Unit_Cap_By_Player_Count`).
+  - In the campaign each reinforcement point adds capacity through `Additional_Population_Capacity`.
+  - A plain point adds 5, takes 10 s to capture, and stays yours once you leave it (`tr: Markers.xml, Reinforcement_Point`, `Ownership_Sticks`).
+- **Base EaW let the defender reinforce; FoC took it away.** `Allow_Reinforcement_Percentage_Normalized` is 0.25 in base and 0.0 in foc.
+- **Thrawn's Revenge's Victory Point is close to our Command Post** (`tr: Markers.xml, Victory_Point`; `Scripts/Library/eawx-plugins-gameobject-land/victory-point-handler/VictoryPointHandler.lua`). It's a capture point that:
+  - starts as the defender's (`Always_Side_With_Defender`);
+  - takes 45 s to capture, against 10 s for a plain point;
+  - can't be damaged;
+  - adds 10 capacity to whoever holds it;
+  - is marked as a rush target for the AI.
+- **The attacker who captures the Victory Point wins the battle outright** (`StoryUtil.DeclareVictory`).
+  - The capture doesn't count while the defender still has a planetary shield or capital building (`tr: AI/PerceptualEquations/BasicLandEquations.xml, Disable_VictoryPoint`).
+  - So the attacker knocks out a building first, then holds ground for 45 s, rather than grinding down hit points.
+- **Defence buildings switch off attacker tools.** In tr, while the defender has an ion cannon, hypervelocity gun or planetary shield, bombardment is off (`Disable_Bombardment`, same file).
+- **Difficulty never touches combat.** AI difficulty changes only Credits and build time. Damage, Health and Shield multipliers are 1.0 at every level in both mods (`DifficultyAdjustments.xml`).
+  - For example, tr Hard gets ×1.35 Credits and ×0.8 build time.
+  - aotr goes up to ×3.25 Credits.
+- **A catch-up rule.** In multiplayer tactical play, the team with the lower income gets 8% of the income gap as a bonus every tick (`foc: Multiplayer_Losing_Team_Bonus_Credit_Percentage`).
+
 ## Halo Wars 2 (2017)
 
 Sources:
@@ -234,6 +274,9 @@ All of the following are **options**, not decisions. Each is marked as likely to
 - **Option:** the attacker also wins by holding every Landing Zone (or all but one) for N seconds. This brings back part of the v3 hold timer, which measured 54% / 54% before it was dropped (#98).
   - Taking ground doesn't depend on Weapon Type against a structure's layers, so it should narrow the Faction gap.
   - It also raises attacker wins overall, so the time cap or the hold time would need retuning.
+- **A variant from Thrawn's Revenge** (see "From the game files"): the attacker wins by capturing the Command Post rather than destroying it. The capture is a 45 s hold, and it only counts once the shield is down.
+  - Our shield already drops when the Landing Zones are taken, so this swaps "chew through 60 armour and 150 HP" for "stand there 45 s".
+  - Standing still doesn't care about Weapon Type, which is where the Faction gap came from.
 
 ### 3. Score the time cap instead of handing it to the defender (shifts balance)
 
@@ -317,4 +360,5 @@ All of the following are **options**, not decisions. Each is marked as likely to
 - **Halo Battles:**
   - The 180 vs 230 damage estimate uses only the layer multipliers. It ignores to-hit, overkill, Explosive units and focus fire. It's a hypothesis to measure, not a result.
   - The gap figures in point 1 span several changes (counters, AI, the hold timer's removal), so they don't isolate the Command Post.
+- **The game files:** read as data only. I didn't check what the engine does with tags I didn't recognise, such as `Diminishing_Firepower`, `Base_Shield_Speed_Modifier` and `Base_Shield_Vulnerability_Modifier`, so they're left out. The mod files come from whatever versions were on the drive.
 - **None of this was tested in play.**
